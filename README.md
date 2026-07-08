@@ -25,3 +25,9 @@ Run the Hamiltonian streamer:
 ```sh
 python3 scripts/lyte_hamiltonian.py --host 192.168.1.50
 ```
+
+Increase playback speed:
+
+```sh
+python3 scripts/lyte_hamiltonian.py --host 192.168.1.50 --speed 80
+```

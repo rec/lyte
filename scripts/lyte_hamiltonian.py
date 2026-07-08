@@ -64,7 +64,10 @@ def main() -> int:
     frame_delay = 1 / args.fps
     stop_at = None if args.duration is None else time.monotonic() + args.duration
 
-    print(f"[ok] Streaming Hamiltonian frames to {host} for {led_count} LEDs")
+    print(
+        "[ok] Streaming Hamiltonian frames to "
+        f"{host} for {led_count} LEDs at {args.speed} pixels/second"
+    )
     try:
         while stop_at is None or time.monotonic() < stop_at:
             started_at = time.monotonic()
@@ -84,7 +87,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=float, default=5.0)
     parser.add_argument("--discovery-timeout", type=float, default=5.0)
     parser.add_argument("--led-count", type=int)
-    parser.add_argument("--speed", type=float, default=25)
+    parser.add_argument(
+        "--speed",
+        type=float,
+        default=25,
+        help="Hamiltonian color movement speed in LEDs per second.",
+    )
     parser.add_argument("--fps", type=float, default=20)
     parser.add_argument("--duration", type=float)
     parser.add_argument("--n", type=int, default=32)
