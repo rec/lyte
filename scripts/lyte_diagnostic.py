@@ -35,14 +35,17 @@ class RetryConfig(BaseModel, frozen=True):
     attempts: int
     delay: float
     backoff: float
+    backoff_after: int
 
 
 class DiagnosticConfig(BaseModel, frozen=True):
     host: str | None
     timeout: float
+    discovery_timeout: float
     led_count: int | None
     pause: float
     retry: RetryConfig
+    discovery_retry: RetryConfig
 
 
 def main() -> int:
@@ -54,7 +57,10 @@ def main() -> int:
     print("then send red, green, and blue UDP frames.")
     print()
 
-    host = config.host or discover_one(config.timeout, config.retry)
+    host = config.host or discover_one(
+        config.discovery_timeout,
+        config.discovery_retry,
+    )
     if host is None:
         return 1
 
@@ -86,6 +92,18 @@ def parse_args() -> DiagnosticConfig:
     )
     parser.add_argument("--timeout", type=float, default=5.0)
     parser.add_argument(
+        "--discovery-timeout",
+        type=float,
+        default=0.1,
+        help="Seconds to wait for each UDP discovery broadcast attempt.",
+    )
+    parser.add_argument(
+        "--discovery-attempts",
+        type=int,
+        default=20,
+        help="Attempts for UDP discovery.",
+    )
+    parser.add_argument(
         "--attempts",
         type=int,
         default=5,
@@ -104,6 +122,12 @@ def parse_args() -> DiagnosticConfig:
         help="Retry delay multiplier after each failed attempt.",
     )
     parser.add_argument(
+        "--discovery-backoff-after",
+        type=int,
+        default=10,
+        help="Discovery attempt number after which retry delay backs off.",
+    )
+    parser.add_argument(
         "--led-count",
         type=int,
         help="Number of LEDs. If omitted, read number_of_led from gestalt.",
@@ -112,19 +136,33 @@ def parse_args() -> DiagnosticConfig:
     args = parser.parse_args()
     if args.attempts < 1:
         parser.error("--attempts must be at least 1")
+    if args.discovery_attempts < 1:
+        parser.error("--discovery-attempts must be at least 1")
+    if args.discovery_timeout <= 0:
+        parser.error("--discovery-timeout must be greater than zero")
     if args.retry_delay < 0:
         parser.error("--retry-delay must not be negative")
     if args.retry_backoff < 1:
         parser.error("--retry-backoff must be at least 1")
+    if args.discovery_backoff_after < 1:
+        parser.error("--discovery-backoff-after must be at least 1")
     return DiagnosticConfig(
         host=args.host,
         timeout=args.timeout,
+        discovery_timeout=args.discovery_timeout,
         led_count=args.led_count,
         pause=args.pause,
         retry=RetryConfig(
             attempts=args.attempts,
             delay=args.retry_delay,
             backoff=args.retry_backoff,
+            backoff_after=1,
+        ),
+        discovery_retry=RetryConfig(
+            attempts=args.discovery_attempts,
+            delay=args.retry_delay,
+            backoff=args.retry_backoff,
+            backoff_after=args.discovery_backoff_after,
         ),
     )
 
@@ -312,7 +350,8 @@ def retry_call(
                 return None
             print(f"[retry] Waiting {delay * 1000:.1f} ms before retrying {label}.")
             time.sleep(delay)
-            delay *= retry.backoff
+            if attempt >= retry.backoff_after:
+                delay *= retry.backoff
             continue
 
         elapsed = (time.monotonic() - started_at) * 1000

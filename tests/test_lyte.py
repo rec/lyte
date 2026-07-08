@@ -97,7 +97,12 @@ class DiagnosticTests(unittest.TestCase):
                 raise self.diagnostic.RetryableDiagnosticError("empty reply")
             return "ok"
 
-        retry = self.diagnostic.RetryConfig(attempts=2, delay=0, backoff=1)
+        retry = self.diagnostic.RetryConfig(
+            attempts=2,
+            delay=0,
+            backoff=1,
+            backoff_after=1,
+        )
 
         with patch("sys.stdout", new_callable=io.StringIO), patch(
             "sys.stderr",
@@ -113,17 +118,57 @@ class DiagnosticTests(unittest.TestCase):
         self.assertEqual(result, "ok")
         self.assertEqual(calls, 2)
 
+    def test_retry_call_delays_backoff_until_configured_attempt(self) -> None:
+        calls = 0
+        sleeps = []
+
+        def operation() -> str:
+            nonlocal calls
+            calls += 1
+            if calls < 4:
+                raise self.diagnostic.RetryableDiagnosticError("empty reply")
+            return "ok"
+
+        retry = self.diagnostic.RetryConfig(
+            attempts=4,
+            delay=0.01,
+            backoff=2,
+            backoff_after=10,
+        )
+
+        with patch("sys.stdout", new_callable=io.StringIO), patch(
+            "sys.stderr",
+            new_callable=io.StringIO,
+        ), patch.object(self.diagnostic.time, "sleep", sleeps.append):
+            result = self.diagnostic.retry_call(
+                "operation",
+                retry,
+                operation,
+                (self.diagnostic.RetryableDiagnosticError,),
+            )
+
+        self.assertEqual(result, "ok")
+        self.assertEqual(sleeps, [0.01, 0.01, 0.01])
+
     def test_discover_one_retries_empty_discovery_results(self) -> None:
         calls = 0
+
+        timeouts = []
 
         def discover(timeout: float):
             nonlocal calls
             calls += 1
+            timeouts.append(timeout)
             if calls == 1:
                 return []
             return [DiscoveredDevice(ip_address="192.168.1.23", device_id="Twinkly")]
 
-        retry = self.diagnostic.RetryConfig(attempts=2, delay=0, backoff=1)
+        retry = self.diagnostic.RetryConfig(
+            attempts=2,
+            delay=0,
+            backoff=1,
+            backoff_after=1,
+        )
 
         with patch.object(self.diagnostic, "discover", discover), patch(
             "sys.stdout",
@@ -133,6 +178,7 @@ class DiagnosticTests(unittest.TestCase):
 
         self.assertEqual(host, "192.168.1.23")
         self.assertEqual(calls, 2)
+        self.assertEqual(timeouts, [0.01, 0.01])
 
 
 if __name__ == "__main__":
