@@ -7,7 +7,8 @@ import http.client
 import json
 import os
 import time
-from dataclasses import dataclass
+
+from pydantic import BaseModel
 
 from .crypto import make_challenge_response
 from .errors import AuthenticationError, ProtocolError
@@ -16,14 +17,12 @@ from .errors import AuthenticationError, ProtocolError
 AUTH_HEADER = "X-Auth-Token"
 
 
-@dataclass(frozen=True)
-class LyteResponse:
+class LyteResponse(BaseModel, frozen=True):
     http_status: int
     data: dict[str, object]
 
 
-@dataclass
-class AuthToken:
+class AuthToken(BaseModel):
     value: str
     challenge_response: str
     expires_at: float | None

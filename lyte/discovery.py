@@ -5,8 +5,9 @@ from __future__ import annotations
 import ipaddress
 import socket
 import time
-from dataclasses import dataclass
 from typing import Iterator
+
+from pydantic import BaseModel
 
 from .errors import DiscoveryError
 
@@ -16,8 +17,7 @@ DISCOVERY_PORT = 5555
 DEFAULT_BROADCAST = "255.255.255.255"
 
 
-@dataclass(frozen=True)
-class DiscoveredDevice:
+class DiscoveredDevice(BaseModel, frozen=True):
     ip_address: str
     device_id: str
 

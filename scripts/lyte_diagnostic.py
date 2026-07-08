@@ -6,18 +6,18 @@ from __future__ import annotations
 import argparse
 import sys
 import time
-from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from pydantic import BaseModel
 
 from lyte import AuthenticationError, ProtocolError, LyteClient, discover
 from lyte.errors import DiscoveryError
 from lyte.realtime import send_frame_v3, solid_rgb_frame
 
 
-@dataclass(frozen=True)
-class DiagnosticConfig:
+class DiagnosticConfig(BaseModel, frozen=True):
     host: str | None
     timeout: float
     led_count: int | None
