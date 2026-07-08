@@ -16,7 +16,7 @@ from lyte.hamiltonian import (
     next_hamiltonian,
     parse_order,
 )
-from lyte.logging import LOGGING
+from lyte.logging import LOGGING, log, log_error
 from lyte.realtime import frame_packets_v3, solid_rgb_frame
 
 
@@ -87,6 +87,22 @@ class ClientTests(unittest.TestCase):
 class LoggingTests(unittest.TestCase):
     def test_logging_is_disabled_by_default(self) -> None:
         self.assertFalse(LOGGING)
+
+    def test_error_logging_is_always_displayed(self) -> None:
+        output = io.StringIO()
+
+        with patch("sys.stderr", output):
+            log_error("failure")
+
+        self.assertEqual(output.getvalue(), "failure\n")
+
+    def test_regular_logging_is_hidden_by_default(self) -> None:
+        output = io.StringIO()
+
+        with patch("sys.stdout", output):
+            log("hidden")
+
+        self.assertEqual(output.getvalue(), "")
 
 
 class HamiltonianTests(unittest.TestCase):

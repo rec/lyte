@@ -14,5 +14,4 @@ def log(message: str = "") -> None:
 
 
 def log_error(message: str) -> None:
-    if LOGGING:
-        print(message, file=sys.stderr)
+    print(message, file=sys.stderr)
