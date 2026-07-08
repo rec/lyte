@@ -241,6 +241,14 @@ class DiagnosticTests(unittest.TestCase):
         self.assertEqual(calls, 2)
         self.assertEqual(timeouts, [0.01, 0.01])
 
+    def test_parse_args_uses_slower_network_retry_defaults(self) -> None:
+        with patch("sys.argv", ["lyte_diagnostic.py"]):
+            config = self.diagnostic.parse_args()
+
+        self.assertEqual(config.retry.attempts, 10)
+        self.assertEqual(config.retry.delay, 0.5)
+        self.assertEqual(config.discovery_retry.delay, 0.05)
+
 
 class HamiltonianScriptTests(unittest.TestCase):
     @classmethod
@@ -277,6 +285,13 @@ class HamiltonianScriptTests(unittest.TestCase):
 
         self.assertEqual(result, "ok")
         self.assertEqual(calls, 2)
+
+    def test_parse_args_uses_slower_network_retry_defaults(self) -> None:
+        with patch("sys.argv", ["lyte_hamiltonian.py"]):
+            args = self.script.parse_args()
+
+        self.assertEqual(args.attempts, 10)
+        self.assertEqual(args.retry_delay, 0.5)
 
 
 if __name__ == "__main__":
