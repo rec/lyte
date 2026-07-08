@@ -32,12 +32,11 @@ class AuthToken(BaseModel):
         return self.expires_at is not None and self.expires_at <= time.time()
 
 
-class LyteClient:
-    def __init__(self, host: str, mac: str | None = None, timeout: float = 5.0):
-        self.host = host
-        self.mac = mac
-        self.timeout = timeout
-        self.token: AuthToken | None = None
+class LyteClient(BaseModel):
+    host: str
+    mac: str | None = None
+    timeout: float = 5.0
+    token: AuthToken | None = None
 
     def authenticate(self) -> AuthToken:
         challenge = os.urandom(32)
