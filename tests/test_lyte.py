@@ -220,5 +220,42 @@ class DiagnosticTests(unittest.TestCase):
         self.assertEqual(timeouts, [0.01, 0.01])
 
 
+class HamiltonianScriptTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        path = Path(__file__).parents[1] / "scripts" / "lyte_hamiltonian.py"
+        spec = importlib.util.spec_from_file_location("lyte_hamiltonian", path)
+        assert spec is not None
+        assert spec.loader is not None
+        cls.script = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.script)
+
+    def test_retry_call_recovers_after_transient_protocol_error(self) -> None:
+        calls = 0
+
+        def operation() -> str:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise ProtocolError("timed out")
+            return "ok"
+
+        with patch("sys.stdout", new_callable=io.StringIO), patch(
+            "sys.stderr",
+            new_callable=io.StringIO,
+        ), patch.object(self.script.time, "sleep"):
+            result = self.script.retry_call(
+                "device info",
+                2,
+                0.01,
+                2,
+                operation,
+                (ProtocolError,),
+            )
+
+        self.assertEqual(result, "ok")
+        self.assertEqual(calls, 2)
+
+
 if __name__ == "__main__":
     unittest.main()
