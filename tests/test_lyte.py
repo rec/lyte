@@ -150,18 +150,17 @@ class DiagnosticTests(unittest.TestCase):
         self.assertEqual(result, "ok")
         self.assertEqual(sleeps, [0.01, 0.01, 0.01])
 
-    def test_discover_one_retries_empty_discovery_results(self) -> None:
+    def test_discover_one_retries_empty_discovery_attempts(self) -> None:
         calls = 0
-
         timeouts = []
 
-        def discover(timeout: float):
+        def discovery_attempt(sock, timeout: float, attempt: int, attempts: int):
             nonlocal calls
             calls += 1
             timeouts.append(timeout)
             if calls == 1:
-                return []
-            return [DiscoveredDevice(ip_address="192.168.1.23", device_id="Twinkly")]
+                return None
+            return DiscoveredDevice(ip_address="192.168.1.23", device_id="Twinkly")
 
         retry = self.diagnostic.RetryConfig(
             attempts=2,
@@ -170,10 +169,14 @@ class DiagnosticTests(unittest.TestCase):
             backoff_after=1,
         )
 
-        with patch.object(self.diagnostic, "discover", discover), patch(
-            "sys.stdout",
+        with patch.object(
+            self.diagnostic,
+            "discovery_attempt",
+            discovery_attempt,
+        ), patch("sys.stdout", new_callable=io.StringIO), patch(
+            "sys.stderr",
             new_callable=io.StringIO,
-        ), patch("sys.stderr", new_callable=io.StringIO):
+        ):
             host = self.diagnostic.discover_one(0.01, retry)
 
         self.assertEqual(host, "192.168.1.23")

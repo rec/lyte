@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import socket
 import sys
 import time
 from pathlib import Path
@@ -18,7 +19,12 @@ from lyte import (
     DiscoveredDevice,
     ProtocolError,
     LyteClient,
-    discover,
+)
+from lyte.discovery import (
+    DEFAULT_BROADCAST,
+    DISCOVERY_MESSAGE,
+    DISCOVERY_PORT,
+    parse_discovery_response,
 )
 from lyte.errors import DiscoveryError
 from lyte.realtime import send_frame_v3, solid_rgb_frame
@@ -170,37 +176,80 @@ def parse_args() -> DiagnosticConfig:
 def discover_one(timeout: float, retry: RetryConfig) -> str | None:
     print_step("Discovering Twinkly devices with UDP broadcast on port 5555")
 
-    def discover_once() -> list[DiscoveredDevice]:
-        devices = list(discover(timeout=timeout))
-        if not devices:
-            raise RetryableDiagnosticError("No Twinkly discovery replies received")
-        return devices
+    delay = retry.delay
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        sock.bind(("", 0))
+        for attempt in range(1, retry.attempts + 1):
+            device = discovery_attempt(sock, timeout, attempt, retry.attempts)
+            if device is not None:
+                print_success(f"Found {device.device_id} at {device.ip_address}")
+                return device.ip_address
 
-    devices = retry_call(
-        "UDP discovery broadcast",
-        retry,
-        discover_once,
-        (DiscoveryError, OSError, RetryableDiagnosticError),
+            if attempt == retry.attempts:
+                print_failure("UDP discovery broadcast exhausted all retry attempts.")
+                break
+            print(
+                "[retry] Waiting "
+                f"{delay * 1000:.1f} ms before retrying UDP discovery broadcast."
+            )
+            time.sleep(delay)
+            if attempt >= retry.backoff_after:
+                delay *= retry.backoff
+
+    print("Check that the lights are powered on and joined to this network.")
+    print("Check that this computer is on the same IPv4 network as the lights.")
+    print("Some routers block broadcast traffic between WiFi clients.")
+    print("Try passing --host with the device IP address.")
+    return None
+
+
+def discovery_attempt(
+    sock: socket.socket,
+    timeout: float,
+    attempt: int,
+    attempts: int,
+    destination: str = DEFAULT_BROADCAST,
+) -> DiscoveredDevice | None:
+    print(f"[try] UDP discovery broadcast: attempt {attempt}/{attempts}")
+    started_at = time.monotonic()
+    deadline = started_at + timeout
+    sock.sendto(DISCOVERY_MESSAGE, (destination, DISCOVERY_PORT))
+
+    while (remaining := deadline - time.monotonic()) > 0:
+        sock.settimeout(remaining)
+        try:
+            data, _address = sock.recvfrom(256)
+        except TimeoutError:
+            break
+        if data == DISCOVERY_MESSAGE:
+            continue
+        try:
+            device = parse_discovery_response(data)
+        except DiscoveryError as err:
+            elapsed = (time.monotonic() - started_at) * 1000
+            print_failure(
+                "UDP discovery broadcast received an invalid response on "
+                f"attempt {attempt}/{attempts} after {elapsed:.1f} ms: {err}"
+            )
+            continue
+
+        elapsed = (time.monotonic() - started_at) * 1000
+        if attempt > 1:
+            print_success(
+                "UDP discovery broadcast recovered on attempt "
+                f"{attempt} after {elapsed:.1f} ms."
+            )
+        else:
+            print_success(f"UDP discovery broadcast completed in {elapsed:.1f} ms.")
+        return device
+
+    elapsed = (time.monotonic() - started_at) * 1000
+    print_failure(
+        "UDP discovery broadcast got no replies on "
+        f"attempt {attempt}/{attempts} after {elapsed:.1f} ms."
     )
-    if devices is None:
-        print("Check that this computer is on the same IPv4 network as the lights.")
-        print("Some routers block broadcast traffic between WiFi clients.")
-        print("Try passing --host with the device IP address.")
-        return None
-
-    if not devices:
-        print_failure("No Twinkly discovery replies received.")
-        print("Check that the lights are powered on and joined to this network.")
-        print("If discovery is blocked by the router, pass --host with the device IP.")
-        return None
-    if len(devices) > 1:
-        print("Multiple devices responded:")
-        for device in devices:
-            print(f"  {device.ip_address}  {device.device_id}")
-        print(f"Using the first device: {devices[0].ip_address}")
-    else:
-        print_success(f"Found {devices[0].device_id} at {devices[0].ip_address}")
-    return devices[0].ip_address
+    return None
 
 
 def get_unauthenticated_info(client: LyteClient, retry: RetryConfig) -> bool:
