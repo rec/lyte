@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from lyte.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
+from lyte.client import LyteClient
 from lyte.discovery import parse_discovery_response
 from lyte.errors import DiscoveryError, ProtocolError
 from lyte.realtime import frame_packets_v3, solid_rgb_frame
@@ -62,6 +63,14 @@ class RealtimeTests(unittest.TestCase):
     def test_rejects_bad_realtime_token(self) -> None:
         with self.assertRaises(ProtocolError):
             list(frame_packets_v3("bad", b"abc"))
+
+
+class ClientTests(unittest.TestCase):
+    def test_constructs_with_keyword_arguments(self) -> None:
+        client = LyteClient(host="192.168.1.23", timeout=1.5)
+
+        self.assertEqual(client.host, "192.168.1.23")
+        self.assertEqual(client.timeout, 1.5)
 
 
 if __name__ == "__main__":

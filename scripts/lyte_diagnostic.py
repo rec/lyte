@@ -37,7 +37,7 @@ def main() -> int:
     if host is None:
         return 1
 
-    client = LyteClient(host, timeout=config.timeout)
+    client = LyteClient(host=host, timeout=config.timeout)
     print_step(f"Using device host {host}")
 
     if not get_unauthenticated_info(client):
