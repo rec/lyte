@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lyte import AuthenticationError, LyteClient, ProtocolError, discover
 from lyte.hamiltonian import HamiltonianStreamer
+from lyte.logging import log, log_error
 from lyte.realtime import send_frame_v3
 
 
@@ -27,7 +28,7 @@ def main() -> int:
 
     led_count = args.led_count
     client = LyteClient(host=host, timeout=args.timeout)
-    print(f"[step] Reading device info from {host}")
+    log(f"[step] Reading device info from {host}")
     gestalt = retry_call(
         f"HTTP device info read from {host}",
         args.attempts,
@@ -48,7 +49,7 @@ def main() -> int:
     if isinstance(mac, str):
         client.mac = mac
 
-    print("[step] Authenticating")
+    log("[step] Authenticating")
     token = retry_call(
         f"login and verify with {host}",
         args.attempts,
@@ -62,7 +63,7 @@ def main() -> int:
     if client.token is None:
         sys.exit("Authentication succeeded without producing a token.")
 
-    print("[step] Switching to realtime mode")
+    log("[step] Switching to realtime mode")
     realtime_response = retry_call(
         f"switch {host} to realtime mode",
         args.attempts,
@@ -86,7 +87,7 @@ def main() -> int:
     frame_delay = 1 / args.fps
     stop_at = None if args.duration is None else time.monotonic() + args.duration
 
-    print(
+    log(
         "[ok] Streaming Hamiltonian frames to "
         f"{host} for {led_count} LEDs at {args.speed} pixels/second"
     )
@@ -108,8 +109,8 @@ def main() -> int:
             if remaining > 0:
                 time.sleep(remaining)
     except KeyboardInterrupt:
-        print()
-        print("[ok] Stopped")
+        log()
+        log("[ok] Stopped")
     return 0
 
 
@@ -160,16 +161,16 @@ def parse_args() -> argparse.Namespace:
 
 
 def discover_host(timeout: float) -> str | None:
-    print("[step] Discovering Twinkly devices")
+    log("[step] Discovering Twinkly devices")
     devices = list(discover(timeout=timeout))
     if not devices:
-        print("[failed] No Twinkly discovery replies received.", file=sys.stderr)
-        print("Pass --host with the device IP address.", file=sys.stderr)
+        log_error("[failed] No Twinkly discovery replies received.")
+        log_error("Pass --host with the device IP address.")
         return None
     if len(devices) > 1:
-        print("[warn] Multiple devices found; using the first one.")
+        log("[warn] Multiple devices found; using the first one.")
     device = devices[0]
-    print(f"[ok] Found {device.device_id} at {device.ip_address}")
+    log(f"[ok] Found {device.device_id} at {device.ip_address}")
     return device.ip_address
 
 
@@ -183,36 +184,32 @@ def retry_call(
 ) -> T | None:
     current_delay = delay
     for attempt in range(1, attempts + 1):
-        print(f"[try] {label}: attempt {attempt}/{attempts}")
+        log(f"[try] {label}: attempt {attempt}/{attempts}")
         started_at = time.monotonic()
         try:
             result = operation()
         except retry_errors as err:
             elapsed = (time.monotonic() - started_at) * 1000
-            print(
+            log_error(
                 f"[failed] {label} failed on attempt {attempt}/{attempts} "
-                f"after {elapsed:.1f} ms: {type(err).__name__}: {err}",
-                file=sys.stderr,
+                f"after {elapsed:.1f} ms: {type(err).__name__}: {err}"
             )
             if attempt == attempts:
-                print(
-                    f"[failed] {label} exhausted all retry attempts.",
-                    file=sys.stderr,
-                )
+                log_error(f"[failed] {label} exhausted all retry attempts.")
                 return None
-            print(f"[retry] Waiting {current_delay * 1000:.1f} ms before retrying.")
+            log(f"[retry] Waiting {current_delay * 1000:.1f} ms before retrying.")
             time.sleep(current_delay)
             current_delay *= backoff
             continue
 
         elapsed = (time.monotonic() - started_at) * 1000
         if attempt > 1:
-            print(
+            log(
                 f"[ok] {label} recovered on attempt {attempt} "
                 f"after {elapsed:.1f} ms."
             )
         else:
-            print(f"[ok] {label} completed in {elapsed:.1f} ms.")
+            log(f"[ok] {label} completed in {elapsed:.1f} ms.")
         return result
     return None
 

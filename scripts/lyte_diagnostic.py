@@ -27,6 +27,7 @@ from lyte.discovery import (
     parse_discovery_response,
 )
 from lyte.errors import DiscoveryError
+from lyte.logging import log, log_error
 from lyte.realtime import send_frame_v3, solid_rgb_frame
 
 
@@ -56,12 +57,12 @@ class DiagnosticConfig(BaseModel, frozen=True):
 
 def main() -> int:
     config = parse_args()
-    print("Lyte diagnostic")
-    print("==============================")
-    print("This script uses only the Python standard library.")
-    print("It will discover a device, authenticate, switch to realtime mode,")
-    print("then send red, green, and blue UDP frames.")
-    print()
+    log("Lyte diagnostic")
+    log("==============================")
+    log("This script uses only the Python standard library.")
+    log("It will discover a device, authenticate, switch to realtime mode,")
+    log("then send red, green, and blue UDP frames.")
+    log()
 
     host = config.host or discover_one(
         config.discovery_timeout,
@@ -85,8 +86,8 @@ def main() -> int:
     if not send_visible_test(client, host, led_count, config.pause, config.retry):
         return 1
 
-    print()
-    print("Diagnostic completed. The lights should have flashed red, green, and blue.")
+    log()
+    log("Diagnostic completed. The lights should have flashed red, green, and blue.")
     return 0
 
 
@@ -189,7 +190,7 @@ def discover_one(timeout: float, retry: RetryConfig) -> str | None:
             if attempt == retry.attempts:
                 print_failure("UDP discovery broadcast exhausted all retry attempts.")
                 break
-            print(
+            log(
                 "[retry] Waiting "
                 f"{delay * 1000:.1f} ms before retrying UDP discovery broadcast."
             )
@@ -197,10 +198,10 @@ def discover_one(timeout: float, retry: RetryConfig) -> str | None:
             if attempt >= retry.backoff_after:
                 delay *= retry.backoff
 
-    print("Check that the lights are powered on and joined to this network.")
-    print("Check that this computer is on the same IPv4 network as the lights.")
-    print("Some routers block broadcast traffic between WiFi clients.")
-    print("Try passing --host with the device IP address.")
+    log("Check that the lights are powered on and joined to this network.")
+    log("Check that this computer is on the same IPv4 network as the lights.")
+    log("Some routers block broadcast traffic between WiFi clients.")
+    log("Try passing --host with the device IP address.")
     return None
 
 
@@ -211,7 +212,7 @@ def discovery_attempt(
     attempts: int,
     destination: str = DEFAULT_BROADCAST,
 ) -> DiscoveredDevice | None:
-    print(f"[try] UDP discovery broadcast: attempt {attempt}/{attempts}")
+    log(f"[try] UDP discovery broadcast: attempt {attempt}/{attempts}")
     started_at = time.monotonic()
     deadline = started_at + timeout
     sock.sendto(DISCOVERY_MESSAGE, (destination, DISCOVERY_PORT))
@@ -266,7 +267,7 @@ def get_unauthenticated_info(client: LyteClient, retry: RetryConfig) -> bool:
         (ProtocolError,),
     )
     if result is None:
-        print("The host may not be a Twinkly device, or HTTP port 80 may be blocked.")
+        log("The host may not be a Twinkly device, or HTTP port 80 may be blocked.")
         return False
     status, firmware, gestalt = result
 
@@ -280,8 +281,8 @@ def get_unauthenticated_info(client: LyteClient, retry: RetryConfig) -> bool:
     if isinstance(mac, str):
         client.mac = mac
     else:
-        print("Warning: gestalt did not include a MAC address.")
-        print("Authentication can continue, but challenge-response cannot be verified.")
+        log("Warning: gestalt did not include a MAC address.")
+        log("Authentication can continue, but challenge-response cannot be verified.")
     return True
 
 
@@ -299,9 +300,9 @@ def authenticate(client: LyteClient, retry: RetryConfig) -> bool:
         (AuthenticationError, ProtocolError),
     )
     if token is None:
-        print("Check that no other app is rapidly invalidating the token.")
-        print("Power-cycling the controller can clear stale auth state.")
-        print("The firmware may not match generation 2 REST behavior.")
+        log("Check that no other app is rapidly invalidating the token.")
+        log("Power-cycling the controller can clear stale auth state.")
+        log("The firmware may not match generation 2 REST behavior.")
         return False
     print_success(f"Authenticated. Token expires at {token.expires_at!r}.")
     return True
@@ -317,7 +318,7 @@ def detect_led_count(client: LyteClient, retry: RetryConfig) -> int | None:
         (ProtocolError,),
     )
     if gestalt is None:
-        print("Pass --led-count if you know the number of LEDs.")
+        log("Pass --led-count if you know the number of LEDs.")
         return None
 
     led_count = gestalt.get("number_of_led")
@@ -326,7 +327,7 @@ def detect_led_count(client: LyteClient, retry: RetryConfig) -> int | None:
         return led_count
 
     print_failure(f"Invalid number_of_led value: {led_count!r}")
-    print("Pass --led-count with the exact LED count for your string.")
+    log("Pass --led-count with the exact LED count for your string.")
     return None
 
 
@@ -340,7 +341,7 @@ def set_realtime_mode(client: LyteClient, retry: RetryConfig) -> bool:
         (AuthenticationError, ProtocolError),
     )
     if response is None:
-        print("Realtime mode requires a valid auth token.")
+        log("Realtime mode requires a valid auth token.")
         return False
     print_success(f"Realtime mode response: {response}")
     return True
@@ -368,8 +369,8 @@ def send_visible_test(
             (OSError, ProtocolError, ValueError),
         )
         if bytes_sent is None:
-            print("Check that UDP port 7777 is reachable from this computer.")
-            print("Confirm this is generation 2 firmware new enough for v3 frames.")
+            log("Check that UDP port 7777 is reachable from this computer.")
+            log("Confirm this is generation 2 firmware new enough for v3 frames.")
             return False
         print_success(f"Sent {name} frame, {bytes_sent} bytes.")
         time.sleep(pause)
@@ -384,7 +385,7 @@ def retry_call(
 ) -> T | None:
     delay = retry.delay
     for attempt in range(1, retry.attempts + 1):
-        print(f"[try] {label}: attempt {attempt}/{retry.attempts}")
+        log(f"[try] {label}: attempt {attempt}/{retry.attempts}")
         started_at = time.monotonic()
         try:
             result = operation()
@@ -397,7 +398,7 @@ def retry_call(
             if attempt == retry.attempts:
                 print_failure(f"{label} exhausted all retry attempts.")
                 return None
-            print(f"[retry] Waiting {delay * 1000:.1f} ms before retrying {label}.")
+            log(f"[retry] Waiting {delay * 1000:.1f} ms before retrying {label}.")
             time.sleep(delay)
             if attempt >= retry.backoff_after:
                 delay *= retry.backoff
@@ -415,16 +416,16 @@ def retry_call(
 
 
 def print_step(message: str) -> None:
-    print()
-    print(f"[step] {message}")
+    log()
+    log(f"[step] {message}")
 
 
 def print_success(message: str) -> None:
-    print(f"[ok] {message}")
+    log(f"[ok] {message}")
 
 
 def print_failure(message: str) -> None:
-    print(f"[failed] {message}", file=sys.stderr)
+    log_error(f"[failed] {message}")
 
 
 if __name__ == "__main__":

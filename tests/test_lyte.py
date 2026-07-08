@@ -16,6 +16,7 @@ from lyte.hamiltonian import (
     next_hamiltonian,
     parse_order,
 )
+from lyte.logging import LOGGING
 from lyte.realtime import frame_packets_v3, solid_rgb_frame
 
 
@@ -81,6 +82,11 @@ class ClientTests(unittest.TestCase):
 
         self.assertEqual(client.host, "192.168.1.23")
         self.assertEqual(client.timeout, 1.5)
+
+
+class LoggingTests(unittest.TestCase):
+    def test_logging_is_disabled_by_default(self) -> None:
+        self.assertFalse(LOGGING)
 
 
 class HamiltonianTests(unittest.TestCase):
