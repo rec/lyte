@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Small dependency-free Python client for Twinkly generation 2 lights"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["pydantic"]
 
 [tool.setuptools.packages.find]
 include = ["lyte"]
