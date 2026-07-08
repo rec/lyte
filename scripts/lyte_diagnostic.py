@@ -55,6 +55,9 @@ class DiagnosticConfig(BaseModel, frozen=True):
     discovery_retry: RetryConfig
 
 
+DiagnosticConfig.model_rebuild(_types_namespace={"RetryConfig": RetryConfig})
+
+
 def main() -> int:
     config = parse_args()
     log("Lyte diagnostic")
@@ -113,14 +116,20 @@ def parse_args() -> DiagnosticConfig:
     parser.add_argument(
         "--attempts",
         type=int,
-        default=5,
+        default=10,
         help="Attempts for transient network operations.",
     )
     parser.add_argument(
         "--retry-delay",
         type=float,
-        default=0.05,
+        default=0.5,
         help="Initial delay between retries, in seconds.",
+    )
+    parser.add_argument(
+        "--discovery-retry-delay",
+        type=float,
+        default=0.05,
+        help="Initial delay between UDP discovery retries, in seconds.",
     )
     parser.add_argument(
         "--retry-backoff",
@@ -149,6 +158,8 @@ def parse_args() -> DiagnosticConfig:
         parser.error("--discovery-timeout must be greater than zero")
     if args.retry_delay < 0:
         parser.error("--retry-delay must not be negative")
+    if args.discovery_retry_delay < 0:
+        parser.error("--discovery-retry-delay must not be negative")
     if args.retry_backoff < 1:
         parser.error("--retry-backoff must be at least 1")
     if args.discovery_backoff_after < 1:
@@ -167,7 +178,7 @@ def parse_args() -> DiagnosticConfig:
         ),
         discovery_retry=RetryConfig(
             attempts=args.discovery_attempts,
-            delay=args.retry_delay,
+            delay=args.discovery_retry_delay,
             backoff=args.retry_backoff,
             backoff_after=args.discovery_backoff_after,
         ),

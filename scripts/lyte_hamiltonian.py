@@ -122,13 +122,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--attempts",
         type=int,
-        default=5,
+        default=10,
         help="Attempts for transient HTTP and UDP operations.",
     )
     parser.add_argument(
         "--retry-delay",
         type=float,
-        default=0.05,
+        default=0.5,
         help="Initial delay between retries, in seconds.",
     )
     parser.add_argument(
