@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import importlib.util
+import io
+from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 from lyte.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.client import LyteClient
-from lyte.discovery import parse_discovery_response
+from lyte.discovery import DiscoveredDevice, parse_discovery_response
 from lyte.errors import DiscoveryError, ProtocolError
 from lyte.realtime import frame_packets_v3, solid_rgb_frame
 
@@ -71,6 +75,64 @@ class ClientTests(unittest.TestCase):
 
         self.assertEqual(client.host, "192.168.1.23")
         self.assertEqual(client.timeout, 1.5)
+
+
+class DiagnosticTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        path = Path(__file__).parents[1] / "scripts" / "lyte_diagnostic.py"
+        spec = importlib.util.spec_from_file_location("lyte_diagnostic", path)
+        assert spec is not None
+        assert spec.loader is not None
+        cls.diagnostic = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.diagnostic)
+
+    def test_retry_call_retries_retryable_result_failures(self) -> None:
+        calls = 0
+
+        def operation() -> str:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise self.diagnostic.RetryableDiagnosticError("empty reply")
+            return "ok"
+
+        retry = self.diagnostic.RetryConfig(attempts=2, delay=0, backoff=1)
+
+        with patch("sys.stdout", new_callable=io.StringIO), patch(
+            "sys.stderr",
+            new_callable=io.StringIO,
+        ):
+            result = self.diagnostic.retry_call(
+                "operation",
+                retry,
+                operation,
+                (self.diagnostic.RetryableDiagnosticError,),
+            )
+
+        self.assertEqual(result, "ok")
+        self.assertEqual(calls, 2)
+
+    def test_discover_one_retries_empty_discovery_results(self) -> None:
+        calls = 0
+
+        def discover(timeout: float):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return []
+            return [DiscoveredDevice(ip_address="192.168.1.23", device_id="Twinkly")]
+
+        retry = self.diagnostic.RetryConfig(attempts=2, delay=0, backoff=1)
+
+        with patch.object(self.diagnostic, "discover", discover), patch(
+            "sys.stdout",
+            new_callable=io.StringIO,
+        ), patch("sys.stderr", new_callable=io.StringIO):
+            host = self.diagnostic.discover_one(0.01, retry)
+
+        self.assertEqual(host, "192.168.1.23")
+        self.assertEqual(calls, 2)
 
 
 if __name__ == "__main__":

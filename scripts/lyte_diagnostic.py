@@ -13,12 +13,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from pydantic import BaseModel
 
-from lyte import AuthenticationError, ProtocolError, LyteClient, discover
+from lyte import (
+    AuthenticationError,
+    DiscoveredDevice,
+    ProtocolError,
+    LyteClient,
+    discover,
+)
 from lyte.errors import DiscoveryError
 from lyte.realtime import send_frame_v3, solid_rgb_frame
 
 
 T = TypeVar("T")
+
+
+class RetryableDiagnosticError(Exception):
+    """A diagnostic operation returned a retryable non-exception result."""
 
 
 class RetryConfig(BaseModel, frozen=True):
@@ -122,11 +132,17 @@ def parse_args() -> DiagnosticConfig:
 def discover_one(timeout: float, retry: RetryConfig) -> str | None:
     print_step("Discovering Twinkly devices with UDP broadcast on port 5555")
 
+    def discover_once() -> list[DiscoveredDevice]:
+        devices = list(discover(timeout=timeout))
+        if not devices:
+            raise RetryableDiagnosticError("No Twinkly discovery replies received")
+        return devices
+
     devices = retry_call(
         "UDP discovery broadcast",
         retry,
-        lambda: list(discover(timeout=timeout)),
-        (DiscoveryError, OSError),
+        discover_once,
+        (DiscoveryError, OSError, RetryableDiagnosticError),
     )
     if devices is None:
         print("Check that this computer is on the same IPv4 network as the lights.")
