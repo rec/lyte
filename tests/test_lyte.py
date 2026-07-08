@@ -10,6 +10,12 @@ from lyte.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.client import LyteClient
 from lyte.discovery import DiscoveredDevice, parse_discovery_response
 from lyte.errors import DiscoveryError, ProtocolError
+from lyte.hamiltonian import (
+    HamiltonianCounter,
+    HamiltonianStreamer,
+    next_hamiltonian,
+    parse_order,
+)
 from lyte.realtime import frame_packets_v3, solid_rgb_frame
 
 
@@ -75,6 +81,36 @@ class ClientTests(unittest.TestCase):
 
         self.assertEqual(client.host, "192.168.1.23")
         self.assertEqual(client.timeout, 1.5)
+
+
+class HamiltonianTests(unittest.TestCase):
+    def test_next_hamiltonian_matches_loop_special_case(self) -> None:
+        self.assertEqual(next_hamiltonian(4, 1, 0, 0), (0, 0, 0))
+        self.assertEqual(next_hamiltonian(4, 1, 0, 1), (2, 0, 1))
+
+    def test_counter_produces_scaled_rgb_values(self) -> None:
+        counter = HamiltonianCounter(n=4)
+
+        self.assertEqual(counter.next_color(), (0, 0, 0))
+        self.assertEqual(counter.next_color(), (0, 0, 64))
+        self.assertEqual(counter.next_color(), (0, 0, 128))
+
+    def test_counter_supports_order_and_inversion(self) -> None:
+        counter = HamiltonianCounter(n=4, order="bgr", inverted="r")
+
+        self.assertEqual(counter.next_color(), (192, 0, 0))
+        self.assertEqual(counter.next_color(), (128, 0, 0))
+
+    def test_parse_order_rejects_invalid_orders(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_order("rrg")
+
+    def test_streamer_returns_one_rgb_triplet_per_led(self) -> None:
+        streamer = HamiltonianStreamer(led_count=3, n=4, speed=4, fps=4)
+
+        self.assertEqual(streamer.next_frame(), b"\x00" * 9)
+        self.assertEqual(streamer.next_frame(), b"\x00" * 9)
+        self.assertEqual(streamer.next_frame(), b"\x00" * 6 + b"\x00\x00@")
 
 
 class DiagnosticTests(unittest.TestCase):

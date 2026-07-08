@@ -19,3 +19,9 @@ If UDP discovery is blocked by the network, pass the light controller IP:
 ```sh
 python3 scripts/lyte_diagnostic.py --host 192.168.1.50
 ```
+
+Run the Hamiltonian streamer:
+
+```sh
+python3 scripts/lyte_hamiltonian.py --host 192.168.1.50
+```

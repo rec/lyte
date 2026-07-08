@@ -8,11 +8,14 @@ from .errors import (
     ProtocolError,
     LyteError,
 )
+from .hamiltonian import HamiltonianCounter, HamiltonianStreamer
 
 __all__ = [
     "AuthenticationError",
     "DiscoveredDevice",
     "DiscoveryError",
+    "HamiltonianCounter",
+    "HamiltonianStreamer",
     "ProtocolError",
     "LyteClient",
     "LyteError",
