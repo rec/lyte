@@ -7,7 +7,6 @@ import argparse
 import sys
 import time
 from pathlib import Path
-from typing import Callable, TypeVar
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -15,9 +14,7 @@ from lyte import AuthenticationError, LyteClient, ProtocolError, discover
 from lyte.hamiltonian import HamiltonianStreamer
 from lyte.logging import log, log_error
 from lyte.realtime import send_frame_v3
-
-
-T = TypeVar("T")
+from lyte.retry import RetryConfig, retry_call
 
 
 def main() -> int:
@@ -29,11 +26,14 @@ def main() -> int:
     led_count = args.led_count
     client = LyteClient(host=host, timeout=args.timeout)
     log(f"[step] Reading device info from {host}")
+    retry = RetryConfig(
+        attempts=args.attempts,
+        delay=args.retry_delay,
+        backoff=args.retry_backoff,
+    )
     gestalt = retry_call(
         f"HTTP device info read from {host}",
-        args.attempts,
-        args.retry_delay,
-        args.retry_backoff,
+        retry,
         lambda: client.get("gestalt", authenticated=False).data,
         (ProtocolError,),
     )
@@ -52,9 +52,7 @@ def main() -> int:
     log("[step] Authenticating")
     token = retry_call(
         f"login and verify with {host}",
-        args.attempts,
-        args.retry_delay,
-        args.retry_backoff,
+        retry,
         client.authenticate,
         (AuthenticationError, ProtocolError),
     )
@@ -66,9 +64,7 @@ def main() -> int:
     log("[step] Switching to realtime mode")
     realtime_response = retry_call(
         f"switch {host} to realtime mode",
-        args.attempts,
-        args.retry_delay,
-        args.retry_backoff,
+        retry,
         client.set_realtime_mode,
         (AuthenticationError, ProtocolError),
     )
@@ -97,9 +93,7 @@ def main() -> int:
             frame = streamer.next_frame()
             sent = retry_call(
                 f"UDP realtime frame send to {host}",
-                args.attempts,
-                args.retry_delay,
-                args.retry_backoff,
+                retry,
                 lambda frame=frame: send_frame_v3(host, client.token.value, frame),
                 (OSError, ProtocolError),
             )
@@ -172,46 +166,6 @@ def discover_host(timeout: float) -> str | None:
     device = devices[0]
     log(f"[ok] Found {device.device_id} at {device.ip_address}")
     return device.ip_address
-
-
-def retry_call(
-    label: str,
-    attempts: int,
-    delay: float,
-    backoff: float,
-    operation: Callable[[], T],
-    retry_errors: tuple[type[BaseException], ...],
-) -> T | None:
-    current_delay = delay
-    for attempt in range(1, attempts + 1):
-        log(f"[try] {label}: attempt {attempt}/{attempts}")
-        started_at = time.monotonic()
-        try:
-            result = operation()
-        except retry_errors as err:
-            elapsed = (time.monotonic() - started_at) * 1000
-            log_error(
-                f"[failed] {label} failed on attempt {attempt}/{attempts} "
-                f"after {elapsed:.1f} ms: {type(err).__name__}: {err}"
-            )
-            if attempt == attempts:
-                log_error(f"[failed] {label} exhausted all retry attempts.")
-                return None
-            log(f"[retry] Waiting {current_delay * 1000:.1f} ms before retrying.")
-            time.sleep(current_delay)
-            current_delay *= backoff
-            continue
-
-        elapsed = (time.monotonic() - started_at) * 1000
-        if attempt > 1:
-            log(
-                f"[ok] {label} recovered on attempt {attempt} "
-                f"after {elapsed:.1f} ms."
-            )
-        else:
-            log(f"[ok] {label} completed in {elapsed:.1f} ms.")
-        return result
-    return None
 
 
 if __name__ == "__main__":

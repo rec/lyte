@@ -5,10 +5,11 @@ from .discovery import DiscoveredDevice, discover
 from .errors import (
     AuthenticationError,
     DiscoveryError,
-    ProtocolError,
     LyteError,
+    ProtocolError,
 )
 from .hamiltonian import HamiltonianCounter, HamiltonianStreamer, hamiltonian_colors
+from .retry import RetryConfig, retry_call
 
 __all__ = [
     "AuthenticationError",
@@ -20,5 +21,7 @@ __all__ = [
     "ProtocolError",
     "LyteClient",
     "LyteError",
+    "RetryConfig",
     "discover",
+    "retry_call",
 ]
