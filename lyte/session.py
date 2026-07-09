@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import numpy as np
+from numpy import typing as npt
+
 from .client import AuthToken, LyteClient, LyteResponse
 from .errors import AuthenticationError, ProtocolError
 from .realtime import send_frame_v3
@@ -67,7 +70,7 @@ def set_realtime_mode_with_retry(
 def send_frame_with_retry(
     host: str,
     token: str,
-    frame: bytes,
+    frame: npt.NDArray[np.uint8],
     retry: RetryConfig,
     label: str,
 ) -> int | None:

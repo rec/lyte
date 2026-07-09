@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import random
 
+import numpy as np
+from numpy import typing as npt
 from pydantic import BaseModel, PrivateAttr, model_validator
 
-from .hamiltonian import FloatRGB, frame_bytes, interpolate
+from .hamiltonian import FloatRGB, frame_array, interpolate
 
 
 class RandomWalk(BaseModel):
@@ -63,14 +65,14 @@ class RandomWalk(BaseModel):
         )
         return result
 
-    def next_frame(self) -> bytes:
+    def next_frame(self) -> npt.NDArray[np.uint8]:
         self._advance_cache()
         fraction = self._total_pixels % 1
         colors = [
             interpolate(left, right, fraction)
             for left, right in zip(self._cache[:-1], self._cache[1:], strict=True)
         ]
-        return frame_bytes(colors)
+        return frame_array(colors)
 
     def _advance_cache(self) -> None:
         self._total_pixels += self.speed / self.fps

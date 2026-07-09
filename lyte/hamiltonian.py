@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
+import numpy as np
+from numpy import typing as npt
 from pydantic import BaseModel, PrivateAttr, model_validator
-
 
 RGB = tuple[int, int, int]
 FloatRGB = tuple[float, float, float]
@@ -63,12 +64,12 @@ class HamiltonianCounter(BaseModel):
         ordered = tuple(self._color[i] for i in parse_order(self.order))
         scale = 256 / self.n
         values = []
-        for channel, component in zip("rgb", ordered):
+        for channel, component in zip("rgb", ordered, strict=True):
             if channel in self.inverted.lower():
                 component = self.n - component - 1
             values.append(round(scale * component))
         self._color = next_hamiltonian(self.n, *self._color)
-        return tuple(values)
+        return values[0], values[1], values[2]
 
 
 class HamiltonianStreamer(BaseModel):
@@ -105,14 +106,14 @@ class HamiltonianStreamer(BaseModel):
             ]
         return self
 
-    def next_frame(self) -> bytes:
+    def next_frame(self) -> npt.NDArray[np.uint8]:
         self._advance_cache()
         fraction = self._total_pixels % 1
         colors = [
             interpolate(left, right, fraction)
-            for left, right in zip(self._cache[:-1], self._cache[1:])
+            for left, right in zip(self._cache[:-1], self._cache[1:], strict=True)
         ]
-        return frame_bytes(colors)
+        return frame_array(colors)
 
     def _advance_cache(self) -> None:
         self._total_pixels += self.speed / self.fps
@@ -142,20 +143,28 @@ def parse_order(order: str | int) -> tuple[int, int, int]:
     normalized = order.lower()
     if sorted(normalized) != ["b", "g", "r"]:
         raise ValueError("order must be a permutation of rgb")
-    return tuple("rgb".index(c) for c in normalized)
+    return (
+        "rgb".index(normalized[0]),
+        "rgb".index(normalized[1]),
+        "rgb".index(normalized[2]),
+    )
 
 
 def interpolate(left: FloatRGB, right: FloatRGB, fraction: float) -> FloatRGB:
-    return tuple((1 - fraction) * a + fraction * b for a, b in zip(left, right))
+    return (
+        (1 - fraction) * left[0] + fraction * right[0],
+        (1 - fraction) * left[1] + fraction * right[1],
+        (1 - fraction) * left[2] + fraction * right[2],
+    )
 
 
 def to_float_rgb(color: RGB) -> FloatRGB:
-    return tuple(float(c) for c in color)
+    return float(color[0]), float(color[1]), float(color[2])
 
 
-def frame_bytes(colors: list[FloatRGB]) -> bytes:
-    frame = bytearray()
-    for color in colors:
-        for component in color:
-            frame.append(max(0, min(255, round(component))))
-    return bytes(frame)
+def frame_array(colors: list[FloatRGB]) -> npt.NDArray[np.uint8]:
+    frame = np.empty((len(colors), 3), dtype=np.uint8)
+    for i, color in enumerate(colors):
+        for channel, component in enumerate(color):
+            frame[i, channel] = max(0, min(255, round(component)))
+    return frame
