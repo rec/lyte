@@ -87,7 +87,6 @@ RANDOM_ANIMATIONS: tuple[str, ...] = tuple(
 )
 RANDOM_MIN_DURATION = 10.0
 RANDOM_MAX_DURATION = 30.0
-RANDOM_OVERLAP_DURATION = 5.0
 RANDOM_WALK_SPEED = 80.0
 RANDOM_WALK_VARIANCE = 80.0
 RANDOM_WALK_BOUNDS = (0.0, 255.0)
@@ -269,8 +268,9 @@ def run_random_animations(
     log_pattern_start(current_args.animation, current_duration)
 
     while stop_at is None or time.monotonic() < stop_at:
+        overlap_duration = random_overlap_duration(current_duration)
         solo_duration = clipped_duration(
-            current_duration - RANDOM_OVERLAP_DURATION,
+            current_duration - overlap_duration,
             stop_at,
         )
         if solo_duration > 0:
@@ -292,8 +292,8 @@ def run_random_animations(
         previous_animation = next_args.animation
         log_pattern_start(next_args.animation, next_duration)
 
-        overlap_duration = clipped_duration(RANDOM_OVERLAP_DURATION, stop_at)
-        if overlap_duration > 0:
+        clipped_overlap_duration = clipped_duration(overlap_duration, stop_at)
+        if clipped_overlap_duration > 0:
             run_crossfade(
                 current_streamer,
                 next_streamer,
@@ -301,7 +301,7 @@ def run_random_animations(
                 client,
                 retry,
                 host,
-                overlap_duration,
+                clipped_overlap_duration,
             )
         current_args = next_args
         current_streamer = next_streamer
@@ -310,6 +310,10 @@ def run_random_animations(
 
 def random_pattern_duration(generator: random.Random) -> float:
     return generator.uniform(RANDOM_MIN_DURATION, RANDOM_MAX_DURATION)
+
+
+def random_overlap_duration(duration: float) -> float:
+    return duration / 2
 
 
 def clipped_duration(duration: float, stop_at: float | None) -> float:

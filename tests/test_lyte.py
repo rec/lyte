@@ -860,6 +860,10 @@ class AnimateScriptTests(unittest.TestCase):
         self.assertIn("[pattern] hamiltonian", output.getvalue())
         run_streamer.assert_called_once()
 
+    def test_random_overlap_is_half_the_pattern_duration(self) -> None:
+        self.assertEqual(self.script.random_overlap_duration(10), 5)
+        self.assertEqual(self.script.random_overlap_duration(30), 15)
+
     def test_blend_frames_crossfades_rgb_values(self) -> None:
         current_frame = np.array([[0, 100, 200]], dtype=np.uint8)
         next_frame = np.array([[100, 200, 0]], dtype=np.uint8)
