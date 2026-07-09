@@ -14,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pydantic import BaseModel
 
 from lyte import (
-    AuthenticationError,
     DiscoveredDevice,
     LyteClient,
     ProtocolError,
@@ -27,8 +26,16 @@ from lyte.discovery import (
 )
 from lyte.errors import DiscoveryError
 from lyte.logging import log, log_error
-from lyte.realtime import send_frame_v3, solid_rgb_frame
+from lyte.realtime import solid_rgb_frame
 from lyte.retry import RetryConfig, retry_call
+from lyte.session import (
+    authenticate_with_retry,
+    led_count_from_gestalt,
+    read_gestalt,
+    send_frame_with_retry,
+    set_mac_from_gestalt,
+    set_realtime_mode_with_retry,
+)
 
 
 class DiagnosticConfig(BaseModel, frozen=True):
@@ -274,10 +281,7 @@ def get_unauthenticated_info(client: LyteClient, retry: RetryConfig) -> bool:
     print_success(f"MAC: {gestalt.get('mac', '<missing>')}")
     print_success(f"LED count: {gestalt.get('number_of_led', '<missing>')}")
 
-    mac = gestalt.get("mac")
-    if isinstance(mac, str):
-        client.mac = mac
-    else:
+    if not set_mac_from_gestalt(client, gestalt):
         log("Warning: gestalt did not include a MAC address.")
         log("Authentication can continue, but challenge-response cannot be verified.")
     return True
@@ -286,15 +290,10 @@ def get_unauthenticated_info(client: LyteClient, retry: RetryConfig) -> bool:
 def authenticate(client: LyteClient, retry: RetryConfig) -> bool:
     print_step("Authenticating with login and verify")
 
-    def authenticate_once() -> object:
-        client.token = None
-        return client.authenticate()
-
-    token = retry_call(
-        "login and verify",
+    token = authenticate_with_retry(
+        client,
         retry,
-        authenticate_once,
-        (AuthenticationError, ProtocolError),
+        "login and verify",
     )
     if token is None:
         log("Check that no other app is rapidly invalidating the token.")
@@ -308,22 +307,16 @@ def authenticate(client: LyteClient, retry: RetryConfig) -> bool:
 def detect_led_count(client: LyteClient, retry: RetryConfig) -> int | None:
     print_step("Detecting LED count from gestalt")
 
-    gestalt = retry_call(
-        "HTTP gestalt read for LED count",
-        retry,
-        lambda: client.get("gestalt", authenticated=False).data,
-        (ProtocolError,),
-    )
+    gestalt = read_gestalt(client, retry, "HTTP gestalt read for LED count")
     if gestalt is None:
         log("Pass --led-count if you know the number of LEDs.")
         return None
 
-    led_count = gestalt.get("number_of_led")
-    if isinstance(led_count, int) and led_count > 0:
+    if (led_count := led_count_from_gestalt(gestalt)) is not None:
         print_success(f"Using {led_count} LEDs.")
         return led_count
 
-    print_failure(f"Invalid number_of_led value: {led_count!r}")
+    print_failure(f"Invalid number_of_led value: {gestalt.get('number_of_led')!r}")
     log("Pass --led-count with the exact LED count for your string.")
     return None
 
@@ -331,16 +324,15 @@ def detect_led_count(client: LyteClient, retry: RetryConfig) -> int | None:
 def set_realtime_mode(client: LyteClient, retry: RetryConfig) -> bool:
     print_step("Switching device to realtime mode")
 
-    response = retry_call(
-        "HTTP switch to realtime mode",
+    response = set_realtime_mode_with_retry(
+        client,
         retry,
-        lambda: client.set_realtime_mode().data,
-        (AuthenticationError, ProtocolError),
+        "HTTP switch to realtime mode",
     )
     if response is None:
         log("Realtime mode requires a valid auth token.")
         return False
-    print_success(f"Realtime mode response: {response}")
+    print_success(f"Realtime mode response: {response.data}")
     return True
 
 
@@ -359,11 +351,12 @@ def send_visible_test(
     colors = (("red", (255, 0, 0)), ("green", (0, 255, 0)), ("blue", (0, 0, 255)))
     for name, color in colors:
         frame = solid_rgb_frame(led_count, *color)
-        bytes_sent = retry_call(
-            f"UDP realtime {name} frame send",
+        bytes_sent = send_frame_with_retry(
+            host,
+            client.token.value,
+            frame,
             retry,
-            lambda frame=frame: send_frame_v3(host, client.token.value, frame),
-            (OSError, ProtocolError, ValueError),
+            f"UDP realtime {name} frame send",
         )
         if bytes_sent is None:
             log("Check that UDP port 7777 is reachable from this computer.")

@@ -20,6 +20,7 @@ from lyte.hamiltonian import (
 from lyte.logging import LOGGING, log, log_error
 from lyte.realtime import frame_packets_v3, solid_rgb_frame
 from lyte.retry import RetryConfig, retry_call
+from lyte.session import led_count_from_gestalt, set_mac_from_gestalt
 
 
 class DiscoveryTests(unittest.TestCase):
@@ -84,6 +85,21 @@ class ClientTests(unittest.TestCase):
 
         self.assertEqual(client.host, "192.168.1.23")
         self.assertEqual(client.timeout, 1.5)
+
+
+class SessionTests(unittest.TestCase):
+    def test_set_mac_from_gestalt_updates_client(self) -> None:
+        client = LyteClient(host="192.168.1.23")
+
+        result = set_mac_from_gestalt(client, {"mac": "AA:BB:CC:DD:EE:FF"})
+
+        self.assertTrue(result)
+        self.assertEqual(client.mac, "AA:BB:CC:DD:EE:FF")
+
+    def test_led_count_from_gestalt_returns_positive_ints(self) -> None:
+        self.assertEqual(led_count_from_gestalt({"number_of_led": 250}), 250)
+        self.assertIsNone(led_count_from_gestalt({"number_of_led": 0}))
+        self.assertIsNone(led_count_from_gestalt({"number_of_led": "250"}))
 
 
 class LoggingTests(unittest.TestCase):

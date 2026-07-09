@@ -1,0 +1,79 @@
+"""Common device setup helpers for Lyte scripts and applications."""
+
+from __future__ import annotations
+
+from .client import AuthToken, LyteClient, LyteResponse
+from .errors import AuthenticationError, ProtocolError
+from .realtime import send_frame_v3
+from .retry import RetryConfig, retry_call
+
+
+def read_gestalt(
+    client: LyteClient,
+    retry: RetryConfig,
+    label: str,
+) -> dict[str, object] | None:
+    return retry_call(
+        label,
+        retry,
+        lambda: client.get("gestalt", authenticated=False).data,
+        (ProtocolError,),
+    )
+
+
+def set_mac_from_gestalt(client: LyteClient, gestalt: dict[str, object]) -> bool:
+    if isinstance(mac := gestalt.get("mac"), str):
+        client.mac = mac
+        return True
+    return False
+
+
+def led_count_from_gestalt(gestalt: dict[str, object]) -> int | None:
+    if isinstance(led_count := gestalt.get("number_of_led"), int) and led_count > 0:
+        return led_count
+    return None
+
+
+def authenticate_with_retry(
+    client: LyteClient,
+    retry: RetryConfig,
+    label: str,
+) -> AuthToken | None:
+    def authenticate_once() -> AuthToken:
+        client.token = None
+        return client.authenticate()
+
+    return retry_call(
+        label,
+        retry,
+        authenticate_once,
+        (AuthenticationError, ProtocolError),
+    )
+
+
+def set_realtime_mode_with_retry(
+    client: LyteClient,
+    retry: RetryConfig,
+    label: str,
+) -> LyteResponse | None:
+    return retry_call(
+        label,
+        retry,
+        client.set_realtime_mode,
+        (AuthenticationError, ProtocolError),
+    )
+
+
+def send_frame_with_retry(
+    host: str,
+    token: str,
+    frame: bytes,
+    retry: RetryConfig,
+    label: str,
+) -> int | None:
+    return retry_call(
+        label,
+        retry,
+        lambda: send_frame_v3(host, token, frame),
+        (OSError, ProtocolError, ValueError),
+    )
