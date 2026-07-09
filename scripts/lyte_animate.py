@@ -49,6 +49,7 @@ from lyte.session import (
     read_gestalt,
     send_frame_with_retry,
     set_mac_from_gestalt,
+    set_off_mode_with_retry,
     set_realtime_mode_with_retry,
 )
 
@@ -70,21 +71,24 @@ def main() -> int:
         backoff=args.retry_backoff,
     )
     client = LyteClient(host=host, timeout=args.timeout)
+    if args.animation == "off":
+        return 0 if turn_off_device(client, retry, host) else 1
+
     led_count = read_led_count(client, retry, args.led_count, host)
     if led_count is None:
         return 1
     if not prepare_device(client, retry, host):
         return 1
 
-    streamer = build_streamer(args, led_count)
-    frame_delay = 1 / args.fps
-    stop_at = None if args.duration is None else time.monotonic() + args.duration
-    log(
-        "[ok] Streaming "
-        f"{args.animation} frames to {host} for {led_count} LEDs at {args.fps} FPS"
-    )
-
     try:
+        streamer = build_streamer(args, led_count)
+        frame_delay = 1 / args.fps
+        stop_at = None if args.duration is None else time.monotonic() + args.duration
+        log(
+            "[ok] Streaming "
+            f"{args.animation} frames to {host} for {led_count} LEDs at {args.fps} FPS"
+        )
+
         while stop_at is None or time.monotonic() < stop_at:
             started_at = time.monotonic()
             frame = streamer.next_frame()
@@ -105,6 +109,8 @@ def main() -> int:
     except KeyboardInterrupt:
         log()
         log("[ok] Stopped")
+    finally:
+        turn_off_streaming_device(client, retry, host)
     return 0
 
 
@@ -125,6 +131,7 @@ def parse_args() -> argparse.Namespace:
             "larson_rainbow",
             "larson_scanner",
             "linear_rainbow",
+            "off",
             "party_mode",
             "pixel_ping_pong",
             "pulse",
@@ -494,6 +501,50 @@ def prepare_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
     )
     if realtime_response is None:
         sys.exit(f"Could not switch {host} to realtime mode.")
+    return True
+
+
+def turn_off_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
+    log(f"[step] Reading device info from {host}")
+    gestalt = read_gestalt(client, retry, f"HTTP device info read from {host}")
+    if gestalt is None:
+        sys.exit(f"Could not read device info from {host}.")
+    set_mac_from_gestalt(client, gestalt)
+
+    log("[step] Authenticating")
+    token = authenticate_with_retry(
+        client,
+        retry,
+        f"login and verify with {host}",
+    )
+    if token is None:
+        sys.exit(f"Could not authenticate with {host}.")
+
+    log("[step] Switching device to off mode")
+    response = set_off_mode_with_retry(
+        client,
+        retry,
+        f"switch {host} to off mode",
+    )
+    if response is None:
+        sys.exit(f"Could not switch {host} to off mode.")
+    log(f"[ok] {host} is off")
+    return True
+
+
+def turn_off_streaming_device(
+    client: LyteClient, retry: RetryConfig, host: str
+) -> bool:
+    log("[step] Switching device to off mode")
+    response = set_off_mode_with_retry(
+        client,
+        retry,
+        f"switch {host} to off mode",
+    )
+    if response is None:
+        log_error(f"[failed] Could not switch {host} to off mode.")
+        return False
+    log(f"[ok] {host} is off")
     return True
 
 

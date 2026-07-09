@@ -39,6 +39,7 @@ from .session import (
     read_gestalt,
     send_frame_with_retry,
     set_mac_from_gestalt,
+    set_off_mode_with_retry,
     set_realtime_mode_with_retry,
 )
 
@@ -80,6 +81,7 @@ __all__ = [
     "led_count_from_gestalt",
     "read_gestalt",
     "send_frame_with_retry",
+    "set_off_mode_with_retry",
     "set_mac_from_gestalt",
     "set_realtime_mode_with_retry",
 ]
