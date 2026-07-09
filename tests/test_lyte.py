@@ -322,6 +322,35 @@ class RetryTests(unittest.TestCase):
         self.assertEqual(result, "ok")
         self.assertEqual(sleeps, [0.01, 0.01, 0.01])
 
+    def test_retry_call_prints_only_final_failure(self) -> None:
+        def operation() -> str:
+            raise RetryableTestError("empty reply")
+
+        retry = RetryConfig(
+            attempts=3,
+            delay=0,
+            backoff=1,
+            backoff_after=1,
+        )
+        error_output = io.StringIO()
+
+        with (
+            patch("sys.stdout", new_callable=io.StringIO),
+            patch("sys.stderr", error_output),
+            patch("lyte.retry.time.sleep"),
+        ):
+            result = retry_call(
+                "operation",
+                retry,
+                operation,
+                (RetryableTestError,),
+            )
+
+        self.assertIsNone(result)
+        self.assertNotIn("attempt 1/3", error_output.getvalue())
+        self.assertNotIn("attempt 2/3", error_output.getvalue())
+        self.assertIn("attempt 3/3", error_output.getvalue())
+
 
 class RetryableTestError(Exception):
     pass
@@ -340,11 +369,19 @@ class DiagnosticTests(unittest.TestCase):
     def test_discover_one_retries_empty_discovery_attempts(self) -> None:
         calls = 0
         timeouts = []
+        reported = []
 
-        def discovery_attempt(sock, timeout: float, attempt: int, attempts: int):
+        def discovery_attempt(
+            sock,
+            timeout: float,
+            attempt: int,
+            attempts: int,
+            report_failure: bool,
+        ):
             nonlocal calls
             calls += 1
             timeouts.append(timeout)
+            reported.append(report_failure)
             if calls == 1:
                 return None
             return DiscoveredDevice(ip_address="192.168.1.23", device_id="Twinkly")
@@ -373,6 +410,7 @@ class DiagnosticTests(unittest.TestCase):
         self.assertEqual(host, "192.168.1.23")
         self.assertEqual(calls, 2)
         self.assertEqual(timeouts, [0.01, 0.01])
+        self.assertEqual(reported, [False, True])
 
     def test_parse_args_uses_slower_network_retry_defaults(self) -> None:
         with patch("sys.argv", ["lyte_diagnostic.py"]):

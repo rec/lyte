@@ -27,6 +27,7 @@ def retry_call(
     retry_errors: tuple[type[BaseException], ...],
 ) -> T | None:
     delay = retry.delay
+    last_failure = ""
     for attempt in range(1, retry.attempts + 1):
         log(f"[try] {label}: attempt {attempt}/{retry.attempts}")
         started_at = time.monotonic()
@@ -34,12 +35,12 @@ def retry_call(
             result = operation()
         except retry_errors as err:
             elapsed = (time.monotonic() - started_at) * 1000
-            log_error(
+            last_failure = (
                 f"[failed] {label} failed on attempt {attempt}/{retry.attempts} "
                 f"after {elapsed:.1f} ms: {type(err).__name__}: {err}"
             )
             if attempt == retry.attempts:
-                log_error(f"[failed] {label} exhausted all retry attempts.")
+                log_error(last_failure)
                 return None
             log(f"[retry] Waiting {delay * 1000:.1f} ms before retrying {label}.")
             time.sleep(delay)
