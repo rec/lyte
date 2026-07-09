@@ -15,6 +15,15 @@ from numpy import typing as npt
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lyte import LyteClient, discover
+from lyte.bibliopixel import (
+    DEFAULT_PATTERN,
+    RGB,
+    Alternates,
+    ColorChase,
+    ColorFill,
+    ColorPattern,
+    ColorWipe,
+)
 from lyte.hamiltonian import HamiltonianStreamer
 from lyte.logging import log, log_error
 from lyte.random_walk import RandomWalk
@@ -88,7 +97,15 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "animation",
-        choices=("hamiltonian", "random_walk"),
+        choices=(
+            "alternates",
+            "color_chase",
+            "color_fill",
+            "color_pattern",
+            "color_wipe",
+            "hamiltonian",
+            "random_walk",
+        ),
         help="Animation to stream.",
     )
     parser.add_argument("--host")
@@ -117,12 +134,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fps", type=float, default=20)
     parser.add_argument("--duration", type=float)
     parser.add_argument("--pre-fill", action="store_true")
+    parser.add_argument("--step", type=int, default=1)
+    parser.add_argument("--start", type=int, default=0)
+    parser.add_argument("--end", type=int)
+    parser.add_argument("--width", type=int, default=1)
+    parser.add_argument("--max-led", type=int)
+    parser.add_argument("--reverse", action="store_true")
     parser.add_argument("--n", type=int, default=32)
     parser.add_argument("--order", default="rgb")
     parser.add_argument("--inverted", default="")
     parser.add_argument("--variance", type=float, default=1)
     parser.add_argument("--bounds", type=float, nargs=2, default=(0, 180))
     parser.add_argument("--color", type=int, nargs=3)
+    parser.add_argument("--color2", type=int, nargs=3)
+    parser.add_argument("--colors", type=int, nargs="+")
     parser.add_argument("--period", type=float, default=0)
     parser.add_argument("--seed", type=int)
     args = parser.parse_args()
@@ -142,6 +167,19 @@ def parse_args() -> argparse.Namespace:
         parser.error("--bounds must be ordered low high")
     if args.color is not None and any(c < 0 or c > 255 for c in args.color):
         parser.error("--color components must be between 0 and 255")
+    if args.color2 is not None and any(c < 0 or c > 255 for c in args.color2):
+        parser.error("--color2 components must be between 0 and 255")
+    if args.colors is not None:
+        if len(args.colors) % 3:
+            parser.error("--colors must contain complete RGB triples")
+        if any(c < 0 or c > 255 for c in args.colors):
+            parser.error("--colors components must be between 0 and 255")
+    if args.step < 1:
+        parser.error("--step must be at least 1")
+    if args.width < 1:
+        parser.error("--width must be at least 1")
+    if args.start < 0:
+        parser.error("--start must not be negative")
     return args
 
 
@@ -155,6 +193,42 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
             order=args.order,
             inverted=args.inverted,
             pre_fill=args.pre_fill,
+        )
+    if args.animation == "color_chase":
+        return ColorChase(
+            led_count=led_count,
+            color=rgb_arg(args.color, (255, 0, 0)),
+            width=args.width,
+            start=args.start,
+            end=args.end,
+            step=args.step,
+        )
+    if args.animation == "color_wipe":
+        return ColorWipe(
+            led_count=led_count,
+            color=rgb_arg(args.color, (255, 0, 0)),
+            start=args.start,
+            end=args.end,
+            step=args.step,
+        )
+    if args.animation == "color_fill":
+        return ColorFill(
+            led_count=led_count,
+            color=rgb_arg(args.color, (255, 0, 0)),
+        )
+    if args.animation == "alternates":
+        return Alternates(
+            led_count=led_count,
+            color1=rgb_arg(args.color, (255, 255, 255)),
+            color2=rgb_arg(args.color2, (0, 0, 0)),
+            max_led=args.max_led,
+        )
+    if args.animation == "color_pattern":
+        return ColorPattern(
+            led_count=led_count,
+            colors=colors_arg(args.colors),
+            width=args.width,
+            reverse=args.reverse,
         )
     color = (
         None
@@ -171,6 +245,20 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         period=args.period,
         pre_fill=args.pre_fill,
         seed=args.seed,
+    )
+
+
+def rgb_arg(value: list[int] | None, default: RGB) -> RGB:
+    if value is None:
+        return default
+    return value[0], value[1], value[2]
+
+
+def colors_arg(value: list[int] | None) -> tuple[RGB, ...]:
+    if value is None:
+        return DEFAULT_PATTERN
+    return tuple(
+        (value[i], value[i + 1], value[i + 2]) for i in range(0, len(value), 3)
     )
 
 

@@ -1,5 +1,6 @@
 """Small dependency-free Lyte client."""
 
+from .bibliopixel import Alternates, ColorChase, ColorFill, ColorPattern, ColorWipe
 from .client import LyteClient
 from .discovery import DiscoveredDevice, discover
 from .errors import (
@@ -22,6 +23,11 @@ from .session import (
 
 __all__ = [
     "AuthenticationError",
+    "Alternates",
+    "ColorChase",
+    "ColorFill",
+    "ColorPattern",
+    "ColorWipe",
     "DiscoveredDevice",
     "DiscoveryError",
     "HamiltonianCounter",
