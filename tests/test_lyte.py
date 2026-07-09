@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import random
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -18,6 +19,7 @@ from lyte.hamiltonian import (
     parse_order,
 )
 from lyte.logging import LOGGING, log, log_error
+from lyte.random_walk import RandomWalk, perturb
 from lyte.realtime import frame_packets_v3, solid_rgb_frame
 from lyte.retry import RetryConfig, retry_call
 from lyte.session import led_count_from_gestalt, set_mac_from_gestalt
@@ -157,6 +159,36 @@ class HamiltonianTests(unittest.TestCase):
         self.assertEqual(streamer.next_frame(), b"\x00" * 9)
         self.assertEqual(streamer.next_frame(), b"\x00" * 9)
         self.assertEqual(streamer.next_frame(), b"\x00" * 6 + b"\x00\x00@")
+
+
+class RandomWalkTests(unittest.TestCase):
+    def test_perturb_matches_original_random_step(self) -> None:
+        generator = random.Random(1)
+
+        self.assertAlmostEqual(perturb(0, 5, (0, 10), generator), -3.656357558875988)
+        self.assertAlmostEqual(perturb(9, 5, (0, 10), generator), 5.525662630627673)
+
+    def test_next_color_returns_current_color_before_advancing(self) -> None:
+        walk = RandomWalk(
+            led_count=1,
+            color=(10.0, 20.0, 30.0),
+            variance=0,
+        )
+
+        self.assertEqual(walk.next_color(0), (10.0, 20.0, 30.0))
+        self.assertEqual(walk.next_color(1), (10.0, 20.0, 30.0))
+
+    def test_next_frame_streams_walk_through_leds(self) -> None:
+        walk = RandomWalk(
+            led_count=2,
+            speed=1,
+            fps=1,
+            color=(10.0, 20.0, 30.0),
+            variance=0,
+        )
+
+        self.assertEqual(walk.next_frame(), b"\x00\x00\x00\x00\x00\x00")
+        self.assertEqual(walk.next_frame(), b"\x00\x00\x00\x0a\x14\x1e")
 
 
 class RetryTests(unittest.TestCase):
