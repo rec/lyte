@@ -9,6 +9,7 @@ from .errors import (
     ProtocolError,
 )
 from .hamiltonian import HamiltonianCounter, HamiltonianStreamer, hamiltonian_colors
+from .random_walk import RandomWalk
 from .retry import RetryConfig, retry_call
 from .session import (
     authenticate_with_retry,
@@ -27,6 +28,7 @@ __all__ = [
     "HamiltonianStreamer",
     "hamiltonian_colors",
     "ProtocolError",
+    "RandomWalk",
     "LyteClient",
     "LyteError",
     "RetryConfig",
