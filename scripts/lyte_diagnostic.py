@@ -186,13 +186,18 @@ def discover_one(timeout: float, retry: RetryConfig) -> str | None:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         sock.bind(("", 0))
         for attempt in range(1, retry.attempts + 1):
-            device = discovery_attempt(sock, timeout, attempt, retry.attempts)
+            device = discovery_attempt(
+                sock,
+                timeout,
+                attempt,
+                retry.attempts,
+                report_failure=attempt == retry.attempts,
+            )
             if device is not None:
                 print_success(f"Found {device.device_id} at {device.ip_address}")
                 return device.ip_address
 
             if attempt == retry.attempts:
-                print_failure("UDP discovery broadcast exhausted all retry attempts.")
                 break
             log(
                 "[retry] Waiting "
@@ -215,11 +220,13 @@ def discovery_attempt(
     attempt: int,
     attempts: int,
     destination: str = DEFAULT_BROADCAST,
+    report_failure: bool = True,
 ) -> DiscoveredDevice | None:
     log(f"[try] UDP discovery broadcast: attempt {attempt}/{attempts}")
     started_at = time.monotonic()
     deadline = started_at + timeout
     sock.sendto(DISCOVERY_MESSAGE, (destination, DISCOVERY_PORT))
+    last_failure = ""
 
     while (remaining := deadline - time.monotonic()) > 0:
         sock.settimeout(remaining)
@@ -233,7 +240,7 @@ def discovery_attempt(
             device = parse_discovery_response(data)
         except DiscoveryError as err:
             elapsed = (time.monotonic() - started_at) * 1000
-            print_failure(
+            last_failure = (
                 "UDP discovery broadcast received an invalid response on "
                 f"attempt {attempt}/{attempts} after {elapsed:.1f} ms: {err}"
             )
@@ -250,10 +257,14 @@ def discovery_attempt(
         return device
 
     elapsed = (time.monotonic() - started_at) * 1000
-    print_failure(
-        "UDP discovery broadcast got no replies on "
-        f"attempt {attempt}/{attempts} after {elapsed:.1f} ms."
-    )
+    if report_failure:
+        print_failure(
+            last_failure
+            or (
+                "UDP discovery broadcast got no replies on "
+                f"attempt {attempt}/{attempts} after {elapsed:.1f} ms."
+            )
+        )
     return None
 
 
