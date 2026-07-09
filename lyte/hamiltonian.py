@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, PrivateAttr, model_validator
+from collections.abc import Iterator
+
+from pydantic import BaseModel, PrivateAttr, model_validator
 
 
 RGB = tuple[int, int, int]
@@ -26,6 +28,16 @@ def next_hamiltonian(n: int, a: int, b: int, c: int) -> RGB:
         return a, next_b, c
 
     return a + 1, b, c
+
+
+def hamiltonian_colors(
+    n: int = 8,
+    order: str | int = "rgb",
+    inverted: str = "",
+) -> Iterator[RGB]:
+    counter = HamiltonianCounter(n=n, order=order, inverted=inverted)
+    for _ in range(n**3):
+        yield counter.next_color()
 
 
 class HamiltonianCounter(BaseModel):

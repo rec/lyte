@@ -8,7 +8,7 @@ from .errors import (
     ProtocolError,
     LyteError,
 )
-from .hamiltonian import HamiltonianCounter, HamiltonianStreamer
+from .hamiltonian import HamiltonianCounter, HamiltonianStreamer, hamiltonian_colors
 
 __all__ = [
     "AuthenticationError",
@@ -16,6 +16,7 @@ __all__ = [
     "DiscoveryError",
     "HamiltonianCounter",
     "HamiltonianStreamer",
+    "hamiltonian_colors",
     "ProtocolError",
     "LyteClient",
     "LyteError",

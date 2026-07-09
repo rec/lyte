@@ -31,3 +31,9 @@ Increase playback speed:
 ```sh
 python3 scripts/lyte_hamiltonian.py --host 192.168.1.50 --speed 80
 ```
+
+Check the Hamiltonian sequence without connecting to lights:
+
+```sh
+python3 scripts/check_hamiltonian.py --n 32
+```
