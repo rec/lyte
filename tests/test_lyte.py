@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import importlib.util
 import io
-from pathlib import Path
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
-from lyte.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.client import LyteClient
+from lyte.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.discovery import DiscoveredDevice, parse_discovery_response
 from lyte.errors import DiscoveryError, ProtocolError
 from lyte.hamiltonian import (
@@ -19,6 +19,7 @@ from lyte.hamiltonian import (
 )
 from lyte.logging import LOGGING, log, log_error
 from lyte.realtime import frame_packets_v3, solid_rgb_frame
+from lyte.retry import RetryConfig, retry_call
 
 
 class DiscoveryTests(unittest.TestCase):
@@ -142,16 +143,7 @@ class HamiltonianTests(unittest.TestCase):
         self.assertEqual(streamer.next_frame(), b"\x00" * 6 + b"\x00\x00@")
 
 
-class DiagnosticTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        path = Path(__file__).parents[1] / "scripts" / "lyte_diagnostic.py"
-        spec = importlib.util.spec_from_file_location("lyte_diagnostic", path)
-        assert spec is not None
-        assert spec.loader is not None
-        cls.diagnostic = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(cls.diagnostic)
-
+class RetryTests(unittest.TestCase):
     def test_retry_call_retries_retryable_result_failures(self) -> None:
         calls = 0
 
@@ -159,25 +151,28 @@ class DiagnosticTests(unittest.TestCase):
             nonlocal calls
             calls += 1
             if calls == 1:
-                raise self.diagnostic.RetryableDiagnosticError("empty reply")
+                raise RetryableTestError("empty reply")
             return "ok"
 
-        retry = self.diagnostic.RetryConfig(
+        retry = RetryConfig(
             attempts=2,
             delay=0,
             backoff=1,
             backoff_after=1,
         )
 
-        with patch("sys.stdout", new_callable=io.StringIO), patch(
-            "sys.stderr",
-            new_callable=io.StringIO,
+        with (
+            patch("sys.stdout", new_callable=io.StringIO),
+            patch(
+                "sys.stderr",
+                new_callable=io.StringIO,
+            ),
         ):
-            result = self.diagnostic.retry_call(
+            result = retry_call(
                 "operation",
                 retry,
                 operation,
-                (self.diagnostic.RetryableDiagnosticError,),
+                (RetryableTestError,),
             )
 
         self.assertEqual(result, "ok")
@@ -191,29 +186,48 @@ class DiagnosticTests(unittest.TestCase):
             nonlocal calls
             calls += 1
             if calls < 4:
-                raise self.diagnostic.RetryableDiagnosticError("empty reply")
+                raise RetryableTestError("empty reply")
             return "ok"
 
-        retry = self.diagnostic.RetryConfig(
+        retry = RetryConfig(
             attempts=4,
             delay=0.01,
             backoff=2,
             backoff_after=10,
         )
 
-        with patch("sys.stdout", new_callable=io.StringIO), patch(
-            "sys.stderr",
-            new_callable=io.StringIO,
-        ), patch.object(self.diagnostic.time, "sleep", sleeps.append):
-            result = self.diagnostic.retry_call(
+        with (
+            patch("sys.stdout", new_callable=io.StringIO),
+            patch(
+                "sys.stderr",
+                new_callable=io.StringIO,
+            ),
+            patch("lyte.retry.time.sleep", sleeps.append),
+        ):
+            result = retry_call(
                 "operation",
                 retry,
                 operation,
-                (self.diagnostic.RetryableDiagnosticError,),
+                (RetryableTestError,),
             )
 
         self.assertEqual(result, "ok")
         self.assertEqual(sleeps, [0.01, 0.01, 0.01])
+
+
+class RetryableTestError(Exception):
+    pass
+
+
+class DiagnosticTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        path = Path(__file__).parents[1] / "scripts" / "lyte_diagnostic.py"
+        spec = importlib.util.spec_from_file_location("lyte_diagnostic", path)
+        assert spec is not None
+        assert spec.loader is not None
+        cls.diagnostic = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.diagnostic)
 
     def test_discover_one_retries_empty_discovery_attempts(self) -> None:
         calls = 0
@@ -227,20 +241,24 @@ class DiagnosticTests(unittest.TestCase):
                 return None
             return DiscoveredDevice(ip_address="192.168.1.23", device_id="Twinkly")
 
-        retry = self.diagnostic.RetryConfig(
+        retry = RetryConfig(
             attempts=2,
             delay=0,
             backoff=1,
             backoff_after=1,
         )
 
-        with patch.object(
-            self.diagnostic,
-            "discovery_attempt",
-            discovery_attempt,
-        ), patch("sys.stdout", new_callable=io.StringIO), patch(
-            "sys.stderr",
-            new_callable=io.StringIO,
+        with (
+            patch.object(
+                self.diagnostic,
+                "discovery_attempt",
+                discovery_attempt,
+            ),
+            patch("sys.stdout", new_callable=io.StringIO),
+            patch(
+                "sys.stderr",
+                new_callable=io.StringIO,
+            ),
         ):
             host = self.diagnostic.discover_one(0.01, retry)
 
@@ -277,15 +295,17 @@ class HamiltonianScriptTests(unittest.TestCase):
                 raise ProtocolError("timed out")
             return "ok"
 
-        with patch("sys.stdout", new_callable=io.StringIO), patch(
-            "sys.stderr",
-            new_callable=io.StringIO,
-        ), patch.object(self.script.time, "sleep"):
-            result = self.script.retry_call(
+        with (
+            patch("sys.stdout", new_callable=io.StringIO),
+            patch(
+                "sys.stderr",
+                new_callable=io.StringIO,
+            ),
+            patch("lyte.retry.time.sleep"),
+        ):
+            result = retry_call(
                 "device info",
-                2,
-                0.01,
-                2,
+                RetryConfig(attempts=2, delay=0.01, backoff=2),
                 operation,
                 (ProtocolError,),
             )

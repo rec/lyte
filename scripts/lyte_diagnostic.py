@@ -8,7 +8,6 @@ import socket
 import sys
 import time
 from pathlib import Path
-from typing import Callable, TypeVar
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -17,8 +16,8 @@ from pydantic import BaseModel
 from lyte import (
     AuthenticationError,
     DiscoveredDevice,
-    ProtocolError,
     LyteClient,
+    ProtocolError,
 )
 from lyte.discovery import (
     DEFAULT_BROADCAST,
@@ -29,20 +28,7 @@ from lyte.discovery import (
 from lyte.errors import DiscoveryError
 from lyte.logging import log, log_error
 from lyte.realtime import send_frame_v3, solid_rgb_frame
-
-
-T = TypeVar("T")
-
-
-class RetryableDiagnosticError(Exception):
-    """A diagnostic operation returned a retryable non-exception result."""
-
-
-class RetryConfig(BaseModel, frozen=True):
-    attempts: int
-    delay: float
-    backoff: float
-    backoff_after: int
+from lyte.retry import RetryConfig, retry_call
 
 
 class DiagnosticConfig(BaseModel, frozen=True):
@@ -386,44 +372,6 @@ def send_visible_test(
         print_success(f"Sent {name} frame, {bytes_sent} bytes.")
         time.sleep(pause)
     return True
-
-
-def retry_call(
-    label: str,
-    retry: RetryConfig,
-    operation: Callable[[], T],
-    retry_errors: tuple[type[BaseException], ...],
-) -> T | None:
-    delay = retry.delay
-    for attempt in range(1, retry.attempts + 1):
-        log(f"[try] {label}: attempt {attempt}/{retry.attempts}")
-        started_at = time.monotonic()
-        try:
-            result = operation()
-        except retry_errors as err:
-            elapsed = (time.monotonic() - started_at) * 1000
-            print_failure(
-                f"{label} failed on attempt {attempt}/{retry.attempts} "
-                f"after {elapsed:.1f} ms: {type(err).__name__}: {err}"
-            )
-            if attempt == retry.attempts:
-                print_failure(f"{label} exhausted all retry attempts.")
-                return None
-            log(f"[retry] Waiting {delay * 1000:.1f} ms before retrying {label}.")
-            time.sleep(delay)
-            if attempt >= retry.backoff_after:
-                delay *= retry.backoff
-            continue
-
-        elapsed = (time.monotonic() - started_at) * 1000
-        if attempt > 1:
-            print_success(
-                f"{label} recovered on attempt {attempt} after {elapsed:.1f} ms."
-            )
-        else:
-            print_success(f"{label} completed in {elapsed:.1f} ms.")
-        return result
-    return None
 
 
 def print_step(message: str) -> None:
