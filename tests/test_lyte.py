@@ -10,6 +10,7 @@ from unittest.mock import patch
 import numpy as np
 from numpy import testing as npt
 
+from lyte.bibliopixel import Alternates, ColorChase, ColorFill, ColorPattern, ColorWipe
 from lyte.client import LyteClient
 from lyte.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.discovery import DiscoveredDevice, parse_discovery_response
@@ -248,6 +249,90 @@ class RandomWalkTests(unittest.TestCase):
         npt.assert_array_equal(
             walk.next_frame(),
             np.array([[0, 0, 0], [10, 20, 30]], dtype=np.uint8),
+        )
+
+
+class BiblioPixelTests(unittest.TestCase):
+    def test_color_fill_fills_all_leds(self) -> None:
+        npt.assert_array_equal(
+            ColorFill(led_count=3, color=(1, 2, 3)).next_frame(),
+            np.array([[1, 2, 3], [1, 2, 3], [1, 2, 3]], dtype=np.uint8),
+        )
+
+    def test_color_chase_moves_lit_window(self) -> None:
+        chase = ColorChase(led_count=5, color=(9, 8, 7), width=2)
+
+        npt.assert_array_equal(
+            chase.next_frame(),
+            np.array(
+                [[9, 8, 7], [9, 8, 7], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                dtype=np.uint8,
+            ),
+        )
+        npt.assert_array_equal(
+            chase.next_frame(),
+            np.array(
+                [[0, 0, 0], [9, 8, 7], [9, 8, 7], [0, 0, 0], [0, 0, 0]],
+                dtype=np.uint8,
+            ),
+        )
+
+    def test_color_wipe_preserves_previous_lit_leds(self) -> None:
+        wipe = ColorWipe(led_count=4, color=(1, 2, 3))
+
+        npt.assert_array_equal(
+            wipe.next_frame(),
+            np.array(
+                [[1, 2, 3], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                dtype=np.uint8,
+            ),
+        )
+        npt.assert_array_equal(
+            wipe.next_frame(),
+            np.array(
+                [[1, 2, 3], [1, 2, 3], [0, 0, 0], [0, 0, 0]],
+                dtype=np.uint8,
+            ),
+        )
+
+    def test_alternates_flips_each_frame(self) -> None:
+        alternates = Alternates(led_count=4, color1=(1, 1, 1), color2=(2, 2, 2))
+
+        npt.assert_array_equal(
+            alternates.next_frame(),
+            np.array(
+                [[2, 2, 2], [1, 1, 1], [2, 2, 2], [1, 1, 1]],
+                dtype=np.uint8,
+            ),
+        )
+        npt.assert_array_equal(
+            alternates.next_frame(),
+            np.array(
+                [[1, 1, 1], [2, 2, 2], [1, 1, 1], [2, 2, 2]],
+                dtype=np.uint8,
+            ),
+        )
+
+    def test_color_pattern_repeats_color_widths(self) -> None:
+        pattern = ColorPattern(
+            led_count=6,
+            colors=((1, 0, 0), (0, 2, 0), (0, 0, 3)),
+            width=2,
+        )
+
+        npt.assert_array_equal(
+            pattern.next_frame(),
+            np.array(
+                [[1, 0, 0], [1, 0, 0], [0, 2, 0], [0, 2, 0], [0, 0, 3], [0, 0, 3]],
+                dtype=np.uint8,
+            ),
+        )
+        npt.assert_array_equal(
+            pattern.next_frame(),
+            np.array(
+                [[1, 0, 0], [0, 2, 0], [0, 2, 0], [0, 0, 3], [0, 0, 3], [1, 0, 0]],
+                dtype=np.uint8,
+            ),
         )
 
 
@@ -508,6 +593,30 @@ class AnimateScriptTests(unittest.TestCase):
         npt.assert_array_equal(
             streamer.next_frame(),
             np.array([[0, 0, 0], [2, 5, 8]], dtype=np.uint8),
+        )
+
+    def test_build_streamer_creates_color_chase(self) -> None:
+        with patch(
+            "sys.argv",
+            [
+                "lyte_animate.py",
+                "color_chase",
+                "--color",
+                "1",
+                "2",
+                "3",
+                "--width",
+                "2",
+            ],
+        ):
+            args = self.script.parse_args()
+
+        streamer = self.script.build_streamer(args, 3)
+
+        self.assertIsInstance(streamer, ColorChase)
+        npt.assert_array_equal(
+            streamer.next_frame(),
+            np.array([[1, 2, 3], [1, 2, 3], [0, 0, 0]], dtype=np.uint8),
         )
 
 
