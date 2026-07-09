@@ -13,6 +13,7 @@ from lyte.errors import DiscoveryError, ProtocolError
 from lyte.hamiltonian import (
     HamiltonianCounter,
     HamiltonianStreamer,
+    hamiltonian_colors,
     next_hamiltonian,
     parse_order,
 )
@@ -116,6 +117,12 @@ class HamiltonianTests(unittest.TestCase):
         self.assertEqual(counter.next_color(), (0, 0, 0))
         self.assertEqual(counter.next_color(), (0, 0, 64))
         self.assertEqual(counter.next_color(), (0, 0, 128))
+
+    def test_hamiltonian_colors_generates_one_full_cycle(self) -> None:
+        colors = list(hamiltonian_colors(n=4))
+
+        self.assertEqual(len(colors), 64)
+        self.assertEqual(colors[:3], [(0, 0, 0), (0, 0, 64), (0, 0, 128)])
 
     def test_counter_supports_order_and_inversion(self) -> None:
         counter = HamiltonianCounter(n=4, order="bgr", inverted="r")
@@ -292,6 +299,30 @@ class HamiltonianScriptTests(unittest.TestCase):
 
         self.assertEqual(args.attempts, 10)
         self.assertEqual(args.retry_delay, 0.5)
+
+
+class CheckHamiltonianScriptTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        path = Path(__file__).parents[1] / "scripts" / "check_hamiltonian.py"
+        spec = importlib.util.spec_from_file_location("check_hamiltonian", path)
+        assert spec is not None
+        assert spec.loader is not None
+        cls.script = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.script)
+
+    def test_find_problems_accepts_valid_sequence(self) -> None:
+        colors = list(hamiltonian_colors(n=4))
+
+        self.assertEqual(self.script.find_problems(colors, expected_step=64), [])
+
+    def test_find_problems_reports_bad_transition(self) -> None:
+        colors = [(0, 0, 0), (64, 64, 0)]
+
+        problems = self.script.find_problems(colors, expected_step=64)
+
+        self.assertEqual(len(problems), 2)
+        self.assertIn("changed 2 components", problems[0])
 
 
 if __name__ == "__main__":
