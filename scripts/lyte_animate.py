@@ -41,7 +41,7 @@ from lyte.bibliopixel import (
     WhiteTwinkle,
 )
 from lyte.hamiltonian import HamiltonianStreamer
-from lyte.logging import log, log_error
+from lyte.logging import log, log_error, log_status
 from lyte.random_walk import RandomWalk
 from lyte.retry import RetryConfig
 from lyte.session import (
@@ -271,6 +271,7 @@ def run_random_animations(
             duration = min(duration, stop_at - time.monotonic())
         if duration <= 0:
             return
+        log_status(f"[pattern] {segment_args.animation} for {duration:.1f} seconds")
         run_animation(segment_args, client, retry, host, led_count, duration)
 
 
@@ -546,10 +547,12 @@ def read_led_count(
         sys.exit(f"Could not read device info from {host}.")
     set_mac_from_gestalt(client, gestalt)
     if configured_led_count is not None:
+        log_status(f"[connected] {host}: using {configured_led_count} LEDs")
         return configured_led_count
     led_count = led_count_from_gestalt(gestalt)
     if led_count is None:
         sys.exit("Device did not report number_of_led; pass --led-count.")
+    log_status(f"[connected] {host}: {led_count} LEDs")
     return led_count
 
 
@@ -564,6 +567,7 @@ def prepare_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
         sys.exit(f"Could not authenticate with {host}.")
     if client.token is None:
         sys.exit("Authentication succeeded without producing a token.")
+    log_status(f"[connected] Authenticated with {host}")
 
     log("[step] Switching to realtime mode")
     realtime_response = set_realtime_mode_with_retry(
@@ -573,6 +577,7 @@ def prepare_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
     )
     if realtime_response is None:
         sys.exit(f"Could not switch {host} to realtime mode.")
+    log_status(f"[connected] {host} is in realtime mode")
     return True
 
 
@@ -591,6 +596,7 @@ def turn_off_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
     )
     if token is None:
         sys.exit(f"Could not authenticate with {host}.")
+    log_status(f"[connected] Authenticated with {host}")
 
     log("[step] Switching device to off mode")
     response = set_off_mode_with_retry(
@@ -630,7 +636,7 @@ def discover_host(timeout: float) -> str | None:
     if len(devices) > 1:
         log("[warn] Multiple devices found; using the first one.")
     device = devices[0]
-    log(f"[ok] Found {device.device_id} at {device.ip_address}")
+    log_status(f"[connected] Found {device.device_id} at {device.ip_address}")
     return device.ip_address
 
 
