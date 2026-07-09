@@ -467,6 +467,50 @@ class HamiltonianScriptTests(unittest.TestCase):
         self.assertEqual(args.retry_delay, 0.5)
 
 
+class AnimateScriptTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        path = Path(__file__).parents[1] / "scripts" / "lyte_animate.py"
+        spec = importlib.util.spec_from_file_location("lyte_animate", path)
+        assert spec is not None
+        assert spec.loader is not None
+        cls.script = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.script)
+
+    def test_build_streamer_creates_hamiltonian_streamer(self) -> None:
+        with patch("sys.argv", ["lyte_animate.py", "hamiltonian"]):
+            args = self.script.parse_args()
+
+        streamer = self.script.build_streamer(args, 3)
+
+        self.assertIsInstance(streamer, HamiltonianStreamer)
+        self.assertEqual(streamer.led_count, 3)
+
+    def test_build_streamer_creates_random_walk(self) -> None:
+        with patch(
+            "sys.argv",
+            [
+                "lyte_animate.py",
+                "random_walk",
+                "--color",
+                "10",
+                "20",
+                "30",
+                "--seed",
+                "1",
+            ],
+        ):
+            args = self.script.parse_args()
+
+        streamer = self.script.build_streamer(args, 2)
+
+        self.assertIsInstance(streamer, RandomWalk)
+        npt.assert_array_equal(
+            streamer.next_frame(),
+            np.array([[0, 0, 0], [2, 5, 8]], dtype=np.uint8),
+        )
+
+
 class CheckHamiltonianScriptTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
