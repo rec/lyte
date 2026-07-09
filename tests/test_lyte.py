@@ -792,6 +792,41 @@ class AnimateScriptTests(unittest.TestCase):
         self.assertIsInstance(streamer, HamiltonianStreamer)
         self.assertEqual(streamer.led_count, 3)
 
+    def test_parse_args_defaults_to_random_animation(self) -> None:
+        with patch("sys.argv", ["lyte_animate.py"]):
+            args = self.script.parse_args()
+
+        self.assertEqual(args.animation, "random")
+
+    def test_random_mode_uses_hamiltonian_settings(self) -> None:
+        with patch("sys.argv", ["lyte_animate.py"]):
+            args = self.script.parse_args()
+
+        with patch.object(self.script, "RANDOM_ANIMATIONS", ("hamiltonian",)):
+            segment_args = self.script.random_animation_args(
+                args, random.Random(1), None
+            )
+
+        self.assertEqual(segment_args.animation, "hamiltonian")
+        self.assertEqual(segment_args.n, 256)
+        self.assertEqual(segment_args.speed, 100)
+
+    def test_random_mode_uses_exciting_random_walk_settings(self) -> None:
+        with patch("sys.argv", ["lyte_animate.py"]):
+            args = self.script.parse_args()
+
+        with patch.object(self.script, "RANDOM_ANIMATIONS", ("random_walk",)):
+            segment_args = self.script.random_animation_args(
+                args, random.Random(1), None
+            )
+
+        self.assertEqual(segment_args.animation, "random_walk")
+        self.assertEqual(segment_args.speed, self.script.RANDOM_WALK_SPEED)
+        self.assertEqual(segment_args.variance, self.script.RANDOM_WALK_VARIANCE)
+        self.assertEqual(segment_args.bounds, self.script.RANDOM_WALK_BOUNDS)
+        self.assertEqual(segment_args.period, self.script.RANDOM_WALK_PERIOD)
+        self.assertTrue(segment_args.pre_fill)
+
     def test_build_streamer_creates_random_walk(self) -> None:
         with patch(
             "sys.argv",

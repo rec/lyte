@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import random
 import sys
 import time
 from pathlib import Path
@@ -53,6 +54,44 @@ from lyte.session import (
     set_realtime_mode_with_retry,
 )
 
+ANIMATIONS: tuple[str, ...] = (
+    "alternates",
+    "color_chase",
+    "color_fade",
+    "color_fill",
+    "color_pattern",
+    "color_wipe",
+    "fire_flies",
+    "halves_rainbow",
+    "hamiltonian",
+    "larson_rainbow",
+    "larson_scanner",
+    "linear_rainbow",
+    "off",
+    "party_mode",
+    "pixel_ping_pong",
+    "pulse",
+    "rainbow",
+    "rainbow_cycle",
+    "random",
+    "random_walk",
+    "saber_blade",
+    "searchlights",
+    "twinkle",
+    "wave",
+    "wave_move",
+    "white_twinkle",
+)
+RANDOM_ANIMATIONS: tuple[str, ...] = tuple(
+    a for a in ANIMATIONS if a not in ("off", "random")
+)
+RANDOM_MIN_DURATION = 10.0
+RANDOM_MAX_DURATION = 30.0
+RANDOM_WALK_SPEED = 80.0
+RANDOM_WALK_VARIANCE = 80.0
+RANDOM_WALK_BOUNDS = (0.0, 255.0)
+RANDOM_WALK_PERIOD = 6.0
+
 
 class Streamer(Protocol):
     def next_frame(self) -> npt.NDArray[np.uint8]:
@@ -81,31 +120,10 @@ def main() -> int:
         return 1
 
     try:
-        streamer = build_streamer(args, led_count)
-        frame_delay = 1 / args.fps
-        stop_at = None if args.duration is None else time.monotonic() + args.duration
-        log(
-            "[ok] Streaming "
-            f"{args.animation} frames to {host} for {led_count} LEDs at {args.fps} FPS"
-        )
-
-        while stop_at is None or time.monotonic() < stop_at:
-            started_at = time.monotonic()
-            frame = streamer.next_frame()
-            if client.token is None:
-                sys.exit("Authentication token disappeared before frame send.")
-            sent = send_frame_with_retry(
-                host,
-                client.token.value,
-                frame,
-                retry,
-                f"UDP realtime frame send to {host}",
-            )
-            if sent is None:
-                sys.exit(f"Could not send realtime frame to {host}.")
-            remaining = frame_delay - (time.monotonic() - started_at)
-            if remaining > 0:
-                time.sleep(remaining)
+        if args.animation == "random":
+            run_random_animations(args, client, retry, host, led_count)
+        else:
+            run_animation(args, client, retry, host, led_count, args.duration)
     except KeyboardInterrupt:
         log()
         log("[ok] Stopped")
@@ -118,33 +136,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "animation",
-        choices=(
-            "alternates",
-            "color_chase",
-            "color_fade",
-            "color_fill",
-            "color_pattern",
-            "color_wipe",
-            "fire_flies",
-            "halves_rainbow",
-            "hamiltonian",
-            "larson_rainbow",
-            "larson_scanner",
-            "linear_rainbow",
-            "off",
-            "party_mode",
-            "pixel_ping_pong",
-            "pulse",
-            "rainbow",
-            "rainbow_cycle",
-            "random_walk",
-            "saber_blade",
-            "searchlights",
-            "twinkle",
-            "wave",
-            "wave_move",
-            "white_twinkle",
-        ),
+        nargs="?",
+        default="random",
+        choices=ANIMATIONS,
         help="Animation to stream.",
     )
     parser.add_argument("--host")
@@ -256,6 +250,84 @@ def parse_args() -> argparse.Namespace:
     if args.start < 0:
         parser.error("--start must not be negative")
     return args
+
+
+def run_random_animations(
+    args: argparse.Namespace,
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    led_count: int,
+) -> None:
+    generator = random.Random(args.seed)
+    stop_at = None if args.duration is None else time.monotonic() + args.duration
+    previous_animation = None
+
+    while stop_at is None or time.monotonic() < stop_at:
+        segment_args = random_animation_args(args, generator, previous_animation)
+        previous_animation = segment_args.animation
+        duration = generator.uniform(RANDOM_MIN_DURATION, RANDOM_MAX_DURATION)
+        if stop_at is not None:
+            duration = min(duration, stop_at - time.monotonic())
+        if duration <= 0:
+            return
+        run_animation(segment_args, client, retry, host, led_count, duration)
+
+
+def random_animation_args(
+    args: argparse.Namespace,
+    generator: random.Random,
+    previous_animation: str | None,
+) -> argparse.Namespace:
+    choices = [a for a in RANDOM_ANIMATIONS if a != previous_animation]
+    values = vars(args).copy()
+    values["animation"] = generator.choice(choices)
+    values["seed"] = generator.randrange(0, 2**32)
+    if values["animation"] == "hamiltonian":
+        values["n"] = 256
+        values["speed"] = 100
+    elif values["animation"] == "random_walk":
+        values["speed"] = RANDOM_WALK_SPEED
+        values["variance"] = RANDOM_WALK_VARIANCE
+        values["bounds"] = RANDOM_WALK_BOUNDS
+        values["period"] = RANDOM_WALK_PERIOD
+        values["pre_fill"] = True
+    return argparse.Namespace(**values)
+
+
+def run_animation(
+    args: argparse.Namespace,
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    led_count: int,
+    duration: float | None,
+) -> None:
+    streamer = build_streamer(args, led_count)
+    frame_delay = 1 / args.fps
+    stop_at = None if duration is None else time.monotonic() + duration
+    log(
+        "[ok] Streaming "
+        f"{args.animation} frames to {host} for {led_count} LEDs at {args.fps} FPS"
+    )
+
+    while stop_at is None or time.monotonic() < stop_at:
+        started_at = time.monotonic()
+        frame = streamer.next_frame()
+        if client.token is None:
+            sys.exit("Authentication token disappeared before frame send.")
+        sent = send_frame_with_retry(
+            host,
+            client.token.value,
+            frame,
+            retry,
+            f"UDP realtime frame send to {host}",
+        )
+        if sent is None:
+            sys.exit(f"Could not send realtime frame to {host}.")
+        remaining = frame_delay - (time.monotonic() - started_at)
+        if remaining > 0:
+            time.sleep(remaining)
 
 
 def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
