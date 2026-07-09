@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import io
 import random
@@ -843,7 +844,8 @@ class AnimateScriptTests(unittest.TestCase):
 
         with (
             patch.object(self.script, "RANDOM_ANIMATIONS", ("hamiltonian",)),
-            patch.object(self.script, "run_animation") as run_animation,
+            patch.object(self.script, "build_streamer", return_value=object()),
+            patch.object(self.script, "run_streamer") as run_streamer,
             patch.object(self.script.time, "monotonic", side_effect=[0, 0, 0, 2]),
             patch("sys.stdout", output),
         ):
@@ -856,7 +858,59 @@ class AnimateScriptTests(unittest.TestCase):
             )
 
         self.assertIn("[pattern] hamiltonian", output.getvalue())
-        run_animation.assert_called_once()
+        run_streamer.assert_called_once()
+
+    def test_blend_frames_crossfades_rgb_values(self) -> None:
+        current_frame = np.array([[0, 100, 200]], dtype=np.uint8)
+        next_frame = np.array([[100, 200, 0]], dtype=np.uint8)
+
+        npt.assert_array_equal(
+            self.script.blend_frames(current_frame, next_frame, 0.25),
+            np.array([[25, 125, 150]], dtype=np.uint8),
+        )
+
+    def test_crossfade_advances_both_streamers(self) -> None:
+        class ConstantStreamer:
+            def __init__(self, color: tuple[int, int, int]) -> None:
+                self.color = color
+                self.calls = 0
+
+            def next_frame(self) -> npt.NDArray[np.uint8]:
+                self.calls += 1
+                return np.array([self.color], dtype=np.uint8)
+
+        current_streamer = ConstantStreamer((0, 0, 0))
+        next_streamer = ConstantStreamer((100, 200, 250))
+        args = argparse.Namespace(fps=1, animation="next")
+        sent_frames = []
+
+        with (
+            patch.object(
+                self.script.time,
+                "monotonic",
+                side_effect=[0.0, 0.5, 0.5, 0.5, 2.0],
+            ),
+            patch.object(self.script.time, "sleep"),
+            patch.object(
+                self.script, "send_realtime_frame", lambda *a: sent_frames.append(a[-1])
+            ),
+        ):
+            self.script.run_crossfade(
+                current_streamer,
+                next_streamer,
+                args,
+                LyteClient(host="192.168.1.23"),
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                "192.168.1.23",
+                1.0,
+            )
+
+        self.assertEqual(current_streamer.calls, 1)
+        self.assertEqual(next_streamer.calls, 1)
+        npt.assert_array_equal(
+            sent_frames[0],
+            np.array([[50, 100, 125]], dtype=np.uint8),
+        )
 
     def test_build_streamer_creates_random_walk(self) -> None:
         with patch(

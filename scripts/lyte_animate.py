@@ -87,6 +87,7 @@ RANDOM_ANIMATIONS: tuple[str, ...] = tuple(
 )
 RANDOM_MIN_DURATION = 10.0
 RANDOM_MAX_DURATION = 30.0
+RANDOM_OVERLAP_DURATION = 5.0
 RANDOM_WALK_SPEED = 80.0
 RANDOM_WALK_VARIANCE = 80.0
 RANDOM_WALK_BOUNDS = (0.0, 255.0)
@@ -261,18 +262,64 @@ def run_random_animations(
 ) -> None:
     generator = random.Random(args.seed)
     stop_at = None if args.duration is None else time.monotonic() + args.duration
-    previous_animation = None
+    current_args = random_animation_args(args, generator, None)
+    current_streamer = build_streamer(current_args, led_count)
+    current_duration = random_pattern_duration(generator)
+    previous_animation = current_args.animation
+    log_pattern_start(current_args.animation, current_duration)
 
     while stop_at is None or time.monotonic() < stop_at:
-        segment_args = random_animation_args(args, generator, previous_animation)
-        previous_animation = segment_args.animation
-        duration = generator.uniform(RANDOM_MIN_DURATION, RANDOM_MAX_DURATION)
-        if stop_at is not None:
-            duration = min(duration, stop_at - time.monotonic())
-        if duration <= 0:
+        solo_duration = clipped_duration(
+            current_duration - RANDOM_OVERLAP_DURATION,
+            stop_at,
+        )
+        if solo_duration > 0:
+            run_streamer(
+                current_streamer,
+                current_args,
+                client,
+                retry,
+                host,
+                led_count,
+                solo_duration,
+            )
+        if stop_at is not None and time.monotonic() >= stop_at:
             return
-        log_status(f"[pattern] {segment_args.animation} for {duration:.1f} seconds")
-        run_animation(segment_args, client, retry, host, led_count, duration)
+
+        next_args = random_animation_args(args, generator, previous_animation)
+        next_streamer = build_streamer(next_args, led_count)
+        next_duration = random_pattern_duration(generator)
+        previous_animation = next_args.animation
+        log_pattern_start(next_args.animation, next_duration)
+
+        overlap_duration = clipped_duration(RANDOM_OVERLAP_DURATION, stop_at)
+        if overlap_duration > 0:
+            run_crossfade(
+                current_streamer,
+                next_streamer,
+                next_args,
+                client,
+                retry,
+                host,
+                overlap_duration,
+            )
+        current_args = next_args
+        current_streamer = next_streamer
+        current_duration = next_duration
+
+
+def random_pattern_duration(generator: random.Random) -> float:
+    return generator.uniform(RANDOM_MIN_DURATION, RANDOM_MAX_DURATION)
+
+
+def clipped_duration(duration: float, stop_at: float | None) -> float:
+    if stop_at is None:
+        return duration
+    return min(duration, stop_at - time.monotonic())
+
+
+def log_pattern_start(animation: str, duration: float) -> None:
+    log_status(f"[pattern] {animation} for {duration:.1f} seconds")
 
 
 def random_animation_args(
@@ -305,6 +352,18 @@ def run_animation(
     duration: float | None,
 ) -> None:
     streamer = build_streamer(args, led_count)
+    run_streamer(streamer, args, client, retry, host, led_count, duration)
+
+
+def run_streamer(
+    streamer: Streamer,
+    args: argparse.Namespace,
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    led_count: int,
+    duration: float | None,
+) -> None:
     frame_delay = 1 / args.fps
     stop_at = None if duration is None else time.monotonic() + duration
     log(
@@ -315,20 +374,71 @@ def run_animation(
     while stop_at is None or time.monotonic() < stop_at:
         started_at = time.monotonic()
         frame = streamer.next_frame()
-        if client.token is None:
-            sys.exit("Authentication token disappeared before frame send.")
-        sent = send_frame_with_retry(
-            host,
-            client.token.value,
-            frame,
-            retry,
-            f"UDP realtime frame send to {host}",
-        )
-        if sent is None:
-            sys.exit(f"Could not send realtime frame to {host}.")
+        send_realtime_frame(client, retry, host, frame)
         remaining = frame_delay - (time.monotonic() - started_at)
         if remaining > 0:
             time.sleep(remaining)
+
+
+def run_crossfade(
+    current_streamer: Streamer,
+    next_streamer: Streamer,
+    args: argparse.Namespace,
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    duration: float,
+) -> None:
+    frame_delay = 1 / args.fps
+    started_at = time.monotonic()
+    stop_at = started_at + duration
+
+    while time.monotonic() < stop_at:
+        frame_started_at = time.monotonic()
+        progress = (frame_started_at - started_at) / duration
+        frame = blend_frames(
+            current_streamer.next_frame(),
+            next_streamer.next_frame(),
+            progress,
+        )
+        send_realtime_frame(client, retry, host, frame)
+        remaining = frame_delay - (time.monotonic() - frame_started_at)
+        if remaining > 0:
+            time.sleep(remaining)
+
+
+def blend_frames(
+    current_frame: npt.NDArray[np.uint8],
+    next_frame: npt.NDArray[np.uint8],
+    progress: float,
+) -> npt.NDArray[np.uint8]:
+    if current_frame.shape != next_frame.shape:
+        raise ValueError("cannot blend frames with different shapes")
+    progress = max(0.0, min(1.0, progress))
+    blended = (
+        current_frame.astype(np.float32) * (1.0 - progress)
+        + next_frame.astype(np.float32) * progress
+    )
+    return np.rint(blended).astype(np.uint8)
+
+
+def send_realtime_frame(
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    frame: npt.NDArray[np.uint8],
+) -> None:
+    if client.token is None:
+        sys.exit("Authentication token disappeared before frame send.")
+    sent = send_frame_with_retry(
+        host,
+        client.token.value,
+        frame,
+        retry,
+        f"UDP realtime frame send to {host}",
+    )
+    if sent is None:
+        sys.exit(f"Could not send realtime frame to {host}.")
 
 
 def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
