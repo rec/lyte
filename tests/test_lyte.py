@@ -7,6 +7,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import numpy as np
+from numpy import testing as npt
+
 from lyte.client import LyteClient
 from lyte.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.discovery import DiscoveredDevice, parse_discovery_response
@@ -20,7 +23,12 @@ from lyte.hamiltonian import (
 )
 from lyte.logging import LOGGING, log, log_error
 from lyte.random_walk import RandomWalk, perturb
-from lyte.realtime import frame_packets_v3, solid_rgb_frame
+from lyte.realtime import (
+    frame_packets_v3,
+    frame_payload,
+    send_frame_v3,
+    solid_rgb_frame,
+)
 from lyte.retry import RetryConfig, retry_call
 from lyte.session import led_count_from_gestalt, set_mac_from_gestalt
 
@@ -56,29 +64,75 @@ class CryptoTests(unittest.TestCase):
 
 class RealtimeTests(unittest.TestCase):
     def test_solid_rgb_frame(self) -> None:
-        self.assertEqual(solid_rgb_frame(3, 230, 85, 0), b"\xe6U\x00" * 3)
+        npt.assert_array_equal(
+            solid_rgb_frame(3, 230, 85, 0),
+            np.array([[230, 85, 0], [230, 85, 0], [230, 85, 0]], dtype=np.uint8),
+        )
 
     def test_generation_2_v3_packet(self) -> None:
-        packets = list(frame_packets_v3("MCIGBF1qJlg=", b"\xe6U\x00" * 250))
+        frame = solid_rgb_frame(250, 230, 85, 0)
+
+        packets = list(frame_packets_v3("MCIGBF1qJlg=", frame))
 
         self.assertEqual(len(packets), 1)
+        header, payload = packets[0]
+        self.assertIs(payload.obj, frame)
+        self.assertEqual(header, b'\x030"\x06\x04]j&X\x00\x00\x00')
         self.assertEqual(
-            packets[0],
-            b'\x030"\x06\x04]j&X\x00\x00\x00' + b"\xe6U\x00" * 250,
+            bytes(payload),
+            b"\xe6U\x00" * 250,
         )
 
     def test_generation_2_v3_fragments_large_frames(self) -> None:
-        packets = list(frame_packets_v3("MCIGBF1qJlg=", b"a" * 901))
+        frame = np.frombuffer(b"a" * 903, dtype=np.uint8).reshape((301, 3))
+
+        packets = list(frame_packets_v3("MCIGBF1qJlg=", frame))
 
         self.assertEqual(len(packets), 2)
-        self.assertEqual(len(packets[0]), 912)
-        self.assertEqual(packets[0][:12], b'\x030"\x06\x04]j&X\x00\x00\x00')
-        self.assertEqual(packets[1][:12], b'\x030"\x06\x04]j&X\x00\x00\x01')
-        self.assertEqual(packets[1][12:], b"a")
+        self.assertEqual(packets[0][0], b'\x030"\x06\x04]j&X\x00\x00\x00')
+        self.assertEqual(packets[1][0], b'\x030"\x06\x04]j&X\x00\x00\x01')
+        self.assertEqual(len(packets[0][1]), 900)
+        self.assertEqual(bytes(packets[1][1]), b"aaa")
+
+    def test_rejects_bad_frame_shape(self) -> None:
+        with self.assertRaises(ValueError):
+            frame_payload(np.zeros((9,), dtype=np.uint8))
+
+    def test_send_frame_uses_array_payload_buffer(self) -> None:
+        frame = solid_rgb_frame(1, 1, 2, 3)
+        sent_buffers = []
+
+        class Socket:
+            def __enter__(self) -> Socket:
+                return self
+
+            def __exit__(self, *args: object) -> None:
+                return None
+
+            def sendmsg(
+                self,
+                buffers: list[object],
+                flags: list[object],
+                mode: int,
+                address: tuple[str, int],
+            ) -> int:
+                sent_buffers.append((buffers, flags, mode, address))
+                return sum(len(buffer) for buffer in buffers)
+
+        with patch("lyte.realtime.socket.socket", return_value=Socket()):
+            sent = send_frame_v3("192.168.1.23", "MCIGBF1qJlg=", frame)
+
+        self.assertEqual(sent, 15)
+        buffers, flags, mode, address = sent_buffers[0]
+        self.assertEqual(flags, [])
+        self.assertEqual(mode, 0)
+        self.assertEqual(address, ("192.168.1.23", 7777))
+        self.assertEqual(buffers[0], b'\x030"\x06\x04]j&X\x00\x00\x00')
+        self.assertIs(buffers[1].obj, frame)
 
     def test_rejects_bad_realtime_token(self) -> None:
         with self.assertRaises(ProtocolError):
-            list(frame_packets_v3("bad", b"abc"))
+            list(frame_packets_v3("bad", solid_rgb_frame(1, 0, 0, 0)))
 
 
 class ClientTests(unittest.TestCase):
@@ -156,9 +210,12 @@ class HamiltonianTests(unittest.TestCase):
     def test_streamer_returns_one_rgb_triplet_per_led(self) -> None:
         streamer = HamiltonianStreamer(led_count=3, n=4, speed=4, fps=4)
 
-        self.assertEqual(streamer.next_frame(), b"\x00" * 9)
-        self.assertEqual(streamer.next_frame(), b"\x00" * 9)
-        self.assertEqual(streamer.next_frame(), b"\x00" * 6 + b"\x00\x00@")
+        npt.assert_array_equal(streamer.next_frame(), np.zeros((3, 3), dtype=np.uint8))
+        npt.assert_array_equal(streamer.next_frame(), np.zeros((3, 3), dtype=np.uint8))
+        npt.assert_array_equal(
+            streamer.next_frame(),
+            np.array([[0, 0, 0], [0, 0, 0], [0, 0, 64]], dtype=np.uint8),
+        )
 
 
 class RandomWalkTests(unittest.TestCase):
@@ -187,8 +244,11 @@ class RandomWalkTests(unittest.TestCase):
             variance=0,
         )
 
-        self.assertEqual(walk.next_frame(), b"\x00\x00\x00\x00\x00\x00")
-        self.assertEqual(walk.next_frame(), b"\x00\x00\x00\x0a\x14\x1e")
+        npt.assert_array_equal(walk.next_frame(), np.zeros((2, 3), dtype=np.uint8))
+        npt.assert_array_equal(
+            walk.next_frame(),
+            np.array([[0, 0, 0], [10, 20, 30]], dtype=np.uint8),
+        )
 
 
 class RetryTests(unittest.TestCase):

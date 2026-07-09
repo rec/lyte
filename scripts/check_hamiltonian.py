@@ -4,8 +4,8 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -71,7 +71,7 @@ def describe_problem(
     next_color: RGB,
     expected_step: int,
 ) -> str | None:
-    deltas = tuple(b - a for a, b in zip(current, next_color))
+    deltas = tuple(b - a for a, b in zip(current, next_color, strict=True))
     changed = [i for i, delta in enumerate(deltas) if delta]
     if len(changed) != 1:
         return (
