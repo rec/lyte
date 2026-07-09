@@ -10,11 +10,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from lyte import AuthenticationError, LyteClient, ProtocolError, discover
+from lyte import LyteClient, discover
 from lyte.hamiltonian import HamiltonianStreamer
 from lyte.logging import log, log_error
-from lyte.realtime import send_frame_v3
-from lyte.retry import RetryConfig, retry_call
+from lyte.retry import RetryConfig
+from lyte.session import (
+    authenticate_with_retry,
+    led_count_from_gestalt,
+    read_gestalt,
+    send_frame_with_retry,
+    set_mac_from_gestalt,
+    set_realtime_mode_with_retry,
+)
 
 
 def main() -> int:
@@ -31,30 +38,25 @@ def main() -> int:
         delay=args.retry_delay,
         backoff=args.retry_backoff,
     )
-    gestalt = retry_call(
-        f"HTTP device info read from {host}",
+    gestalt = read_gestalt(
+        client,
         retry,
-        lambda: client.get("gestalt", authenticated=False).data,
-        (ProtocolError,),
+        f"HTTP device info read from {host}",
     )
     if gestalt is None:
         sys.exit(f"Could not read device info from {host}.")
 
     if led_count is None:
-        value = gestalt.get("number_of_led")
-        if not isinstance(value, int) or value <= 0:
+        led_count = led_count_from_gestalt(gestalt)
+        if led_count is None:
             sys.exit("Device did not report number_of_led; pass --led-count.")
-        led_count = value
-    mac = gestalt.get("mac")
-    if isinstance(mac, str):
-        client.mac = mac
+    set_mac_from_gestalt(client, gestalt)
 
     log("[step] Authenticating")
-    token = retry_call(
-        f"login and verify with {host}",
+    token = authenticate_with_retry(
+        client,
         retry,
-        client.authenticate,
-        (AuthenticationError, ProtocolError),
+        f"login and verify with {host}",
     )
     if token is None:
         sys.exit(f"Could not authenticate with {host}.")
@@ -62,11 +64,10 @@ def main() -> int:
         sys.exit("Authentication succeeded without producing a token.")
 
     log("[step] Switching to realtime mode")
-    realtime_response = retry_call(
-        f"switch {host} to realtime mode",
+    realtime_response = set_realtime_mode_with_retry(
+        client,
         retry,
-        client.set_realtime_mode,
-        (AuthenticationError, ProtocolError),
+        f"switch {host} to realtime mode",
     )
     if realtime_response is None:
         sys.exit(f"Could not switch {host} to realtime mode.")
@@ -91,11 +92,12 @@ def main() -> int:
         while stop_at is None or time.monotonic() < stop_at:
             started_at = time.monotonic()
             frame = streamer.next_frame()
-            sent = retry_call(
-                f"UDP realtime frame send to {host}",
+            sent = send_frame_with_retry(
+                host,
+                client.token.value,
+                frame,
                 retry,
-                lambda frame=frame: send_frame_v3(host, client.token.value, frame),
-                (OSError, ProtocolError),
+                f"UDP realtime frame send to {host}",
             )
             if sent is None:
                 sys.exit(f"Could not send realtime frame to {host}.")

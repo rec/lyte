@@ -10,6 +10,14 @@ from .errors import (
 )
 from .hamiltonian import HamiltonianCounter, HamiltonianStreamer, hamiltonian_colors
 from .retry import RetryConfig, retry_call
+from .session import (
+    authenticate_with_retry,
+    led_count_from_gestalt,
+    read_gestalt,
+    send_frame_with_retry,
+    set_mac_from_gestalt,
+    set_realtime_mode_with_retry,
+)
 
 __all__ = [
     "AuthenticationError",
@@ -22,6 +30,12 @@ __all__ = [
     "LyteClient",
     "LyteError",
     "RetryConfig",
+    "authenticate_with_retry",
     "discover",
     "retry_call",
+    "led_count_from_gestalt",
+    "read_gestalt",
+    "send_frame_with_retry",
+    "set_mac_from_gestalt",
+    "set_realtime_mode_with_retry",
 ]
