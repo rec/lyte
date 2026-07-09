@@ -872,6 +872,35 @@ class AnimateScriptTests(unittest.TestCase):
         read_led_count.assert_not_called()
         prepare_device.assert_not_called()
 
+    def test_animation_turns_off_device_after_exception(self) -> None:
+        class BrokenStreamer:
+            def next_frame(self) -> npt.NDArray[np.uint8]:
+                raise RuntimeError("boom")
+
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "lyte_animate.py",
+                    "color_fill",
+                    "--host",
+                    "192.168.1.23",
+                ],
+            ),
+            patch.object(self.script, "read_led_count", return_value=1),
+            patch.object(self.script, "prepare_device", return_value=True),
+            patch.object(self.script, "build_streamer", return_value=BrokenStreamer()),
+            patch.object(
+                self.script,
+                "set_off_mode_with_retry",
+                return_value=LyteResponse(http_status=200, data={"code": 1000}),
+            ) as set_off_mode,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "boom"):
+                self.script.main()
+
+        set_off_mode.assert_called_once()
+
 
 class CheckHamiltonianScriptTests(unittest.TestCase):
     @classmethod

@@ -80,15 +80,15 @@ def main() -> int:
     if not prepare_device(client, retry, host):
         return 1
 
-    streamer = build_streamer(args, led_count)
-    frame_delay = 1 / args.fps
-    stop_at = None if args.duration is None else time.monotonic() + args.duration
-    log(
-        "[ok] Streaming "
-        f"{args.animation} frames to {host} for {led_count} LEDs at {args.fps} FPS"
-    )
-
     try:
+        streamer = build_streamer(args, led_count)
+        frame_delay = 1 / args.fps
+        stop_at = None if args.duration is None else time.monotonic() + args.duration
+        log(
+            "[ok] Streaming "
+            f"{args.animation} frames to {host} for {led_count} LEDs at {args.fps} FPS"
+        )
+
         while stop_at is None or time.monotonic() < stop_at:
             started_at = time.monotonic()
             frame = streamer.next_frame()
@@ -109,6 +109,8 @@ def main() -> int:
     except KeyboardInterrupt:
         log()
         log("[ok] Stopped")
+    finally:
+        turn_off_streaming_device(client, retry, host)
     return 0
 
 
@@ -526,6 +528,22 @@ def turn_off_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
     )
     if response is None:
         sys.exit(f"Could not switch {host} to off mode.")
+    log(f"[ok] {host} is off")
+    return True
+
+
+def turn_off_streaming_device(
+    client: LyteClient, retry: RetryConfig, host: str
+) -> bool:
+    log("[step] Switching device to off mode")
+    response = set_off_mode_with_retry(
+        client,
+        retry,
+        f"switch {host} to off mode",
+    )
+    if response is None:
+        log_error(f"[failed] Could not switch {host} to off mode.")
+        return False
     log(f"[ok] {host} is off")
     return True
 
