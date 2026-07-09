@@ -44,7 +44,7 @@ from lyte.hamiltonian import (
     next_hamiltonian,
     parse_order,
 )
-from lyte.logging import LOGGING, log, log_error
+from lyte.logging import LOGGING, log, log_error, log_status
 from lyte.random_walk import RandomWalk, perturb
 from lyte.realtime import (
     frame_packets_v3,
@@ -223,6 +223,14 @@ class LoggingTests(unittest.TestCase):
             log("hidden")
 
         self.assertEqual(output.getvalue(), "")
+
+    def test_status_logging_is_always_displayed(self) -> None:
+        output = io.StringIO()
+
+        with patch("sys.stdout", output):
+            log_status("visible")
+
+        self.assertEqual(output.getvalue(), "visible\n")
 
 
 class HamiltonianTests(unittest.TestCase):
@@ -827,6 +835,29 @@ class AnimateScriptTests(unittest.TestCase):
         self.assertEqual(segment_args.period, self.script.RANDOM_WALK_PERIOD)
         self.assertTrue(segment_args.pre_fill)
 
+    def test_random_mode_prints_selected_pattern(self) -> None:
+        with patch("sys.argv", ["lyte_animate.py", "--duration", "1"]):
+            args = self.script.parse_args()
+
+        output = io.StringIO()
+
+        with (
+            patch.object(self.script, "RANDOM_ANIMATIONS", ("hamiltonian",)),
+            patch.object(self.script, "run_animation") as run_animation,
+            patch.object(self.script.time, "monotonic", side_effect=[0, 0, 0, 2]),
+            patch("sys.stdout", output),
+        ):
+            self.script.run_random_animations(
+                args,
+                LyteClient(host="192.168.1.23"),
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                "192.168.1.23",
+                3,
+            )
+
+        self.assertIn("[pattern] hamiltonian", output.getvalue())
+        run_animation.assert_called_once()
+
     def test_build_streamer_creates_random_walk(self) -> None:
         with patch(
             "sys.argv",
@@ -899,6 +930,7 @@ class AnimateScriptTests(unittest.TestCase):
             ) as set_off_mode,
             patch.object(self.script, "read_led_count") as read_led_count,
             patch.object(self.script, "prepare_device") as prepare_device,
+            patch("sys.stdout", new_callable=io.StringIO),
         ):
             result = self.script.main()
 
@@ -906,6 +938,27 @@ class AnimateScriptTests(unittest.TestCase):
         set_off_mode.assert_called_once()
         read_led_count.assert_not_called()
         prepare_device.assert_not_called()
+
+    def test_read_led_count_prints_device_info(self) -> None:
+        output = io.StringIO()
+
+        with (
+            patch.object(
+                self.script,
+                "read_gestalt",
+                return_value={"mac": "AA", "number_of_led": 250},
+            ),
+            patch("sys.stdout", output),
+        ):
+            led_count = self.script.read_led_count(
+                LyteClient(host="192.168.1.23"),
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                None,
+                "192.168.1.23",
+            )
+
+        self.assertEqual(led_count, 250)
+        self.assertEqual(output.getvalue(), "[connected] 192.168.1.23: 250 LEDs\n")
 
     def test_animation_turns_off_device_after_exception(self) -> None:
         class BrokenStreamer:
@@ -930,6 +983,7 @@ class AnimateScriptTests(unittest.TestCase):
                 "set_off_mode_with_retry",
                 return_value=LyteResponse(http_status=200, data={"code": 1000}),
             ) as set_off_mode,
+            patch("sys.stdout", new_callable=io.StringIO),
         ):
             with self.assertRaisesRegex(RuntimeError, "boom"):
                 self.script.main()
