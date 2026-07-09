@@ -67,6 +67,19 @@ def set_realtime_mode_with_retry(
     )
 
 
+def set_off_mode_with_retry(
+    client: LyteClient,
+    retry: RetryConfig,
+    label: str,
+) -> LyteResponse | None:
+    return retry_call(
+        label,
+        retry,
+        client.set_off_mode,
+        (AuthenticationError, ProtocolError),
+    )
+
+
 def send_frame_with_retry(
     host: str,
     token: str,

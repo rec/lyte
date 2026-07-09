@@ -13,7 +13,6 @@ from pydantic import BaseModel
 from .crypto import make_challenge_response
 from .errors import AuthenticationError, ProtocolError
 
-
 AUTH_HEADER = "X-Auth-Token"
 
 
@@ -59,6 +58,11 @@ class LyteClient(BaseModel):
         expires_in = data.get("authentication_token_expires_in")
         expires_at = None
         if expires_in is not None:
+            if not isinstance(expires_in, int | str):
+                raise AuthenticationError(
+                    "Login response did not contain numeric "
+                    "'authentication_token_expires_in'"
+                )
             expires_at = time.time() + int(expires_in)
 
         self.token = AuthToken(
@@ -86,6 +90,9 @@ class LyteClient(BaseModel):
 
     def set_realtime_mode(self) -> LyteResponse:
         return self.post("led/mode", {"mode": "rt"})
+
+    def set_off_mode(self) -> LyteResponse:
+        return self.post("led/mode", {"mode": "off"})
 
     def request(
         self,
@@ -124,9 +131,7 @@ class LyteClient(BaseModel):
             raise AuthenticationError("Device rejected the authentication token")
         if response.status < 200 or response.status >= 300:
             text = raw.decode(errors="replace")
-            raise ProtocolError(
-                f"HTTP {response.status} from {self.host}: {text}"
-            )
+            raise ProtocolError(f"HTTP {response.status} from {self.host}: {text}")
 
         try:
             data = json.loads(raw.decode() or "{}")

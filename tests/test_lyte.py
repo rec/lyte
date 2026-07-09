@@ -33,7 +33,7 @@ from lyte.bibliopixel import (
     Wave,
     WhiteTwinkle,
 )
-from lyte.client import LyteClient
+from lyte.client import LyteClient, LyteResponse
 from lyte.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.discovery import DiscoveredDevice, parse_discovery_response
 from lyte.errors import DiscoveryError, ProtocolError
@@ -164,6 +164,29 @@ class ClientTests(unittest.TestCase):
 
         self.assertEqual(client.host, "192.168.1.23")
         self.assertEqual(client.timeout, 1.5)
+
+    def test_set_off_mode_uses_led_mode_off(self) -> None:
+        calls = []
+
+        def post(
+            self: LyteClient,
+            path: str,
+            body: dict[str, object],
+            authenticated: bool = True,
+        ) -> LyteResponse:
+            calls.append((self.host, path, body, authenticated))
+            return LyteResponse(http_status=200, data={"code": 1000})
+
+        client = LyteClient(host="192.168.1.23")
+
+        with patch.object(LyteClient, "post", post):
+            response = client.set_off_mode()
+
+        self.assertEqual(response.data, {"code": 1000})
+        self.assertEqual(
+            calls,
+            [("192.168.1.23", "led/mode", {"mode": "off"}, True)],
+        )
 
 
 class SessionTests(unittest.TestCase):
@@ -828,6 +851,26 @@ class AnimateScriptTests(unittest.TestCase):
             streamer.next_frame(),
             np.array([[255, 0, 0], [252, 3, 0], [249, 6, 0]], dtype=np.uint8),
         )
+
+    def test_off_mode_skips_realtime_streaming(self) -> None:
+        with (
+            patch("sys.argv", ["lyte_animate.py", "off", "--host", "192.168.1.23"]),
+            patch.object(self.script, "read_gestalt", return_value={"mac": "AA"}),
+            patch.object(self.script, "authenticate_with_retry", return_value=object()),
+            patch.object(
+                self.script,
+                "set_off_mode_with_retry",
+                return_value=LyteResponse(http_status=200, data={"code": 1000}),
+            ) as set_off_mode,
+            patch.object(self.script, "read_led_count") as read_led_count,
+            patch.object(self.script, "prepare_device") as prepare_device,
+        ):
+            result = self.script.main()
+
+        self.assertEqual(result, 0)
+        set_off_mode.assert_called_once()
+        read_led_count.assert_not_called()
+        prepare_device.assert_not_called()
 
 
 class CheckHamiltonianScriptTests(unittest.TestCase):
