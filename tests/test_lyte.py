@@ -4,13 +4,35 @@ import importlib.util
 import io
 import random
 import unittest
+from collections.abc import Sized
 from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
 from numpy import testing as npt
 
-from lyte.bibliopixel import Alternates, ColorChase, ColorFill, ColorPattern, ColorWipe
+from lyte.bibliopixel import (
+    Alternates,
+    ColorChase,
+    ColorFade,
+    ColorFill,
+    ColorPattern,
+    ColorWipe,
+    FireFlies,
+    HalvesRainbow,
+    LarsonScanner,
+    LinearRainbow,
+    PartyMode,
+    PixelPingPong,
+    Pulse,
+    Rainbow,
+    RainbowCycle,
+    SaberBlade,
+    Searchlights,
+    Twinkle,
+    Wave,
+    WhiteTwinkle,
+)
 from lyte.client import LyteClient
 from lyte.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.discovery import DiscoveredDevice, parse_discovery_response
@@ -112,7 +134,7 @@ class RealtimeTests(unittest.TestCase):
 
             def sendmsg(
                 self,
-                buffers: list[object],
+                buffers: list[Sized],
                 flags: list[object],
                 mode: int,
                 address: tuple[str, int],
@@ -334,6 +356,182 @@ class BiblioPixelTests(unittest.TestCase):
                 dtype=np.uint8,
             ),
         )
+
+    def test_color_fade_scales_color_across_span(self) -> None:
+        fade = ColorFade(
+            led_count=4,
+            colors=((10, 20, 30),),
+            level_step=225,
+            start=1,
+            end=2,
+        )
+
+        npt.assert_array_equal(
+            fade.next_frame(),
+            np.array(
+                [[0, 0, 0], [1, 2, 4], [1, 2, 4], [0, 0, 0]],
+                dtype=np.uint8,
+            ),
+        )
+
+    def test_party_mode_alternates_color_and_blank_frames(self) -> None:
+        party = PartyMode(led_count=2, colors=((1, 2, 3), (4, 5, 6)))
+
+        npt.assert_array_equal(
+            party.next_frame(),
+            np.array([[1, 2, 3], [1, 2, 3]], dtype=np.uint8),
+        )
+        npt.assert_array_equal(
+            party.next_frame(),
+            np.zeros((2, 3), dtype=np.uint8),
+        )
+        npt.assert_array_equal(
+            party.next_frame(),
+            np.array([[4, 5, 6], [4, 5, 6]], dtype=np.uint8),
+        )
+
+    def test_fire_flies_lights_seeded_random_pixels(self) -> None:
+        fire_flies = FireFlies(
+            led_count=5,
+            colors=((1, 2, 3),),
+            width=2,
+            count=1,
+            seed=1,
+        )
+
+        frame = fire_flies.next_frame()
+
+        self.assertEqual(frame.shape, (5, 3))
+        self.assertGreaterEqual(np.count_nonzero(frame[:, 0]), 1)
+        self.assertLessEqual(np.count_nonzero(frame[:, 0]), 2)
+
+    def test_saber_blade_extends_then_retracts(self) -> None:
+        saber = SaberBlade(led_count=3, colors=((1, 2, 3),), speed=1)
+
+        npt.assert_array_equal(saber.next_frame(), np.zeros((3, 3), dtype=np.uint8))
+        npt.assert_array_equal(
+            saber.next_frame(),
+            np.array([[1, 2, 3], [0, 0, 0], [0, 0, 0]], dtype=np.uint8),
+        )
+
+    def test_rainbows_generate_wheel_frames(self) -> None:
+        npt.assert_array_equal(
+            Rainbow(led_count=3).next_frame(),
+            np.array([[255, 0, 0], [252, 3, 0], [249, 6, 0]], dtype=np.uint8),
+        )
+        npt.assert_array_equal(
+            RainbowCycle(led_count=3).next_frame(),
+            np.array([[255, 0, 0], [0, 255, 0], [0, 0, 255]], dtype=np.uint8),
+        )
+
+    def test_linear_rainbow_fills_progressively(self) -> None:
+        rainbow = LinearRainbow(led_count=3)
+
+        npt.assert_array_equal(
+            rainbow.next_frame(),
+            np.array([[255, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.uint8),
+        )
+        npt.assert_array_equal(
+            rainbow.next_frame(),
+            np.array([[252, 3, 0], [252, 3, 0], [0, 0, 0]], dtype=np.uint8),
+        )
+
+    def test_halves_rainbow_expands_from_center(self) -> None:
+        rainbow = HalvesRainbow(led_count=5)
+
+        npt.assert_array_equal(
+            rainbow.next_frame(),
+            np.array(
+                [[0, 0, 0], [0, 0, 0], [255, 0, 0], [0, 0, 0], [0, 0, 0]],
+                dtype=np.uint8,
+            ),
+        )
+        npt.assert_array_equal(
+            rainbow.next_frame(),
+            np.array(
+                [[0, 0, 0], [240, 15, 0], [255, 0, 0], [240, 15, 0], [0, 0, 0]],
+                dtype=np.uint8,
+            ),
+        )
+
+    def test_larson_scanner_bounces_lit_pixel(self) -> None:
+        scanner = LarsonScanner(led_count=3, color=(1, 2, 3), tail=0)
+
+        npt.assert_array_equal(
+            scanner.next_frame(),
+            np.array([[1, 2, 3], [0, 0, 0], [0, 0, 0]], dtype=np.uint8),
+        )
+        npt.assert_array_equal(
+            scanner.next_frame(),
+            np.array([[0, 0, 0], [1, 2, 3], [0, 0, 0]], dtype=np.uint8),
+        )
+
+    def test_pulse_starts_when_chance_always_hits(self) -> None:
+        pulse = Pulse(
+            led_count=4,
+            colors=((10, 20, 30),),
+            tail=0,
+            chance=100,
+            min_speed=1,
+            max_speed=2,
+            seed=1,
+        )
+
+        frame = pulse.next_frame()
+
+        self.assertGreater(np.count_nonzero(frame), 0)
+
+    def test_pixel_ping_pong_fades_previous_pixels(self) -> None:
+        ping_pong = PixelPingPong(led_count=3, color=(10, 0, 0), fade_delay=1)
+
+        npt.assert_array_equal(
+            ping_pong.next_frame(),
+            np.array([[10, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.uint8),
+        )
+        npt.assert_array_equal(
+            ping_pong.next_frame(),
+            np.array([[0, 0, 0], [10, 0, 0], [0, 0, 0]], dtype=np.uint8),
+        )
+
+    def test_searchlights_blend_moving_beams(self) -> None:
+        searchlights = Searchlights(
+            led_count=8,
+            colors=((10, 0, 0), (0, 20, 0), (0, 0, 30)),
+            tail=0,
+            seed=1,
+        )
+
+        frame = searchlights.next_frame()
+
+        self.assertEqual(frame.shape, (8, 3))
+        self.assertGreater(np.count_nonzero(frame), 0)
+
+    def test_wave_generates_sine_colored_frame(self) -> None:
+        npt.assert_array_equal(
+            Wave(led_count=3, color=(10, 20, 30), cycles=1).next_frame(),
+            np.array([[10, 20, 30], [10, 20, 30], [10, 20, 30]], dtype=np.uint8),
+        )
+
+    def test_twinkle_lights_seeded_random_pixel(self) -> None:
+        twinkle = Twinkle(
+            led_count=4,
+            colors=((10, 20, 30),),
+            density=100,
+            speed=10,
+            seed=1,
+        )
+
+        frame = twinkle.next_frame()
+
+        self.assertGreater(np.count_nonzero(frame), 0)
+
+    def test_white_twinkle_uses_white_pixels(self) -> None:
+        twinkle = WhiteTwinkle(led_count=4, density=100, speed=10, seed=1)
+
+        frame = twinkle.next_frame()
+
+        self.assertGreater(np.count_nonzero(frame), 0)
+        self.assertTrue(np.all(frame[frame > 0] == int(np.max(frame))))
 
 
 class RetryTests(unittest.TestCase):
@@ -617,6 +815,18 @@ class AnimateScriptTests(unittest.TestCase):
         npt.assert_array_equal(
             streamer.next_frame(),
             np.array([[1, 2, 3], [1, 2, 3], [0, 0, 0]], dtype=np.uint8),
+        )
+
+    def test_build_streamer_creates_ported_strip_animation(self) -> None:
+        with patch("sys.argv", ["lyte_animate.py", "rainbow"]):
+            args = self.script.parse_args()
+
+        streamer = self.script.build_streamer(args, 3)
+
+        self.assertIsInstance(streamer, Rainbow)
+        npt.assert_array_equal(
+            streamer.next_frame(),
+            np.array([[255, 0, 0], [252, 3, 0], [249, 6, 0]], dtype=np.uint8),
         )
 
 
