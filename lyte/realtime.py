@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import binascii
 import socket
-from typing import Iterable
+from collections.abc import Iterable
 
 import numpy as np
 from numpy import typing as npt
