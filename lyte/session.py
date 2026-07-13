@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-from numpy import typing as npt
+from numpy.typing import NDArray
 
 from .client import AuthToken, LyteClient, LyteResponse
 from .errors import AuthenticationError, ProtocolError
@@ -83,7 +83,7 @@ def set_off_mode_with_retry(
 def send_frame_with_retry(
     host: str,
     token: str,
-    frame: npt.NDArray[np.uint8],
+    frame: NDArray[np.uint8],
     retry: RetryConfig,
     label: str,
 ) -> int | None:
