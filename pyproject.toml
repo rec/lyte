@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lyte"
-version = "0.1.1"
+version = "0.1.2"
 description = "Small dependency-free Python client for Twinkly generation 2 lights"
 readme = "README.md"
 requires-python = ">=3.11"
