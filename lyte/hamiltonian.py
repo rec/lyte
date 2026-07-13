@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 import numpy as np
-from numpy import typing as npt
+from numpy.typing import NDArray
 from pydantic import BaseModel, PrivateAttr, model_validator
 
 RGB = tuple[int, int, int]
@@ -106,7 +106,7 @@ class HamiltonianStreamer(BaseModel):
             ]
         return self
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         self._advance_cache()
         fraction = self._total_pixels % 1
         colors = [
@@ -162,7 +162,7 @@ def to_float_rgb(color: RGB) -> FloatRGB:
     return float(color[0]), float(color[1]), float(color[2])
 
 
-def frame_array(colors: list[FloatRGB]) -> npt.NDArray[np.uint8]:
+def frame_array(colors: list[FloatRGB]) -> NDArray[np.uint8]:
     frame = np.empty((len(colors), 3), dtype=np.uint8)
     for i, color in enumerate(colors):
         for channel, component in enumerate(color):

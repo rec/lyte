@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import numpy as np
 from numpy import testing as npt
+from numpy.typing import NDArray
 
 from lyte.bibliopixel import (
     Alternates,
@@ -879,7 +880,7 @@ class AnimateScriptTests(unittest.TestCase):
                 self.color = color
                 self.calls = 0
 
-            def next_frame(self) -> npt.NDArray[np.uint8]:
+            def next_frame(self) -> NDArray[np.uint8]:
                 self.calls += 1
                 return np.array([self.color], dtype=np.uint8)
 
@@ -1020,7 +1021,7 @@ class AnimateScriptTests(unittest.TestCase):
 
     def test_animation_turns_off_device_after_exception(self) -> None:
         class BrokenStreamer:
-            def next_frame(self) -> npt.NDArray[np.uint8]:
+            def next_frame(self) -> NDArray[np.uint8]:
                 raise RuntimeError("boom")
 
         with (

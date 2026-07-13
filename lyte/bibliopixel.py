@@ -6,7 +6,7 @@ import math
 import random
 
 import numpy as np
-from numpy import typing as npt
+from numpy.typing import NDArray
 from pydantic import BaseModel, PrivateAttr, model_validator
 
 RGB = tuple[int, int, int]
@@ -28,7 +28,7 @@ class ColorFill(BaseModel):
         validate_rgb(self.color)
         return self
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.empty((self.led_count, 3), dtype=np.uint8)
         frame[:] = self.color
         return frame
@@ -60,7 +60,7 @@ class ColorChase(BaseModel):
             return self.led_count - 1
         return self.end
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.zeros((self.led_count, 3), dtype=np.uint8)
         position = self.start + self._position
         for i in range(self.width):
@@ -84,7 +84,7 @@ class ColorWipe(BaseModel):
     end: int | None = None
     step: int = 1
 
-    _frame: npt.NDArray[np.uint8] = PrivateAttr()
+    _frame: NDArray[np.uint8] = PrivateAttr()
     _position: int = PrivateAttr(default=0)
 
     @model_validator(mode="after")
@@ -102,7 +102,7 @@ class ColorWipe(BaseModel):
             return self.led_count - 1
         return self.end
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         if self._position == 0:
             self._frame[:] = 0
         for i in range(self.step):
@@ -142,7 +142,7 @@ class Alternates(BaseModel):
             return self.led_count - 1
         return self.max_led
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.zeros((self.led_count, 3), dtype=np.uint8)
         for i in range(self.resolved_max_led + 1):
             odd = bool(i % 2)
@@ -170,7 +170,7 @@ class ColorPattern(BaseModel):
             raise ValueError("width must be at least 1")
         return self
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.empty((self.led_count, 3), dtype=np.uint8)
         total_width = self.width * len(self.colors)
         for i in range(self.led_count):
@@ -204,7 +204,7 @@ class ColorFade(BaseModel):
     def resolved_end(self) -> int:
         return resolve_end(self.led_count, self.end)
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         color_index, level_index = divmod(self._position, len(self._levels))
         color = scale_color(
             self.colors[color_index % len(self.colors)], self._levels[level_index]
@@ -227,7 +227,7 @@ class PartyMode(BaseModel):
         validate_palette(self.colors)
         return self
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.zeros((self.led_count, 3), dtype=np.uint8)
         if self._position % 2 == 0:
             frame[:] = self.colors[(self._position // 2) % len(self.colors)]
@@ -261,7 +261,7 @@ class FireFlies(BaseModel):
     def resolved_end(self) -> int:
         return resolve_end(self.led_count, self.end)
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.zeros((self.led_count, 3), dtype=np.uint8)
         for _ in range(self.count):
             pixel = self._random.randint(self.start, self.resolved_end)
@@ -288,7 +288,7 @@ class SaberBlade(BaseModel):
         self._speed = self.speed
         return self
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.zeros((self.led_count, 3), dtype=np.uint8)
         if self._position > 0:
             frame[: min(self._position, self.led_count)] = self.colors[
@@ -327,7 +327,7 @@ class Rainbow(BaseModel):
     def size(self) -> int:
         return self.resolved_end - self.start + 1
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.zeros((self.led_count, 3), dtype=np.uint8)
         for i in range(self.size):
             frame[self.start + i] = wheel_color((i + self._position) % 255)
@@ -342,7 +342,7 @@ class Rainbow(BaseModel):
 
 
 class RainbowCycle(Rainbow):
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.zeros((self.led_count, 3), dtype=np.uint8)
         for i in range(self.size):
             frame[self.start + i] = wheel_color(
@@ -360,7 +360,7 @@ class LinearRainbow(BaseModel):
 
     _current: int = PrivateAttr(default=0)
     _position: int = PrivateAttr(default=0)
-    _frame: npt.NDArray[np.uint8] = PrivateAttr()
+    _frame: NDArray[np.uint8] = PrivateAttr()
 
     @model_validator(mode="after")
     def validate_linear_rainbow(self) -> LinearRainbow:
@@ -374,7 +374,7 @@ class LinearRainbow(BaseModel):
     def resolved_max_led(self) -> int:
         return resolve_end(self.led_count, self.max_led)
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         if self.individual_pixel:
             self._frame[self._current] = wheel_color(self._position)
         else:
@@ -397,7 +397,7 @@ class HalvesRainbow(BaseModel):
 
     _current: int = PrivateAttr(default=0)
     _position: int = PrivateAttr(default=0)
-    _frame: npt.NDArray[np.uint8] = PrivateAttr()
+    _frame: NDArray[np.uint8] = PrivateAttr()
 
     @model_validator(mode="after")
     def validate_halves_rainbow(self) -> HalvesRainbow:
@@ -411,7 +411,7 @@ class HalvesRainbow(BaseModel):
     def resolved_max_led(self) -> int:
         return resolve_end(self.led_count, self.max_led)
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         color = wheel_color(self._position)
         center = self.resolved_max_led / 2
         center_floor = math.floor(center)
@@ -463,7 +463,7 @@ class LarsonScanner(BaseModel):
     def size(self) -> int:
         return self.resolved_end - self.start + 1
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.zeros((self.led_count, 3), dtype=np.uint8)
         center = self.start + self._position
         color = wheel_color(self._position) if self.rainbow else self.color
@@ -510,7 +510,7 @@ class Pulse(BaseModel):
         self._random = random.Random(self.seed)
         return self
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.zeros((self.led_count, 3), dtype=np.uint8)
         if self._speed == 0 and self._random.randrange(0, 100) <= self.chance:
             self._color = self._random.choice(self.colors)
@@ -538,7 +538,7 @@ class PixelPingPong(BaseModel):
     fade_delay: int = 1
 
     _current: int = PrivateAttr(default=0)
-    _frame: npt.NDArray[np.uint8] = PrivateAttr()
+    _frame: NDArray[np.uint8] = PrivateAttr()
     _positive: bool = PrivateAttr(default=True)
 
     @model_validator(mode="after")
@@ -556,7 +556,7 @@ class PixelPingPong(BaseModel):
     def resolved_max_led(self) -> int:
         return resolve_end(self.led_count, self.max_led)
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         decrement = np.array(self.color, dtype=np.float64) / self.fade_delay
         faded = self._frame.astype(np.float64) - decrement
         self._frame[:] = np.maximum(faded, 0).astype(np.uint8)
@@ -609,7 +609,7 @@ class Searchlights(BaseModel):
     def size(self) -> int:
         return self.resolved_end - self.start + 1
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         colors = np.zeros((self.led_count, 3), dtype=np.uint8)
         fade = 256 / self._tail
         for i in range(3):
@@ -656,7 +656,7 @@ class Wave(BaseModel):
     def size(self) -> int:
         return self.resolved_end - self.start + 1
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.zeros((self.led_count, 3), dtype=np.uint8)
         for i in range(self.size):
             if self.moving:
@@ -697,7 +697,7 @@ class Twinkle(BaseModel):
         self._random = random.Random(self.seed)
         return self
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         frame = np.zeros((self.led_count, 3), dtype=np.uint8)
         self._pick_led()
         for i, pixel in enumerate(self._pixels):
@@ -749,7 +749,7 @@ class WhiteTwinkle(BaseModel):
         )
         return self
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         return self._twinkle.next_frame()
 
 
@@ -803,7 +803,7 @@ def scale_color(color: RGB, level: int | float) -> RGB:
     )
 
 
-def blend_color(frame: npt.NDArray[np.uint8], index: int, color: RGB) -> None:
+def blend_color(frame: NDArray[np.uint8], index: int, color: RGB) -> None:
     if 0 <= index < len(frame):
         frame[index] = ((frame[index].astype(np.uint16) + np.array(color)) // 2).astype(
             np.uint8

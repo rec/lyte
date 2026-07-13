@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 
 import numpy as np
-from numpy import typing as npt
+from numpy.typing import NDArray
 from pydantic import BaseModel, PrivateAttr, model_validator
 
 from .hamiltonian import FloatRGB, frame_array, interpolate
@@ -65,7 +65,7 @@ class RandomWalk(BaseModel):
         )
         return result
 
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         self._advance_cache()
         fraction = self._total_pixels % 1
         colors = [

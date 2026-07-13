@@ -8,7 +8,7 @@ import socket
 from collections.abc import Iterable
 
 import numpy as np
-from numpy import typing as npt
+from numpy.typing import NDArray
 
 from .errors import ProtocolError
 
@@ -21,7 +21,7 @@ def solid_rgb_frame(
     red: int,
     green: int,
     blue: int,
-) -> npt.NDArray[np.uint8]:
+) -> NDArray[np.uint8]:
     if led_count <= 0:
         raise ValueError("led_count must be greater than zero")
     for value in (red, green, blue):
@@ -34,7 +34,7 @@ def solid_rgb_frame(
 
 def frame_packets_v3(
     token: str,
-    frame: npt.NDArray[np.uint8],
+    frame: NDArray[np.uint8],
 ) -> Iterable[tuple[bytes, memoryview]]:
     try:
         raw_token = base64.b64decode(token, validate=True)
@@ -52,7 +52,7 @@ def frame_packets_v3(
         yield b"\x03" + raw_token + b"\x00\x00" + bytes((index,)), fragment
 
 
-def send_frame_v3(host: str, token: str, frame: npt.NDArray[np.uint8]) -> int:
+def send_frame_v3(host: str, token: str, frame: NDArray[np.uint8]) -> int:
     sent = 0
     address = (host, REALTIME_PORT)
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) as sock:
@@ -61,7 +61,7 @@ def send_frame_v3(host: str, token: str, frame: npt.NDArray[np.uint8]) -> int:
     return sent
 
 
-def frame_payload(frame: npt.NDArray[np.uint8]) -> memoryview:
+def frame_payload(frame: NDArray[np.uint8]) -> memoryview:
     if frame.dtype != np.uint8:
         raise ValueError("Realtime frames must have dtype uint8")
     if frame.ndim != 2 or frame.shape[1] != 3:

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Protocol
 
 import numpy as np
-from numpy import typing as npt
+from numpy.typing import NDArray
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -94,7 +94,7 @@ RANDOM_WALK_PERIOD = 6.0
 
 
 class Streamer(Protocol):
-    def next_frame(self) -> npt.NDArray[np.uint8]:
+    def next_frame(self) -> NDArray[np.uint8]:
         pass
 
 
@@ -412,10 +412,10 @@ def run_crossfade(
 
 
 def blend_frames(
-    current_frame: npt.NDArray[np.uint8],
-    next_frame: npt.NDArray[np.uint8],
+    current_frame: NDArray[np.uint8],
+    next_frame: NDArray[np.uint8],
     progress: float,
-) -> npt.NDArray[np.uint8]:
+) -> NDArray[np.uint8]:
     if current_frame.shape != next_frame.shape:
         raise ValueError("cannot blend frames with different shapes")
     progress = max(0.0, min(1.0, progress))
@@ -430,7 +430,7 @@ def send_realtime_frame(
     client: LyteClient,
     retry: RetryConfig,
     host: str,
-    frame: npt.NDArray[np.uint8],
+    frame: NDArray[np.uint8],
 ) -> None:
     if client.token is None:
         sys.exit("Authentication token disappeared before frame send.")
