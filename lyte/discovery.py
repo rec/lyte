@@ -11,7 +11,6 @@ from pydantic import BaseModel
 
 from .errors import DiscoveryError
 
-
 DISCOVERY_MESSAGE = b"\x01discover"
 DISCOVERY_PORT = 5555
 DEFAULT_BROADCAST = "255.255.255.255"
