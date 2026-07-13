@@ -6,7 +6,6 @@ import hashlib
 import itertools
 import re
 
-
 CHALLENGE_KEY = b"evenmoresecret!!"
 
 
