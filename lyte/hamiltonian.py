@@ -8,6 +8,8 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, PrivateAttr, model_validator
 
+from .animation import Animation, Device, State
+
 RGB = tuple[int, int, int]
 FloatRGB = tuple[float, float, float]
 
@@ -72,66 +74,69 @@ class HamiltonianCounter(BaseModel):
         return values[0], values[1], values[2]
 
 
-class HamiltonianStreamer(BaseModel):
-    led_count: int
+class HamiltonianState(State):
+    cache: list[FloatRGB] = []
+    cache_offset: int = 0
+    counter: HamiltonianCounter
+    total_pixels: float = 0
+
+
+class Hamiltonian(Animation[HamiltonianState]):
     speed: float = 25
-    fps: float = 20
     n: int = 8
     order: str | int = "rgb"
     inverted: str = ""
     pre_fill: bool = False
 
-    _cache: list[FloatRGB] = PrivateAttr(default_factory=list)
-    _cache_offset: int = PrivateAttr(default=0)
-    _counter: HamiltonianCounter = PrivateAttr()
-    _total_pixels: float = PrivateAttr(default=0)
-
     @model_validator(mode="after")
-    def validate_streamer(self) -> HamiltonianStreamer:
-        if self.led_count <= 0:
-            raise ValueError("led_count must be greater than zero")
-        if self.fps <= 0:
-            raise ValueError("fps must be greater than zero")
+    def validate_hamiltonian(self) -> Hamiltonian:
         if self.speed < 0:
             raise ValueError("speed must not be negative")
-        self._counter = HamiltonianCounter(
+        HamiltonianCounter(
             n=self.n,
             order=self.order,
             inverted=self.inverted,
         )
-        self._cache = [(0.0, 0.0, 0.0)] * (self.led_count + 1)
-        if self.pre_fill:
-            self._cache = [
-                to_float_rgb(self._counter.next_color()) for _ in self._cache
-            ]
         return self
 
-    def next_frame(self) -> NDArray[np.uint8]:
-        self._advance_cache()
-        fraction = self._total_pixels % 1
+    def initial_state(self, device: Device) -> HamiltonianState:
+        counter = HamiltonianCounter(
+            n=self.n,
+            order=self.order,
+            inverted=self.inverted,
+        )
+        cache = [(0.0, 0.0, 0.0)] * (device.led_count + 1)
+        if self.pre_fill:
+            cache = [to_float_rgb(counter.next_color()) for _ in cache]
+        return HamiltonianState(counter=counter, cache=cache)
+
+    def render(self, device: Device, state: HamiltonianState) -> NDArray[np.uint8]:
+        self._advance_cache(device, state)
+        fraction = state.total_pixels % 1
         colors = [
             interpolate(left, right, fraction)
-            for left, right in zip(self._cache[:-1], self._cache[1:], strict=True)
+            for left, right in zip(state.cache[:-1], state.cache[1:], strict=True)
         ]
+        state.frame += 1
         return frame_array(colors)
 
-    def _advance_cache(self) -> None:
-        self._total_pixels += self.speed / self.fps
-        needed = int(self._total_pixels) - self._cache_offset
+    def _advance_cache(self, device: Device, state: HamiltonianState) -> None:
+        state.total_pixels += self.speed / state.fps
+        needed = int(state.total_pixels) - state.cache_offset
         if needed <= 0:
             return
 
-        if needed >= len(self._cache):
-            self._cache_offset += needed - len(self._cache)
-            needed = len(self._cache)
+        if needed >= len(state.cache):
+            state.cache_offset += needed - len(state.cache)
+            needed = len(state.cache)
             start = 0
         else:
-            self._cache[:-needed] = self._cache[needed:]
-            start = len(self._cache) - needed
+            state.cache[:-needed] = state.cache[needed:]
+            start = len(state.cache) - needed
 
         for i in range(needed):
-            self._cache[start + i] = to_float_rgb(self._counter.next_color())
-        self._cache_offset += needed
+            state.cache[start + i] = to_float_rgb(state.counter.next_color())
+        state.cache_offset += needed
 
 
 def parse_order(order: str | int) -> tuple[int, int, int]:

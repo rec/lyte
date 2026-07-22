@@ -36,6 +36,7 @@ only data already needed by the renderer.
 ```python
 class State(BaseModel):
     frame: int = 0
+    fps: float = 20.0
 ```
 
 Every animation may define its own state class:
@@ -121,6 +122,11 @@ while playing:
 
 Frame rate is a runner concern. The same animation and state data can be played
 at different FPS values without changing the animation object.
+
+For animations whose speed is measured per second, the runner sets `state.fps`
+after calling `initial_state()`. This keeps FPS out of immutable animation data
+and hardware data while still letting render methods advance by the right
+amount each frame.
 
 ## Migration Plan
 

@@ -6,15 +6,23 @@ import random
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, PrivateAttr, model_validator
+from pydantic import model_validator
 
+from .animation import Animation, Device, State
 from .hamiltonian import FloatRGB, frame_array, interpolate
 
 
-class RandomWalk(BaseModel):
-    led_count: int
+class RandomWalkState(State):
+    cache: list[FloatRGB] = []
+    cache_offset: int = 0
+    next_color: FloatRGB
+    period: float = 0
+    random: random.Random
+    total_pixels: float = 0
+
+
+class RandomWalk(Animation[RandomWalkState]):
     speed: float = 10
-    fps: float = 20
     variance: float = 1
     bounds: tuple[float, float] = (0, 180)
     color: FloatRGB | None = None
@@ -22,19 +30,8 @@ class RandomWalk(BaseModel):
     pre_fill: bool = False
     seed: int | None = None
 
-    _cache: list[FloatRGB] = PrivateAttr(default_factory=list)
-    _cache_offset: int = PrivateAttr(default=0)
-    _next_color: FloatRGB = PrivateAttr()
-    _period: float = PrivateAttr(default=0)
-    _random: random.Random = PrivateAttr()
-    _total_pixels: float = PrivateAttr(default=0)
-
     @model_validator(mode="after")
     def validate_random_walk(self) -> RandomWalk:
-        if self.led_count <= 0:
-            raise ValueError("led_count must be greater than zero")
-        if self.fps <= 0:
-            raise ValueError("fps must be greater than zero")
         if self.speed < 0:
             raise ValueError("speed must not be negative")
         if self.variance < 0:
@@ -42,55 +39,63 @@ class RandomWalk(BaseModel):
         low, high = self.bounds
         if low >= high:
             raise ValueError("bounds must be ordered low, high")
-        self._random = random.Random(self.seed)
-        self._next_color = self.color or random_color(self._random, low, high)
-        self._period = self.period * self.speed
-        if self._period == 1:
+        if self.period * self.speed == 1:
             raise ValueError("period * speed must not equal 1")
-        self._cache = [(0.0, 0.0, 0.0)] * (self.led_count + 1)
-        if self.pre_fill:
-            self._cache = [self.next_color(i) for i in range(len(self._cache))]
         return self
 
-    def next_color(self, index: int) -> FloatRGB:
-        variance = self.variance
-        if self._period:
-            variance *= (index % self._period) / (self._period - 1)
+    def initial_state(self, device: Device) -> RandomWalkState:
+        generator = random.Random(self.seed)
+        low, high = self.bounds
+        state = RandomWalkState(
+            cache=[(0.0, 0.0, 0.0)] * (device.led_count + 1),
+            next_color=self.color or random_color(generator, low, high),
+            period=self.period * self.speed,
+            random=generator,
+        )
+        if self.pre_fill:
+            state.cache = [self.next_color(state, i) for i in range(len(state.cache))]
+        return state
 
-        result = self._next_color
-        self._next_color = (
-            perturb(result[0], variance, self.bounds, self._random),
-            perturb(result[1], variance, self.bounds, self._random),
-            perturb(result[2], variance, self.bounds, self._random),
+    def next_color(self, state: RandomWalkState, index: int) -> FloatRGB:
+        variance = self.variance
+        if state.period:
+            variance *= (index % state.period) / (state.period - 1)
+
+        result = state.next_color
+        state.next_color = (
+            perturb(result[0], variance, self.bounds, state.random),
+            perturb(result[1], variance, self.bounds, state.random),
+            perturb(result[2], variance, self.bounds, state.random),
         )
         return result
 
-    def next_frame(self) -> NDArray[np.uint8]:
-        self._advance_cache()
-        fraction = self._total_pixels % 1
+    def render(self, device: Device, state: RandomWalkState) -> NDArray[np.uint8]:
+        self._advance_cache(device, state)
+        fraction = state.total_pixels % 1
         colors = [
             interpolate(left, right, fraction)
-            for left, right in zip(self._cache[:-1], self._cache[1:], strict=True)
+            for left, right in zip(state.cache[:-1], state.cache[1:], strict=True)
         ]
+        state.frame += 1
         return frame_array(colors)
 
-    def _advance_cache(self) -> None:
-        self._total_pixels += self.speed / self.fps
-        needed = int(self._total_pixels) - self._cache_offset
+    def _advance_cache(self, device: Device, state: RandomWalkState) -> None:
+        state.total_pixels += self.speed / state.fps
+        needed = int(state.total_pixels) - state.cache_offset
         if needed <= 0:
             return
 
-        if needed >= len(self._cache):
-            self._cache_offset += needed - len(self._cache)
-            needed = len(self._cache)
+        if needed >= len(state.cache):
+            state.cache_offset += needed - len(state.cache)
+            needed = len(state.cache)
             start = 0
         else:
-            self._cache[:-needed] = self._cache[needed:]
-            start = len(self._cache) - needed
+            state.cache[:-needed] = state.cache[needed:]
+            start = len(state.cache) - needed
 
         for i in range(needed):
-            self._cache[start + i] = self.next_color(self._cache_offset + i)
-        self._cache_offset += needed
+            state.cache[start + i] = self.next_color(state, state.cache_offset + i)
+        state.cache_offset += needed
 
 
 def random_color(generator: random.Random, low: float, high: float) -> FloatRGB:

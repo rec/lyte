@@ -11,7 +11,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lyte import LyteClient, discover
-from lyte.hamiltonian import HamiltonianStreamer
+from lyte.animation import Device, validate_frame
+from lyte.hamiltonian import Hamiltonian
 from lyte.logging import log, log_error
 from lyte.retry import RetryConfig
 from lyte.session import (
@@ -72,15 +73,16 @@ def main() -> int:
     if realtime_response is None:
         sys.exit(f"Could not switch {host} to realtime mode.")
 
-    streamer = HamiltonianStreamer(
-        led_count=led_count,
+    device = Device(led_count=led_count)
+    animation = Hamiltonian(
         speed=args.speed,
-        fps=args.fps,
         n=args.n,
         order=args.order,
         inverted=args.inverted,
         pre_fill=args.pre_fill,
     )
+    state = animation.initial_state(device)
+    state.fps = args.fps
     frame_delay = 1 / args.fps
     stop_at = None if args.duration is None else time.monotonic() + args.duration
 
@@ -91,7 +93,7 @@ def main() -> int:
     try:
         while stop_at is None or time.monotonic() < stop_at:
             started_at = time.monotonic()
-            frame = streamer.next_frame()
+            frame = validate_frame(device, animation.render(device, state))
             sent = send_frame_with_retry(
                 host,
                 client.token.value,
