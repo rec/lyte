@@ -17,8 +17,12 @@ from lyte import Layout, render_animation_html
 
 def main() -> int:
     args = parse_args()
-    layout = Layout.model_validate_json(args.layout.read_text())
-    animation = build_animation(args)
+    layout = Layout(
+        name=args.name or args.animation,
+        dims=[args.height, args.width],
+        spacing=args.spacing,
+    )
+    animation = build_animation(animation_args(args))
     render_animation_html(
         animation,
         layout,
@@ -36,8 +40,11 @@ def parse_args() -> argparse.Namespace:
         choices=tuple(a for a in ANIMATIONS if a not in ("off", "random")),
         help="Animation to preview.",
     )
-    parser.add_argument("--layout", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("output", type=Path)
+    parser.add_argument("--name")
+    parser.add_argument("--width", type=int, default=16)
+    parser.add_argument("--height", type=int, default=16)
+    parser.add_argument("--spacing", type=float, default=1.0)
     parser.add_argument("--fps", type=float, default=20)
     parser.add_argument("--duration", type=float, default=10)
     parser.add_argument("--speed", type=float, default=25)
@@ -47,7 +54,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--step", type=int, default=1)
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int)
-    parser.add_argument("--width", type=int, default=1)
     parser.add_argument("--count", type=int, default=1)
     parser.add_argument("--tail", type=int, default=2)
     parser.add_argument("--chance", type=int, default=30)
@@ -82,6 +88,12 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
         parser.error("--fps must be greater than zero")
     if args.duration <= 0:
         parser.error("--duration must be greater than zero")
+    if args.width <= 0:
+        parser.error("--width must be greater than zero")
+    if args.height <= 0:
+        parser.error("--height must be greater than zero")
+    if args.spacing <= 0:
+        parser.error("--spacing must be greater than zero")
     if args.speed < 0:
         parser.error("--speed must not be negative")
     if args.variance < 0:
@@ -99,8 +111,6 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
             parser.error("--colors components must be between 0 and 255")
     if args.step < 1:
         parser.error("--step must be at least 1")
-    if args.width < 1:
-        parser.error("--width must be at least 1")
     if args.count < 1:
         parser.error("--count must be at least 1")
     if args.tail < 0:
@@ -125,6 +135,12 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
         parser.error("--rainbow-inc must not be negative")
     if args.start < 0:
         parser.error("--start must not be negative")
+
+
+def animation_args(args: argparse.Namespace) -> argparse.Namespace:
+    values = vars(args).copy()
+    values["width"] = 1
+    return argparse.Namespace(**values)
 
 
 if __name__ == "__main__":
