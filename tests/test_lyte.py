@@ -1197,9 +1197,6 @@ class PreviewScriptTests(unittest.TestCase):
             [
                 "lyte_preview.py",
                 "color_fill",
-                "--layout",
-                "layout.json",
-                "--output",
                 "preview.html",
                 "--color",
                 "1",
@@ -1212,8 +1209,51 @@ class PreviewScriptTests(unittest.TestCase):
         animation = self.script.build_animation(args)
 
         self.assertIsInstance(animation, ColorFill)
-        self.assertEqual(args.layout, Path("layout.json"))
         self.assertEqual(args.output, Path("preview.html"))
+        self.assertEqual(args.width, 16)
+        self.assertEqual(args.height, 16)
+        self.assertEqual(args.spacing, 1.0)
+
+    def test_animation_args_keeps_layout_width_out_of_animation(self) -> None:
+        with patch(
+            "sys.argv",
+            ["lyte_preview.py", "color_chase", "preview.html", "--width", "24"],
+        ):
+            args = self.script.parse_args()
+
+        animation_args = self.script.animation_args(args)
+
+        self.assertEqual(args.width, 24)
+        self.assertEqual(animation_args.width, 1)
+
+    def test_main_writes_preview_without_layout_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "preview.html"
+            with patch(
+                "sys.argv",
+                [
+                    "lyte_preview.py",
+                    "color_fill",
+                    str(output),
+                    "--width",
+                    "2",
+                    "--height",
+                    "1",
+                    "--duration",
+                    "1",
+                    "--fps",
+                    "1",
+                    "--name",
+                    "Preview",
+                ],
+            ):
+                result = self.script.main()
+
+            data = preview_data(output.read_text())
+
+        self.assertEqual(result, 0)
+        self.assertEqual(data["name"], "Preview")
+        self.assertEqual(data["coords"], [[0.0, 0.0], [1.0, 0.0]])
 
 
 class CheckHamiltonianScriptTests(unittest.TestCase):
