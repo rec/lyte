@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import importlib.util
 import io
+import json
 import random
+import tempfile
 import unittest
 from collections.abc import Sized
 from pathlib import Path
@@ -48,6 +51,7 @@ from lyte.hamiltonian import (
     parse_order,
 )
 from lyte.logging import LOGGING, log, log_error, log_status
+from lyte.preview import Layout, animation_document, render_animation_html
 from lyte.random_walk import RandomWalk, perturb
 from lyte.realtime import (
     frame_packets_v3,
@@ -610,6 +614,78 @@ class BiblioPixelTests(unittest.TestCase):
         self.assertTrue(np.all(frame[frame > 0] == int(np.max(frame))))
 
 
+class PreviewTests(unittest.TestCase):
+    def test_layout_accepts_explicit_coords(self) -> None:
+        layout = Layout(coords=[[0.0, 0.0], [1.0, 0.5]])
+
+        self.assertEqual(layout.points(), [[0.0, 0.0], [1.0, 0.5]])
+
+    def test_layout_generates_grid_from_dims_and_spacing(self) -> None:
+        layout = Layout(dims=[2, 3], spacing=[2.0, 3.0])
+
+        self.assertEqual(
+            layout.points(),
+            [
+                [0.0, 0.0],
+                [2.0, 0.0],
+                [4.0, 0.0],
+                [0.0, 3.0],
+                [2.0, 3.0],
+                [4.0, 3.0],
+            ],
+        )
+
+    def test_layout_requires_exactly_one_coordinate_source(self) -> None:
+        with self.assertRaises(ValueError):
+            Layout()
+        with self.assertRaises(ValueError):
+            Layout(coords=[[0.0, 0.0]], dims=[1, 1])
+
+    def test_animation_document_embeds_base64_frames(self) -> None:
+        document = animation_document(
+            ColorFill(color=(1, 2, 3)),
+            Layout(name="preview", dims=[1, 2]),
+            fps=2,
+            duration=1,
+        )
+
+        data = preview_data(document)
+
+        self.assertEqual(data["name"], "preview")
+        self.assertEqual(data["coords"], [[0.0, 0.0], [1.0, 0.0]])
+        frames = data["frames"]
+        if not isinstance(frames, list):
+            self.fail("frames must be a list")
+        first_frame = frames[0]
+        if not isinstance(first_frame, str):
+            self.fail("frames must contain strings")
+        self.assertEqual(len(frames), 2)
+        self.assertEqual(
+            base64.b64decode(first_frame),
+            bytes([1, 2, 3, 1, 2, 3]),
+        )
+
+    def test_render_animation_html_writes_document(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "preview.html"
+
+            render_animation_html(
+                ColorFill(color=(1, 2, 3)),
+                Layout(coords=[[0.0, 0.0]]),
+                path,
+                fps=1,
+                duration=1,
+            )
+
+            self.assertIn("<canvas", path.read_text())
+
+
+def preview_data(document: str) -> dict[str, object]:
+    start = document.index("const data = ") + len("const data = ")
+    end = document.index(";\nconst canvas", start)
+    return json.loads(document[start:end])
+
+
 class RetryTests(unittest.TestCase):
     def test_retry_call_retries_retryable_result_failures(self) -> None:
         calls = 0
@@ -1103,6 +1179,41 @@ class AnimateScriptTests(unittest.TestCase):
                 self.script.main()
 
         set_off_mode.assert_called_once()
+
+
+class PreviewScriptTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        path = Path(__file__).parents[1] / "scripts" / "lyte_preview.py"
+        spec = importlib.util.spec_from_file_location("lyte_preview", path)
+        assert spec is not None
+        assert spec.loader is not None
+        cls.script = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.script)
+
+    def test_parse_args_builds_preview_animation(self) -> None:
+        with patch(
+            "sys.argv",
+            [
+                "lyte_preview.py",
+                "color_fill",
+                "--layout",
+                "layout.json",
+                "--output",
+                "preview.html",
+                "--color",
+                "1",
+                "2",
+                "3",
+            ],
+        ):
+            args = self.script.parse_args()
+
+        animation = self.script.build_animation(args)
+
+        self.assertIsInstance(animation, ColorFill)
+        self.assertEqual(args.layout, Path("layout.json"))
+        self.assertEqual(args.output, Path("preview.html"))
 
 
 class CheckHamiltonianScriptTests(unittest.TestCase):

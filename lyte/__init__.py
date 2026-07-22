@@ -37,6 +37,7 @@ from .hamiltonian import (
     HamiltonianState,
     hamiltonian_colors,
 )
+from .preview import Layout, animation_document, render_animation_html
 from .random_walk import RandomWalk
 from .retry import RetryConfig, retry_call
 from .session import (
@@ -69,6 +70,7 @@ __all__ = [
     "hamiltonian_colors",
     "LarsonScanner",
     "LinearRainbow",
+    "Layout",
     "PartyMode",
     "PixelPingPong",
     "ProtocolError",
@@ -86,10 +88,12 @@ __all__ = [
     "Wave",
     "WhiteTwinkle",
     "authenticate_with_retry",
+    "animation_document",
     "discover",
     "retry_call",
     "led_count_from_gestalt",
     "read_gestalt",
+    "render_animation_html",
     "send_frame_with_retry",
     "set_off_mode_with_retry",
     "set_mac_from_gestalt",
