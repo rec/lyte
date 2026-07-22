@@ -8,14 +8,13 @@ import random
 import sys
 import time
 from pathlib import Path
-from typing import Protocol
 
 import numpy as np
 from numpy.typing import NDArray
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from lyte import LyteClient, discover
+from lyte import Animation, Device, LyteClient, State, discover, validate_frame
 from lyte.bibliopixel import (
     DEFAULT_PATTERN,
     RGB,
@@ -40,7 +39,7 @@ from lyte.bibliopixel import (
     Wave,
     WhiteTwinkle,
 )
-from lyte.hamiltonian import HamiltonianStreamer
+from lyte.hamiltonian import Hamiltonian
 from lyte.logging import log, log_error, log_status
 from lyte.random_walk import RandomWalk
 from lyte.retry import RetryConfig
@@ -93,11 +92,6 @@ RANDOM_WALK_BOUNDS = (0.0, 255.0)
 RANDOM_WALK_PERIOD = 6.0
 
 
-class Streamer(Protocol):
-    def next_frame(self) -> NDArray[np.uint8]:
-        pass
-
-
 def main() -> int:
     args = parse_args()
     host = args.host or discover_host(args.discovery_timeout)
@@ -116,14 +110,15 @@ def main() -> int:
     led_count = read_led_count(client, retry, args.led_count, host)
     if led_count is None:
         return 1
+    device = Device(led_count=led_count)
     if not prepare_device(client, retry, host):
         return 1
 
     try:
         if args.animation == "random":
-            run_random_animations(args, client, retry, host, led_count)
+            run_random_animations(args, client, retry, host, device)
         else:
-            run_animation(args, client, retry, host, led_count, args.duration)
+            run_animation(args, client, retry, host, device, args.duration)
     except KeyboardInterrupt:
         log()
         log("[ok] Stopped")
@@ -257,12 +252,14 @@ def run_random_animations(
     client: LyteClient,
     retry: RetryConfig,
     host: str,
-    led_count: int,
+    device: Device,
 ) -> None:
     generator = random.Random(args.seed)
     stop_at = None if args.duration is None else time.monotonic() + args.duration
     current_args = random_animation_args(args, generator, None)
-    current_streamer = build_streamer(current_args, led_count)
+    current_animation = build_animation(current_args)
+    current_state = current_animation.initial_state(device)
+    current_state.fps = current_args.fps
     current_duration = random_pattern_duration(generator)
     previous_animation = current_args.animation
     log_pattern_start(current_args.animation, current_duration)
@@ -274,20 +271,23 @@ def run_random_animations(
             stop_at,
         )
         if solo_duration > 0:
-            run_streamer(
-                current_streamer,
+            run_animation_state(
+                current_animation,
+                current_state,
                 current_args,
                 client,
                 retry,
                 host,
-                led_count,
+                device,
                 solo_duration,
             )
         if stop_at is not None and time.monotonic() >= stop_at:
             return
 
         next_args = random_animation_args(args, generator, previous_animation)
-        next_streamer = build_streamer(next_args, led_count)
+        next_animation = build_animation(next_args)
+        next_state = next_animation.initial_state(device)
+        next_state.fps = next_args.fps
         next_duration = random_pattern_duration(generator)
         previous_animation = next_args.animation
         log_pattern_start(next_args.animation, next_duration)
@@ -295,16 +295,20 @@ def run_random_animations(
         clipped_overlap_duration = clipped_duration(overlap_duration, stop_at)
         if clipped_overlap_duration > 0:
             run_crossfade(
-                current_streamer,
-                next_streamer,
+                current_animation,
+                current_state,
+                next_animation,
+                next_state,
                 next_args,
                 client,
                 retry,
                 host,
+                device,
                 clipped_overlap_duration,
             )
         current_args = next_args
-        current_streamer = next_streamer
+        current_animation = next_animation
+        current_state = next_state
         current_duration = next_duration
 
 
@@ -352,32 +356,36 @@ def run_animation(
     client: LyteClient,
     retry: RetryConfig,
     host: str,
-    led_count: int,
+    device: Device,
     duration: float | None,
 ) -> None:
-    streamer = build_streamer(args, led_count)
-    run_streamer(streamer, args, client, retry, host, led_count, duration)
+    animation = build_animation(args)
+    state = animation.initial_state(device)
+    state.fps = args.fps
+    run_animation_state(animation, state, args, client, retry, host, device, duration)
 
 
-def run_streamer(
-    streamer: Streamer,
+def run_animation_state(
+    animation: Animation,
+    state: State,
     args: argparse.Namespace,
     client: LyteClient,
     retry: RetryConfig,
     host: str,
-    led_count: int,
+    device: Device,
     duration: float | None,
 ) -> None:
     frame_delay = 1 / args.fps
     stop_at = None if duration is None else time.monotonic() + duration
     log(
         "[ok] Streaming "
-        f"{args.animation} frames to {host} for {led_count} LEDs at {args.fps} FPS"
+        f"{args.animation} frames to {host} for {device.led_count} LEDs "
+        f"at {args.fps} FPS"
     )
 
     while stop_at is None or time.monotonic() < stop_at:
         started_at = time.monotonic()
-        frame = streamer.next_frame()
+        frame = validate_frame(device, animation.render(device, state))
         send_realtime_frame(client, retry, host, frame)
         remaining = frame_delay - (time.monotonic() - started_at)
         if remaining > 0:
@@ -385,12 +393,15 @@ def run_streamer(
 
 
 def run_crossfade(
-    current_streamer: Streamer,
-    next_streamer: Streamer,
+    current_animation: Animation,
+    current_state: State,
+    next_animation: Animation,
+    next_state: State,
     args: argparse.Namespace,
     client: LyteClient,
     retry: RetryConfig,
     host: str,
+    device: Device,
     duration: float,
 ) -> None:
     frame_delay = 1 / args.fps
@@ -401,8 +412,8 @@ def run_crossfade(
         frame_started_at = time.monotonic()
         progress = (frame_started_at - started_at) / duration
         frame = blend_frames(
-            current_streamer.next_frame(),
-            next_streamer.next_frame(),
+            validate_frame(device, current_animation.render(device, current_state)),
+            validate_frame(device, next_animation.render(device, next_state)),
             progress,
         )
         send_realtime_frame(client, retry, host, frame)
@@ -445,12 +456,10 @@ def send_realtime_frame(
         sys.exit(f"Could not send realtime frame to {host}.")
 
 
-def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
+def build_animation(args: argparse.Namespace) -> Animation:
     if args.animation == "hamiltonian":
-        return HamiltonianStreamer(
-            led_count=led_count,
+        return Hamiltonian(
             speed=args.speed,
-            fps=args.fps,
             n=args.n,
             order=args.order,
             inverted=args.inverted,
@@ -458,7 +467,6 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         )
     if args.animation == "color_chase":
         return ColorChase(
-            led_count=led_count,
             color=rgb_arg(args.color, (255, 0, 0)),
             width=args.width,
             start=args.start,
@@ -467,7 +475,6 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         )
     if args.animation == "color_wipe":
         return ColorWipe(
-            led_count=led_count,
             color=rgb_arg(args.color, (255, 0, 0)),
             start=args.start,
             end=args.end,
@@ -475,12 +482,10 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         )
     if args.animation == "color_fill":
         return ColorFill(
-            led_count=led_count,
             color=rgb_arg(args.color, (255, 0, 0)),
         )
     if args.animation == "color_fade":
         return ColorFade(
-            led_count=led_count,
             colors=colors_arg(args.colors, ((255, 0, 0),)),
             level_step=args.level_step,
             start=args.start,
@@ -488,23 +493,20 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         )
     if args.animation == "alternates":
         return Alternates(
-            led_count=led_count,
             color1=rgb_arg(args.color, (255, 255, 255)),
             color2=rgb_arg(args.color2, (0, 0, 0)),
             max_led=args.max_led,
         )
     if args.animation == "color_pattern":
         return ColorPattern(
-            led_count=led_count,
             colors=colors_arg(args.colors),
             width=args.width,
             reverse=args.reverse,
         )
     if args.animation == "party_mode":
-        return PartyMode(led_count=led_count, colors=colors_arg(args.colors))
+        return PartyMode(colors=colors_arg(args.colors))
     if args.animation == "fire_flies":
         return FireFlies(
-            led_count=led_count,
             colors=colors_arg(args.colors, ((255, 0, 0),)),
             width=args.width,
             count=args.count,
@@ -514,34 +516,29 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         )
     if args.animation == "saber_blade":
         return SaberBlade(
-            led_count=led_count,
             colors=colors_arg(args.colors, ((255, 0, 0),)),
             speed=round(args.speed),
         )
     if args.animation == "rainbow":
         return Rainbow(
-            led_count=led_count,
             start=args.start,
             end=args.end,
             step=args.step,
         )
     if args.animation == "rainbow_cycle":
         return RainbowCycle(
-            led_count=led_count,
             start=args.start,
             end=args.end,
             step=args.step,
         )
     if args.animation == "linear_rainbow":
         return LinearRainbow(
-            led_count=led_count,
             max_led=args.max_led,
             individual_pixel=args.individual_pixel,
             step=args.step,
         )
     if args.animation == "halves_rainbow":
         return HalvesRainbow(
-            led_count=led_count,
             max_led=args.max_led,
             center_out=not args.center_in,
             rainbow_inc=args.rainbow_inc,
@@ -549,7 +546,6 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         )
     if args.animation in ("larson_scanner", "larson_rainbow"):
         return LarsonScanner(
-            led_count=led_count,
             color=rgb_arg(args.color, (255, 0, 0)),
             tail=args.tail,
             start=args.start,
@@ -559,7 +555,6 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         )
     if args.animation == "pulse":
         return Pulse(
-            led_count=led_count,
             colors=colors_arg(args.colors, ((255, 0, 0),)),
             tail=args.tail,
             chance=args.chance,
@@ -569,7 +564,6 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         )
     if args.animation == "pixel_ping_pong":
         return PixelPingPong(
-            led_count=led_count,
             color=rgb_arg(args.color, (255, 255, 255)),
             max_led=args.max_led,
             total_pixels=args.total_pixels,
@@ -577,7 +571,6 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         )
     if args.animation == "searchlights":
         return Searchlights(
-            led_count=led_count,
             colors=colors_arg(args.colors, DEFAULT_PATTERN),
             tail=args.tail,
             start=args.start,
@@ -586,7 +579,6 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         )
     if args.animation in ("wave", "wave_move"):
         return Wave(
-            led_count=led_count,
             color=rgb_arg(args.color, (255, 0, 0)),
             cycles=args.cycles,
             start=args.start,
@@ -595,7 +587,6 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         )
     if args.animation == "twinkle":
         return Twinkle(
-            led_count=led_count,
             colors=colors_arg(args.colors),
             density=args.density,
             speed=round(args.speed),
@@ -604,7 +595,6 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         )
     if args.animation == "white_twinkle":
         return WhiteTwinkle(
-            led_count=led_count,
             density=args.density,
             speed=round(args.speed),
             max_bright=args.max_bright,
@@ -616,9 +606,7 @@ def build_streamer(args: argparse.Namespace, led_count: int) -> Streamer:
         else (float(args.color[0]), float(args.color[1]), float(args.color[2]))
     )
     return RandomWalk(
-        led_count=led_count,
         speed=args.speed,
-        fps=args.fps,
         variance=args.variance,
         bounds=(args.bounds[0], args.bounds[1]),
         color=color,

@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import math
 import random
+from typing import Protocol, cast
 
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, PrivateAttr, model_validator
+
+from .animation import Animation, Device, State
 
 RGB = tuple[int, int, int]
 DEFAULT_PATTERN: tuple[RGB, ...] = ((255, 0, 0), (0, 255, 0), (0, 0, 255))
@@ -18,12 +21,12 @@ SEARCHLIGHT_COLORS: tuple[RGB, ...] = (
 )
 
 
-class ColorFill(BaseModel):
+class _ColorFillRenderer(BaseModel):
     led_count: int
     color: RGB = (255, 0, 0)
 
     @model_validator(mode="after")
-    def validate_color_fill(self) -> ColorFill:
+    def validate_color_fill(self) -> _ColorFillRenderer:
         validate_led_count(self.led_count)
         validate_rgb(self.color)
         return self
@@ -34,7 +37,7 @@ class ColorFill(BaseModel):
         return frame
 
 
-class ColorChase(BaseModel):
+class _ColorChaseRenderer(BaseModel):
     led_count: int
     color: RGB = (255, 0, 0)
     width: int = 1
@@ -45,7 +48,7 @@ class ColorChase(BaseModel):
     _position: int = PrivateAttr(default=0)
 
     @model_validator(mode="after")
-    def validate_color_chase(self) -> ColorChase:
+    def validate_color_chase(self) -> _ColorChaseRenderer:
         validate_span(self.led_count, self.start, self.resolved_end)
         validate_rgb(self.color)
         if self.width < 1:
@@ -77,7 +80,7 @@ class ColorChase(BaseModel):
             self._position = overflow
 
 
-class ColorWipe(BaseModel):
+class _ColorWipeRenderer(BaseModel):
     led_count: int
     color: RGB = (255, 0, 0)
     start: int = 0
@@ -88,7 +91,7 @@ class ColorWipe(BaseModel):
     _position: int = PrivateAttr(default=0)
 
     @model_validator(mode="after")
-    def validate_color_wipe(self) -> ColorWipe:
+    def validate_color_wipe(self) -> _ColorWipeRenderer:
         validate_span(self.led_count, self.start, self.resolved_end)
         validate_rgb(self.color)
         if self.step < 1:
@@ -119,7 +122,7 @@ class ColorWipe(BaseModel):
             self._position = overflow
 
 
-class Alternates(BaseModel):
+class _AlternatesRenderer(BaseModel):
     led_count: int
     color1: RGB = (255, 255, 255)
     color2: RGB = (0, 0, 0)
@@ -128,7 +131,7 @@ class Alternates(BaseModel):
     _positive: bool = PrivateAttr(default=True)
 
     @model_validator(mode="after")
-    def validate_alternates(self) -> Alternates:
+    def validate_alternates(self) -> _AlternatesRenderer:
         validate_led_count(self.led_count)
         validate_rgb(self.color1)
         validate_rgb(self.color2)
@@ -151,7 +154,7 @@ class Alternates(BaseModel):
         return frame
 
 
-class ColorPattern(BaseModel):
+class _ColorPatternRenderer(BaseModel):
     led_count: int
     colors: tuple[RGB, ...] = DEFAULT_PATTERN
     width: int = 1
@@ -160,7 +163,7 @@ class ColorPattern(BaseModel):
     _offset: int = PrivateAttr(default=0)
 
     @model_validator(mode="after")
-    def validate_color_pattern(self) -> ColorPattern:
+    def validate_color_pattern(self) -> _ColorPatternRenderer:
         validate_led_count(self.led_count)
         if not self.colors:
             raise ValueError("colors must not be empty")
@@ -180,7 +183,7 @@ class ColorPattern(BaseModel):
         return frame
 
 
-class ColorFade(BaseModel):
+class _ColorFadeRenderer(BaseModel):
     led_count: int
     colors: tuple[RGB, ...] = ((255, 0, 0),)
     level_step: int = 5
@@ -191,7 +194,7 @@ class ColorFade(BaseModel):
     _levels: list[int] = PrivateAttr(default_factory=list)
 
     @model_validator(mode="after")
-    def validate_color_fade(self) -> ColorFade:
+    def validate_color_fade(self) -> _ColorFadeRenderer:
         validate_span(self.led_count, self.start, self.resolved_end)
         validate_palette(self.colors)
         if self.level_step < 1:
@@ -215,14 +218,14 @@ class ColorFade(BaseModel):
         return frame
 
 
-class PartyMode(BaseModel):
+class _PartyModeRenderer(BaseModel):
     led_count: int
     colors: tuple[RGB, ...] = DEFAULT_PATTERN
 
     _position: int = PrivateAttr(default=0)
 
     @model_validator(mode="after")
-    def validate_party_mode(self) -> PartyMode:
+    def validate_party_mode(self) -> _PartyModeRenderer:
         validate_led_count(self.led_count)
         validate_palette(self.colors)
         return self
@@ -235,7 +238,7 @@ class PartyMode(BaseModel):
         return frame
 
 
-class FireFlies(BaseModel):
+class _FireFliesRenderer(BaseModel):
     led_count: int
     colors: tuple[RGB, ...] = ((255, 0, 0),)
     width: int = 1
@@ -247,7 +250,7 @@ class FireFlies(BaseModel):
     _random: random.Random = PrivateAttr()
 
     @model_validator(mode="after")
-    def validate_fire_flies(self) -> FireFlies:
+    def validate_fire_flies(self) -> _FireFliesRenderer:
         validate_span(self.led_count, self.start, self.resolved_end)
         validate_palette(self.colors)
         if self.width < 1:
@@ -270,7 +273,7 @@ class FireFlies(BaseModel):
         return frame
 
 
-class SaberBlade(BaseModel):
+class _SaberBladeRenderer(BaseModel):
     led_count: int
     colors: tuple[RGB, ...] = ((255, 0, 0),)
     speed: int = 1
@@ -280,7 +283,7 @@ class SaberBlade(BaseModel):
     _speed: int = PrivateAttr()
 
     @model_validator(mode="after")
-    def validate_saber_blade(self) -> SaberBlade:
+    def validate_saber_blade(self) -> _SaberBladeRenderer:
         validate_led_count(self.led_count)
         validate_palette(self.colors)
         if self.speed == 0:
@@ -304,7 +307,7 @@ class SaberBlade(BaseModel):
         return frame
 
 
-class Rainbow(BaseModel):
+class _RainbowRenderer(BaseModel):
     led_count: int
     start: int = 0
     end: int | None = None
@@ -313,7 +316,7 @@ class Rainbow(BaseModel):
     _position: int = PrivateAttr(default=0)
 
     @model_validator(mode="after")
-    def validate_rainbow(self) -> Rainbow:
+    def validate_rainbow(self) -> _RainbowRenderer:
         validate_span(self.led_count, self.start, self.resolved_end)
         if self.step < 1:
             raise ValueError("step must be at least 1")
@@ -341,7 +344,7 @@ class Rainbow(BaseModel):
             self._position = overflow
 
 
-class RainbowCycle(Rainbow):
+class _RainbowCycleRenderer(_RainbowRenderer):
     def next_frame(self) -> NDArray[np.uint8]:
         frame = np.zeros((self.led_count, 3), dtype=np.uint8)
         for i in range(self.size):
@@ -352,7 +355,7 @@ class RainbowCycle(Rainbow):
         return frame
 
 
-class LinearRainbow(BaseModel):
+class _LinearRainbowRenderer(BaseModel):
     led_count: int
     max_led: int | None = None
     individual_pixel: bool = False
@@ -363,7 +366,7 @@ class LinearRainbow(BaseModel):
     _frame: NDArray[np.uint8] = PrivateAttr()
 
     @model_validator(mode="after")
-    def validate_linear_rainbow(self) -> LinearRainbow:
+    def validate_linear_rainbow(self) -> _LinearRainbowRenderer:
         validate_led_count(self.led_count)
         if self.step < 1:
             raise ValueError("step must be at least 1")
@@ -388,7 +391,7 @@ class LinearRainbow(BaseModel):
         return self._frame
 
 
-class HalvesRainbow(BaseModel):
+class _HalvesRainbowRenderer(BaseModel):
     led_count: int
     max_led: int | None = None
     center_out: bool = True
@@ -400,7 +403,7 @@ class HalvesRainbow(BaseModel):
     _frame: NDArray[np.uint8] = PrivateAttr()
 
     @model_validator(mode="after")
-    def validate_halves_rainbow(self) -> HalvesRainbow:
+    def validate_halves_rainbow(self) -> _HalvesRainbowRenderer:
         validate_led_count(self.led_count)
         if self.step < 1:
             raise ValueError("step must be at least 1")
@@ -431,7 +434,7 @@ class HalvesRainbow(BaseModel):
         return self._frame
 
 
-class LarsonScanner(BaseModel):
+class _LarsonScannerRenderer(BaseModel):
     led_count: int
     color: RGB = (255, 0, 0)
     tail: int = 2
@@ -445,7 +448,7 @@ class LarsonScanner(BaseModel):
     _tail: int = PrivateAttr(default=1)
 
     @model_validator(mode="after")
-    def validate_larson_scanner(self) -> LarsonScanner:
+    def validate_larson_scanner(self) -> _LarsonScannerRenderer:
         validate_span(self.led_count, self.start, self.resolved_end)
         validate_rgb(self.color)
         if self.tail < 0:
@@ -481,7 +484,7 @@ class LarsonScanner(BaseModel):
         return frame
 
 
-class Pulse(BaseModel):
+class _PulseRenderer(BaseModel):
     led_count: int
     colors: tuple[RGB, ...] = ((255, 0, 0),)
     tail: int = 2
@@ -497,7 +500,7 @@ class Pulse(BaseModel):
     _tail: int = PrivateAttr(default=1)
 
     @model_validator(mode="after")
-    def validate_pulse(self) -> Pulse:
+    def validate_pulse(self) -> _PulseRenderer:
         validate_led_count(self.led_count)
         validate_palette(self.colors)
         if self.tail < 0:
@@ -530,7 +533,7 @@ class Pulse(BaseModel):
         return frame
 
 
-class PixelPingPong(BaseModel):
+class _PixelPingPongRenderer(BaseModel):
     led_count: int
     color: RGB = (255, 255, 255)
     max_led: int | None = None
@@ -542,7 +545,7 @@ class PixelPingPong(BaseModel):
     _positive: bool = PrivateAttr(default=True)
 
     @model_validator(mode="after")
-    def validate_pixel_ping_pong(self) -> PixelPingPong:
+    def validate_pixel_ping_pong(self) -> _PixelPingPongRenderer:
         validate_led_count(self.led_count)
         validate_rgb(self.color)
         if self.total_pixels < 1:
@@ -574,7 +577,7 @@ class PixelPingPong(BaseModel):
         return self._frame
 
 
-class Searchlights(BaseModel):
+class _SearchlightsRenderer(BaseModel):
     led_count: int
     colors: tuple[RGB, ...] = SEARCHLIGHT_COLORS
     tail: int = 5
@@ -588,7 +591,7 @@ class Searchlights(BaseModel):
     _tail: int = PrivateAttr(default=1)
 
     @model_validator(mode="after")
-    def validate_searchlights(self) -> Searchlights:
+    def validate_searchlights(self) -> _SearchlightsRenderer:
         validate_span(self.led_count, self.start, self.resolved_end)
         validate_palette(self.colors)
         if len(self.colors) < 3:
@@ -629,7 +632,7 @@ class Searchlights(BaseModel):
         return colors
 
 
-class Wave(BaseModel):
+class _WaveRenderer(BaseModel):
     led_count: int
     color: RGB = (255, 0, 0)
     cycles: int = 2
@@ -641,7 +644,7 @@ class Wave(BaseModel):
     _position: int = PrivateAttr(default=0)
 
     @model_validator(mode="after")
-    def validate_wave(self) -> Wave:
+    def validate_wave(self) -> _WaveRenderer:
         validate_span(self.led_count, self.start, self.resolved_end)
         validate_rgb(self.color)
         if self.cycles < 1:
@@ -675,7 +678,7 @@ class Wave(BaseModel):
         return frame
 
 
-class Twinkle(BaseModel):
+class _TwinkleRenderer(BaseModel):
     led_count: int
     colors: tuple[RGB, ...] = DEFAULT_PATTERN
     density: int = 20
@@ -687,7 +690,7 @@ class Twinkle(BaseModel):
     _random: random.Random = PrivateAttr()
 
     @model_validator(mode="after")
-    def validate_twinkle(self) -> Twinkle:
+    def validate_twinkle(self) -> _TwinkleRenderer:
         validate_led_count(self.led_count)
         validate_palette(self.colors)
         self.speed = max(2, min(100, self.speed))
@@ -728,18 +731,18 @@ class Twinkle(BaseModel):
             )
 
 
-class WhiteTwinkle(BaseModel):
+class _WhiteTwinkleRenderer(BaseModel):
     led_count: int
     density: int = 80
     speed: int = 2
     max_bright: int = 255
     seed: int | None = None
 
-    _twinkle: Twinkle = PrivateAttr()
+    _twinkle: _TwinkleRenderer = PrivateAttr()
 
     @model_validator(mode="after")
-    def validate_white_twinkle(self) -> WhiteTwinkle:
-        self._twinkle = Twinkle(
+    def validate_white_twinkle(self) -> _WhiteTwinkleRenderer:
+        self._twinkle = _TwinkleRenderer(
             led_count=self.led_count,
             colors=((255, 255, 255),),
             density=self.density,
@@ -751,6 +754,436 @@ class WhiteTwinkle(BaseModel):
 
     def next_frame(self) -> NDArray[np.uint8]:
         return self._twinkle.next_frame()
+
+
+class _FrameRenderer(Protocol):
+    def next_frame(self) -> NDArray[np.uint8]:
+        pass
+
+
+class BiblioPixelState(State):
+    renderer: object
+
+
+class ColorFill(Animation[BiblioPixelState]):
+    color: RGB = (255, 0, 0)
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_ColorFillRenderer(led_count=device.led_count, color=self.color)
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class ColorChase(Animation[BiblioPixelState]):
+    color: RGB = (255, 0, 0)
+    width: int = 1
+    start: int = 0
+    end: int | None = None
+    step: int = 1
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_ColorChaseRenderer(
+                led_count=device.led_count,
+                color=self.color,
+                width=self.width,
+                start=self.start,
+                end=self.end,
+                step=self.step,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class ColorWipe(Animation[BiblioPixelState]):
+    color: RGB = (255, 0, 0)
+    start: int = 0
+    end: int | None = None
+    step: int = 1
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_ColorWipeRenderer(
+                led_count=device.led_count,
+                color=self.color,
+                start=self.start,
+                end=self.end,
+                step=self.step,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class Alternates(Animation[BiblioPixelState]):
+    color1: RGB = (255, 255, 255)
+    color2: RGB = (0, 0, 0)
+    max_led: int | None = None
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_AlternatesRenderer(
+                led_count=device.led_count,
+                color1=self.color1,
+                color2=self.color2,
+                max_led=self.max_led,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class ColorPattern(Animation[BiblioPixelState]):
+    colors: tuple[RGB, ...] = DEFAULT_PATTERN
+    width: int = 1
+    reverse: bool = False
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_ColorPatternRenderer(
+                led_count=device.led_count,
+                colors=self.colors,
+                width=self.width,
+                reverse=self.reverse,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class ColorFade(Animation[BiblioPixelState]):
+    colors: tuple[RGB, ...] = ((255, 0, 0),)
+    level_step: int = 5
+    start: int = 0
+    end: int | None = None
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_ColorFadeRenderer(
+                led_count=device.led_count,
+                colors=self.colors,
+                level_step=self.level_step,
+                start=self.start,
+                end=self.end,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class PartyMode(Animation[BiblioPixelState]):
+    colors: tuple[RGB, ...] = DEFAULT_PATTERN
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_PartyModeRenderer(led_count=device.led_count, colors=self.colors)
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class FireFlies(Animation[BiblioPixelState]):
+    colors: tuple[RGB, ...] = ((255, 0, 0),)
+    width: int = 1
+    count: int = 1
+    start: int = 0
+    end: int | None = None
+    seed: int | None = None
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_FireFliesRenderer(
+                led_count=device.led_count,
+                colors=self.colors,
+                width=self.width,
+                count=self.count,
+                start=self.start,
+                end=self.end,
+                seed=self.seed,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class SaberBlade(Animation[BiblioPixelState]):
+    colors: tuple[RGB, ...] = ((255, 0, 0),)
+    speed: int = 1
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_SaberBladeRenderer(
+                led_count=device.led_count,
+                colors=self.colors,
+                speed=self.speed,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class Rainbow(Animation[BiblioPixelState]):
+    start: int = 0
+    end: int | None = None
+    step: int = 1
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_RainbowRenderer(
+                led_count=device.led_count,
+                start=self.start,
+                end=self.end,
+                step=self.step,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class RainbowCycle(Rainbow):
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_RainbowCycleRenderer(
+                led_count=device.led_count,
+                start=self.start,
+                end=self.end,
+                step=self.step,
+            )
+        )
+
+
+class LinearRainbow(Animation[BiblioPixelState]):
+    max_led: int | None = None
+    individual_pixel: bool = False
+    step: int = 1
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_LinearRainbowRenderer(
+                led_count=device.led_count,
+                max_led=self.max_led,
+                individual_pixel=self.individual_pixel,
+                step=self.step,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class HalvesRainbow(Animation[BiblioPixelState]):
+    max_led: int | None = None
+    center_out: bool = True
+    rainbow_inc: int = 4
+    step: int = 1
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_HalvesRainbowRenderer(
+                led_count=device.led_count,
+                max_led=self.max_led,
+                center_out=self.center_out,
+                rainbow_inc=self.rainbow_inc,
+                step=self.step,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class LarsonScanner(Animation[BiblioPixelState]):
+    color: RGB = (255, 0, 0)
+    tail: int = 2
+    start: int = 0
+    end: int | None = None
+    step: int = 1
+    rainbow: bool = False
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_LarsonScannerRenderer(
+                led_count=device.led_count,
+                color=self.color,
+                tail=self.tail,
+                start=self.start,
+                end=self.end,
+                step=self.step,
+                rainbow=self.rainbow,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class Pulse(Animation[BiblioPixelState]):
+    colors: tuple[RGB, ...] = ((255, 0, 0),)
+    tail: int = 2
+    chance: int = 30
+    min_speed: int = 1
+    max_speed: int = 5
+    seed: int | None = None
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_PulseRenderer(
+                led_count=device.led_count,
+                colors=self.colors,
+                tail=self.tail,
+                chance=self.chance,
+                min_speed=self.min_speed,
+                max_speed=self.max_speed,
+                seed=self.seed,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class PixelPingPong(Animation[BiblioPixelState]):
+    color: RGB = (255, 255, 255)
+    max_led: int | None = None
+    total_pixels: int = 1
+    fade_delay: int = 1
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_PixelPingPongRenderer(
+                led_count=device.led_count,
+                color=self.color,
+                max_led=self.max_led,
+                total_pixels=self.total_pixels,
+                fade_delay=self.fade_delay,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class Searchlights(Animation[BiblioPixelState]):
+    colors: tuple[RGB, ...] = SEARCHLIGHT_COLORS
+    tail: int = 5
+    start: int = 0
+    end: int | None = None
+    seed: int | None = None
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_SearchlightsRenderer(
+                led_count=device.led_count,
+                colors=self.colors,
+                tail=self.tail,
+                start=self.start,
+                end=self.end,
+                seed=self.seed,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class Wave(Animation[BiblioPixelState]):
+    color: RGB = (255, 0, 0)
+    cycles: int = 2
+    start: int = 0
+    end: int | None = None
+    moving: bool = False
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_WaveRenderer(
+                led_count=device.led_count,
+                color=self.color,
+                cycles=self.cycles,
+                start=self.start,
+                end=self.end,
+                moving=self.moving,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class Twinkle(Animation[BiblioPixelState]):
+    colors: tuple[RGB, ...] = DEFAULT_PATTERN
+    density: int = 20
+    speed: int = 2
+    max_bright: int = 255
+    seed: int | None = None
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_TwinkleRenderer(
+                led_count=device.led_count,
+                colors=self.colors,
+                density=self.density,
+                speed=self.speed,
+                max_bright=self.max_bright,
+                seed=self.seed,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
+
+
+class WhiteTwinkle(Animation[BiblioPixelState]):
+    density: int = 80
+    speed: int = 2
+    max_bright: int = 255
+    seed: int | None = None
+
+    def initial_state(self, device: Device) -> BiblioPixelState:
+        return BiblioPixelState(
+            renderer=_TwinkleRenderer(
+                led_count=device.led_count,
+                colors=((255, 255, 255),),
+                density=self.density,
+                speed=self.speed,
+                max_bright=self.max_bright,
+                seed=self.seed,
+            )
+        )
+
+    def render(self, device: Device, state: BiblioPixelState) -> NDArray[np.uint8]:
+        state.frame += 1
+        return cast(_FrameRenderer, state.renderer).next_frame()
 
 
 def validate_led_count(led_count: int) -> None:

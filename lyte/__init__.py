@@ -1,5 +1,6 @@
 """Small dependency-free Lyte client."""
 
+from .animation import Animation, Device, State, validate_frame
 from .bibliopixel import (
     Alternates,
     ColorChase,
@@ -30,7 +31,12 @@ from .errors import (
     LyteError,
     ProtocolError,
 )
-from .hamiltonian import HamiltonianCounter, HamiltonianStreamer, hamiltonian_colors
+from .hamiltonian import (
+    Hamiltonian,
+    HamiltonianCounter,
+    HamiltonianState,
+    hamiltonian_colors,
+)
 from .random_walk import RandomWalk
 from .retry import RetryConfig, retry_call
 from .session import (
@@ -46,6 +52,7 @@ from .session import (
 __all__ = [
     "AuthenticationError",
     "Alternates",
+    "Animation",
     "ColorChase",
     "ColorFade",
     "ColorFill",
@@ -55,8 +62,10 @@ __all__ = [
     "HalvesRainbow",
     "DiscoveredDevice",
     "DiscoveryError",
+    "Device",
+    "Hamiltonian",
     "HamiltonianCounter",
-    "HamiltonianStreamer",
+    "HamiltonianState",
     "hamiltonian_colors",
     "LarsonScanner",
     "LinearRainbow",
@@ -72,6 +81,7 @@ __all__ = [
     "LyteClient",
     "LyteError",
     "RetryConfig",
+    "State",
     "Twinkle",
     "Wave",
     "WhiteTwinkle",
@@ -84,4 +94,5 @@ __all__ = [
     "set_off_mode_with_retry",
     "set_mac_from_gestalt",
     "set_realtime_mode_with_retry",
+    "validate_frame",
 ]
