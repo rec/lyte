@@ -1218,6 +1218,23 @@ class PreviewScriptTests(unittest.TestCase):
         self.assertEqual(args.spacing, 1.0)
         self.assertEqual(args.led_size, 1.0)
 
+    def test_main_without_arguments_prints_patterns(self) -> None:
+        output = io.StringIO()
+
+        with (
+            patch("sys.argv", ["lyte_preview.py"]),
+            patch("sys.stdout", output),
+            patch.object(self.script, "render_animation_html") as render_animation_html,
+        ):
+            result = self.script.main()
+
+        self.assertEqual(result, 0)
+        self.assertIn("color_fill\n", output.getvalue())
+        self.assertIn("rainbow\n", output.getvalue())
+        self.assertNotIn("off\n", output.getvalue())
+        self.assertNotIn("random\n", output.getvalue())
+        render_animation_html.assert_not_called()
+
     def test_animation_args_keeps_layout_width_out_of_animation(self) -> None:
         with patch(
             "sys.argv",
