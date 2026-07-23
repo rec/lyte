@@ -1251,9 +1251,11 @@ class PreviewScriptTests(unittest.TestCase):
                     "Preview",
                     "--led-size",
                     "2.5",
+                    "--open",
                 ],
             ):
-                result = self.script.main()
+                with patch.object(self.script.webbrowser, "open") as open_browser:
+                    result = self.script.main()
 
             data = preview_data(output.read_text())
 
@@ -1261,6 +1263,7 @@ class PreviewScriptTests(unittest.TestCase):
         self.assertEqual(data["name"], "Preview")
         self.assertEqual(data["coords"], [[0.0, 0.0], [1.0, 0.0]])
         self.assertEqual(data["ledSize"], 2.5)
+        open_browser.assert_called_once_with(output.resolve().as_uri())
 
 
 class CheckHamiltonianScriptTests(unittest.TestCase):
