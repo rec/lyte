@@ -68,8 +68,9 @@ def render_animation_html(
     path: Path,
     fps: float = 20.0,
     duration: float = 10.0,
+    led_size: float = 1.0,
 ) -> None:
-    path.write_text(animation_document(animation, layout, fps, duration))
+    path.write_text(animation_document(animation, layout, fps, duration, led_size))
 
 
 def animation_document(
@@ -77,11 +78,14 @@ def animation_document(
     layout: Layout,
     fps: float = 20.0,
     duration: float = 10.0,
+    led_size: float = 1.0,
 ) -> str:
     if fps <= 0:
         raise ValueError("fps must be greater than zero")
     if duration <= 0:
         raise ValueError("duration must be greater than zero")
+    if led_size <= 0:
+        raise ValueError("led_size must be greater than zero")
 
     points = layout.points()
     device = Device(led_count=len(points))
@@ -93,6 +97,7 @@ def animation_document(
         "coords": points,
         "fps": fps,
         "frames": frames,
+        "ledSize": led_size,
     }
     return HTML_TEMPLATE.replace("__LYTE_PREVIEW_DATA__", safe_json(payload))
 
@@ -220,7 +225,8 @@ function draw(time) {
   }
   const frame = frames[Math.floor(time / 1000 * data.fps) % frames.length];
   const points = projectedPoints();
-  const radius = Math.max(3, Math.min(canvas.width, canvas.height) / 140);
+  const radius = Math.max(3, Math.min(canvas.width, canvas.height) / 140)
+    * data.ledSize;
   context.fillStyle = "#050506";
   context.fillRect(0, 0, canvas.width, canvas.height);
   for (let i = 0; i < points.length; i += 1) {

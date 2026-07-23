@@ -29,6 +29,7 @@ def main() -> int:
         args.output,
         fps=args.fps,
         duration=args.duration,
+        led_size=args.led_size,
     )
     return 0
 
@@ -45,6 +46,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--width", type=int, default=16)
     parser.add_argument("--height", type=int, default=16)
     parser.add_argument("--spacing", type=float, default=1.0)
+    parser.add_argument("--led-size", type=float, default=1.0)
     parser.add_argument("--fps", type=float, default=20)
     parser.add_argument("--duration", type=float, default=10)
     parser.add_argument("--speed", type=float, default=25)
@@ -94,6 +96,8 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
         parser.error("--height must be greater than zero")
     if args.spacing <= 0:
         parser.error("--spacing must be greater than zero")
+    if args.led_size <= 0:
+        parser.error("--led-size must be greater than zero")
     if args.speed < 0:
         parser.error("--speed must not be negative")
     if args.variance < 0:
