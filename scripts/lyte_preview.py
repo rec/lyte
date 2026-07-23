@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import webbrowser
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -31,6 +32,8 @@ def main() -> int:
         duration=args.duration,
         led_size=args.led_size,
     )
+    if args.open:
+        webbrowser.open(args.output.resolve().as_uri())
     return 0
 
 
@@ -42,6 +45,7 @@ def parse_args() -> argparse.Namespace:
         help="Animation to preview.",
     )
     parser.add_argument("output", type=Path)
+    parser.add_argument("-o", "--open", action="store_true")
     parser.add_argument("--name")
     parser.add_argument("--width", type=int, default=16)
     parser.add_argument("--height", type=int, default=16)
