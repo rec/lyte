@@ -315,7 +315,7 @@ class RandomWalkTests(unittest.TestCase):
         self.assertEqual(walk.next_color(state, 0), (10.0, 20.0, 30.0))
         self.assertEqual(walk.next_color(state, 1), (10.0, 20.0, 30.0))
 
-    def test_next_frame_streams_walk_through_leds(self) -> None:
+    def test_render_streams_walk_through_leds(self) -> None:
         walk = RandomWalk(speed=1, color=(10.0, 20.0, 30.0), variance=0)
         device, state = initial_state(walk, 2)
         state.fps = 1
