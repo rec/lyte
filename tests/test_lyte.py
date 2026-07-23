@@ -647,12 +647,14 @@ class PreviewTests(unittest.TestCase):
             Layout(name="preview", dims=[1, 2]),
             fps=2,
             duration=1,
+            led_size=2.5,
         )
 
         data = preview_data(document)
 
         self.assertEqual(data["name"], "preview")
         self.assertEqual(data["coords"], [[0.0, 0.0], [1.0, 0.0]])
+        self.assertEqual(data["ledSize"], 2.5)
         frames = data["frames"]
         if not isinstance(frames, list):
             self.fail("frames must be a list")
@@ -675,6 +677,7 @@ class PreviewTests(unittest.TestCase):
                 path,
                 fps=1,
                 duration=1,
+                led_size=3,
             )
 
             self.assertIn("<canvas", path.read_text())
@@ -1213,6 +1216,7 @@ class PreviewScriptTests(unittest.TestCase):
         self.assertEqual(args.width, 16)
         self.assertEqual(args.height, 16)
         self.assertEqual(args.spacing, 1.0)
+        self.assertEqual(args.led_size, 1.0)
 
     def test_animation_args_keeps_layout_width_out_of_animation(self) -> None:
         with patch(
@@ -1245,6 +1249,8 @@ class PreviewScriptTests(unittest.TestCase):
                     "1",
                     "--name",
                     "Preview",
+                    "--led-size",
+                    "2.5",
                 ],
             ):
                 result = self.script.main()
@@ -1254,6 +1260,7 @@ class PreviewScriptTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(data["name"], "Preview")
         self.assertEqual(data["coords"], [[0.0, 0.0], [1.0, 0.0]])
+        self.assertEqual(data["ledSize"], 2.5)
 
 
 class CheckHamiltonianScriptTests(unittest.TestCase):
