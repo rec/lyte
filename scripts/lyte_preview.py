@@ -15,8 +15,15 @@ from lyte_animate import ANIMATIONS, build_animation
 
 from lyte import Layout, render_animation_html
 
+PREVIEW_ANIMATIONS: tuple[str, ...] = tuple(
+    a for a in ANIMATIONS if a not in ("off", "random")
+)
+
 
 def main() -> int:
+    if len(sys.argv) == 1:
+        print_preview_patterns()
+        return 0
     args = parse_args()
     layout = Layout(
         name=args.name or args.animation,
@@ -41,7 +48,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "animation",
-        choices=tuple(a for a in ANIMATIONS if a not in ("off", "random")),
+        choices=PREVIEW_ANIMATIONS,
         help="Animation to preview.",
     )
     parser.add_argument("output", type=Path)
@@ -149,6 +156,11 @@ def animation_args(args: argparse.Namespace) -> argparse.Namespace:
     values = vars(args).copy()
     values["width"] = 1
     return argparse.Namespace(**values)
+
+
+def print_preview_patterns() -> None:
+    for animation in PREVIEW_ANIMATIONS:
+        print(animation)
 
 
 if __name__ == "__main__":
