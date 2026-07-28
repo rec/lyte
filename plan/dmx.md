@@ -22,6 +22,8 @@ and other protocols whose byte meanings depend entirely on fixture profiles.
 - Add a DMX-oriented API for fixture profiles, channels, universes, and scenes.
 - Support Open Sound Control as a show-control and endpoint protocol.
 - Support Art-Net as a DMX-over-IP transport.
+- Support external control signals that can affect multiple animations and
+  devices at the same time.
 - Leave room for other major lighting protocols without designing adapter layers
   before they are needed.
 - Avoid pretending that RGB pixel frames and DMX channel buffers are the same
@@ -34,6 +36,8 @@ and other protocols whose byte meanings depend entirely on fixture profiles.
 - Do not require every protocol to support every feature.
 - Do not add network discovery, GUI control, or fixture libraries in the first
   step unless a concrete implementation task requires them.
+- Do not let animations read raw MIDI, DMX, keyboard, REST, or Art-Net input
+  directly.
 
 ## Current Twinkly Model
 
@@ -144,6 +148,59 @@ Do not implement protocol-neutral abstractions for all of these upfront. The
 important part is to keep driver boundaries narrow enough that each can be added
 without changing existing animation APIs.
 
+## Control Signals
+
+A control signal is input from the outside world that changes how animations
+play. It may come from a lighting desk, music controller, keyboard, web request,
+another lighting system, or a sensor. Control signals should be modeled
+separately from rendered lighting output.
+
+Common control sources include:
+
+- DMX input from a console, USB interface, or Art-Net/sACN gateway.
+- MIDI notes, controls, pitch bend, aftertouch, clock, and breath control.
+- Art-Net input for listening to universes sent by other lighting software.
+- OSC input from music, VJ, or show-control software.
+- keyboard input for manual local control.
+- REST requests for integration with scripts, web UIs, or automation systems.
+- MQTT messages for installation and home-automation control.
+- filesystem, serial, GPIO, sensor, or audio-analysis events.
+
+These inputs should be normalized into show-level controls before they affect
+animations. A MIDI breath-control value, a DMX fader, and a REST request can all
+drive the same logical parameter if the show maps them that way.
+
+Core control types should eventually include:
+
+- `ControlSource`: immutable description of where input comes from.
+- `ControlSignal`: timestamped raw input event from one source.
+- `ControlMapping`: rule that maps a raw signal to a show parameter or cue.
+- `ControlState`: mutable current values for mapped controls.
+- `ShowParameter`: named scalar, boolean, enum, color, or trigger value.
+
+Control routing should be explicit. For example:
+
+```text
+MIDI CC 2 breath -> parameter "breath"
+parameter "breath" -> Twinkly tree gain
+parameter "breath" -> DMX wash speed
+parameter "breath" -> OSC endpoint /show/breath
+```
+
+The same source signal can control multiple tracks, and one track can depend on
+multiple parameters. Animations should receive resolved parameters through their
+state, render context, or program inputs. They should not parse raw external
+protocol messages themselves.
+
+The first control model can be pull-based and simple:
+
+1. input drivers collect events since the last runner tick
+2. mappings update `ControlState`
+3. each track renders with the latest relevant control values
+
+This keeps control timing aligned with the show clock and avoids making every
+animation responsible for event handling.
+
 ## Shared Show Runner
 
 The shared runner is the real integration point. It should play multiple tracks
@@ -151,9 +208,14 @@ against one clock:
 
 ```text
 Show
-  Track: Twinkly pixels -> PixelAnimation -> Twinkly realtime driver
-  Track: DMX fixtures   -> DmxProgram     -> Art-Net driver
-  Track: OSC endpoint   -> OscProgram     -> OSC driver
+  Inputs:
+    MIDI breath control -> parameter "breath"
+    keyboard            -> cue triggers
+    REST                -> parameter changes
+  Tracks:
+    Twinkly pixels -> PixelAnimation -> Twinkly realtime driver
+    DMX fixtures   -> DmxProgram     -> Art-Net driver
+    OSC endpoint   -> OscProgram     -> OSC driver
 ```
 
 Each track should have:
@@ -167,6 +229,8 @@ Each track should have:
 The runner should:
 
 - maintain a monotonic show clock
+- poll or receive control input and update `ControlState`
+- apply control mappings before rendering due tracks
 - tick each track at its own configured rate
 - call each program's render method with that track's device and state
 - validate rendered output at the driver boundary
@@ -190,6 +254,10 @@ lyte/
   dmx.py            Universe, FixtureProfile, Fixture, DmxFrame, DmxProgram
   artnet.py         Art-Net packet encoding and sender
   osc.py            OSC message and endpoint support
+  control.py        control sources, mappings, parameters, and state
+  midi.py           MIDI input and output support
+  keyboard.py       local keyboard control source
+  rest.py           REST control source
   show.py           shared runner, tracks, clock, cue hooks
   preview.py        pixel preview, later maybe DMX/fixture inspectors
 ```
@@ -221,6 +289,22 @@ The show runner should not care whether the rendered payload is a pixel frame,
 DMX universe frame, or OSC message list. It should care only that each track has
 a renderer and a driver with compatible payload types.
 
+Control APIs should map raw input to named show parameters:
+
+```python
+controls = ControlState()
+mapping.apply(ControlSignal(source="midi", control="cc2", value=96), controls)
+```
+
+Programs can then use resolved values without depending on input protocol
+details:
+
+```python
+breath = controls.scalar("breath", default=0.0)
+twinkly_state.gain = breath
+dmx_state.speed = 0.25 + breath * 2.0
+```
+
 ## Migration Plan
 
 1. Rename nothing. Add a plan and keep the existing Twinkly API stable.
@@ -236,7 +320,15 @@ a renderer and a driver with compatible payload types.
 8. Connect DMX programs to Art-Net through the shared runner.
 9. Add OSC output after the runner/track shape is stable.
 10. Add OSC input only after cue and parameter semantics exist.
-11. Add sACN or USB DMX when there is real hardware or a concrete test target.
+11. Add `lyte.control` with `ControlSignal`, `ControlMapping`, `ControlState`,
+    and named show parameters.
+12. Add one simple control source first, probably keyboard input or REST,
+    because it is easiest to test without hardware.
+13. Add MIDI input with a concrete mapping example such as breath control to
+    gain and speed.
+14. Add DMX or Art-Net input when there is a real console, interface, or packet
+    fixture to validate against.
+15. Add sACN or USB DMX when there is real hardware or a concrete test target.
 
 ## Testing Strategy
 
@@ -247,6 +339,8 @@ Tests should stay deterministic and protocol-boundary focused:
 - fixture profile tests verify semantic values encode to expected channels
 - Art-Net tests compare packet bytes for known universe frames
 - OSC tests compare message address and typed argument encoding
+- control mapping tests compare raw input events to resulting parameter values
+- control routing tests verify one source can drive multiple track parameters
 - runner tests use fake clocks and fake drivers
 
 Network sends should be unit-tested by patching sockets or drivers. Device demos,
@@ -266,6 +360,11 @@ usable across more than one light model.
 The third risk is letting transports leak into authoring APIs. A DMX program
 should render universes. Art-Net, sACN, and USB DMX should be interchangeable
 ways to send those universes.
+
+The fourth risk is letting control inputs leak into animation APIs. MIDI breath,
+DMX faders, REST fields, and keyboard presses are input details. Animations
+should consume named show parameters so the same animation can be controlled by
+different hardware without code changes.
 
 ## Additional work beyond the prompt
 
