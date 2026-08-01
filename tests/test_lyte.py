@@ -53,7 +53,7 @@ from lyte.logging import LOGGING, log, log_error, log_status
 from lyte.network.client import LyteClient, LyteResponse
 from lyte.network.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.network.discovery import DiscoveredDevice, parse_discovery_response
-from lyte.network.realtime import (
+from lyte.network.frame import (
     frame_packets_v3,
     frame_payload,
     send_frame_v3,
@@ -163,7 +163,7 @@ class RealtimeTests(unittest.TestCase):
                 sent_buffers.append((buffers, flags, mode, address))
                 return sum(len(buffer) for buffer in buffers)
 
-        with patch("lyte.network.realtime.socket.socket", return_value=Socket()):
+        with patch("lyte.network.frame.socket.socket", return_value=Socket()):
             sent = send_frame_v3("192.168.1.23", "MCIGBF1qJlg=", frame)
 
         self.assertEqual(sent, 15)
