@@ -5,7 +5,8 @@ from numpy.typing import NDArray
 from pydantic import model_validator
 
 from ...animation import Animation, Device, State
-from ..util import RGB, validate_palette
+from ..colors import RGB
+from ..validators import validate_palette
 
 
 class SaberBladeState(State):

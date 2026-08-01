@@ -5,7 +5,8 @@ from numpy.typing import NDArray
 from pydantic import model_validator
 
 from ...animation import Animation, Device, State
-from ..util import RGB, resolve_end, validate_rgb
+from ..colors import RGB
+from ..validators import resolve_end, validate_rgb
 
 
 class AlternatesState(State):

@@ -5,14 +5,14 @@ from numpy.typing import NDArray
 from pydantic import model_validator
 
 from ...animation import Animation, Device, State
-from ..util import (
+from ..colors import wheel_color
+from ..validators import (
     advance_rainbow,
     resolve_end,
     span_size,
     validate_span,
     validate_start,
     validate_step,
-    wheel_color,
 )
 
 

@@ -7,7 +7,8 @@ from numpy.typing import NDArray
 from pydantic import model_validator
 
 from ...animation import Animation, Device, State
-from ..util import RGB, bounded_tail, scale_color, validate_palette
+from ..colors import RGB, scale_color
+from ..validators import bounded_tail, validate_palette
 
 
 class PulseState(State):

@@ -7,7 +7,8 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, model_validator
 
 from ...animation import Animation, Device, State
-from ..util import DEFAULT_PATTERN, RGB, scale_color, validate_palette
+from ..colors import DEFAULT_PATTERN, RGB, scale_color
+from ..validators import validate_palette
 
 
 class TwinklePixel(BaseModel):

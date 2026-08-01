@@ -4,7 +4,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ...animation import Device
-from ..util import advance_rainbow, span_size, wheel_color
+from ..colors import wheel_color
+from ..validators import advance_rainbow, span_size
 from .rainbow import Rainbow, RainbowState
 
 

@@ -7,12 +7,10 @@ from numpy.typing import NDArray
 from pydantic import model_validator
 
 from ...animation import Animation, Device, State
-from ..util import (
-    RGB,
-    blend_color,
+from ..colors import RGB, blend_color, scale_color
+from ..validators import (
     bounded_tail,
     resolve_end,
-    scale_color,
     span_size,
     validate_palette,
     validate_span,

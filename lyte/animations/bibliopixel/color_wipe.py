@@ -5,8 +5,8 @@ from numpy.typing import NDArray
 from pydantic import model_validator
 
 from ...animation import Animation, Device, State
-from ..util import (
-    RGB,
+from ..colors import RGB
+from ..validators import (
     advance_position,
     resolve_end,
     validate_rgb,
