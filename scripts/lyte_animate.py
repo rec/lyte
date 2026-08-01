@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Run a selected Lyte animation on Twinkly generation 2 lights."""
 
-from __future__ import annotations
-
-import argparse
 import random
 import sys
 import time
+from collections.abc import Sequence
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Annotated, Literal, NoReturn, cast
 
 import numpy as np
+import tyro
 from numpy.typing import NDArray
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -83,6 +84,34 @@ ANIMATIONS: tuple[str, ...] = (
     "wave_move",
     "white_twinkle",
 )
+AnimationName = Literal[
+    "alternates",
+    "color_chase",
+    "color_fade",
+    "color_fill",
+    "color_pattern",
+    "color_wipe",
+    "fire_flies",
+    "halves_rainbow",
+    "hamiltonian",
+    "larson_rainbow",
+    "larson_scanner",
+    "linear_rainbow",
+    "off",
+    "party_mode",
+    "pixel_ping_pong",
+    "pulse",
+    "rainbow",
+    "rainbow_cycle",
+    "random",
+    "random_walk",
+    "saber_blade",
+    "searchlights",
+    "twinkle",
+    "wave",
+    "wave_move",
+    "white_twinkle",
+]
 RANDOM_ANIMATIONS: tuple[str, ...] = tuple(
     a for a in ANIMATIONS if a not in ("off", "random")
 )
@@ -92,6 +121,52 @@ RANDOM_WALK_SPEED = 80.0
 RANDOM_WALK_VARIANCE = 80.0
 RANDOM_WALK_BOUNDS = (0.0, 255.0)
 RANDOM_WALK_PERIOD = 6.0
+
+
+@dataclass(frozen=True)
+class AnimateConfig:
+    animation: Annotated[AnimationName, tyro.conf.Positional] = "random"
+    host: str | None = None
+    timeout: float = 5.0
+    discovery_timeout: float = 5.0
+    attempts: int = 10
+    retry_delay: float = 0.5
+    retry_backoff: float = 2.0
+    led_count: int | None = None
+    speed: float = 25
+    fps: float = 20
+    duration: float | None = None
+    pre_fill: bool = False
+    center_in: bool = False
+    individual_pixel: bool = False
+    step: int = 1
+    start: int = 0
+    end: int | None = None
+    width: int = 1
+    count: int = 1
+    tail: int = 2
+    chance: int = 30
+    min_speed: int = 1
+    max_speed: int = 5
+    total_pixels: int = 1
+    fade_delay: int = 1
+    density: int = 20
+    max_bright: int = 255
+    cycles: int = 2
+    level_step: int = 5
+    rainbow_inc: int = 4
+    max_led: int | None = None
+    reverse: bool = False
+    n: int = 32
+    order: str = "rgb"
+    inverted: str = ""
+    variance: float = 1
+    bounds: tuple[float, float] = (0, 180)
+    color: tuple[int, int, int] | None = None
+    color2: tuple[int, int, int] | None = None
+    colors: tuple[int, ...] | None = None
+    period: float = 0
+    seed: int | None = None
 
 
 def main() -> int:
@@ -129,128 +204,72 @@ def main() -> int:
     return 0
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "animation",
-        nargs="?",
-        default="random",
-        choices=ANIMATIONS,
-        help="Animation to stream.",
-    )
-    parser.add_argument("--host")
-    parser.add_argument("--timeout", type=float, default=5.0)
-    parser.add_argument("--discovery-timeout", type=float, default=5.0)
-    parser.add_argument(
-        "--attempts",
-        type=int,
-        default=10,
-        help="Attempts for transient HTTP and UDP operations.",
-    )
-    parser.add_argument(
-        "--retry-delay",
-        type=float,
-        default=0.5,
-        help="Initial delay between retries, in seconds.",
-    )
-    parser.add_argument(
-        "--retry-backoff",
-        type=float,
-        default=2.0,
-        help="Retry delay multiplier after each failed attempt.",
-    )
-    parser.add_argument("--led-count", type=int)
-    parser.add_argument("--speed", type=float, default=25)
-    parser.add_argument("--fps", type=float, default=20)
-    parser.add_argument("--duration", type=float)
-    parser.add_argument("--pre-fill", action="store_true")
-    parser.add_argument("--center-in", action="store_true")
-    parser.add_argument("--individual-pixel", action="store_true")
-    parser.add_argument("--step", type=int, default=1)
-    parser.add_argument("--start", type=int, default=0)
-    parser.add_argument("--end", type=int)
-    parser.add_argument("--width", type=int, default=1)
-    parser.add_argument("--count", type=int, default=1)
-    parser.add_argument("--tail", type=int, default=2)
-    parser.add_argument("--chance", type=int, default=30)
-    parser.add_argument("--min-speed", type=int, default=1)
-    parser.add_argument("--max-speed", type=int, default=5)
-    parser.add_argument("--total-pixels", type=int, default=1)
-    parser.add_argument("--fade-delay", type=int, default=1)
-    parser.add_argument("--density", type=int, default=20)
-    parser.add_argument("--max-bright", type=int, default=255)
-    parser.add_argument("--cycles", type=int, default=2)
-    parser.add_argument("--level-step", type=int, default=5)
-    parser.add_argument("--rainbow-inc", type=int, default=4)
-    parser.add_argument("--max-led", type=int)
-    parser.add_argument("--reverse", action="store_true")
-    parser.add_argument("--n", type=int, default=32)
-    parser.add_argument("--order", default="rgb")
-    parser.add_argument("--inverted", default="")
-    parser.add_argument("--variance", type=float, default=1)
-    parser.add_argument("--bounds", type=float, nargs=2, default=(0, 180))
-    parser.add_argument("--color", type=int, nargs=3)
-    parser.add_argument("--color2", type=int, nargs=3)
-    parser.add_argument("--colors", type=int, nargs="+")
-    parser.add_argument("--period", type=float, default=0)
-    parser.add_argument("--seed", type=int)
-    args = parser.parse_args()
+def parse_args(args: Sequence[str] | None = None) -> AnimateConfig:
+    config = tyro.cli(AnimateConfig, args=args)
+    validate_args(config)
+    return config
+
+
+def validate_args(args: AnimateConfig) -> None:
     if args.attempts < 1:
-        parser.error("--attempts must be at least 1")
+        fail("--attempts must be at least 1")
     if args.retry_delay < 0:
-        parser.error("--retry-delay must not be negative")
+        fail("--retry-delay must not be negative")
     if args.retry_backoff < 1:
-        parser.error("--retry-backoff must be at least 1")
+        fail("--retry-backoff must be at least 1")
     if args.fps <= 0:
-        parser.error("--fps must be greater than zero")
+        fail("--fps must be greater than zero")
     if args.speed < 0:
-        parser.error("--speed must not be negative")
+        fail("--speed must not be negative")
     if args.variance < 0:
-        parser.error("--variance must not be negative")
+        fail("--variance must not be negative")
     if args.bounds[0] >= args.bounds[1]:
-        parser.error("--bounds must be ordered low high")
+        fail("--bounds must be ordered low high")
     if args.color is not None and any(c < 0 or c > 255 for c in args.color):
-        parser.error("--color components must be between 0 and 255")
+        fail("--color components must be between 0 and 255")
     if args.color2 is not None and any(c < 0 or c > 255 for c in args.color2):
-        parser.error("--color2 components must be between 0 and 255")
+        fail("--color2 components must be between 0 and 255")
     if args.colors is not None:
         if len(args.colors) % 3:
-            parser.error("--colors must contain complete RGB triples")
+            fail("--colors must contain complete RGB triples")
         if any(c < 0 or c > 255 for c in args.colors):
-            parser.error("--colors components must be between 0 and 255")
+            fail("--colors components must be between 0 and 255")
     if args.step < 1:
-        parser.error("--step must be at least 1")
+        fail("--step must be at least 1")
     if args.width < 1:
-        parser.error("--width must be at least 1")
+        fail("--width must be at least 1")
     if args.count < 1:
-        parser.error("--count must be at least 1")
+        fail("--count must be at least 1")
     if args.tail < 0:
-        parser.error("--tail must not be negative")
+        fail("--tail must not be negative")
     if args.chance < 0 or args.chance > 100:
-        parser.error("--chance must be between 0 and 100")
+        fail("--chance must be between 0 and 100")
     if args.min_speed < 1 or args.max_speed <= args.min_speed:
-        parser.error("--min-speed and --max-speed must define a non-empty range")
+        fail("--min-speed and --max-speed must define a non-empty range")
     if args.total_pixels < 1:
-        parser.error("--total-pixels must be at least 1")
+        fail("--total-pixels must be at least 1")
     if args.fade_delay < 1:
-        parser.error("--fade-delay must be at least 1")
+        fail("--fade-delay must be at least 1")
     if args.density < 1:
-        parser.error("--density must be at least 1")
+        fail("--density must be at least 1")
     if args.max_bright < 1 or args.max_bright > 255:
-        parser.error("--max-bright must be between 1 and 255")
+        fail("--max-bright must be between 1 and 255")
     if args.cycles < 1:
-        parser.error("--cycles must be at least 1")
+        fail("--cycles must be at least 1")
     if args.level_step < 1:
-        parser.error("--level-step must be at least 1")
+        fail("--level-step must be at least 1")
     if args.rainbow_inc < 0:
-        parser.error("--rainbow-inc must not be negative")
+        fail("--rainbow-inc must not be negative")
     if args.start < 0:
-        parser.error("--start must not be negative")
-    return args
+        fail("--start must not be negative")
+
+
+def fail(message: str) -> NoReturn:
+    sys.exit(message)
 
 
 def run_random_animations(
-    args: argparse.Namespace,
+    args: AnimateConfig,
     client: LyteClient,
     retry: RetryConfig,
     host: str,
@@ -333,28 +352,31 @@ def log_pattern_start(animation: str, duration: float) -> None:
 
 
 def random_animation_args(
-    args: argparse.Namespace,
+    args: AnimateConfig,
     generator: random.Random,
     previous_animation: str | None,
-) -> argparse.Namespace:
+) -> AnimateConfig:
     choices = [a for a in RANDOM_ANIMATIONS if a != previous_animation]
-    values = vars(args).copy()
-    values["animation"] = generator.choice(choices)
-    values["seed"] = generator.randrange(0, 2**32)
-    if values["animation"] == "hamiltonian":
-        values["n"] = 256
-        values["speed"] = 100
-    elif values["animation"] == "random_walk":
-        values["speed"] = RANDOM_WALK_SPEED
-        values["variance"] = RANDOM_WALK_VARIANCE
-        values["bounds"] = RANDOM_WALK_BOUNDS
-        values["period"] = RANDOM_WALK_PERIOD
-        values["pre_fill"] = True
-    return argparse.Namespace(**values)
+    animation = cast(AnimationName, generator.choice(choices))
+    seed = generator.randrange(0, 2**32)
+    if animation == "hamiltonian":
+        return replace(args, animation=animation, seed=seed, n=256, speed=100)
+    if animation == "random_walk":
+        return replace(
+            args,
+            animation=animation,
+            seed=seed,
+            speed=RANDOM_WALK_SPEED,
+            variance=RANDOM_WALK_VARIANCE,
+            bounds=RANDOM_WALK_BOUNDS,
+            period=RANDOM_WALK_PERIOD,
+            pre_fill=True,
+        )
+    return replace(args, animation=animation, seed=seed)
 
 
 def run_animation(
-    args: argparse.Namespace,
+    args: AnimateConfig,
     client: LyteClient,
     retry: RetryConfig,
     host: str,
@@ -370,7 +392,7 @@ def run_animation(
 def run_animation_state(
     animation: Animation,
     state: State,
-    args: argparse.Namespace,
+    args: AnimateConfig,
     client: LyteClient,
     retry: RetryConfig,
     host: str,
@@ -399,7 +421,7 @@ def run_crossfade(
     current_state: State,
     next_animation: Animation,
     next_state: State,
-    args: argparse.Namespace,
+    args: AnimateConfig,
     client: LyteClient,
     retry: RetryConfig,
     host: str,
@@ -458,7 +480,7 @@ def send_realtime_frame(
         sys.exit(f"Could not send realtime frame to {host}.")
 
 
-def build_animation(args: argparse.Namespace) -> Animation:
+def build_animation(args: AnimateConfig) -> Animation:
     if args.animation == "hamiltonian":
         return Hamiltonian(
             speed=args.speed,
@@ -618,14 +640,14 @@ def build_animation(args: argparse.Namespace) -> Animation:
     )
 
 
-def rgb_arg(value: list[int] | None, default: RGB) -> RGB:
+def rgb_arg(value: Sequence[int] | None, default: RGB) -> RGB:
     if value is None:
         return default
     return value[0], value[1], value[2]
 
 
 def colors_arg(
-    value: list[int] | None,
+    value: Sequence[int] | None,
     default: tuple[RGB, ...] = DEFAULT_PATTERN,
 ) -> tuple[RGB, ...]:
     if value is None:

@@ -7,11 +7,12 @@ import argparse
 import sys
 import webbrowser
 from pathlib import Path
+from typing import cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from lyte_animate import ANIMATIONS, build_animation
+from lyte_animate import ANIMATIONS, AnimateConfig, AnimationName, build_animation
 
 from lyte import Layout, render_animation_html
 
@@ -152,10 +153,44 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
         parser.error("--start must not be negative")
 
 
-def animation_args(args: argparse.Namespace) -> argparse.Namespace:
-    values = vars(args).copy()
-    values["width"] = 1
-    return argparse.Namespace(**values)
+def animation_args(args: argparse.Namespace) -> AnimateConfig:
+    return AnimateConfig(
+        animation=cast(AnimationName, args.animation),
+        speed=args.speed,
+        fps=args.fps,
+        duration=args.duration,
+        pre_fill=args.pre_fill,
+        center_in=args.center_in,
+        individual_pixel=args.individual_pixel,
+        step=args.step,
+        start=args.start,
+        end=args.end,
+        width=1,
+        count=args.count,
+        tail=args.tail,
+        chance=args.chance,
+        min_speed=args.min_speed,
+        max_speed=args.max_speed,
+        total_pixels=args.total_pixels,
+        fade_delay=args.fade_delay,
+        density=args.density,
+        max_bright=args.max_bright,
+        cycles=args.cycles,
+        level_step=args.level_step,
+        rainbow_inc=args.rainbow_inc,
+        max_led=args.max_led,
+        reverse=args.reverse,
+        n=args.n,
+        order=args.order,
+        inverted=args.inverted,
+        variance=args.variance,
+        bounds=tuple(args.bounds),
+        color=None if args.color is None else tuple(args.color),
+        color2=None if args.color2 is None else tuple(args.color2),
+        colors=None if args.colors is None else tuple(args.colors),
+        period=args.period,
+        seed=args.seed,
+    )
 
 
 def print_preview_patterns() -> None:
