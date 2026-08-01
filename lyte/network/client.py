@@ -11,7 +11,7 @@ import time
 from pydantic import BaseModel
 
 from ..errors import AuthenticationError, ProtocolError
-from .crypto import make_challenge_response
+from .authentication import make_challenge_response
 
 AUTH_HEADER = "X-Auth-Token"
 

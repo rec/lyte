@@ -50,8 +50,8 @@ from lyte.animations.hamiltonian import (
 from lyte.animations.random_walk import RandomWalk, perturb
 from lyte.errors import DiscoveryError, ProtocolError
 from lyte.logging import LOGGING, log, log_error, log_status
+from lyte.network.authentication import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.network.client import LyteClient, LyteResponse
-from lyte.network.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.network.discovery import DiscoveredDevice, parse_discovery_response
 from lyte.network.frame import (
     frame_packets_v3,
