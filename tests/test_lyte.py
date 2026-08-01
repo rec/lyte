@@ -911,50 +911,16 @@ class DiagnosticTests(unittest.TestCase):
         self.assertEqual(config.discovery_retry.delay, 0.05)
 
 
-class HamiltonianScriptTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        path = Path(__file__).parents[1] / "scripts" / "lyte_hamiltonian.py"
-        spec = importlib.util.spec_from_file_location("lyte_hamiltonian", path)
-        assert spec is not None
-        assert spec.loader is not None
-        cls.script = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(cls.script)
+class HamiltonianAnimationTests(unittest.TestCase):
+    def test_hamiltonian_renders_rgb_frame(self) -> None:
+        animation = Hamiltonian(speed=64, n=4)
+        device, state = initial_state(animation, 3)
+        state.fps = 1
 
-    def test_retry_call_recovers_after_transient_protocol_error(self) -> None:
-        calls = 0
+        frame = render(animation, device, state)
 
-        def operation() -> str:
-            nonlocal calls
-            calls += 1
-            if calls == 1:
-                raise ProtocolError("timed out")
-            return "ok"
-
-        with (
-            patch("sys.stdout", new_callable=io.StringIO),
-            patch(
-                "sys.stderr",
-                new_callable=io.StringIO,
-            ),
-            patch("lyte.retry.time.sleep"),
-        ):
-            result = retry_call(
-                "device info",
-                RetryConfig(attempts=2, delay=0.01, backoff=2),
-                operation,
-                (ProtocolError,),
-            )
-
-        self.assertEqual(result, "ok")
-        self.assertEqual(calls, 2)
-
-    def test_parse_args_uses_slower_network_retry_defaults(self) -> None:
-        with patch("sys.argv", ["lyte_hamiltonian.py"]):
-            args = self.script.parse_args()
-
-        self.assertEqual(args.attempts, 10)
-        self.assertEqual(args.retry_delay, 0.5)
+        self.assertEqual(frame.shape, (3, 3))
+        self.assertEqual(frame.dtype, np.uint8)
 
 
 class AnimateScriptTests(unittest.TestCase):
