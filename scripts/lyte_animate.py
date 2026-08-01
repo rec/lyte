@@ -43,14 +43,16 @@ from lyte.hamiltonian import Hamiltonian
 from lyte.logging import log, log_error, log_status
 from lyte.random_walk import RandomWalk
 from lyte.retry import RetryConfig
+from lyte.runtime import (
+    authenticate_device,
+    read_device_led_count,
+    send_authenticated_frame,
+    set_device_realtime_mode,
+)
 from lyte.session import (
-    authenticate_with_retry,
-    led_count_from_gestalt,
     read_gestalt,
-    send_frame_with_retry,
     set_mac_from_gestalt,
     set_off_mode_with_retry,
-    set_realtime_mode_with_retry,
 )
 
 ANIMATIONS: tuple[str, ...] = (
@@ -445,9 +447,9 @@ def send_realtime_frame(
 ) -> None:
     if client.token is None:
         sys.exit("Authentication token disappeared before frame send.")
-    sent = send_frame_with_retry(
+    sent = send_authenticated_frame(
+        client,
         host,
-        client.token.value,
         frame,
         retry,
         f"UDP realtime frame send to {host}",
@@ -640,18 +642,17 @@ def read_led_count(
     host: str,
 ) -> int | None:
     log(f"[step] Reading device info from {host}")
-    gestalt = read_gestalt(
+    led_count, gestalt = read_device_led_count(
         client,
         retry,
+        configured_led_count,
         f"HTTP device info read from {host}",
     )
     if gestalt is None:
         sys.exit(f"Could not read device info from {host}.")
-    set_mac_from_gestalt(client, gestalt)
     if configured_led_count is not None:
         log_status(f"[connected] {host}: using {configured_led_count} LEDs")
         return configured_led_count
-    led_count = led_count_from_gestalt(gestalt)
     if led_count is None:
         sys.exit("Device did not report number_of_led; pass --led-count.")
     log_status(f"[connected] {host}: {led_count} LEDs")
@@ -660,7 +661,7 @@ def read_led_count(
 
 def prepare_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
     log("[step] Authenticating")
-    token = authenticate_with_retry(
+    token = authenticate_device(
         client,
         retry,
         f"login and verify with {host}",
@@ -672,7 +673,7 @@ def prepare_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
     log_status(f"[connected] Authenticated with {host}")
 
     log("[step] Switching to realtime mode")
-    realtime_response = set_realtime_mode_with_retry(
+    realtime_response = set_device_realtime_mode(
         client,
         retry,
         f"switch {host} to realtime mode",
@@ -691,7 +692,7 @@ def turn_off_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
     set_mac_from_gestalt(client, gestalt)
 
     log("[step] Authenticating")
-    token = authenticate_with_retry(
+    token = authenticate_device(
         client,
         retry,
         f"login and verify with {host}",

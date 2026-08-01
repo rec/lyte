@@ -60,6 +60,7 @@ from lyte.realtime import (
     solid_rgb_frame,
 )
 from lyte.retry import RetryConfig, retry_call
+from lyte.runtime import read_device_led_count, send_authenticated_frame
 from lyte.session import led_count_from_gestalt, set_mac_from_gestalt
 
 
@@ -222,6 +223,57 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(led_count_from_gestalt({"number_of_led": 250}), 250)
         self.assertIsNone(led_count_from_gestalt({"number_of_led": 0}))
         self.assertIsNone(led_count_from_gestalt({"number_of_led": "250"}))
+
+
+class RuntimeTests(unittest.TestCase):
+    def test_read_device_led_count_uses_configured_count_after_reading_gestalt(
+        self,
+    ) -> None:
+        client = LyteClient(host="192.168.1.23")
+
+        with patch(
+            "lyte.runtime.read_gestalt",
+            return_value={"mac": "AA", "number_of_led": 250},
+        ):
+            led_count, gestalt = read_device_led_count(
+                client,
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                100,
+                "read",
+            )
+
+        self.assertEqual(led_count, 100)
+        self.assertEqual(gestalt, {"mac": "AA", "number_of_led": 250})
+        self.assertEqual(client.mac, "AA")
+
+    def test_read_device_led_count_detects_count_from_gestalt(self) -> None:
+        client = LyteClient(host="192.168.1.23")
+
+        with patch(
+            "lyte.runtime.read_gestalt",
+            return_value={"mac": "AA", "number_of_led": 250},
+        ):
+            led_count, _gestalt = read_device_led_count(
+                client,
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                None,
+                "read",
+            )
+
+        self.assertEqual(led_count, 250)
+
+    def test_send_authenticated_frame_returns_none_without_token(self) -> None:
+        frame = solid_rgb_frame(1, 255, 0, 0)
+
+        sent = send_authenticated_frame(
+            LyteClient(host="192.168.1.23"),
+            "192.168.1.23",
+            frame,
+            RetryConfig(attempts=1, delay=0, backoff=1),
+            "send",
+        )
+
+        self.assertIsNone(sent)
 
 
 class LoggingTests(unittest.TestCase):
@@ -1111,7 +1163,7 @@ class AnimateScriptTests(unittest.TestCase):
         with (
             patch("sys.argv", ["lyte_animate.py", "off", "--host", "192.168.1.23"]),
             patch.object(self.script, "read_gestalt", return_value={"mac": "AA"}),
-            patch.object(self.script, "authenticate_with_retry", return_value=object()),
+            patch.object(self.script, "authenticate_device", return_value=object()),
             patch.object(
                 self.script,
                 "set_off_mode_with_retry",
@@ -1134,8 +1186,8 @@ class AnimateScriptTests(unittest.TestCase):
         with (
             patch.object(
                 self.script,
-                "read_gestalt",
-                return_value={"mac": "AA", "number_of_led": 250},
+                "read_device_led_count",
+                return_value=(250, {"mac": "AA", "number_of_led": 250}),
             ),
             patch("sys.stdout", output),
         ):
