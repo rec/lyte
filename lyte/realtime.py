@@ -16,22 +16,6 @@ REALTIME_PORT = 7777
 MAX_FRAGMENT_SIZE = 900
 
 
-def solid_rgb_frame(
-    led_count: int,
-    red: int,
-    green: int,
-    blue: int,
-) -> NDArray[np.uint8]:
-    if led_count <= 0:
-        raise ValueError("led_count must be greater than zero")
-    for value in (red, green, blue):
-        if value < 0 or value > 255:
-            raise ValueError("RGB values must be between 0 and 255")
-    frame = np.empty((led_count, 3), dtype=np.uint8)
-    frame[:] = red, green, blue
-    return frame
-
-
 def frame_packets_v3(
     token: str,
     frame: NDArray[np.uint8],

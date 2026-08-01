@@ -18,6 +18,7 @@ from lyte import (
     LyteClient,
     ProtocolError,
 )
+from lyte.animations.colors import solid_rgb_frame
 from lyte.discovery import (
     DEFAULT_BROADCAST,
     DISCOVERY_MESSAGE,
@@ -26,7 +27,6 @@ from lyte.discovery import (
 )
 from lyte.errors import DiscoveryError
 from lyte.logging import log, log_error
-from lyte.realtime import solid_rgb_frame
 from lyte.retry import RetryConfig, retry_call
 from lyte.runtime import (
     authenticate_device,
