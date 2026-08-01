@@ -39,6 +39,7 @@ from lyte.animations.bibliopixel import (
     Wave,
     WhiteTwinkle,
 )
+from lyte.animations.colors import solid_rgb_frame
 from lyte.animations.hamiltonian import (
     Hamiltonian,
     HamiltonianCounter,
@@ -57,7 +58,6 @@ from lyte.realtime import (
     frame_packets_v3,
     frame_payload,
     send_frame_v3,
-    solid_rgb_frame,
 )
 from lyte.retry import RetryConfig, retry_call
 from lyte.runtime import read_device_led_count, send_authenticated_frame
