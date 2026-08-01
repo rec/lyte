@@ -34,11 +34,11 @@ python3 scripts/lyte_diagnostic.py --host 192.168.1.50
 Run the Hamiltonian streamer:
 
 ```sh
-python3 scripts/lyte_hamiltonian.py --host 192.168.1.50 --speed 80
+python3 scripts/lyte_animate.py hamiltonian --host 192.168.1.50 --speed 80
 ```
 
 Increase playback speed:
 
 ```sh
-python3 scripts/lyte_hamiltonian.py --host 192.168.1.50 --speed 80
+python3 scripts/lyte_animate.py hamiltonian --host 192.168.1.50 --speed 120
 ```
