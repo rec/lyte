@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Render a Lyte animation to a standalone HTML preview."""
 
-from __future__ import annotations
-
-import argparse
 import sys
 import webbrowser
+from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import Annotated, Literal, NoReturn, cast
+
+import tyro
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -16,9 +17,120 @@ from lyte_animate import ANIMATIONS, AnimateConfig, AnimationName, build_animati
 
 from lyte import Layout, render_animation_html
 
+PreviewAnimationName = Literal[
+    "alternates",
+    "color_chase",
+    "color_fade",
+    "color_fill",
+    "color_pattern",
+    "color_wipe",
+    "fire_flies",
+    "halves_rainbow",
+    "hamiltonian",
+    "larson_rainbow",
+    "larson_scanner",
+    "linear_rainbow",
+    "party_mode",
+    "pixel_ping_pong",
+    "pulse",
+    "rainbow",
+    "rainbow_cycle",
+    "random_walk",
+    "saber_blade",
+    "searchlights",
+    "twinkle",
+    "wave",
+    "wave_move",
+    "white_twinkle",
+]
 PREVIEW_ANIMATIONS: tuple[str, ...] = tuple(
     a for a in ANIMATIONS if a not in ("off", "random")
 )
+
+
+@dataclass(frozen=True)
+class PreviewConfig:
+    animation: Annotated[PreviewAnimationName, tyro.conf.Positional]
+    output: Annotated[Path, tyro.conf.Positional]
+    open: bool = False
+    name: str | None = None
+    width: int = 16
+    height: int = 16
+    spacing: float = 1.0
+    led_size: float = 1.0
+    fps: float = 20
+    duration: float = 10
+    speed: float = 25
+    pre_fill: bool = False
+    center_in: bool = False
+    individual_pixel: bool = False
+    step: int = 1
+    start: int = 0
+    end: int | None = None
+    count: int = 1
+    tail: int = 2
+    chance: int = 30
+    min_speed: int = 1
+    max_speed: int = 5
+    total_pixels: int = 1
+    fade_delay: int = 1
+    density: int = 20
+    max_bright: int = 255
+    cycles: int = 2
+    level_step: int = 5
+    rainbow_inc: int = 4
+    max_led: int | None = None
+    reverse: bool = False
+    n: int = 32
+    order: str = "rgb"
+    inverted: str = ""
+    variance: float = 1
+    bounds: tuple[float, float] = (0, 180)
+    color: tuple[int, int, int] | None = None
+    color2: tuple[int, int, int] | None = None
+    colors: tuple[int, ...] | None = None
+    period: float = 0
+    seed: int | None = None
+
+    @property
+    def animation_config(self) -> AnimateConfig:
+        return AnimateConfig(
+            animation=cast(AnimationName, self.animation),
+            speed=self.speed,
+            fps=self.fps,
+            duration=self.duration,
+            pre_fill=self.pre_fill,
+            center_in=self.center_in,
+            individual_pixel=self.individual_pixel,
+            step=self.step,
+            start=self.start,
+            end=self.end,
+            width=1,
+            count=self.count,
+            tail=self.tail,
+            chance=self.chance,
+            min_speed=self.min_speed,
+            max_speed=self.max_speed,
+            total_pixels=self.total_pixels,
+            fade_delay=self.fade_delay,
+            density=self.density,
+            max_bright=self.max_bright,
+            cycles=self.cycles,
+            level_step=self.level_step,
+            rainbow_inc=self.rainbow_inc,
+            max_led=self.max_led,
+            reverse=self.reverse,
+            n=self.n,
+            order=self.order,
+            inverted=self.inverted,
+            variance=self.variance,
+            bounds=self.bounds,
+            color=self.color,
+            color2=self.color2,
+            colors=self.colors,
+            period=self.period,
+            seed=self.seed,
+        )
 
 
 def main() -> int:
@@ -31,7 +143,7 @@ def main() -> int:
         dims=[args.height, args.width],
         spacing=args.spacing,
     )
-    animation = build_animation(animation_args(args))
+    animation = build_animation(args.animation_config)
     render_animation_html(
         animation,
         layout,
@@ -45,152 +157,70 @@ def main() -> int:
     return 0
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "animation",
-        choices=PREVIEW_ANIMATIONS,
-        help="Animation to preview.",
-    )
-    parser.add_argument("output", type=Path)
-    parser.add_argument("-o", "--open", action="store_true")
-    parser.add_argument("--name")
-    parser.add_argument("--width", type=int, default=16)
-    parser.add_argument("--height", type=int, default=16)
-    parser.add_argument("--spacing", type=float, default=1.0)
-    parser.add_argument("--led-size", type=float, default=1.0)
-    parser.add_argument("--fps", type=float, default=20)
-    parser.add_argument("--duration", type=float, default=10)
-    parser.add_argument("--speed", type=float, default=25)
-    parser.add_argument("--pre-fill", action="store_true")
-    parser.add_argument("--center-in", action="store_true")
-    parser.add_argument("--individual-pixel", action="store_true")
-    parser.add_argument("--step", type=int, default=1)
-    parser.add_argument("--start", type=int, default=0)
-    parser.add_argument("--end", type=int)
-    parser.add_argument("--count", type=int, default=1)
-    parser.add_argument("--tail", type=int, default=2)
-    parser.add_argument("--chance", type=int, default=30)
-    parser.add_argument("--min-speed", type=int, default=1)
-    parser.add_argument("--max-speed", type=int, default=5)
-    parser.add_argument("--total-pixels", type=int, default=1)
-    parser.add_argument("--fade-delay", type=int, default=1)
-    parser.add_argument("--density", type=int, default=20)
-    parser.add_argument("--max-bright", type=int, default=255)
-    parser.add_argument("--cycles", type=int, default=2)
-    parser.add_argument("--level-step", type=int, default=5)
-    parser.add_argument("--rainbow-inc", type=int, default=4)
-    parser.add_argument("--max-led", type=int)
-    parser.add_argument("--reverse", action="store_true")
-    parser.add_argument("--n", type=int, default=32)
-    parser.add_argument("--order", default="rgb")
-    parser.add_argument("--inverted", default="")
-    parser.add_argument("--variance", type=float, default=1)
-    parser.add_argument("--bounds", type=float, nargs=2, default=(0, 180))
-    parser.add_argument("--color", type=int, nargs=3)
-    parser.add_argument("--color2", type=int, nargs=3)
-    parser.add_argument("--colors", type=int, nargs="+")
-    parser.add_argument("--period", type=float, default=0)
-    parser.add_argument("--seed", type=int)
-    args = parser.parse_args()
-    validate_args(parser, args)
-    return args
+def parse_args(args: Sequence[str] | None = None) -> PreviewConfig:
+    config = tyro.cli(PreviewConfig, args=args)
+    validate_args(config)
+    return config
 
 
-def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+def validate_args(args: PreviewConfig) -> None:
     if args.fps <= 0:
-        parser.error("--fps must be greater than zero")
+        fail("--fps must be greater than zero")
     if args.duration <= 0:
-        parser.error("--duration must be greater than zero")
+        fail("--duration must be greater than zero")
     if args.width <= 0:
-        parser.error("--width must be greater than zero")
+        fail("--width must be greater than zero")
     if args.height <= 0:
-        parser.error("--height must be greater than zero")
+        fail("--height must be greater than zero")
     if args.spacing <= 0:
-        parser.error("--spacing must be greater than zero")
+        fail("--spacing must be greater than zero")
     if args.led_size <= 0:
-        parser.error("--led-size must be greater than zero")
+        fail("--led-size must be greater than zero")
     if args.speed < 0:
-        parser.error("--speed must not be negative")
+        fail("--speed must not be negative")
     if args.variance < 0:
-        parser.error("--variance must not be negative")
+        fail("--variance must not be negative")
     if args.bounds[0] >= args.bounds[1]:
-        parser.error("--bounds must be ordered low high")
+        fail("--bounds must be ordered low high")
     if args.color is not None and any(c < 0 or c > 255 for c in args.color):
-        parser.error("--color components must be between 0 and 255")
+        fail("--color components must be between 0 and 255")
     if args.color2 is not None and any(c < 0 or c > 255 for c in args.color2):
-        parser.error("--color2 components must be between 0 and 255")
+        fail("--color2 components must be between 0 and 255")
     if args.colors is not None:
         if len(args.colors) % 3:
-            parser.error("--colors must contain complete RGB triples")
+            fail("--colors must contain complete RGB triples")
         if any(c < 0 or c > 255 for c in args.colors):
-            parser.error("--colors components must be between 0 and 255")
+            fail("--colors components must be between 0 and 255")
     if args.step < 1:
-        parser.error("--step must be at least 1")
+        fail("--step must be at least 1")
     if args.count < 1:
-        parser.error("--count must be at least 1")
+        fail("--count must be at least 1")
     if args.tail < 0:
-        parser.error("--tail must not be negative")
+        fail("--tail must not be negative")
     if args.chance < 0 or args.chance > 100:
-        parser.error("--chance must be between 0 and 100")
+        fail("--chance must be between 0 and 100")
     if args.min_speed < 1 or args.max_speed <= args.min_speed:
-        parser.error("--min-speed and --max-speed must define a non-empty range")
+        fail("--min-speed and --max-speed must define a non-empty range")
     if args.total_pixels < 1:
-        parser.error("--total-pixels must be at least 1")
+        fail("--total-pixels must be at least 1")
     if args.fade_delay < 1:
-        parser.error("--fade-delay must be at least 1")
+        fail("--fade-delay must be at least 1")
     if args.density < 1:
-        parser.error("--density must be at least 1")
+        fail("--density must be at least 1")
     if args.max_bright < 1 or args.max_bright > 255:
-        parser.error("--max-bright must be between 1 and 255")
+        fail("--max-bright must be between 1 and 255")
     if args.cycles < 1:
-        parser.error("--cycles must be at least 1")
+        fail("--cycles must be at least 1")
     if args.level_step < 1:
-        parser.error("--level-step must be at least 1")
+        fail("--level-step must be at least 1")
     if args.rainbow_inc < 0:
-        parser.error("--rainbow-inc must not be negative")
+        fail("--rainbow-inc must not be negative")
     if args.start < 0:
-        parser.error("--start must not be negative")
+        fail("--start must not be negative")
 
 
-def animation_args(args: argparse.Namespace) -> AnimateConfig:
-    return AnimateConfig(
-        animation=cast(AnimationName, args.animation),
-        speed=args.speed,
-        fps=args.fps,
-        duration=args.duration,
-        pre_fill=args.pre_fill,
-        center_in=args.center_in,
-        individual_pixel=args.individual_pixel,
-        step=args.step,
-        start=args.start,
-        end=args.end,
-        width=1,
-        count=args.count,
-        tail=args.tail,
-        chance=args.chance,
-        min_speed=args.min_speed,
-        max_speed=args.max_speed,
-        total_pixels=args.total_pixels,
-        fade_delay=args.fade_delay,
-        density=args.density,
-        max_bright=args.max_bright,
-        cycles=args.cycles,
-        level_step=args.level_step,
-        rainbow_inc=args.rainbow_inc,
-        max_led=args.max_led,
-        reverse=args.reverse,
-        n=args.n,
-        order=args.order,
-        inverted=args.inverted,
-        variance=args.variance,
-        bounds=tuple(args.bounds),
-        color=None if args.color is None else tuple(args.color),
-        color2=None if args.color2 is None else tuple(args.color2),
-        colors=None if args.colors is None else tuple(args.colors),
-        period=args.period,
-        seed=args.seed,
-    )
+def fail(message: str) -> NoReturn:
+    sys.exit(message)
 
 
 def print_preview_patterns() -> None:

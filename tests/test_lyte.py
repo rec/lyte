@@ -1227,7 +1227,7 @@ class PreviewScriptTests(unittest.TestCase):
         ):
             args = self.script.parse_args()
 
-        animation = self.script.build_animation(args)
+        animation = self.script.build_animation(args.animation_config)
 
         self.assertIsInstance(animation, ColorFill)
         self.assertEqual(args.output, Path("preview.html"))
@@ -1253,17 +1253,15 @@ class PreviewScriptTests(unittest.TestCase):
         self.assertNotIn("random\n", output.getvalue())
         render_animation_html.assert_not_called()
 
-    def test_animation_args_keeps_layout_width_out_of_animation(self) -> None:
+    def test_animation_config_keeps_layout_width_out_of_animation(self) -> None:
         with patch(
             "sys.argv",
             ["lyte_preview.py", "color_chase", "preview.html", "--width", "24"],
         ):
             args = self.script.parse_args()
 
-        animation_args = self.script.animation_args(args)
-
         self.assertEqual(args.width, 24)
-        self.assertEqual(animation_args.width, 1)
+        self.assertEqual(args.animation_config.width, 1)
 
     def test_main_writes_preview_without_layout_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
