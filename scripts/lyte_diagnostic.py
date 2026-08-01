@@ -28,13 +28,14 @@ from lyte.errors import DiscoveryError
 from lyte.logging import log, log_error
 from lyte.realtime import solid_rgb_frame
 from lyte.retry import RetryConfig, retry_call
+from lyte.runtime import (
+    authenticate_device,
+    read_device_led_count,
+    send_authenticated_frame,
+    set_device_realtime_mode,
+)
 from lyte.session import (
-    authenticate_with_retry,
-    led_count_from_gestalt,
-    read_gestalt,
-    send_frame_with_retry,
     set_mac_from_gestalt,
-    set_realtime_mode_with_retry,
 )
 
 
@@ -301,7 +302,7 @@ def get_unauthenticated_info(client: LyteClient, retry: RetryConfig) -> bool:
 def authenticate(client: LyteClient, retry: RetryConfig) -> bool:
     print_step("Authenticating with login and verify")
 
-    token = authenticate_with_retry(
+    token = authenticate_device(
         client,
         retry,
         "login and verify",
@@ -318,12 +319,17 @@ def authenticate(client: LyteClient, retry: RetryConfig) -> bool:
 def detect_led_count(client: LyteClient, retry: RetryConfig) -> int | None:
     print_step("Detecting LED count from gestalt")
 
-    gestalt = read_gestalt(client, retry, "HTTP gestalt read for LED count")
+    led_count, gestalt = read_device_led_count(
+        client,
+        retry,
+        None,
+        "HTTP gestalt read for LED count",
+    )
     if gestalt is None:
         log("Pass --led-count if you know the number of LEDs.")
         return None
 
-    if (led_count := led_count_from_gestalt(gestalt)) is not None:
+    if led_count is not None:
         print_success(f"Using {led_count} LEDs.")
         return led_count
 
@@ -335,7 +341,7 @@ def detect_led_count(client: LyteClient, retry: RetryConfig) -> int | None:
 def set_realtime_mode(client: LyteClient, retry: RetryConfig) -> bool:
     print_step("Switching device to realtime mode")
 
-    response = set_realtime_mode_with_retry(
+    response = set_device_realtime_mode(
         client,
         retry,
         "HTTP switch to realtime mode",
@@ -362,9 +368,9 @@ def send_visible_test(
     colors = (("red", (255, 0, 0)), ("green", (0, 255, 0)), ("blue", (0, 0, 255)))
     for name, color in colors:
         frame = solid_rgb_frame(led_count, *color)
-        bytes_sent = send_frame_with_retry(
+        bytes_sent = send_authenticated_frame(
+            client,
             host,
-            client.token.value,
             frame,
             retry,
             f"UDP realtime {name} frame send",
