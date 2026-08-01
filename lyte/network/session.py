@@ -5,10 +5,10 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 
+from ..errors import AuthenticationError, ProtocolError
+from ..retry import RetryConfig, retry_call
 from .client import AuthToken, LyteClient, LyteResponse
-from .errors import AuthenticationError, ProtocolError
 from .realtime import send_frame_v3
-from .retry import RetryConfig, retry_call
 
 
 def read_gestalt(

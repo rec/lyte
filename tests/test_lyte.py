@@ -48,20 +48,20 @@ from lyte.animations.hamiltonian import (
     parse_order,
 )
 from lyte.animations.random_walk import RandomWalk, perturb
-from lyte.client import LyteClient, LyteResponse
-from lyte.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
-from lyte.discovery import DiscoveredDevice, parse_discovery_response
 from lyte.errors import DiscoveryError, ProtocolError
 from lyte.logging import LOGGING, log, log_error, log_status
-from lyte.preview import Layout, animation_document, render_animation_html
-from lyte.realtime import (
+from lyte.network.client import LyteClient, LyteResponse
+from lyte.network.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
+from lyte.network.discovery import DiscoveredDevice, parse_discovery_response
+from lyte.network.realtime import (
     frame_packets_v3,
     frame_payload,
     send_frame_v3,
 )
+from lyte.network.session import led_count_from_gestalt, set_mac_from_gestalt
+from lyte.preview import Layout, animation_document, render_animation_html
 from lyte.retry import RetryConfig, retry_call
 from lyte.runtime import read_device_led_count, send_authenticated_frame
-from lyte.session import led_count_from_gestalt, set_mac_from_gestalt
 
 
 def render(
@@ -163,7 +163,7 @@ class RealtimeTests(unittest.TestCase):
                 sent_buffers.append((buffers, flags, mode, address))
                 return sum(len(buffer) for buffer in buffers)
 
-        with patch("lyte.realtime.socket.socket", return_value=Socket()):
+        with patch("lyte.network.realtime.socket.socket", return_value=Socket()):
             sent = send_frame_v3("192.168.1.23", "MCIGBF1qJlg=", frame)
 
         self.assertEqual(sent, 15)

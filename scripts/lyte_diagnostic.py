@@ -19,23 +19,23 @@ from lyte import (
     ProtocolError,
 )
 from lyte.animations.colors import solid_rgb_frame
-from lyte.discovery import (
+from lyte.errors import DiscoveryError
+from lyte.logging import log, log_error
+from lyte.network.discovery import (
     DEFAULT_BROADCAST,
     DISCOVERY_MESSAGE,
     DISCOVERY_PORT,
     parse_discovery_response,
 )
-from lyte.errors import DiscoveryError
-from lyte.logging import log, log_error
+from lyte.network.session import (
+    set_mac_from_gestalt,
+)
 from lyte.retry import RetryConfig, retry_call
 from lyte.runtime import (
     authenticate_device,
     read_device_led_count,
     send_authenticated_frame,
     set_device_realtime_mode,
-)
-from lyte.session import (
-    set_mac_from_gestalt,
 )
 
 
