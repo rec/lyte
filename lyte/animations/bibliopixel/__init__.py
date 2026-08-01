@@ -1,6 +1,6 @@
 """Small numpy ports of simple BiblioPixel strip animations."""
 
-from ..util import DEFAULT_PATTERN, RGB
+from ..colors import DEFAULT_PATTERN, RGB
 from .alternates import Alternates, AlternatesState
 from .color_chase import ColorChase, ColorChaseState
 from .color_fade import ColorFade, ColorFadeState

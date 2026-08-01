@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..util import RGB
+from ..colors import RGB
 from .twinkle import Twinkle
 
 

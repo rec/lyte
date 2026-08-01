@@ -5,7 +5,8 @@ from numpy.typing import NDArray
 from pydantic import model_validator
 
 from ...animation import Animation, Device, State
-from ..util import resolve_end, validate_step, wheel_color
+from ..colors import wheel_color
+from ..validators import resolve_end, validate_step
 
 
 class LinearRainbowState(State):

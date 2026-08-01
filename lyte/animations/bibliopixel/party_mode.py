@@ -5,7 +5,8 @@ from numpy.typing import NDArray
 from pydantic import model_validator
 
 from ...animation import Animation, Device, State
-from ..util import DEFAULT_PATTERN, RGB, validate_palette
+from ..colors import DEFAULT_PATTERN, RGB
+from ..validators import validate_palette
 
 
 class PartyModeState(State):
