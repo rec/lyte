@@ -1,0 +1,32 @@
+from __future__ import annotations
+
+import numpy as np
+from numpy.typing import NDArray
+from pydantic import model_validator
+
+from ...animation import Animation, Device, State
+from ..util import DEFAULT_PATTERN, RGB, validate_palette
+
+
+class PartyModeState(State):
+    position: int = 0
+
+
+class PartyMode(Animation[PartyModeState]):
+    colors: tuple[RGB, ...] = DEFAULT_PATTERN
+
+    @model_validator(mode="after")
+    def validate_party_mode(self) -> PartyMode:
+        validate_palette(self.colors)
+        return self
+
+    def initial_state(self, device: Device) -> PartyModeState:
+        return PartyModeState()
+
+    def render(self, device: Device, state: PartyModeState) -> NDArray[np.uint8]:
+        frame = np.zeros((device.led_count, 3), dtype=np.uint8)
+        if state.position % 2 == 0:
+            frame[:] = self.colors[(state.position // 2) % len(self.colors)]
+        state.position += 1
+        state.frame += 1
+        return frame

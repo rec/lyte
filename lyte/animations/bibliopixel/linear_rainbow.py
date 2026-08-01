@@ -1,0 +1,43 @@
+from __future__ import annotations
+
+import numpy as np
+from numpy.typing import NDArray
+from pydantic import model_validator
+
+from ...animation import Animation, Device, State
+from ..util import resolve_end, validate_step, wheel_color
+
+
+class LinearRainbowState(State):
+    current: int = 0
+    frame_buffer: NDArray[np.uint8]
+    position: int = 0
+
+
+class LinearRainbow(Animation[LinearRainbowState]):
+    max_led: int | None = None
+    individual_pixel: bool = False
+    step: int = 1
+
+    @model_validator(mode="after")
+    def validate_linear_rainbow(self) -> LinearRainbow:
+        validate_step(self.step)
+        return self
+
+    def initial_state(self, device: Device) -> LinearRainbowState:
+        return LinearRainbowState(
+            frame_buffer=np.zeros((device.led_count, 3), dtype=np.uint8)
+        )
+
+    def render(self, device: Device, state: LinearRainbowState) -> NDArray[np.uint8]:
+        max_led = resolve_end(device.led_count, self.max_led)
+        if self.individual_pixel:
+            state.frame_buffer[state.current] = wheel_color(state.position)
+        else:
+            state.frame_buffer[: state.current + 1] = wheel_color(state.position)
+        state.position += self.step
+        state.current = 0 if state.current == max_led else state.current + self.step
+        if state.current > max_led:
+            state.current = max_led
+        state.frame += 1
+        return state.frame_buffer
