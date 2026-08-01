@@ -8,7 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, PrivateAttr, model_validator
 
-from .animation import Animation, Device, State
+from ..animation import Animation, Device, State
 
 RGB = tuple[int, int, int]
 FloatRGB = tuple[float, float, float]

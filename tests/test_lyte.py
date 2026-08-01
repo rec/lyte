@@ -17,7 +17,7 @@ from numpy import testing as npt
 from numpy.typing import NDArray
 
 from lyte.animation import Animation, Device, State
-from lyte.bibliopixel import (
+from lyte.animations.bibliopixel import (
     Alternates,
     ColorChase,
     ColorFade,
@@ -39,20 +39,20 @@ from lyte.bibliopixel import (
     Wave,
     WhiteTwinkle,
 )
-from lyte.client import LyteClient, LyteResponse
-from lyte.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
-from lyte.discovery import DiscoveredDevice, parse_discovery_response
-from lyte.errors import DiscoveryError, ProtocolError
-from lyte.hamiltonian import (
+from lyte.animations.hamiltonian import (
     Hamiltonian,
     HamiltonianCounter,
     hamiltonian_colors,
     next_hamiltonian,
     parse_order,
 )
+from lyte.animations.random_walk import RandomWalk, perturb
+from lyte.client import LyteClient, LyteResponse
+from lyte.crypto import CHALLENGE_KEY, derive_key, mac_bytes, rc4
+from lyte.discovery import DiscoveredDevice, parse_discovery_response
+from lyte.errors import DiscoveryError, ProtocolError
 from lyte.logging import LOGGING, log, log_error, log_status
 from lyte.preview import Layout, animation_document, render_animation_html
-from lyte.random_walk import RandomWalk, perturb
 from lyte.realtime import (
     frame_packets_v3,
     frame_payload,
