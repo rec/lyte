@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from ..errors import AuthenticationError, ProtocolError
 from ..retry import RetryConfig, retry_call
 from .client import AuthToken, LyteClient, LyteResponse
-from .realtime import send_frame_v3
+from .frame import send_frame_v3
 
 
 def read_gestalt(
