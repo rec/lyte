@@ -10,7 +10,7 @@ from collections.abc import Iterable
 import numpy as np
 from numpy.typing import NDArray
 
-from .errors import ProtocolError
+from ..errors import ProtocolError
 
 REALTIME_PORT = 7777
 MAX_FRAGMENT_SIZE = 900

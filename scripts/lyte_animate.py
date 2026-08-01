@@ -43,17 +43,17 @@ from lyte.animations.bibliopixel import (
 from lyte.animations.hamiltonian import Hamiltonian
 from lyte.animations.random_walk import RandomWalk
 from lyte.logging import log, log_error, log_status
+from lyte.network.session import (
+    read_gestalt,
+    set_mac_from_gestalt,
+    set_off_mode_with_retry,
+)
 from lyte.retry import RetryConfig
 from lyte.runtime import (
     authenticate_device,
     read_device_led_count,
     send_authenticated_frame,
     set_device_realtime_mode,
-)
-from lyte.session import (
-    read_gestalt,
-    set_mac_from_gestalt,
-    set_off_mode_with_retry,
 )
 
 ANIMATIONS: tuple[str, ...] = (

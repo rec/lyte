@@ -30,17 +30,15 @@ from .animations.hamiltonian import (
     hamiltonian_colors,
 )
 from .animations.random_walk import RandomWalk
-from .client import LyteClient
-from .discovery import DiscoveredDevice, discover
 from .errors import (
     AuthenticationError,
     DiscoveryError,
     LyteError,
     ProtocolError,
 )
-from .preview import Layout, animation_document, render_animation_html
-from .retry import RetryConfig, retry_call
-from .session import (
+from .network.client import LyteClient
+from .network.discovery import DiscoveredDevice, discover
+from .network.session import (
     authenticate_with_retry,
     led_count_from_gestalt,
     read_gestalt,
@@ -49,6 +47,8 @@ from .session import (
     set_off_mode_with_retry,
     set_realtime_mode_with_retry,
 )
+from .preview import Layout, animation_document, render_animation_html
+from .retry import RetryConfig, retry_call
 
 __all__ = [
     "AuthenticationError",
