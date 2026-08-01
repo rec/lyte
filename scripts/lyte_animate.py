@@ -16,7 +16,7 @@ from numpy.typing import NDArray
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from lyte import Animation, Device, LyteClient, State, discover, validate_frame
-from lyte.bibliopixel import (
+from lyte.animations.bibliopixel import (
     DEFAULT_PATTERN,
     RGB,
     Alternates,
@@ -40,9 +40,9 @@ from lyte.bibliopixel import (
     Wave,
     WhiteTwinkle,
 )
-from lyte.hamiltonian import Hamiltonian
+from lyte.animations.hamiltonian import Hamiltonian
+from lyte.animations.random_walk import RandomWalk
 from lyte.logging import log, log_error, log_status
-from lyte.random_walk import RandomWalk
 from lyte.retry import RetryConfig
 from lyte.runtime import (
     authenticate_device,

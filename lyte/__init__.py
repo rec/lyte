@@ -1,7 +1,7 @@
 """Small dependency-free Lyte client."""
 
 from .animation import Animation, Device, State, validate_frame
-from .bibliopixel import (
+from .animations.bibliopixel import (
     Alternates,
     ColorChase,
     ColorFade,
@@ -23,6 +23,13 @@ from .bibliopixel import (
     Wave,
     WhiteTwinkle,
 )
+from .animations.hamiltonian import (
+    Hamiltonian,
+    HamiltonianCounter,
+    HamiltonianState,
+    hamiltonian_colors,
+)
+from .animations.random_walk import RandomWalk
 from .client import LyteClient
 from .discovery import DiscoveredDevice, discover
 from .errors import (
@@ -31,14 +38,7 @@ from .errors import (
     LyteError,
     ProtocolError,
 )
-from .hamiltonian import (
-    Hamiltonian,
-    HamiltonianCounter,
-    HamiltonianState,
-    hamiltonian_colors,
-)
 from .preview import Layout, animation_document, render_animation_html
-from .random_walk import RandomWalk
 from .retry import RetryConfig, retry_call
 from .session import (
     authenticate_with_retry,

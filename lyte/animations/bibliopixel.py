@@ -9,7 +9,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, model_validator
 
-from .animation import Animation, Device, State
+from ..animation import Animation, Device, State
 
 RGB = tuple[int, int, int]
 DEFAULT_PATTERN: tuple[RGB, ...] = ((255, 0, 0), (0, 255, 0), (0, 0, 255))
