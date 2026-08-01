@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Exercise a Lyte device with detailed diagnostics."""
 
-from __future__ import annotations
-
-import argparse
 import socket
 import sys
 import time
+from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
+from typing import NoReturn
+
+import tyro
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from pydantic import BaseModel
 
 from lyte import (
     DiscoveredDevice,
@@ -39,17 +39,37 @@ from lyte.session import (
 )
 
 
-class DiagnosticConfig(BaseModel, frozen=True):
-    host: str | None
-    timeout: float
-    discovery_timeout: float
-    led_count: int | None
-    pause: float
-    retry: RetryConfig
-    discovery_retry: RetryConfig
+@dataclass(frozen=True)
+class DiagnosticConfig:
+    host: str | None = None
+    timeout: float = 5.0
+    discovery_timeout: float = 0.1
+    discovery_attempts: int = 20
+    attempts: int = 10
+    retry_delay: float = 0.5
+    discovery_retry_delay: float = 0.05
+    retry_backoff: float = 2.0
+    discovery_backoff_after: int = 10
+    led_count: int | None = None
+    pause: float = 0.7
 
+    @property
+    def retry(self) -> RetryConfig:
+        return RetryConfig(
+            attempts=self.attempts,
+            delay=self.retry_delay,
+            backoff=self.retry_backoff,
+            backoff_after=1,
+        )
 
-DiagnosticConfig.model_rebuild(_types_namespace={"RetryConfig": RetryConfig})
+    @property
+    def discovery_retry(self) -> RetryConfig:
+        return RetryConfig(
+            attempts=self.discovery_attempts,
+            delay=self.discovery_retry_delay,
+            backoff=self.retry_backoff,
+            backoff_after=self.discovery_backoff_after,
+        )
 
 
 def main() -> int:
@@ -88,95 +108,31 @@ def main() -> int:
     return 0
 
 
-def parse_args() -> DiagnosticConfig:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--host",
-        help="Device IP address. If omitted, use UDP discovery.",
-    )
-    parser.add_argument("--timeout", type=float, default=5.0)
-    parser.add_argument(
-        "--discovery-timeout",
-        type=float,
-        default=0.1,
-        help="Seconds to wait for each UDP discovery broadcast attempt.",
-    )
-    parser.add_argument(
-        "--discovery-attempts",
-        type=int,
-        default=20,
-        help="Attempts for UDP discovery.",
-    )
-    parser.add_argument(
-        "--attempts",
-        type=int,
-        default=10,
-        help="Attempts for transient network operations.",
-    )
-    parser.add_argument(
-        "--retry-delay",
-        type=float,
-        default=0.5,
-        help="Initial delay between retries, in seconds.",
-    )
-    parser.add_argument(
-        "--discovery-retry-delay",
-        type=float,
-        default=0.05,
-        help="Initial delay between UDP discovery retries, in seconds.",
-    )
-    parser.add_argument(
-        "--retry-backoff",
-        type=float,
-        default=2.0,
-        help="Retry delay multiplier after each failed attempt.",
-    )
-    parser.add_argument(
-        "--discovery-backoff-after",
-        type=int,
-        default=10,
-        help="Discovery attempt number after which retry delay backs off.",
-    )
-    parser.add_argument(
-        "--led-count",
-        type=int,
-        help="Number of LEDs. If omitted, read number_of_led from gestalt.",
-    )
-    parser.add_argument("--pause", type=float, default=0.7)
-    args = parser.parse_args()
+def parse_args(args: Sequence[str] | None = None) -> DiagnosticConfig:
+    config = tyro.cli(DiagnosticConfig, args=args)
+    validate_args(config)
+    return config
+
+
+def validate_args(args: DiagnosticConfig) -> None:
     if args.attempts < 1:
-        parser.error("--attempts must be at least 1")
+        fail("--attempts must be at least 1")
     if args.discovery_attempts < 1:
-        parser.error("--discovery-attempts must be at least 1")
+        fail("--discovery-attempts must be at least 1")
     if args.discovery_timeout <= 0:
-        parser.error("--discovery-timeout must be greater than zero")
+        fail("--discovery-timeout must be greater than zero")
     if args.retry_delay < 0:
-        parser.error("--retry-delay must not be negative")
+        fail("--retry-delay must not be negative")
     if args.discovery_retry_delay < 0:
-        parser.error("--discovery-retry-delay must not be negative")
+        fail("--discovery-retry-delay must not be negative")
     if args.retry_backoff < 1:
-        parser.error("--retry-backoff must be at least 1")
+        fail("--retry-backoff must be at least 1")
     if args.discovery_backoff_after < 1:
-        parser.error("--discovery-backoff-after must be at least 1")
-    return DiagnosticConfig(
-        host=args.host,
-        timeout=args.timeout,
-        discovery_timeout=args.discovery_timeout,
-        led_count=args.led_count,
-        pause=args.pause,
-        retry=RetryConfig(
-            attempts=args.attempts,
-            delay=args.retry_delay,
-            backoff=args.retry_backoff,
-            backoff_after=1,
-        ),
-        discovery_retry=RetryConfig(
-            attempts=args.discovery_attempts,
-            delay=args.discovery_retry_delay,
-            backoff=args.retry_backoff,
-            backoff_after=args.discovery_backoff_after,
-        ),
-    )
+        fail("--discovery-backoff-after must be at least 1")
+
+
+def fail(message: str) -> NoReturn:
+    sys.exit(message)
 
 
 def discover_one(timeout: float, retry: RetryConfig) -> str | None:
