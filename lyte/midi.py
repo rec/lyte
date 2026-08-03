@@ -6,10 +6,8 @@ from typing import Generic, TypeVar
 import mido
 from pydantic import BaseModel, ConfigDict
 
-from .animation import State
-
-Config = TypeVar('Config', bound=BaseModel)
-ListenerClass = TypeVar('ListenerClass', bound='Listener')
+ConfigT = TypeVar('ConfigT', bound=BaseModel)
+ListenerT = TypeVar('ListenerT', bound='Listener')
 
 
 class MidiIn(BaseModel, frozen=True):
@@ -18,8 +16,6 @@ class MidiIn(BaseModel, frozen=True):
 
 
 class Listener(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
     patch: Patch[BaseModel, Listener]
     note_on: mido.Message
 
@@ -31,41 +27,33 @@ class Listener(BaseModel):
     3. Either a note off: a note on with zero velocity, when the player stops blowing
     4. Or a new note on: when the player changes fingering while blowing
 
-    A Listener is created
-
     """
 
     # Classes optionally override the below
+    def note_on(self, msg: mido.Message) -> None:  # The next note on
+        pass
+
     def breath_control(self, msg: mido.Message) -> None:
         pass
 
     def pitch_bend(self, msg: mido.Message) -> None:
         pass
 
-    def close(self) -> None:
-        pass
-
-
-class Patch(BaseModel, Generic[Config, ListenerClass], ABC):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    config: Config  # frozen
-    state: State  # mutable
-    listener: ListenerClass | None = None
+
+class Patch(BaseModel, Generic[ConfigT, ListenerT], ABC):
+    config: ConfigT
+    listener: ListenerT | None = None
 
     @abstractmethod
-    def make_listener(self, msg: mido.Message) -> ListenerClass:
+    def make_listener(self, msg: mido.Message) -> ListenerT:
         pass
 
     def receive(self, msg: mido.Message) -> None:
-        match vars(msg)['type']:
-            case 'note_on':
-                if self.listener is not None:
-                    self.listener.close()
-                self.listener = self.make_listener(msg)
-            case 'breath_control':
-                if self.listener is not None:
-                    self.listener.breath_control(msg)
-            case 'pitch_bend':
-                if self.listener is not None:
-                    self.listener.pitch_bend(msg)
+        if cb := getattr(self.listener, msg.type):
+            cb(msg)
+        if msg.type == 'note_on':
+            self.listener = self.make_listener(msg)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
