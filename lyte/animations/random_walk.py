@@ -30,17 +30,17 @@ class RandomWalk(Animation[RandomWalkState]):
     pre_fill: bool = False
     seed: int | None = None
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_random_walk(self) -> RandomWalk:
         if self.speed < 0:
-            raise ValueError("speed must not be negative")
+            raise ValueError('speed must not be negative')
         if self.variance < 0:
-            raise ValueError("variance must not be negative")
+            raise ValueError('variance must not be negative')
         low, high = self.bounds
         if low >= high:
-            raise ValueError("bounds must be ordered low, high")
+            raise ValueError('bounds must be ordered low, high')
         if self.period * self.speed == 1:
-            raise ValueError("period * speed must not equal 1")
+            raise ValueError('period * speed must not equal 1')
         return self
 
     def initial_state(self, device: Device) -> RandomWalkState:

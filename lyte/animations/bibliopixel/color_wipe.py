@@ -27,7 +27,7 @@ class ColorWipe(Animation[ColorWipeState]):
     end: int | None = None
     step: int = 1
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_color_wipe(self) -> ColorWipe:
         validate_rgb(self.color)
         validate_step(self.step)

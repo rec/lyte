@@ -19,11 +19,11 @@ class SaberBlade(Animation[SaberBladeState]):
     colors: tuple[RGB, ...] = ((255, 0, 0),)
     speed: int = 1
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_saber_blade(self) -> SaberBlade:
         validate_palette(self.colors)
         if self.speed == 0:
-            raise ValueError("speed must not be zero")
+            raise ValueError('speed must not be zero')
         return self
 
     def initial_state(self, device: Device) -> SaberBladeState:

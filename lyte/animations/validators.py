@@ -12,38 +12,38 @@ class RainbowStateLike(Protocol):
 
 def validate_led_count(led_count: int) -> None:
     if led_count <= 0:
-        raise ValueError("led_count must be greater than zero")
+        raise ValueError('led_count must be greater than zero')
 
 
 def validate_span(led_count: int, start: int, end: int) -> None:
     validate_led_count(led_count)
     if start < 0:
-        raise ValueError("start must not be negative")
+        raise ValueError('start must not be negative')
     if start >= led_count:
-        raise ValueError("start must be less than led_count")
+        raise ValueError('start must be less than led_count')
     if end < start:
-        raise ValueError("end must be greater than or equal to start")
+        raise ValueError('end must be greater than or equal to start')
 
 
 def validate_start(start: int) -> None:
     if start < 0:
-        raise ValueError("start must not be negative")
+        raise ValueError('start must not be negative')
 
 
 def validate_step(step: int) -> None:
     if step < 1:
-        raise ValueError("step must be at least 1")
+        raise ValueError('step must be at least 1')
 
 
 def validate_rgb(color: RGB) -> None:
     for component in color:
         if component < 0 or component > 255:
-            raise ValueError("RGB values must be between 0 and 255")
+            raise ValueError('RGB values must be between 0 and 255')
 
 
 def validate_palette(colors: tuple[RGB, ...]) -> None:
     if not colors:
-        raise ValueError("colors must not be empty")
+        raise ValueError('colors must not be empty')
     for color in colors:
         validate_rgb(color)
 

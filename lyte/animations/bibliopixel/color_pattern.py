@@ -18,11 +18,11 @@ class ColorPattern(Animation[ColorPatternState]):
     width: int = 1
     reverse: bool = False
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_color_pattern(self) -> ColorPattern:
         validate_palette(self.colors)
         if self.width < 1:
-            raise ValueError("width must be at least 1")
+            raise ValueError('width must be at least 1')
         return self
 
     def initial_state(self, device: Device) -> ColorPatternState:

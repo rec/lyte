@@ -38,13 +38,13 @@ class Searchlights(Animation[SearchlightsState]):
     end: int | None = None
     seed: int | None = None
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_searchlights(self) -> Searchlights:
         validate_palette(self.colors)
         if len(self.colors) < 3:
-            raise ValueError("colors must contain at least three colors")
+            raise ValueError('colors must contain at least three colors')
         if self.tail < 0:
-            raise ValueError("tail must not be negative")
+            raise ValueError('tail must not be negative')
         validate_start(self.start)
         return self
 

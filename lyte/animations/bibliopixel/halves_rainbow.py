@@ -23,11 +23,11 @@ class HalvesRainbow(Animation[HalvesRainbowState]):
     rainbow_inc: int = 4
     step: int = 1
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_halves_rainbow(self) -> HalvesRainbow:
         validate_step(self.step)
         if self.rainbow_inc < 0:
-            raise ValueError("rainbow_inc must not be negative")
+            raise ValueError('rainbow_inc must not be negative')
         return self
 
     def initial_state(self, device: Device) -> HalvesRainbowState:

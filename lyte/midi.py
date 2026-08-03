@@ -8,8 +8,8 @@ from pydantic import BaseModel, ConfigDict
 
 from .animation import State
 
-Config = TypeVar("Config", bound=BaseModel)
-ListenerClass = TypeVar("ListenerClass", bound="Listener")
+Config = TypeVar('Config', bound=BaseModel)
+ListenerClass = TypeVar('ListenerClass', bound='Listener')
 
 
 class MidiIn(BaseModel, frozen=True):
@@ -58,14 +58,14 @@ class Patch(BaseModel, Generic[Config, ListenerClass], ABC):
         pass
 
     def receive(self, msg: mido.Message) -> None:
-        match vars(msg)["type"]:
-            case "note_on":
+        match vars(msg)['type']:
+            case 'note_on':
                 if self.listener is not None:
                     self.listener.close()
                 self.listener = self.make_listener(msg)
-            case "breath_control":
+            case 'breath_control':
                 if self.listener is not None:
                     self.listener.breath_control(msg)
-            case "pitch_bend":
+            case 'pitch_bend':
                 if self.listener is not None:
                     self.listener.pitch_bend(msg)

@@ -31,12 +31,12 @@ class LarsonScanner(Animation[LarsonScannerState]):
     step: int = 1
     rainbow: bool = False
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_larson_scanner(self) -> LarsonScanner:
         validate_rgb(self.color)
         validate_step(self.step)
         if self.tail < 0:
-            raise ValueError("tail must not be negative")
+            raise ValueError('tail must not be negative')
         validate_start(self.start)
         return self
 

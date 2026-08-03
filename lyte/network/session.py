@@ -19,20 +19,20 @@ def read_gestalt(
     return retry_call(
         label,
         retry,
-        lambda: client.get("gestalt", authenticated=False).data,
+        lambda: client.get('gestalt', authenticated=False).data,
         (ProtocolError,),
     )
 
 
 def set_mac_from_gestalt(client: LyteClient, gestalt: dict[str, object]) -> bool:
-    if isinstance(mac := gestalt.get("mac"), str):
+    if isinstance(mac := gestalt.get('mac'), str):
         client.mac = mac
         return True
     return False
 
 
 def led_count_from_gestalt(gestalt: dict[str, object]) -> int | None:
-    if isinstance(led_count := gestalt.get("number_of_led"), int) and led_count > 0:
+    if isinstance(led_count := gestalt.get('number_of_led'), int) and led_count > 0:
         return led_count
     return None
 

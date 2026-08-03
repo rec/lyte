@@ -15,29 +15,29 @@ from .animation import Animation, Device, State, validate_frame
 class Layout(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    name: str = "layout"
+    name: str = 'layout'
     coords: list[list[float]] | None = None
     dims: list[int] | None = None
     spacing: float | list[float] = 1.0
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_layout(self) -> Layout:
         if (self.coords is None) == (self.dims is None):
-            raise ValueError("Exactly one of coords and dims must be set")
+            raise ValueError('Exactly one of coords and dims must be set')
         if self.coords is not None:
             if not self.coords:
-                raise ValueError("coords must not be empty")
+                raise ValueError('coords must not be empty')
             for coord in self.coords:
                 validate_coord(coord)
         if self.dims is not None:
             if len(self.dims) != 2:
-                raise ValueError("dims must contain rows and columns")
+                raise ValueError('dims must contain rows and columns')
             rows, columns = self.dims
             if rows <= 0 or columns <= 0:
-                raise ValueError("dims rows and columns must be greater than zero")
+                raise ValueError('dims rows and columns must be greater than zero')
         spacing = self.resolved_spacing
         if spacing[0] <= 0 or spacing[1] <= 0:
-            raise ValueError("spacing must be greater than zero")
+            raise ValueError('spacing must be greater than zero')
         return self
 
     @property
@@ -45,14 +45,14 @@ class Layout(BaseModel):
         if isinstance(self.spacing, int | float):
             return float(self.spacing), float(self.spacing)
         if len(self.spacing) != 2:
-            raise ValueError("spacing must be a float or x, y pair")
+            raise ValueError('spacing must be a float or x, y pair')
         return float(self.spacing[0]), float(self.spacing[1])
 
     def points(self) -> list[list[float]]:
         if self.coords is not None:
             return self.coords
         if self.dims is None:
-            raise ValueError("Exactly one of coords and dims must be set")
+            raise ValueError('Exactly one of coords and dims must be set')
         rows, columns = self.dims
         x_spacing, y_spacing = self.resolved_spacing
         return [
@@ -81,11 +81,11 @@ def animation_document(
     led_size: float = 1.0,
 ) -> str:
     if fps <= 0:
-        raise ValueError("fps must be greater than zero")
+        raise ValueError('fps must be greater than zero')
     if duration <= 0:
-        raise ValueError("duration must be greater than zero")
+        raise ValueError('duration must be greater than zero')
     if led_size <= 0:
-        raise ValueError("led_size must be greater than zero")
+        raise ValueError('led_size must be greater than zero')
 
     points = layout.points()
     device = Device(led_count=len(points))
@@ -93,13 +93,13 @@ def animation_document(
     state.fps = fps
     frames = encoded_frames(animation, device, state, fps, duration)
     payload = {
-        "name": layout.name,
-        "coords": points,
-        "fps": fps,
-        "frames": frames,
-        "ledSize": led_size,
+        'name': layout.name,
+        'coords': points,
+        'fps': fps,
+        'frames': frames,
+        'ledSize': led_size,
     }
-    return HTML_TEMPLATE.replace("__LYTE_PREVIEW_DATA__", safe_json(payload))
+    return HTML_TEMPLATE.replace('__LYTE_PREVIEW_DATA__', safe_json(payload))
 
 
 def encoded_frames(
@@ -113,20 +113,20 @@ def encoded_frames(
     frames = []
     for _ in range(frame_count):
         frame = validate_frame(device, animation.render(device, state))
-        frames.append(base64.b64encode(memoryview(frame).cast("B")).decode("ascii"))
+        frames.append(base64.b64encode(memoryview(frame).cast('B')).decode('ascii'))
     return frames
 
 
 def safe_json(value: object) -> str:
-    return json.dumps(value, separators=(",", ":")).replace("</", "<\\/")
+    return json.dumps(value, separators=(',', ':')).replace('</', '<\\/')
 
 
 def validate_coord(coord: list[float]) -> None:
     if len(coord) != 2:
-        raise ValueError("coords must contain x, y pairs")
+        raise ValueError('coords must contain x, y pairs')
     for value in coord:
         if not math.isfinite(value):
-            raise ValueError("coords must contain finite values")
+            raise ValueError('coords must contain finite values')
 
 
 HTML_TEMPLATE = """<!doctype html>

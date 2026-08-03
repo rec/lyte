@@ -16,7 +16,7 @@ class PartyModeState(State):
 class PartyMode(Animation[PartyModeState]):
     colors: tuple[RGB, ...] = DEFAULT_PATTERN
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_party_mode(self) -> PartyMode:
         validate_palette(self.colors)
         return self

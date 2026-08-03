@@ -27,15 +27,15 @@ class Pulse(Animation[PulseState]):
     max_speed: int = 5
     seed: int | None = None
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_pulse(self) -> Pulse:
         validate_palette(self.colors)
         if self.tail < 0:
-            raise ValueError("tail must not be negative")
+            raise ValueError('tail must not be negative')
         if self.chance < 0 or self.chance > 100:
-            raise ValueError("chance must be between 0 and 100")
+            raise ValueError('chance must be between 0 and 100')
         if self.min_speed < 1 or self.max_speed <= self.min_speed:
-            raise ValueError("min_speed and max_speed must define a non-empty range")
+            raise ValueError('min_speed and max_speed must define a non-empty range')
         return self
 
     def initial_state(self, device: Device) -> PulseState:

@@ -14,10 +14,10 @@ def solid_rgb_frame(
     blue: int,
 ) -> NDArray[np.uint8]:
     if led_count <= 0:
-        raise ValueError("led_count must be greater than zero")
+        raise ValueError('led_count must be greater than zero')
     for value in (red, green, blue):
         if value < 0 or value > 255:
-            raise ValueError("RGB values must be between 0 and 255")
+            raise ValueError('RGB values must be between 0 and 255')
     frame = np.empty((led_count, 3), dtype=np.uint8)
     frame[:] = red, green, blue
     return frame

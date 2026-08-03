@@ -23,13 +23,13 @@ class FireFlies(Animation[FireFliesState]):
     end: int | None = None
     seed: int | None = None
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_fire_flies(self) -> FireFlies:
         validate_palette(self.colors)
         if self.width < 1:
-            raise ValueError("width must be at least 1")
+            raise ValueError('width must be at least 1')
         if self.count < 1:
-            raise ValueError("count must be at least 1")
+            raise ValueError('count must be at least 1')
         validate_start(self.start)
         return self
 

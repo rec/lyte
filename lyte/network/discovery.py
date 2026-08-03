@@ -11,9 +11,9 @@ from pydantic import BaseModel
 
 from ..errors import DiscoveryError
 
-DISCOVERY_MESSAGE = b"\x01discover"
+DISCOVERY_MESSAGE = b'\x01discover'
 DISCOVERY_PORT = 5555
-DEFAULT_BROADCAST = "255.255.255.255"
+DEFAULT_BROADCAST = '255.255.255.255'
 
 
 class DiscoveredDevice(BaseModel, frozen=True):
@@ -23,11 +23,11 @@ class DiscoveredDevice(BaseModel, frozen=True):
 
 def parse_discovery_response(data: bytes) -> DiscoveredDevice:
     if len(data) < 7:
-        raise DiscoveryError(f"Discovery response is too short: {len(data)} bytes")
-    if data[4:6] != b"OK":
-        raise DiscoveryError(f"Discovery response status is not OK: {data[4:6]!r}")
-    if data[-1:] != b"\x00":
-        raise DiscoveryError("Discovery response is not NUL-terminated")
+        raise DiscoveryError(f'Discovery response is too short: {len(data)} bytes')
+    if data[4:6] != b'OK':
+        raise DiscoveryError(f'Discovery response status is not OK: {data[4:6]!r}')
+    if data[-1:] != b'\x00':
+        raise DiscoveryError('Discovery response is not NUL-terminated')
 
     ip_address = str(ipaddress.ip_address(data[3::-1]))
     device_id = data[6:-1].decode()
@@ -43,7 +43,7 @@ def discover(
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         sock.settimeout(min(timeout, 0.5))
-        sock.bind(("", 0))
+        sock.bind(('', 0))
         sock.sendto(DISCOVERY_MESSAGE, (destination, DISCOVERY_PORT))
         while time.monotonic() < deadline:
             try:
