@@ -18,6 +18,9 @@ dependencies = [
 [tool.setuptools.packages.find]
 include = ["lyte"]
 
+[tool.ruff.format]
+quote-style = "single"
+
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",

@@ -29,11 +29,11 @@ class Wave(Animation[WaveState]):
     end: int | None = None
     moving: bool = False
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_wave(self) -> Wave:
         validate_rgb(self.color)
         if self.cycles < 1:
-            raise ValueError("cycles must be at least 1")
+            raise ValueError('cycles must be at least 1')
         validate_start(self.start)
         return self
 

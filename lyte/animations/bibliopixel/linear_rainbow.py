@@ -20,7 +20,7 @@ class LinearRainbow(Animation[LinearRainbowState]):
     individual_pixel: bool = False
     step: int = 1
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_linear_rainbow(self) -> LinearRainbow:
         validate_step(self.step)
         return self

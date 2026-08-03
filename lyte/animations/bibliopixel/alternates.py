@@ -18,7 +18,7 @@ class Alternates(Animation[AlternatesState]):
     color2: RGB = (0, 0, 0)
     max_led: int | None = None
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_alternates(self) -> Alternates:
         validate_rgb(self.color1)
         validate_rgb(self.color2)
@@ -26,7 +26,7 @@ class Alternates(Animation[AlternatesState]):
 
     def initial_state(self, device: Device) -> AlternatesState:
         if resolve_end(device.led_count, self.max_led) < 0:
-            raise ValueError("max_led must not be negative")
+            raise ValueError('max_led must not be negative')
         return AlternatesState()
 
     def render(self, device: Device, state: AlternatesState) -> NDArray[np.uint8]:

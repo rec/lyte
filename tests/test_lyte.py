@@ -79,31 +79,31 @@ def initial_state(animation: Animation, led_count: int) -> tuple[Device, State]:
 
 class DiscoveryTests(unittest.TestCase):
     def test_parse_discovery_response(self) -> None:
-        device = parse_discovery_response(b"\xab\x01\xa8\xc0OKTwinkly_A1234B\x00")
+        device = parse_discovery_response(b'\xab\x01\xa8\xc0OKTwinkly_A1234B\x00')
 
-        self.assertEqual(device.ip_address, "192.168.1.171")
-        self.assertEqual(device.device_id, "Twinkly_A1234B")
+        self.assertEqual(device.ip_address, '192.168.1.171')
+        self.assertEqual(device.device_id, 'Twinkly_A1234B')
 
     def test_rejects_bad_discovery_response(self) -> None:
         with self.assertRaises(DiscoveryError):
-            parse_discovery_response(b"\xab\x01\xa8\xc0NOTwinkly_A1234B\x00")
+            parse_discovery_response(b'\xab\x01\xa8\xc0NOTwinkly_A1234B\x00')
 
 
 class CryptoTests(unittest.TestCase):
     def test_mac_bytes_accepts_common_formats(self) -> None:
-        expected = b"\x5c\xcf\x7f\x33\xaa\xff"
+        expected = b'\x5c\xcf\x7f\x33\xaa\xff'
 
-        self.assertEqual(mac_bytes("5C:CF:7F:33:AA:FF"), expected)
-        self.assertEqual(mac_bytes("5c-cf-7f-33-aa-ff"), expected)
-        self.assertEqual(mac_bytes("5ccf7f33aaff"), expected)
+        self.assertEqual(mac_bytes('5C:CF:7F:33:AA:FF'), expected)
+        self.assertEqual(mac_bytes('5c-cf-7f-33-aa-ff'), expected)
+        self.assertEqual(mac_bytes('5ccf7f33aaff'), expected)
 
     def test_derive_key_matches_original_driver(self) -> None:
-        key = derive_key(CHALLENGE_KEY, "5C:CF:7F:33:AA:FF")
+        key = derive_key(CHALLENGE_KEY, '5C:CF:7F:33:AA:FF')
 
-        self.assertEqual(key, b"9\xb9\x1a]\xc7\x90.\xaa\x0cV\xc9\x8d9\xbb^\x12")
+        self.assertEqual(key, b'9\xb9\x1a]\xc7\x90.\xaa\x0cV\xc9\x8d9\xbb^\x12')
 
     def test_rc4_known_vector(self) -> None:
-        self.assertEqual(rc4(b"Plaintext", b"Key").hex(), "bbf316e8d940af0ad3")
+        self.assertEqual(rc4(b'Plaintext', b'Key').hex(), 'bbf316e8d940af0ad3')
 
 
 class RealtimeTests(unittest.TestCase):
@@ -116,7 +116,7 @@ class RealtimeTests(unittest.TestCase):
     def test_generation_2_v3_packet(self) -> None:
         frame = solid_rgb_frame(250, 230, 85, 0)
 
-        packets = list(frame_packets_v3("MCIGBF1qJlg=", frame))
+        packets = list(frame_packets_v3('MCIGBF1qJlg=', frame))
 
         self.assertEqual(len(packets), 1)
         header, payload = packets[0]
@@ -124,19 +124,19 @@ class RealtimeTests(unittest.TestCase):
         self.assertEqual(header, b'\x030"\x06\x04]j&X\x00\x00\x00')
         self.assertEqual(
             bytes(payload),
-            b"\xe6U\x00" * 250,
+            b'\xe6U\x00' * 250,
         )
 
     def test_generation_2_v3_fragments_large_frames(self) -> None:
-        frame = np.frombuffer(b"a" * 903, dtype=np.uint8).reshape((301, 3))
+        frame = np.frombuffer(b'a' * 903, dtype=np.uint8).reshape((301, 3))
 
-        packets = list(frame_packets_v3("MCIGBF1qJlg=", frame))
+        packets = list(frame_packets_v3('MCIGBF1qJlg=', frame))
 
         self.assertEqual(len(packets), 2)
         self.assertEqual(packets[0][0], b'\x030"\x06\x04]j&X\x00\x00\x00')
         self.assertEqual(packets[1][0], b'\x030"\x06\x04]j&X\x00\x00\x01')
         self.assertEqual(len(packets[0][1]), 900)
-        self.assertEqual(bytes(packets[1][1]), b"aaa")
+        self.assertEqual(bytes(packets[1][1]), b'aaa')
 
     def test_rejects_bad_frame_shape(self) -> None:
         with self.assertRaises(ValueError):
@@ -163,27 +163,27 @@ class RealtimeTests(unittest.TestCase):
                 sent_buffers.append((buffers, flags, mode, address))
                 return sum(len(buffer) for buffer in buffers)
 
-        with patch("lyte.network.frame.socket.socket", return_value=Socket()):
-            sent = send_frame_v3("192.168.1.23", "MCIGBF1qJlg=", frame)
+        with patch('lyte.network.frame.socket.socket', return_value=Socket()):
+            sent = send_frame_v3('192.168.1.23', 'MCIGBF1qJlg=', frame)
 
         self.assertEqual(sent, 15)
         buffers, flags, mode, address = sent_buffers[0]
         self.assertEqual(flags, [])
         self.assertEqual(mode, 0)
-        self.assertEqual(address, ("192.168.1.23", 7777))
+        self.assertEqual(address, ('192.168.1.23', 7777))
         self.assertEqual(buffers[0], b'\x030"\x06\x04]j&X\x00\x00\x00')
         self.assertIs(buffers[1].obj, frame)
 
     def test_rejects_bad_realtime_token(self) -> None:
         with self.assertRaises(ProtocolError):
-            list(frame_packets_v3("bad", solid_rgb_frame(1, 0, 0, 0)))
+            list(frame_packets_v3('bad', solid_rgb_frame(1, 0, 0, 0)))
 
 
 class ClientTests(unittest.TestCase):
     def test_constructs_with_keyword_arguments(self) -> None:
-        client = LyteClient(host="192.168.1.23", timeout=1.5)
+        client = LyteClient(host='192.168.1.23', timeout=1.5)
 
-        self.assertEqual(client.host, "192.168.1.23")
+        self.assertEqual(client.host, '192.168.1.23')
         self.assertEqual(client.timeout, 1.5)
 
     def test_set_off_mode_uses_led_mode_off(self) -> None:
@@ -196,68 +196,68 @@ class ClientTests(unittest.TestCase):
             authenticated: bool = True,
         ) -> LyteResponse:
             calls.append((self.host, path, body, authenticated))
-            return LyteResponse(http_status=200, data={"code": 1000})
+            return LyteResponse(http_status=200, data={'code': 1000})
 
-        client = LyteClient(host="192.168.1.23")
+        client = LyteClient(host='192.168.1.23')
 
-        with patch.object(LyteClient, "post", post):
+        with patch.object(LyteClient, 'post', post):
             response = client.set_off_mode()
 
-        self.assertEqual(response.data, {"code": 1000})
+        self.assertEqual(response.data, {'code': 1000})
         self.assertEqual(
             calls,
-            [("192.168.1.23", "led/mode", {"mode": "off"}, True)],
+            [('192.168.1.23', 'led/mode', {'mode': 'off'}, True)],
         )
 
 
 class SessionTests(unittest.TestCase):
     def test_set_mac_from_gestalt_updates_client(self) -> None:
-        client = LyteClient(host="192.168.1.23")
+        client = LyteClient(host='192.168.1.23')
 
-        result = set_mac_from_gestalt(client, {"mac": "AA:BB:CC:DD:EE:FF"})
+        result = set_mac_from_gestalt(client, {'mac': 'AA:BB:CC:DD:EE:FF'})
 
         self.assertTrue(result)
-        self.assertEqual(client.mac, "AA:BB:CC:DD:EE:FF")
+        self.assertEqual(client.mac, 'AA:BB:CC:DD:EE:FF')
 
     def test_led_count_from_gestalt_returns_positive_ints(self) -> None:
-        self.assertEqual(led_count_from_gestalt({"number_of_led": 250}), 250)
-        self.assertIsNone(led_count_from_gestalt({"number_of_led": 0}))
-        self.assertIsNone(led_count_from_gestalt({"number_of_led": "250"}))
+        self.assertEqual(led_count_from_gestalt({'number_of_led': 250}), 250)
+        self.assertIsNone(led_count_from_gestalt({'number_of_led': 0}))
+        self.assertIsNone(led_count_from_gestalt({'number_of_led': '250'}))
 
 
 class RuntimeTests(unittest.TestCase):
     def test_read_device_led_count_uses_configured_count_after_reading_gestalt(
         self,
     ) -> None:
-        client = LyteClient(host="192.168.1.23")
+        client = LyteClient(host='192.168.1.23')
 
         with patch(
-            "lyte.runtime.read_gestalt",
-            return_value={"mac": "AA", "number_of_led": 250},
+            'lyte.runtime.read_gestalt',
+            return_value={'mac': 'AA', 'number_of_led': 250},
         ):
             led_count, gestalt = read_device_led_count(
                 client,
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 100,
-                "read",
+                'read',
             )
 
         self.assertEqual(led_count, 100)
-        self.assertEqual(gestalt, {"mac": "AA", "number_of_led": 250})
-        self.assertEqual(client.mac, "AA")
+        self.assertEqual(gestalt, {'mac': 'AA', 'number_of_led': 250})
+        self.assertEqual(client.mac, 'AA')
 
     def test_read_device_led_count_detects_count_from_gestalt(self) -> None:
-        client = LyteClient(host="192.168.1.23")
+        client = LyteClient(host='192.168.1.23')
 
         with patch(
-            "lyte.runtime.read_gestalt",
-            return_value={"mac": "AA", "number_of_led": 250},
+            'lyte.runtime.read_gestalt',
+            return_value={'mac': 'AA', 'number_of_led': 250},
         ):
             led_count, _gestalt = read_device_led_count(
                 client,
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 None,
-                "read",
+                'read',
             )
 
         self.assertEqual(led_count, 250)
@@ -266,11 +266,11 @@ class RuntimeTests(unittest.TestCase):
         frame = solid_rgb_frame(1, 255, 0, 0)
 
         sent = send_authenticated_frame(
-            LyteClient(host="192.168.1.23"),
-            "192.168.1.23",
+            LyteClient(host='192.168.1.23'),
+            '192.168.1.23',
             frame,
             RetryConfig(attempts=1, delay=0, backoff=1),
-            "send",
+            'send',
         )
 
         self.assertIsNone(sent)
@@ -283,26 +283,26 @@ class LoggingTests(unittest.TestCase):
     def test_error_logging_is_always_displayed(self) -> None:
         output = io.StringIO()
 
-        with patch("sys.stderr", output):
-            log_error("failure")
+        with patch('sys.stderr', output):
+            log_error('failure')
 
-        self.assertEqual(output.getvalue(), "failure\n")
+        self.assertEqual(output.getvalue(), 'failure\n')
 
     def test_regular_logging_is_hidden_by_default(self) -> None:
         output = io.StringIO()
 
-        with patch("sys.stdout", output):
-            log("hidden")
+        with patch('sys.stdout', output):
+            log('hidden')
 
-        self.assertEqual(output.getvalue(), "")
+        self.assertEqual(output.getvalue(), '')
 
     def test_status_logging_is_always_displayed(self) -> None:
         output = io.StringIO()
 
-        with patch("sys.stdout", output):
-            log_status("visible")
+        with patch('sys.stdout', output):
+            log_status('visible')
 
-        self.assertEqual(output.getvalue(), "visible\n")
+        self.assertEqual(output.getvalue(), 'visible\n')
 
 
 class HamiltonianTests(unittest.TestCase):
@@ -324,14 +324,14 @@ class HamiltonianTests(unittest.TestCase):
         self.assertEqual(colors[:3], [(0, 0, 0), (0, 0, 64), (0, 0, 128)])
 
     def test_counter_supports_order_and_inversion(self) -> None:
-        counter = HamiltonianCounter(n=4, order="bgr", inverted="r")
+        counter = HamiltonianCounter(n=4, order='bgr', inverted='r')
 
         self.assertEqual(counter.next_color(), (192, 0, 0))
         self.assertEqual(counter.next_color(), (128, 0, 0))
 
     def test_parse_order_rejects_invalid_orders(self) -> None:
         with self.assertRaises(ValueError):
-            parse_order("rrg")
+            parse_order('rrg')
 
     def test_hamiltonian_returns_one_rgb_triplet_per_led(self) -> None:
         animation = Hamiltonian(n=4, speed=4)
@@ -696,7 +696,7 @@ class PreviewTests(unittest.TestCase):
     def test_animation_document_embeds_base64_frames(self) -> None:
         document = animation_document(
             ColorFill(color=(1, 2, 3)),
-            Layout(name="preview", dims=[1, 2]),
+            Layout(name='preview', dims=[1, 2]),
             fps=2,
             duration=1,
             led_size=2.5,
@@ -704,15 +704,15 @@ class PreviewTests(unittest.TestCase):
 
         data = preview_data(document)
 
-        self.assertEqual(data["name"], "preview")
-        self.assertEqual(data["coords"], [[0.0, 0.0], [1.0, 0.0]])
-        self.assertEqual(data["ledSize"], 2.5)
-        frames = data["frames"]
+        self.assertEqual(data['name'], 'preview')
+        self.assertEqual(data['coords'], [[0.0, 0.0], [1.0, 0.0]])
+        self.assertEqual(data['ledSize'], 2.5)
+        frames = data['frames']
         if not isinstance(frames, list):
-            self.fail("frames must be a list")
+            self.fail('frames must be a list')
         first_frame = frames[0]
         if not isinstance(first_frame, str):
-            self.fail("frames must contain strings")
+            self.fail('frames must contain strings')
         self.assertEqual(len(frames), 2)
         self.assertEqual(
             base64.b64decode(first_frame),
@@ -721,7 +721,7 @@ class PreviewTests(unittest.TestCase):
 
     def test_render_animation_html_writes_document(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "preview.html"
+            path = Path(directory) / 'preview.html'
 
             render_animation_html(
                 ColorFill(color=(1, 2, 3)),
@@ -732,12 +732,12 @@ class PreviewTests(unittest.TestCase):
                 led_size=3,
             )
 
-            self.assertIn("<canvas", path.read_text())
+            self.assertIn('<canvas', path.read_text())
 
 
 def preview_data(document: str) -> dict[str, object]:
-    start = document.index("const data = ") + len("const data = ")
-    end = document.index(";\nconst canvas", start)
+    start = document.index('const data = ') + len('const data = ')
+    end = document.index(';\nconst canvas', start)
     return json.loads(document[start:end])
 
 
@@ -749,8 +749,8 @@ class RetryTests(unittest.TestCase):
             nonlocal calls
             calls += 1
             if calls == 1:
-                raise RetryableTestError("empty reply")
-            return "ok"
+                raise RetryableTestError('empty reply')
+            return 'ok'
 
         retry = RetryConfig(
             attempts=2,
@@ -760,20 +760,20 @@ class RetryTests(unittest.TestCase):
         )
 
         with (
-            patch("sys.stdout", new_callable=io.StringIO),
+            patch('sys.stdout', new_callable=io.StringIO),
             patch(
-                "sys.stderr",
+                'sys.stderr',
                 new_callable=io.StringIO,
             ),
         ):
             result = retry_call(
-                "operation",
+                'operation',
                 retry,
                 operation,
                 (RetryableTestError,),
             )
 
-        self.assertEqual(result, "ok")
+        self.assertEqual(result, 'ok')
         self.assertEqual(calls, 2)
 
     def test_retry_call_delays_backoff_until_configured_attempt(self) -> None:
@@ -784,8 +784,8 @@ class RetryTests(unittest.TestCase):
             nonlocal calls
             calls += 1
             if calls < 4:
-                raise RetryableTestError("empty reply")
-            return "ok"
+                raise RetryableTestError('empty reply')
+            return 'ok'
 
         retry = RetryConfig(
             attempts=4,
@@ -795,26 +795,26 @@ class RetryTests(unittest.TestCase):
         )
 
         with (
-            patch("sys.stdout", new_callable=io.StringIO),
+            patch('sys.stdout', new_callable=io.StringIO),
             patch(
-                "sys.stderr",
+                'sys.stderr',
                 new_callable=io.StringIO,
             ),
-            patch("lyte.retry.time.sleep", sleeps.append),
+            patch('lyte.retry.time.sleep', sleeps.append),
         ):
             result = retry_call(
-                "operation",
+                'operation',
                 retry,
                 operation,
                 (RetryableTestError,),
             )
 
-        self.assertEqual(result, "ok")
+        self.assertEqual(result, 'ok')
         self.assertEqual(sleeps, [0.01, 0.01, 0.01])
 
     def test_retry_call_prints_only_final_failure(self) -> None:
         def operation() -> str:
-            raise RetryableTestError("empty reply")
+            raise RetryableTestError('empty reply')
 
         retry = RetryConfig(
             attempts=3,
@@ -825,21 +825,21 @@ class RetryTests(unittest.TestCase):
         error_output = io.StringIO()
 
         with (
-            patch("sys.stdout", new_callable=io.StringIO),
-            patch("sys.stderr", error_output),
-            patch("lyte.retry.time.sleep"),
+            patch('sys.stdout', new_callable=io.StringIO),
+            patch('sys.stderr', error_output),
+            patch('lyte.retry.time.sleep'),
         ):
             result = retry_call(
-                "operation",
+                'operation',
                 retry,
                 operation,
                 (RetryableTestError,),
             )
 
         self.assertIsNone(result)
-        self.assertNotIn("attempt 1/3", error_output.getvalue())
-        self.assertNotIn("attempt 2/3", error_output.getvalue())
-        self.assertIn("attempt 3/3", error_output.getvalue())
+        self.assertNotIn('attempt 1/3', error_output.getvalue())
+        self.assertNotIn('attempt 2/3', error_output.getvalue())
+        self.assertIn('attempt 3/3', error_output.getvalue())
 
 
 class RetryableTestError(Exception):
@@ -849,8 +849,8 @@ class RetryableTestError(Exception):
 class DiagnosticTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        path = Path(__file__).parents[1] / "scripts" / "lyte_diagnostic.py"
-        spec = importlib.util.spec_from_file_location("lyte_diagnostic", path)
+        path = Path(__file__).parents[1] / 'scripts' / 'lyte_diagnostic.py'
+        spec = importlib.util.spec_from_file_location('lyte_diagnostic', path)
         assert spec is not None
         assert spec.loader is not None
         cls.diagnostic = importlib.util.module_from_spec(spec)
@@ -874,7 +874,7 @@ class DiagnosticTests(unittest.TestCase):
             reported.append(report_failure)
             if calls == 1:
                 return None
-            return DiscoveredDevice(ip_address="192.168.1.23", device_id="Twinkly")
+            return DiscoveredDevice(ip_address='192.168.1.23', device_id='Twinkly')
 
         retry = RetryConfig(
             attempts=2,
@@ -886,24 +886,24 @@ class DiagnosticTests(unittest.TestCase):
         with (
             patch.object(
                 self.diagnostic,
-                "discovery_attempt",
+                'discovery_attempt',
                 discovery_attempt,
             ),
-            patch("sys.stdout", new_callable=io.StringIO),
+            patch('sys.stdout', new_callable=io.StringIO),
             patch(
-                "sys.stderr",
+                'sys.stderr',
                 new_callable=io.StringIO,
             ),
         ):
             host = self.diagnostic.discover_one(0.01, retry)
 
-        self.assertEqual(host, "192.168.1.23")
+        self.assertEqual(host, '192.168.1.23')
         self.assertEqual(calls, 2)
         self.assertEqual(timeouts, [0.01, 0.01])
         self.assertEqual(reported, [False, True])
 
     def test_parse_args_uses_slower_network_retry_defaults(self) -> None:
-        with patch("sys.argv", ["lyte_diagnostic.py"]):
+        with patch('sys.argv', ['lyte_diagnostic.py']):
             config = self.diagnostic.parse_args()
 
         self.assertEqual(config.retry.attempts, 10)
@@ -926,15 +926,15 @@ class HamiltonianAnimationTests(unittest.TestCase):
 class AnimateScriptTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        path = Path(__file__).parents[1] / "scripts" / "lyte_animate.py"
-        spec = importlib.util.spec_from_file_location("lyte_animate", path)
+        path = Path(__file__).parents[1] / 'scripts' / 'lyte_animate.py'
+        spec = importlib.util.spec_from_file_location('lyte_animate', path)
         assert spec is not None
         assert spec.loader is not None
         cls.script = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cls.script)
 
     def test_build_animation_creates_hamiltonian(self) -> None:
-        with patch("sys.argv", ["lyte_animate.py", "hamiltonian"]):
+        with patch('sys.argv', ['lyte_animate.py', 'hamiltonian']):
             args = self.script.parse_args()
 
         animation = self.script.build_animation(args)
@@ -942,34 +942,34 @@ class AnimateScriptTests(unittest.TestCase):
         self.assertIsInstance(animation, Hamiltonian)
 
     def test_parse_args_defaults_to_random_animation(self) -> None:
-        with patch("sys.argv", ["lyte_animate.py"]):
+        with patch('sys.argv', ['lyte_animate.py']):
             args = self.script.parse_args()
 
-        self.assertEqual(args.animation, "random")
+        self.assertEqual(args.animation, 'random')
 
     def test_random_mode_uses_hamiltonian_settings(self) -> None:
-        with patch("sys.argv", ["lyte_animate.py"]):
+        with patch('sys.argv', ['lyte_animate.py']):
             args = self.script.parse_args()
 
-        with patch.object(self.script, "RANDOM_ANIMATIONS", ("hamiltonian",)):
+        with patch.object(self.script, 'RANDOM_ANIMATIONS', ('hamiltonian',)):
             segment_args = self.script.random_animation_args(
                 args, random.Random(1), None
             )
 
-        self.assertEqual(segment_args.animation, "hamiltonian")
+        self.assertEqual(segment_args.animation, 'hamiltonian')
         self.assertEqual(segment_args.n, 256)
         self.assertEqual(segment_args.speed, 100)
 
     def test_random_mode_uses_exciting_random_walk_settings(self) -> None:
-        with patch("sys.argv", ["lyte_animate.py"]):
+        with patch('sys.argv', ['lyte_animate.py']):
             args = self.script.parse_args()
 
-        with patch.object(self.script, "RANDOM_ANIMATIONS", ("random_walk",)):
+        with patch.object(self.script, 'RANDOM_ANIMATIONS', ('random_walk',)):
             segment_args = self.script.random_animation_args(
                 args, random.Random(1), None
             )
 
-        self.assertEqual(segment_args.animation, "random_walk")
+        self.assertEqual(segment_args.animation, 'random_walk')
         self.assertEqual(segment_args.speed, self.script.RANDOM_WALK_SPEED)
         self.assertEqual(segment_args.variance, self.script.RANDOM_WALK_VARIANCE)
         self.assertEqual(segment_args.bounds, self.script.RANDOM_WALK_BOUNDS)
@@ -977,27 +977,27 @@ class AnimateScriptTests(unittest.TestCase):
         self.assertTrue(segment_args.pre_fill)
 
     def test_random_mode_prints_selected_pattern(self) -> None:
-        with patch("sys.argv", ["lyte_animate.py", "--duration", "1"]):
+        with patch('sys.argv', ['lyte_animate.py', '--duration', '1']):
             args = self.script.parse_args()
 
         output = io.StringIO()
 
         with (
-            patch.object(self.script, "RANDOM_ANIMATIONS", ("hamiltonian",)),
-            patch.object(self.script, "build_animation", return_value=ColorFill()),
-            patch.object(self.script, "run_animation_state") as run_animation_state,
-            patch.object(self.script.time, "monotonic", side_effect=[0, 0, 0, 2]),
-            patch("sys.stdout", output),
+            patch.object(self.script, 'RANDOM_ANIMATIONS', ('hamiltonian',)),
+            patch.object(self.script, 'build_animation', return_value=ColorFill()),
+            patch.object(self.script, 'run_animation_state') as run_animation_state,
+            patch.object(self.script.time, 'monotonic', side_effect=[0, 0, 0, 2]),
+            patch('sys.stdout', output),
         ):
             self.script.run_random_animations(
                 args,
-                LyteClient(host="192.168.1.23"),
+                LyteClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
-                "192.168.1.23",
+                '192.168.1.23',
                 Device(led_count=3),
             )
 
-        self.assertIn("[pattern] hamiltonian", output.getvalue())
+        self.assertIn('[pattern] hamiltonian', output.getvalue())
         run_animation_state.assert_called_once()
 
     def test_random_overlap_is_half_the_pattern_duration(self) -> None:
@@ -1020,7 +1020,7 @@ class AnimateScriptTests(unittest.TestCase):
 
             def render(self, device: Device, state: State) -> NDArray[np.uint8]:
                 state.frame += 1
-                object.__setattr__(self, "calls", self.calls + 1)
+                object.__setattr__(self, 'calls', self.calls + 1)
                 return np.array([self.color], dtype=np.uint8)
 
         current_animation = ConstantAnimation(color=(0, 0, 0))
@@ -1028,18 +1028,18 @@ class AnimateScriptTests(unittest.TestCase):
         device = Device(led_count=1)
         current_state = State()
         next_state = State()
-        args = argparse.Namespace(fps=1, animation="next")
+        args = argparse.Namespace(fps=1, animation='next')
         sent_frames = []
 
         with (
             patch.object(
                 self.script.time,
-                "monotonic",
+                'monotonic',
                 side_effect=[0.0, 0.5, 0.5, 0.5, 2.0],
             ),
-            patch.object(self.script.time, "sleep"),
+            patch.object(self.script.time, 'sleep'),
             patch.object(
-                self.script, "send_realtime_frame", lambda *a: sent_frames.append(a[-1])
+                self.script, 'send_realtime_frame', lambda *a: sent_frames.append(a[-1])
             ),
         ):
             self.script.run_crossfade(
@@ -1048,9 +1048,9 @@ class AnimateScriptTests(unittest.TestCase):
                 next_animation,
                 next_state,
                 args,
-                LyteClient(host="192.168.1.23"),
+                LyteClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
-                "192.168.1.23",
+                '192.168.1.23',
                 device,
                 1.0,
             )
@@ -1064,16 +1064,16 @@ class AnimateScriptTests(unittest.TestCase):
 
     def test_build_animation_creates_random_walk(self) -> None:
         with patch(
-            "sys.argv",
+            'sys.argv',
             [
-                "lyte_animate.py",
-                "random_walk",
-                "--color",
-                "10",
-                "20",
-                "30",
-                "--seed",
-                "1",
+                'lyte_animate.py',
+                'random_walk',
+                '--color',
+                '10',
+                '20',
+                '30',
+                '--seed',
+                '1',
             ],
         ):
             args = self.script.parse_args()
@@ -1089,16 +1089,16 @@ class AnimateScriptTests(unittest.TestCase):
 
     def test_build_animation_creates_color_chase(self) -> None:
         with patch(
-            "sys.argv",
+            'sys.argv',
             [
-                "lyte_animate.py",
-                "color_chase",
-                "--color",
-                "1",
-                "2",
-                "3",
-                "--width",
-                "2",
+                'lyte_animate.py',
+                'color_chase',
+                '--color',
+                '1',
+                '2',
+                '3',
+                '--width',
+                '2',
             ],
         ):
             args = self.script.parse_args()
@@ -1113,7 +1113,7 @@ class AnimateScriptTests(unittest.TestCase):
         )
 
     def test_build_animation_creates_ported_strip_animation(self) -> None:
-        with patch("sys.argv", ["lyte_animate.py", "rainbow"]):
+        with patch('sys.argv', ['lyte_animate.py', 'rainbow']):
             args = self.script.parse_args()
 
         animation = self.script.build_animation(args)
@@ -1127,17 +1127,17 @@ class AnimateScriptTests(unittest.TestCase):
 
     def test_off_mode_skips_realtime_streaming(self) -> None:
         with (
-            patch("sys.argv", ["lyte_animate.py", "off", "--host", "192.168.1.23"]),
-            patch.object(self.script, "read_gestalt", return_value={"mac": "AA"}),
-            patch.object(self.script, "authenticate_device", return_value=object()),
+            patch('sys.argv', ['lyte_animate.py', 'off', '--host', '192.168.1.23']),
+            patch.object(self.script, 'read_gestalt', return_value={'mac': 'AA'}),
+            patch.object(self.script, 'authenticate_device', return_value=object()),
             patch.object(
                 self.script,
-                "set_off_mode_with_retry",
-                return_value=LyteResponse(http_status=200, data={"code": 1000}),
+                'set_off_mode_with_retry',
+                return_value=LyteResponse(http_status=200, data={'code': 1000}),
             ) as set_off_mode,
-            patch.object(self.script, "read_led_count") as read_led_count,
-            patch.object(self.script, "prepare_device") as prepare_device,
-            patch("sys.stdout", new_callable=io.StringIO),
+            patch.object(self.script, 'read_led_count') as read_led_count,
+            patch.object(self.script, 'prepare_device') as prepare_device,
+            patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = self.script.main()
 
@@ -1152,51 +1152,51 @@ class AnimateScriptTests(unittest.TestCase):
         with (
             patch.object(
                 self.script,
-                "read_device_led_count",
-                return_value=(250, {"mac": "AA", "number_of_led": 250}),
+                'read_device_led_count',
+                return_value=(250, {'mac': 'AA', 'number_of_led': 250}),
             ),
-            patch("sys.stdout", output),
+            patch('sys.stdout', output),
         ):
             led_count = self.script.read_led_count(
-                LyteClient(host="192.168.1.23"),
+                LyteClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 None,
-                "192.168.1.23",
+                '192.168.1.23',
             )
 
         self.assertEqual(led_count, 250)
-        self.assertEqual(output.getvalue(), "[connected] 192.168.1.23: 250 LEDs\n")
+        self.assertEqual(output.getvalue(), '[connected] 192.168.1.23: 250 LEDs\n')
 
     def test_animation_turns_off_device_after_exception(self) -> None:
         class BrokenAnimation(Animation):
             def render(self, device: Device, state: State) -> NDArray[np.uint8]:
-                raise RuntimeError("boom")
+                raise RuntimeError('boom')
 
         with (
             patch(
-                "sys.argv",
+                'sys.argv',
                 [
-                    "lyte_animate.py",
-                    "color_fill",
-                    "--host",
-                    "192.168.1.23",
+                    'lyte_animate.py',
+                    'color_fill',
+                    '--host',
+                    '192.168.1.23',
                 ],
             ),
-            patch.object(self.script, "read_led_count", return_value=1),
-            patch.object(self.script, "prepare_device", return_value=True),
+            patch.object(self.script, 'read_led_count', return_value=1),
+            patch.object(self.script, 'prepare_device', return_value=True),
             patch.object(
                 self.script,
-                "build_animation",
+                'build_animation',
                 return_value=BrokenAnimation(),
             ),
             patch.object(
                 self.script,
-                "set_off_mode_with_retry",
-                return_value=LyteResponse(http_status=200, data={"code": 1000}),
+                'set_off_mode_with_retry',
+                return_value=LyteResponse(http_status=200, data={'code': 1000}),
             ) as set_off_mode,
-            patch("sys.stdout", new_callable=io.StringIO),
+            patch('sys.stdout', new_callable=io.StringIO),
         ):
-            with self.assertRaisesRegex(RuntimeError, "boom"):
+            with self.assertRaisesRegex(RuntimeError, 'boom'):
                 self.script.main()
 
         set_off_mode.assert_called_once()
@@ -1205,8 +1205,8 @@ class AnimateScriptTests(unittest.TestCase):
 class PreviewScriptTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        path = Path(__file__).parents[1] / "scripts" / "lyte_preview.py"
-        spec = importlib.util.spec_from_file_location("lyte_preview", path)
+        path = Path(__file__).parents[1] / 'scripts' / 'lyte_preview.py'
+        spec = importlib.util.spec_from_file_location('lyte_preview', path)
         assert spec is not None
         assert spec.loader is not None
         cls.script = importlib.util.module_from_spec(spec)
@@ -1214,15 +1214,15 @@ class PreviewScriptTests(unittest.TestCase):
 
     def test_parse_args_builds_preview_animation(self) -> None:
         with patch(
-            "sys.argv",
+            'sys.argv',
             [
-                "lyte_preview.py",
-                "color_fill",
-                "preview.html",
-                "--color",
-                "1",
-                "2",
-                "3",
+                'lyte_preview.py',
+                'color_fill',
+                'preview.html',
+                '--color',
+                '1',
+                '2',
+                '3',
             ],
         ):
             args = self.script.parse_args()
@@ -1230,7 +1230,7 @@ class PreviewScriptTests(unittest.TestCase):
         animation = self.script.build_animation(args.animation_config)
 
         self.assertIsInstance(animation, ColorFill)
-        self.assertEqual(args.output, Path("preview.html"))
+        self.assertEqual(args.output, Path('preview.html'))
         self.assertEqual(args.width, 16)
         self.assertEqual(args.height, 16)
         self.assertEqual(args.spacing, 1.0)
@@ -1240,23 +1240,23 @@ class PreviewScriptTests(unittest.TestCase):
         output = io.StringIO()
 
         with (
-            patch("sys.argv", ["lyte_preview.py"]),
-            patch("sys.stdout", output),
-            patch.object(self.script, "render_animation_html") as render_animation_html,
+            patch('sys.argv', ['lyte_preview.py']),
+            patch('sys.stdout', output),
+            patch.object(self.script, 'render_animation_html') as render_animation_html,
         ):
             result = self.script.main()
 
         self.assertEqual(result, 0)
-        self.assertIn("color_fill\n", output.getvalue())
-        self.assertIn("rainbow\n", output.getvalue())
-        self.assertNotIn("off\n", output.getvalue())
-        self.assertNotIn("random\n", output.getvalue())
+        self.assertIn('color_fill\n', output.getvalue())
+        self.assertIn('rainbow\n', output.getvalue())
+        self.assertNotIn('off\n', output.getvalue())
+        self.assertNotIn('random\n', output.getvalue())
         render_animation_html.assert_not_called()
 
     def test_animation_config_keeps_layout_width_out_of_animation(self) -> None:
         with patch(
-            "sys.argv",
-            ["lyte_preview.py", "color_chase", "preview.html", "--width", "24"],
+            'sys.argv',
+            ['lyte_preview.py', 'color_chase', 'preview.html', '--width', '24'],
         ):
             args = self.script.parse_args()
 
@@ -1265,45 +1265,45 @@ class PreviewScriptTests(unittest.TestCase):
 
     def test_main_writes_preview_without_layout_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "preview.html"
+            output = Path(directory) / 'preview.html'
             with patch(
-                "sys.argv",
+                'sys.argv',
                 [
-                    "lyte_preview.py",
-                    "color_fill",
+                    'lyte_preview.py',
+                    'color_fill',
                     str(output),
-                    "--width",
-                    "2",
-                    "--height",
-                    "1",
-                    "--duration",
-                    "1",
-                    "--fps",
-                    "1",
-                    "--name",
-                    "Preview",
-                    "--led-size",
-                    "2.5",
-                    "--open",
+                    '--width',
+                    '2',
+                    '--height',
+                    '1',
+                    '--duration',
+                    '1',
+                    '--fps',
+                    '1',
+                    '--name',
+                    'Preview',
+                    '--led-size',
+                    '2.5',
+                    '--open',
                 ],
             ):
-                with patch.object(self.script.webbrowser, "open") as open_browser:
+                with patch.object(self.script.webbrowser, 'open') as open_browser:
                     result = self.script.main()
 
             data = preview_data(output.read_text())
 
         self.assertEqual(result, 0)
-        self.assertEqual(data["name"], "Preview")
-        self.assertEqual(data["coords"], [[0.0, 0.0], [1.0, 0.0]])
-        self.assertEqual(data["ledSize"], 2.5)
+        self.assertEqual(data['name'], 'Preview')
+        self.assertEqual(data['coords'], [[0.0, 0.0], [1.0, 0.0]])
+        self.assertEqual(data['ledSize'], 2.5)
         open_browser.assert_called_once_with(output.resolve().as_uri())
 
 
 class CheckHamiltonianScriptTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        path = Path(__file__).parents[1] / "scripts" / "check_hamiltonian.py"
-        spec = importlib.util.spec_from_file_location("check_hamiltonian", path)
+        path = Path(__file__).parents[1] / 'scripts' / 'check_hamiltonian.py'
+        spec = importlib.util.spec_from_file_location('check_hamiltonian', path)
         assert spec is not None
         assert spec.loader is not None
         cls.script = importlib.util.module_from_spec(spec)
@@ -1320,8 +1320,8 @@ class CheckHamiltonianScriptTests(unittest.TestCase):
         problems = self.script.find_problems(colors, expected_step=64)
 
         self.assertEqual(len(problems), 2)
-        self.assertIn("changed 2 components", problems[0])
+        self.assertIn('changed 2 components', problems[0])
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

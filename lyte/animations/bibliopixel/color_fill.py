@@ -12,7 +12,7 @@ from ..validators import validate_rgb
 class ColorFill(Animation[State]):
     color: RGB = (255, 0, 0)
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_color_fill(self) -> ColorFill:
         validate_rgb(self.color)
         return self

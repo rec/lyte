@@ -25,11 +25,11 @@ class ColorFade(Animation[ColorFadeState]):
     start: int = 0
     end: int | None = None
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_color_fade(self) -> ColorFade:
         validate_palette(self.colors)
         if self.level_step < 1:
-            raise ValueError("level_step must be at least 1")
+            raise ValueError('level_step must be at least 1')
         validate_start(self.start)
         return self
 

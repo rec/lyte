@@ -27,12 +27,12 @@ class ColorChase(Animation[ColorChaseState]):
     end: int | None = None
     step: int = 1
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_color_chase(self) -> ColorChase:
         validate_rgb(self.color)
         validate_step(self.step)
         if self.width < 1:
-            raise ValueError("width must be at least 1")
+            raise ValueError('width must be at least 1')
         validate_start(self.start)
         return self
 

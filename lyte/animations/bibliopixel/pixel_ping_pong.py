@@ -21,13 +21,13 @@ class PixelPingPong(Animation[PixelPingPongState]):
     total_pixels: int = 1
     fade_delay: int = 1
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_pixel_ping_pong(self) -> PixelPingPong:
         validate_rgb(self.color)
         if self.total_pixels < 1:
-            raise ValueError("total_pixels must be at least 1")
+            raise ValueError('total_pixels must be at least 1')
         if self.fade_delay < 1:
-            raise ValueError("fade_delay must be at least 1")
+            raise ValueError('fade_delay must be at least 1')
         return self
 
     def initial_state(self, device: Device) -> PixelPingPongState:

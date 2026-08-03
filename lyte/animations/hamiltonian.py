@@ -35,8 +35,8 @@ def next_hamiltonian(n: int, a: int, b: int, c: int) -> RGB:
 
 def hamiltonian_colors(
     n: int = 8,
-    order: str | int = "rgb",
-    inverted: str = "",
+    order: str | int = 'rgb',
+    inverted: str = '',
 ) -> Iterator[RGB]:
     counter = HamiltonianCounter(n=n, order=order, inverted=inverted)
     for _ in range(n**3):
@@ -45,28 +45,28 @@ def hamiltonian_colors(
 
 class HamiltonianCounter(BaseModel):
     n: int = 8
-    order: str | int = "rgb"
-    inverted: str = ""
+    order: str | int = 'rgb'
+    inverted: str = ''
 
     _color: RGB = PrivateAttr(default=(0, 0, 0))
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_counter(self) -> HamiltonianCounter:
         if self.n % 2:
-            raise ValueError("n must be even")
+            raise ValueError('n must be even')
         if self.n <= 2:
-            raise ValueError("n must be greater than 2")
+            raise ValueError('n must be greater than 2')
         parse_order(self.order)
-        unknown = set(self.inverted.lower()) - set("rgb")
+        unknown = set(self.inverted.lower()) - set('rgb')
         if unknown:
-            raise ValueError(f"Unknown inverted channels: {''.join(sorted(unknown))}")
+            raise ValueError(f'Unknown inverted channels: {"".join(sorted(unknown))}')
         return self
 
     def next_color(self) -> RGB:
         ordered = tuple(self._color[i] for i in parse_order(self.order))
         scale = 256 / self.n
         values = []
-        for channel, component in zip("rgb", ordered, strict=True):
+        for channel, component in zip('rgb', ordered, strict=True):
             if channel in self.inverted.lower():
                 component = self.n - component - 1
             values.append(round(scale * component))
@@ -84,14 +84,14 @@ class HamiltonianState(State):
 class Hamiltonian(Animation[HamiltonianState]):
     speed: float = 25
     n: int = 8
-    order: str | int = "rgb"
-    inverted: str = ""
+    order: str | int = 'rgb'
+    inverted: str = ''
     pre_fill: bool = False
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_hamiltonian(self) -> Hamiltonian:
         if self.speed < 0:
-            raise ValueError("speed must not be negative")
+            raise ValueError('speed must not be negative')
         HamiltonianCounter(
             n=self.n,
             order=self.order,
@@ -142,16 +142,16 @@ class Hamiltonian(Animation[HamiltonianState]):
 def parse_order(order: str | int) -> tuple[int, int, int]:
     if isinstance(order, int):
         if order != 0:
-            raise ValueError("Only integer order 0 is supported")
+            raise ValueError('Only integer order 0 is supported')
         return 0, 1, 2
 
     normalized = order.lower()
-    if sorted(normalized) != ["b", "g", "r"]:
-        raise ValueError("order must be a permutation of rgb")
+    if sorted(normalized) != ['b', 'g', 'r']:
+        raise ValueError('order must be a permutation of rgb')
     return (
-        "rgb".index(normalized[0]),
-        "rgb".index(normalized[1]),
-        "rgb".index(normalized[2]),
+        'rgb'.index(normalized[0]),
+        'rgb'.index(normalized[1]),
+        'rgb'.index(normalized[2]),
     )
 
 

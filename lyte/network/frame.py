@@ -23,17 +23,17 @@ def frame_packets_v3(
     try:
         raw_token = base64.b64decode(token, validate=True)
     except binascii.Error as err:
-        raise ProtocolError("Twinkly realtime token is not valid base64") from err
+        raise ProtocolError('Twinkly realtime token is not valid base64') from err
     if len(raw_token) != 8:
-        raise ProtocolError("Twinkly realtime token must decode to 8 bytes")
+        raise ProtocolError('Twinkly realtime token must decode to 8 bytes')
     payload = frame_payload(frame)
     for index, start in enumerate(range(0, len(payload), MAX_FRAGMENT_SIZE)):
         fragment = payload[start : start + MAX_FRAGMENT_SIZE]
         if index > 255:
             raise ProtocolError(
-                "Realtime frame is too large for one-byte fragment numbers"
+                'Realtime frame is too large for one-byte fragment numbers'
             )
-        yield b"\x03" + raw_token + b"\x00\x00" + bytes((index,)), fragment
+        yield b'\x03' + raw_token + b'\x00\x00' + bytes((index,)), fragment
 
 
 def send_frame_v3(host: str, token: str, frame: NDArray[np.uint8]) -> int:
@@ -47,9 +47,9 @@ def send_frame_v3(host: str, token: str, frame: NDArray[np.uint8]) -> int:
 
 def frame_payload(frame: NDArray[np.uint8]) -> memoryview:
     if frame.dtype != np.uint8:
-        raise ValueError("Realtime frames must have dtype uint8")
+        raise ValueError('Realtime frames must have dtype uint8')
     if frame.ndim != 2 or frame.shape[1] != 3:
-        raise ValueError("Realtime frames must have shape Nx3")
+        raise ValueError('Realtime frames must have shape Nx3')
     if not frame.flags.c_contiguous:
-        raise ValueError("Realtime frames must be C-contiguous")
-    return memoryview(frame).cast("B")
+        raise ValueError('Realtime frames must be C-contiguous')
+    return memoryview(frame).cast('B')

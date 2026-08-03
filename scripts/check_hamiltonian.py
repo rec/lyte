@@ -24,26 +24,26 @@ def main() -> int:
     problems = list(find_problems(colors, expected_step=round(256 / args.n)))
 
     if not problems:
-        print(f"OK: checked {len(colors)} colors plus wrap-around.")
+        print(f'OK: checked {len(colors)} colors plus wrap-around.')
         return 0
 
     print(
-        "FAILED: "
-        f"{len(problems)} non-Hamiltonian RGB transitions in {len(colors)} colors."
+        'FAILED: '
+        f'{len(problems)} non-Hamiltonian RGB transitions in {len(colors)} colors.'
     )
     for problem in problems[: args.limit]:
         print(problem)
     if len(problems) > args.limit:
-        print(f"... {len(problems) - args.limit} more not shown")
+        print(f'... {len(problems) - args.limit} more not shown')
     return 1
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n", type=int, default=32)
-    parser.add_argument("--order", default="rgb")
-    parser.add_argument("--inverted", default="")
-    parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument('--n', type=int, default=32)
+    parser.add_argument('--order', default='rgb')
+    parser.add_argument('--inverted', default='')
+    parser.add_argument('--limit', type=int, default=20)
     return parser.parse_args()
 
 
@@ -75,19 +75,19 @@ def describe_problem(
     changed = [i for i, delta in enumerate(deltas) if delta]
     if len(changed) != 1:
         return (
-            f"{index} -> {next_index}: {current} -> {next_color}; "
-            f"changed {len(changed)} components with deltas {deltas}"
+            f'{index} -> {next_index}: {current} -> {next_color}; '
+            f'changed {len(changed)} components with deltas {deltas}'
         )
 
     changed_delta = abs(deltas[changed[0]])
     if changed_delta != expected_step:
         return (
-            f"{index} -> {next_index}: {current} -> {next_color}; "
-            f"changed component {changed[0]} by {changed_delta}, "
-            f"expected {expected_step}; deltas {deltas}"
+            f'{index} -> {next_index}: {current} -> {next_color}; '
+            f'changed component {changed[0]} by {changed_delta}, '
+            f'expected {expected_step}; deltas {deltas}'
         )
     return None
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     raise SystemExit(main())

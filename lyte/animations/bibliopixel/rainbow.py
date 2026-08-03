@@ -25,7 +25,7 @@ class Rainbow(Animation[RainbowState]):
     end: int | None = None
     step: int = 1
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_rainbow(self) -> Rainbow:
         validate_step(self.step)
         validate_start(self.start)

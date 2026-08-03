@@ -7,7 +7,7 @@ import sys
 LOGGING = False
 
 
-def log(message: str = "") -> None:
+def log(message: str = '') -> None:
     if LOGGING:
         print(message)
 

@@ -29,7 +29,7 @@ class Twinkle(Animation[TwinkleState]):
     max_bright: int = 255
     seed: int | None = None
 
-    @model_validator(mode="after")
+    @model_validator(mode='after')
     def validate_twinkle(self) -> Twinkle:
         validate_palette(self.colors)
         return self
