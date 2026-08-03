@@ -16,6 +16,7 @@ import numpy as np
 from numpy import testing as npt
 from numpy.typing import NDArray
 
+from lyte import cli
 from lyte.animation import Animation, Device, State
 from lyte.animations.bibliopixel import (
     Alternates,
@@ -49,6 +50,7 @@ from lyte.animations.hamiltonian import (
 )
 from lyte.animations.random_walk import RandomWalk, perturb
 from lyte.errors import DiscoveryError, ProtocolError
+from lyte.fps_test import blend_frames, gradient_frame
 from lyte.logging import LOGGING, log, log_error, log_status
 from lyte.network.authentication import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.network.client import LyteClient, LyteResponse
@@ -177,6 +179,43 @@ class RealtimeTests(unittest.TestCase):
     def test_rejects_bad_realtime_token(self) -> None:
         with self.assertRaises(ProtocolError):
             list(frame_packets_v3('bad', solid_rgb_frame(1, 0, 0, 0)))
+
+
+class FpsTestTests(unittest.TestCase):
+    def test_gradient_frame_blends_between_endpoint_colors(self) -> None:
+        npt.assert_array_equal(
+            gradient_frame(3, (0, 0, 0), (100, 50, 200)),
+            np.array([[0, 0, 0], [50, 25, 100], [100, 50, 200]], dtype=np.uint8),
+        )
+
+    def test_blend_frames_crossfades_two_frames(self) -> None:
+        first_frame = np.array([[0, 100, 200]], dtype=np.uint8)
+        second_frame = np.array([[100, 200, 0]], dtype=np.uint8)
+
+        npt.assert_array_equal(
+            blend_frames(first_frame, second_frame, 0.25),
+            np.array([[25, 125, 150]], dtype=np.uint8),
+        )
+
+    def test_cli_test_command_dispatches_fps_test(self) -> None:
+        with patch.object(cli, 'run_fps_test', return_value=0) as run_fps_test:
+            result = cli.main(
+                [
+                    'test',
+                    '--host',
+                    '192.168.1.23',
+                    '--led-count',
+                    '10',
+                    '--duration',
+                    '1.5',
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        config = run_fps_test.call_args.args[0]
+        self.assertEqual(config.host, '192.168.1.23')
+        self.assertEqual(config.led_count, 10)
+        self.assertEqual(config.duration, 1.5)
 
 
 class ClientTests(unittest.TestCase):
