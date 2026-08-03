@@ -1,10 +1,26 @@
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Generic, TypeVar
+
+import mido
+from pydantic import BaseModel, ConfigDict
+
+from .animation import State
+
+Config = TypeVar("Config", bound=BaseModel)
+ListenerClass = TypeVar("ListenerClass", bound="Listener")
+
+
 class MidiIn(BaseModel, frozen=True):
     channel: int | None = None
     device_name: str | list[str] | None = None
 
 
 class Listener(BaseModel):
-    patch: Patch
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    patch: Patch[BaseModel, Listener]
     note_on: mido.Message
 
     """
@@ -18,26 +34,38 @@ class Listener(BaseModel):
     A Listener is created
 
     """
+
     # Classes optionally override the below
-    def breath_control(self, msg: mido.Message) -> None: ...
-    def pitch_bend(self, msg: mido.Message) -> None: ...
-    def close(self) -> None: ...
+    def breath_control(self, msg: mido.Message) -> None:
+        pass
+
+    def pitch_bend(self, msg: mido.Message) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
 
 
-class Patch[Config: BaseModel, ListenerClass: type[Listener]](BaseModel):
+class Patch(BaseModel, Generic[Config, ListenerClass], ABC):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     config: Config  # frozen
     state: State  # mutable
     listener: ListenerClass | None = None
 
+    @abstractmethod
     def make_listener(self, msg: mido.Message) -> ListenerClass:
-        # How to get generic base??
+        pass
 
     def receive(self, msg: mido.Message) -> None:
-        match msg.type:
-            case 'note_on':
-                self.listener and self.listener.close()
-                self.listener = self.make_listener(self, msg)
-            case 'breath_control':
-                self.listener and self.listener.breath_control(msg)
-            case 'pitch_bend':
-                self.listener and self.listener.pitch_bend(msg)
+        match vars(msg)["type"]:
+            case "note_on":
+                if self.listener is not None:
+                    self.listener.close()
+                self.listener = self.make_listener(msg)
+            case "breath_control":
+                if self.listener is not None:
+                    self.listener.breath_control(msg)
+            case "pitch_bend":
+                if self.listener is not None:
+                    self.listener.pitch_bend(msg)
