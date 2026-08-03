@@ -15,8 +15,11 @@ dependencies = [
     "tyro>=1.0.15",
 ]
 
+[project.scripts]
+lyte = "lyte.cli:main"
+
 [tool.setuptools.packages.find]
-include = ["lyte"]
+include = ["lyte", "lyte.*"]
 
 [tool.ruff.format]
 quote-style = "single"
