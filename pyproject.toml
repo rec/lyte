@@ -9,6 +9,7 @@ description = "Small dependency-free Python client for Twinkly generation 2 ligh
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "mido>=1.3.3",
     "numpy>=2.4.6",
     "pydantic",
     "tyro>=1.0.15",
