@@ -50,7 +50,7 @@ from lyte.animations.hamiltonian import (
 )
 from lyte.animations.random_walk import RandomWalk, perturb
 from lyte.errors import DiscoveryError, ProtocolError
-from lyte.fps_test import blend_frames, gradient_frame
+from lyte.fps_test import FPS_VALUES, blend_frames, gradient_frame, run_fades
 from lyte.logging import LOGGING, log, log_error, log_status
 from lyte.network.authentication import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.network.client import LyteClient, LyteResponse
@@ -182,6 +182,9 @@ class RealtimeTests(unittest.TestCase):
 
 
 class FpsTestTests(unittest.TestCase):
+    def test_fps_values_include_120_hz(self) -> None:
+        self.assertEqual(FPS_VALUES, (20.0, 45.0, 60.0, 120.0))
+
     def test_gradient_frame_blends_between_endpoint_colors(self) -> None:
         npt.assert_array_equal(
             gradient_frame(3, (0, 0, 0), (100, 50, 200)),
@@ -216,6 +219,43 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(config.host, '192.168.1.23')
         self.assertEqual(config.led_count, 10)
         self.assertEqual(config.duration, 1.5)
+
+    def test_run_fades_separates_each_test_with_black(self) -> None:
+        device = Device(led_count=2)
+        fades = []
+
+        def record_fade(
+            client: LyteClient,
+            retry: RetryConfig,
+            host: str,
+            device: Device,
+            first_frame: NDArray[np.uint8],
+            second_frame: NDArray[np.uint8],
+            fps: float,
+            duration: float,
+        ) -> None:
+            fades.append((first_frame.copy(), second_frame.copy(), fps, duration))
+
+        with (
+            patch('lyte.fps_test.FPS_VALUES', (20.0,)),
+            patch('lyte.fps_test.stream_fade', record_fade),
+        ):
+            run_fades(
+                LyteClient(host='192.168.1.23'),
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                '192.168.1.23',
+                device,
+                1.5,
+                0,
+            )
+
+        self.assertEqual(len(fades), 3)
+        npt.assert_array_equal(fades[0][0], np.zeros((2, 3), dtype=np.uint8))
+        npt.assert_array_equal(fades[0][1], fades[1][0])
+        npt.assert_array_equal(fades[1][1], fades[2][0])
+        npt.assert_array_equal(fades[2][1], np.zeros((2, 3), dtype=np.uint8))
+        self.assertEqual([f[2] for f in fades], [20.0, 20.0, 20.0])
+        self.assertEqual([f[3] for f in fades], [1.5, 1.5, 1.5])
 
 
 class ClientTests(unittest.TestCase):

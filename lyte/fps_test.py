@@ -21,7 +21,7 @@ from .runtime import (
     set_device_realtime_mode,
 )
 
-FPS_VALUES: tuple[float, ...] = (20.0, 45.0, 60.0)
+FPS_VALUES: tuple[float, ...] = (20.0, 45.0, 60.0, 120.0)
 LOW_CONTRAST_BLEND: tuple[RGB, RGB] = ((255, 0, 80), (0, 160, 255))
 HIGH_CONTRAST_BLEND: tuple[RGB, RGB] = ((0, 255, 120), (255, 240, 0))
 
@@ -117,15 +117,19 @@ def run_fades(
     duration: float,
     pause: float,
 ) -> None:
+    black_frame = np.zeros((device.led_count, 3), dtype=np.uint8)
     first_frame = gradient_frame(device.led_count, *LOW_CONTRAST_BLEND)
     second_frame = gradient_frame(device.led_count, *HIGH_CONTRAST_BLEND)
     for fps in FPS_VALUES:
-        log_status(f'[test] Fading contrasting blends at {fps:g} FPS')
+        log_status(f'[test] Fading black -> blend -> blend -> black at {fps:g} FPS')
+        stream_fade(
+            client, retry, host, device, black_frame, first_frame, fps, duration
+        )
         stream_fade(
             client, retry, host, device, first_frame, second_frame, fps, duration
         )
         stream_fade(
-            client, retry, host, device, second_frame, first_frame, fps, duration
+            client, retry, host, device, second_frame, black_frame, fps, duration
         )
         if pause:
             time.sleep(pause)
