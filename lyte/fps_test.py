@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import math
 import sys
+import termios
 import time
-from collections.abc import Callable
+import tty
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import TextIO
 
 import numpy as np
 from numpy.typing import NDArray
@@ -81,8 +85,6 @@ class BlackFloorTestConfig:
     retry_delay: float = 0.5
     retry_backoff: float = 2.0
     led_count: int | None = None
-    max_level: int = 16
-    hold: float = 1.0
 
 
 def run_fps_test(config: FpsTestConfig) -> int:
@@ -163,13 +165,11 @@ def run_black_floor_test(config: BlackFloorTestConfig) -> int:
         return 1
 
     try:
-        run_black_floor_levels(
+        run_interactive_black_floor(
             client,
             retry,
             host,
             device,
-            config.max_level,
-            config.hold,
         )
     except KeyboardInterrupt:
         log()
@@ -210,10 +210,6 @@ def validate_black_floor_config(config: BlackFloorTestConfig) -> None:
         sys.exit('--retry-delay must not be negative')
     if config.retry_backoff < 1:
         sys.exit('--retry-backoff must be at least 1')
-    if not 0 <= config.max_level <= 255:
-        sys.exit('--max-level must be between 0 and 255')
-    if config.hold <= 0:
-        sys.exit('--hold must be greater than zero')
 
 
 def gradient_frame(led_count: int, start: RGB, end: RGB) -> NDArray[np.uint8]:
@@ -348,25 +344,88 @@ def solid_grayscale_frame(device: Device, level: int) -> NDArray[np.uint8]:
     return np.full((device.led_count, 3), level, dtype=np.uint8)
 
 
-def run_black_floor_levels(
+def solid_rgb_level_frame(device: Device, level: RGB) -> NDArray[np.uint8]:
+    if any(not 0 <= i <= 255 for i in level):
+        raise ValueError('levels must be 8-bit channel values')
+    return np.full((device.led_count, 3), level, dtype=np.uint8)
+
+
+def adjust_black_floor_level(level: RGB, key: str) -> RGB:
+    red, green, blue = level
+    if key == 'r':
+        red = min(255, red + 1)
+    elif key == 'g':
+        green = min(255, green + 1)
+    elif key == 'b':
+        blue = min(255, blue + 1)
+    elif key == 'R':
+        red = max(0, red - 1)
+    elif key == 'G':
+        green = max(0, green - 1)
+    elif key == 'B':
+        blue = max(0, blue - 1)
+    return red, green, blue
+
+
+def is_black_floor_key(key: str) -> bool:
+    return key in {'r', 'g', 'b', 'R', 'G', 'B'}
+
+
+def run_interactive_black_floor(
     client: LyteClient,
     retry: RetryConfig,
     host: str,
     device: Device,
-    max_level: int,
-    hold: float,
 ) -> None:
-    for level in range(max_level + 1):
-        frame = solid_grayscale_frame(device, level)
-        log_status(f'[black-floor] RGB level {level}')
-        sent = send_realtime_frame(client, retry, host, frame)
-        if sent < frame.nbytes:
-            log_error(
-                '[unexpected] '
-                f'black floor level {level} sent {sent} bytes for '
-                f'{frame.nbytes} bytes of RGB data.'
-            )
-        time.sleep(hold)
+    log('[black-floor] r/g/b increase, R/G/B decrease, Ctrl-C stops.')
+    with single_key_input(sys.stdin) as read_key:
+        run_black_floor_keys(client, retry, host, device, read_key)
+
+
+def run_black_floor_keys(
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    device: Device,
+    read_key: Callable[[], str],
+) -> None:
+    level = (0, 0, 0)
+    send_black_floor_level(client, retry, host, device, level)
+    while True:
+        key = read_key()
+        if is_black_floor_key(key):
+            level = adjust_black_floor_level(level, key)
+            send_black_floor_level(client, retry, host, device, level)
+
+
+def send_black_floor_level(
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    device: Device,
+    level: RGB,
+) -> None:
+    frame = solid_rgb_level_frame(device, level)
+    red, green, blue = level
+    log_status(f'[black-floor] RGB {red} {green} {blue}')
+    sent = send_realtime_frame(client, retry, host, frame)
+    if sent < frame.nbytes:
+        log_error(
+            '[unexpected] '
+            f'black floor RGB {red} {green} {blue} sent {sent} bytes for '
+            f'{frame.nbytes} bytes of RGB data.'
+        )
+
+
+@contextmanager
+def single_key_input(stream: TextIO) -> Iterator[Callable[[], str]]:
+    fd = stream.fileno()
+    settings = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd)
+        yield lambda: stream.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, settings)
 
 
 def run_temporal_dither_comparison(
