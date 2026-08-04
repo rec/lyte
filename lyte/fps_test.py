@@ -34,6 +34,8 @@ HIGH_CONTRAST_BLEND: tuple[RGB, RGB] = ((0, 255, 120), (255, 240, 0))
 TEST2_ANIMATION_FPS = 60.0
 TEST2_TEMPORAL_FACTOR = 4
 TEST2_TRANSPORT_FPS = TEST2_ANIMATION_FPS * TEST2_TEMPORAL_FACTOR
+UP_KEY = '\x1b[A'
+DOWN_KEY = '\x1b[B'
 
 
 @dataclass(frozen=True)
@@ -365,11 +367,19 @@ def adjust_black_floor_level(level: RGB, key: str) -> RGB:
         green = max(0, green - 1)
     elif key == 'B':
         blue = max(0, blue - 1)
+    elif key == UP_KEY:
+        red = min(255, red + 1)
+        green = min(255, green + 1)
+        blue = min(255, blue + 1)
+    elif key == DOWN_KEY:
+        red = max(0, red - 1)
+        green = max(0, green - 1)
+        blue = max(0, blue - 1)
     return red, green, blue
 
 
 def is_black_floor_key(key: str) -> bool:
-    return key in {'r', 'g', 'b', 'R', 'G', 'B'}
+    return key in {'r', 'g', 'b', 'R', 'G', 'B', UP_KEY, DOWN_KEY}
 
 
 def run_interactive_black_floor(
@@ -378,7 +388,9 @@ def run_interactive_black_floor(
     host: str,
     device: Device,
 ) -> None:
-    log('[black-floor] r/g/b increase, R/G/B decrease, Ctrl-C stops.')
+    log(
+        '[black-floor] r/g/b increase, R/G/B decrease, arrows adjust all, Ctrl-C stops.'
+    )
     with single_key_input(sys.stdin) as read_key:
         run_black_floor_keys(client, retry, host, device, read_key)
 
@@ -430,7 +442,10 @@ def single_key_input(stream: TextIO) -> Iterator[Callable[[], str]]:
 
 
 def read_single_key(fd: int) -> str:
-    return os.read(fd, 1).decode()
+    key = os.read(fd, 1).decode()
+    if key == '\x1b':
+        key += os.read(fd, 2).decode()
+    return key
 
 
 def run_temporal_dither_comparison(

@@ -51,7 +51,9 @@ from lyte.animations.hamiltonian import (
 from lyte.animations.random_walk import RandomWalk, perturb
 from lyte.errors import DiscoveryError, ProtocolError
 from lyte.fps_test import (
+    DOWN_KEY,
     FPS_VALUES,
+    UP_KEY,
     FadeReport,
     adjust_black_floor_level,
     blend_frames,
@@ -319,10 +321,15 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(
             adjust_black_floor_level((255, 255, 255), 'r'), (255, 255, 255)
         )
+        self.assertEqual(adjust_black_floor_level((1, 2, 3), UP_KEY), (2, 3, 4))
+        self.assertEqual(adjust_black_floor_level((1, 2, 3), DOWN_KEY), (0, 1, 2))
+        self.assertEqual(
+            adjust_black_floor_level((255, 255, 255), UP_KEY), (255, 255, 255)
+        )
 
     def test_black_floor_keys_show_initial_black_and_each_valid_key(self) -> None:
         sent_frames = []
-        keys = iter(['r', 'g', 'b', 'R', 'x', 'B'])
+        keys = iter(['r', 'g', 'b', 'R', 'x', 'B', UP_KEY, DOWN_KEY])
 
         def record_frame(
             client: LyteClient,
@@ -353,7 +360,16 @@ class FpsTestTests(unittest.TestCase):
 
         self.assertEqual(
             [tuple(int(i) for i in f[0]) for f in sent_frames],
-            [(0, 0, 0), (1, 0, 0), (1, 1, 0), (1, 1, 1), (0, 1, 1), (0, 1, 0)],
+            [
+                (0, 0, 0),
+                (1, 0, 0),
+                (1, 1, 0),
+                (1, 1, 1),
+                (0, 1, 1),
+                (0, 1, 0),
+                (1, 2, 1),
+                (0, 1, 0),
+            ],
         )
 
     def test_read_single_key_uses_unbuffered_file_descriptor(self) -> None:
@@ -362,6 +378,14 @@ class FpsTestTests(unittest.TestCase):
 
         self.assertEqual(key, 'r')
         read.assert_called_once_with(7, 1)
+
+    def test_read_single_key_reads_arrow_escape_sequence(self) -> None:
+        with patch('lyte.fps_test.os.read', side_effect=[b'\x1b', b'[A']) as read:
+            key = read_single_key(7)
+
+        self.assertEqual(key, UP_KEY)
+        self.assertEqual(read.call_args_list[0].args, (7, 1))
+        self.assertEqual(read.call_args_list[1].args, (7, 2))
 
     def test_temporal_dither_comparison_runs_direct_then_dithered(self) -> None:
         device = Device(led_count=2)
