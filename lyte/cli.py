@@ -82,10 +82,8 @@ def black_floor(
     retry_delay: float = 0.5,
     retry_backoff: float = 2.0,
     led_count: int | None = None,
-    max_level: int = 16,
-    hold: float = 1.0,
 ) -> int:
-    """Step through low grayscale levels to find the visible black floor."""
+    """Adjust low RGB levels interactively to find the visible black floor."""
     return run_black_floor_test(
         BlackFloorTestConfig(
             host=host,
@@ -95,7 +93,5 @@ def black_floor(
             retry_delay=retry_delay,
             retry_backoff=retry_backoff,
             led_count=led_count,
-            max_level=max_level,
-            hold=hold,
         )
     )

@@ -53,14 +53,16 @@ from lyte.errors import DiscoveryError, ProtocolError
 from lyte.fps_test import (
     FPS_VALUES,
     FadeReport,
+    adjust_black_floor_level,
     blend_frames,
     dispersed_pixel_order,
     gradient_frame,
     report_fades,
-    run_black_floor_levels,
+    run_black_floor_keys,
     run_fades,
     run_temporal_dither_comparison,
     solid_grayscale_frame,
+    solid_rgb_level_frame,
     stream_fade,
     temporal_dither_grayscale_frame,
 )
@@ -266,10 +268,6 @@ class FpsTestTests(unittest.TestCase):
                     '192.168.1.23',
                     '--led-count',
                     '10',
-                    '--max-level',
-                    '12',
-                    '--hold',
-                    '0.25',
                 ]
             )
 
@@ -277,8 +275,6 @@ class FpsTestTests(unittest.TestCase):
         config = run_black_floor_test.call_args.args[0]
         self.assertEqual(config.host, '192.168.1.23')
         self.assertEqual(config.led_count, 10)
-        self.assertEqual(config.max_level, 12)
-        self.assertEqual(config.hold, 0.25)
 
     def test_dispersed_pixel_order_visits_each_led_once(self) -> None:
         order = dispersed_pixel_order(11)
@@ -305,8 +301,27 @@ class FpsTestTests(unittest.TestCase):
             np.array([[7, 7, 7], [7, 7, 7]], dtype=np.uint8),
         )
 
-    def test_black_floor_levels_show_each_level(self) -> None:
+    def test_solid_rgb_level_frame_fills_all_channels(self) -> None:
+        npt.assert_array_equal(
+            solid_rgb_level_frame(Device(led_count=2), (1, 2, 3)),
+            np.array([[1, 2, 3], [1, 2, 3]], dtype=np.uint8),
+        )
+
+    def test_adjust_black_floor_level_changes_one_channel(self) -> None:
+        self.assertEqual(adjust_black_floor_level((0, 0, 0), 'r'), (1, 0, 0))
+        self.assertEqual(adjust_black_floor_level((0, 0, 0), 'g'), (0, 1, 0))
+        self.assertEqual(adjust_black_floor_level((0, 0, 0), 'b'), (0, 0, 1))
+        self.assertEqual(adjust_black_floor_level((1, 1, 1), 'R'), (0, 1, 1))
+        self.assertEqual(adjust_black_floor_level((1, 1, 1), 'G'), (1, 0, 1))
+        self.assertEqual(adjust_black_floor_level((1, 1, 1), 'B'), (1, 1, 0))
+        self.assertEqual(adjust_black_floor_level((0, 0, 0), 'R'), (0, 0, 0))
+        self.assertEqual(
+            adjust_black_floor_level((255, 255, 255), 'r'), (255, 255, 255)
+        )
+
+    def test_black_floor_keys_show_initial_black_and_each_valid_key(self) -> None:
         sent_frames = []
+        keys = iter(['r', 'g', 'b', 'R', 'x', 'B'])
 
         def record_frame(
             client: LyteClient,
@@ -317,21 +332,28 @@ class FpsTestTests(unittest.TestCase):
             sent_frames.append(frame.copy())
             return frame.nbytes
 
+        def read_key() -> str:
+            try:
+                return next(keys)
+            except StopIteration:
+                raise KeyboardInterrupt from None
+
         with (
             patch('lyte.fps_test.send_realtime_frame', record_frame),
-            patch('lyte.fps_test.time.sleep') as sleep,
+            self.assertRaises(KeyboardInterrupt),
         ):
-            run_black_floor_levels(
+            run_black_floor_keys(
                 LyteClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 '192.168.1.23',
                 Device(led_count=1),
-                2,
-                0.25,
+                read_key,
             )
 
-        self.assertEqual([int(f[0, 0]) for f in sent_frames], [0, 1, 2])
-        self.assertEqual([c.args[0] for c in sleep.call_args_list], [0.25, 0.25, 0.25])
+        self.assertEqual(
+            [tuple(int(i) for i in f[0]) for f in sent_frames],
+            [(0, 0, 0), (1, 0, 0), (1, 1, 0), (1, 1, 1), (0, 1, 1), (0, 1, 0)],
+        )
 
     def test_temporal_dither_comparison_runs_direct_then_dithered(self) -> None:
         device = Device(led_count=2)
