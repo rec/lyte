@@ -72,6 +72,19 @@ class TemporalDitherTestConfig:
     time: float = 5.0
 
 
+@dataclass(frozen=True)
+class BlackFloorTestConfig:
+    host: str | None = None
+    timeout: float = 5.0
+    discovery_timeout: float = 5.0
+    attempts: int = 10
+    retry_delay: float = 0.5
+    retry_backoff: float = 2.0
+    led_count: int | None = None
+    max_level: int = 16
+    hold: float = 1.0
+
+
 def run_fps_test(config: FpsTestConfig) -> int:
     validate_config(config)
     host = config.host or discover_host(config.discovery_timeout)
@@ -130,6 +143,42 @@ def run_temporal_dither_test(config: TemporalDitherTestConfig) -> int:
     return 0
 
 
+def run_black_floor_test(config: BlackFloorTestConfig) -> int:
+    validate_black_floor_config(config)
+    host = config.host or discover_host(config.discovery_timeout)
+    if host is None:
+        return 1
+
+    retry = RetryConfig(
+        attempts=config.attempts,
+        delay=config.retry_delay,
+        backoff=config.retry_backoff,
+    )
+    client = LyteClient(host=host, timeout=config.timeout)
+    led_count = read_led_count(client, retry, config.led_count, host)
+    if led_count is None:
+        return 1
+    device = Device(led_count=led_count)
+    if not prepare_device(client, retry, host):
+        return 1
+
+    try:
+        run_black_floor_levels(
+            client,
+            retry,
+            host,
+            device,
+            config.max_level,
+            config.hold,
+        )
+    except KeyboardInterrupt:
+        log()
+        log('[ok] Stopped')
+    finally:
+        turn_off_streaming_device(client, retry, host)
+    return 0
+
+
 def validate_config(config: FpsTestConfig) -> None:
     if config.attempts < 1:
         sys.exit('--attempts must be at least 1')
@@ -152,6 +201,19 @@ def validate_temporal_dither_config(config: TemporalDitherTestConfig) -> None:
         sys.exit('--retry-backoff must be at least 1')
     if config.time <= 0:
         sys.exit('--time must be greater than zero')
+
+
+def validate_black_floor_config(config: BlackFloorTestConfig) -> None:
+    if config.attempts < 1:
+        sys.exit('--attempts must be at least 1')
+    if config.retry_delay < 0:
+        sys.exit('--retry-delay must not be negative')
+    if config.retry_backoff < 1:
+        sys.exit('--retry-backoff must be at least 1')
+    if not 0 <= config.max_level <= 255:
+        sys.exit('--max-level must be between 0 and 255')
+    if config.hold <= 0:
+        sys.exit('--hold must be greater than zero')
 
 
 def gradient_frame(led_count: int, start: RGB, end: RGB) -> NDArray[np.uint8]:
@@ -278,6 +340,33 @@ def run_fades(
         report_fades(reports)
         if pause:
             time.sleep(pause)
+
+
+def solid_grayscale_frame(device: Device, level: int) -> NDArray[np.uint8]:
+    if not 0 <= level <= 255:
+        raise ValueError('level must be an 8-bit channel value')
+    return np.full((device.led_count, 3), level, dtype=np.uint8)
+
+
+def run_black_floor_levels(
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    device: Device,
+    max_level: int,
+    hold: float,
+) -> None:
+    for level in range(max_level + 1):
+        frame = solid_grayscale_frame(device, level)
+        log_status(f'[black-floor] RGB level {level}')
+        sent = send_realtime_frame(client, retry, host, frame)
+        if sent < frame.nbytes:
+            log_error(
+                '[unexpected] '
+                f'black floor level {level} sent {sent} bytes for '
+                f'{frame.nbytes} bytes of RGB data.'
+            )
+        time.sleep(hold)
 
 
 def run_temporal_dither_comparison(

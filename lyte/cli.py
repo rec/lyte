@@ -5,8 +5,10 @@ from collections.abc import Sequence
 import tyro
 
 from .fps_test import (
+    BlackFloorTestConfig,
     FpsTestConfig,
     TemporalDitherTestConfig,
+    run_black_floor_test,
     run_fps_test,
     run_temporal_dither_test,
 )
@@ -14,7 +16,7 @@ from .fps_test import (
 
 def main(args: Sequence[str] | None = None) -> int:
     return tyro.extras.subcommand_cli_from_dict(
-        {'test': test, 'test2': test2},
+        {'black-floor': black_floor, 'test': test, 'test2': test2},
         prog='lyte',
         args=args,
     )
@@ -68,5 +70,32 @@ def test2(
             retry_backoff=retry_backoff,
             led_count=led_count,
             time=time,
+        )
+    )
+
+
+def black_floor(
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float = 5.0,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+    led_count: int | None = None,
+    max_level: int = 16,
+    hold: float = 1.0,
+) -> int:
+    """Step through low grayscale levels to find the visible black floor."""
+    return run_black_floor_test(
+        BlackFloorTestConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+            led_count=led_count,
+            max_level=max_level,
+            hold=hold,
         )
     )

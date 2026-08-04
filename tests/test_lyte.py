@@ -57,8 +57,10 @@ from lyte.fps_test import (
     dispersed_pixel_order,
     gradient_frame,
     report_fades,
+    run_black_floor_levels,
     run_fades,
     run_temporal_dither_comparison,
+    solid_grayscale_frame,
     stream_fade,
     temporal_dither_grayscale_frame,
 )
@@ -253,6 +255,31 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(config.led_count, 10)
         self.assertEqual(config.time, 4.5)
 
+    def test_cli_black_floor_command_dispatches_black_floor_test(self) -> None:
+        with patch.object(
+            cli, 'run_black_floor_test', return_value=0
+        ) as run_black_floor_test:
+            result = cli.main(
+                [
+                    'black-floor',
+                    '--host',
+                    '192.168.1.23',
+                    '--led-count',
+                    '10',
+                    '--max-level',
+                    '12',
+                    '--hold',
+                    '0.25',
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        config = run_black_floor_test.call_args.args[0]
+        self.assertEqual(config.host, '192.168.1.23')
+        self.assertEqual(config.led_count, 10)
+        self.assertEqual(config.max_level, 12)
+        self.assertEqual(config.hold, 0.25)
+
     def test_dispersed_pixel_order_visits_each_led_once(self) -> None:
         order = dispersed_pixel_order(11)
 
@@ -271,6 +298,40 @@ class FpsTestTests(unittest.TestCase):
             frame,
             np.array([[1, 1, 1], [0, 0, 0], [1, 1, 1], [0, 0, 0]], dtype=np.uint8),
         )
+
+    def test_solid_grayscale_frame_fills_all_channels(self) -> None:
+        npt.assert_array_equal(
+            solid_grayscale_frame(Device(led_count=2), 7),
+            np.array([[7, 7, 7], [7, 7, 7]], dtype=np.uint8),
+        )
+
+    def test_black_floor_levels_show_each_level(self) -> None:
+        sent_frames = []
+
+        def record_frame(
+            client: LyteClient,
+            retry: RetryConfig,
+            host: str,
+            frame: NDArray[np.uint8],
+        ) -> int:
+            sent_frames.append(frame.copy())
+            return frame.nbytes
+
+        with (
+            patch('lyte.fps_test.send_realtime_frame', record_frame),
+            patch('lyte.fps_test.time.sleep') as sleep,
+        ):
+            run_black_floor_levels(
+                LyteClient(host='192.168.1.23'),
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                '192.168.1.23',
+                Device(led_count=1),
+                2,
+                0.25,
+            )
+
+        self.assertEqual([int(f[0, 0]) for f in sent_frames], [0, 1, 2])
+        self.assertEqual([c.args[0] for c in sleep.call_args_list], [0.25, 0.25, 0.25])
 
     def test_temporal_dither_comparison_runs_direct_then_dithered(self) -> None:
         device = Device(led_count=2)
