@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import os
 import sys
 import termios
 import time
@@ -423,9 +424,13 @@ def single_key_input(stream: TextIO) -> Iterator[Callable[[], str]]:
     settings = termios.tcgetattr(fd)
     try:
         tty.setcbreak(fd)
-        yield lambda: stream.read(1)
+        yield lambda: read_single_key(fd)
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, settings)
+
+
+def read_single_key(fd: int) -> str:
+    return os.read(fd, 1).decode()
 
 
 def run_temporal_dither_comparison(
