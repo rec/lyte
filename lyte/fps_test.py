@@ -21,9 +21,25 @@ from .runtime import (
     set_device_realtime_mode,
 )
 
-FPS_VALUES: tuple[float, ...] = (20.0, 45.0, 60.0, 120.0)
+FPS_VALUES: tuple[float, ...] = (30.0, 60.0, 120.0, 240, 480, 960, 1920)
 LOW_CONTRAST_BLEND: tuple[RGB, RGB] = ((255, 0, 80), (0, 160, 255))
 HIGH_CONTRAST_BLEND: tuple[RGB, RGB] = ((0, 255, 120), (255, 240, 0))
+
+
+@dataclass(frozen=True)
+class FadeReport:
+    fps: float
+    phase: str
+    total_frames: int
+    unique_frames: int
+    late_frames: int
+    short_sends: int
+    max_late_ms: float
+    elapsed_ms: float
+
+    @property
+    def duplicate_frames(self) -> int:
+        return self.total_frames - self.unique_frames
 
 
 @dataclass(frozen=True)
@@ -36,7 +52,7 @@ class FpsTestConfig:
     retry_backoff: float = 2.0
     led_count: int | None = None
     duration: float = 2.0
-    pause: float = 0.5
+    pause: float = 1
 
 
 def run_fps_test(config: FpsTestConfig) -> int:
@@ -122,15 +138,42 @@ def run_fades(
     second_frame = gradient_frame(device.led_count, *HIGH_CONTRAST_BLEND)
     for fps in FPS_VALUES:
         log_status(f'[test] Fading black -> blend -> blend -> black at {fps:g} FPS')
-        stream_fade(
-            client, retry, host, device, black_frame, first_frame, fps, duration
+        reports = (
+            stream_fade(
+                client,
+                retry,
+                host,
+                device,
+                black_frame,
+                first_frame,
+                fps,
+                duration,
+                'black-to-first',
+            ),
+            stream_fade(
+                client,
+                retry,
+                host,
+                device,
+                first_frame,
+                second_frame,
+                fps,
+                duration,
+                'first-to-second',
+            ),
+            stream_fade(
+                client,
+                retry,
+                host,
+                device,
+                second_frame,
+                black_frame,
+                fps,
+                duration,
+                'second-to-black',
+            ),
         )
-        stream_fade(
-            client, retry, host, device, first_frame, second_frame, fps, duration
-        )
-        stream_fade(
-            client, retry, host, device, second_frame, black_frame, fps, duration
-        )
+        report_fades(reports)
         if pause:
             time.sleep(pause)
 
@@ -144,19 +187,69 @@ def stream_fade(
     second_frame: NDArray[np.uint8],
     fps: float,
     duration: float,
-) -> None:
+    phase: str,
+) -> FadeReport:
     frame_delay = 1 / fps
     frame_count = max(2, round(fps * duration))
+    unique_frames: set[bytes] = set()
+    late_frames = 0
+    short_sends = 0
+    max_late = 0.0
+    started_at = time.monotonic()
     for index in range(frame_count):
-        started_at = time.monotonic()
+        frame_started_at = time.monotonic()
         progress = index / (frame_count - 1)
         frame = validate_frame(
             device, blend_frames(first_frame, second_frame, progress)
         )
-        send_realtime_frame(client, retry, host, frame)
-        remaining = frame_delay - (time.monotonic() - started_at)
+        unique_frames.add(frame.tobytes())
+        sent = send_realtime_frame(client, retry, host, frame)
+        if sent < frame.nbytes:
+            short_sends += 1
+            log_error(
+                '[unexpected] '
+                f'{phase} at {fps:g} FPS frame {index + 1}/{frame_count} '
+                f'sent {sent} bytes for {frame.nbytes} bytes of RGB data.'
+            )
+        remaining = frame_delay - (time.monotonic() - frame_started_at)
         if remaining > 0:
             time.sleep(remaining)
+        else:
+            late_frames += 1
+            max_late = max(max_late, -remaining)
+    return FadeReport(
+        fps=fps,
+        phase=phase,
+        total_frames=frame_count,
+        unique_frames=len(unique_frames),
+        late_frames=late_frames,
+        short_sends=short_sends,
+        max_late_ms=max_late * 1000,
+        elapsed_ms=(time.monotonic() - started_at) * 1000,
+    )
+
+
+def report_fades(reports: tuple[FadeReport, ...]) -> None:
+    for report in reports:
+        log_status(
+            '[report] '
+            f'{report.phase} {report.fps:g} FPS: '
+            f'{report.unique_frames}/{report.total_frames} unique frames, '
+            f'{report.duplicate_frames} duplicate frames'
+        )
+        if report.late_frames:
+            log_error(
+                '[unexpected] '
+                f'{report.phase} {report.fps:g} FPS missed frame timing '
+                f'{report.late_frames}/{report.total_frames} times; '
+                f'worst overrun {report.max_late_ms:.2f} ms.'
+            )
+        if report.short_sends:
+            log_error(
+                '[unexpected] '
+                f'{report.phase} {report.fps:g} FPS had '
+                f'{report.short_sends} short UDP sends.'
+            )
 
 
 def send_realtime_frame(
@@ -164,7 +257,7 @@ def send_realtime_frame(
     retry: RetryConfig,
     host: str,
     frame: NDArray[np.uint8],
-) -> None:
+) -> int:
     if client.token is None:
         sys.exit('Authentication token disappeared before frame send.')
     sent = send_authenticated_frame(
@@ -176,6 +269,7 @@ def send_realtime_frame(
     )
     if sent is None:
         sys.exit(f'Could not send realtime frame to {host}.')
+    return sent
 
 
 def read_led_count(
