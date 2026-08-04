@@ -54,10 +54,13 @@ from lyte.fps_test import (
     FPS_VALUES,
     FadeReport,
     blend_frames,
+    dispersed_pixel_order,
     gradient_frame,
     report_fades,
     run_fades,
+    run_temporal_dither_comparison,
     stream_fade,
+    temporal_dither_grayscale_frame,
 )
 from lyte.logging import LOGGING, log, log_error, log_status
 from lyte.network.authentication import CHALLENGE_KEY, derive_key, mac_bytes, rc4
@@ -227,6 +230,97 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(config.host, '192.168.1.23')
         self.assertEqual(config.led_count, 10)
         self.assertEqual(config.duration, 1.5)
+
+    def test_cli_test2_command_dispatches_temporal_dither_test(self) -> None:
+        with patch.object(
+            cli, 'run_temporal_dither_test', return_value=0
+        ) as run_temporal_dither_test:
+            result = cli.main(
+                [
+                    'test2',
+                    '--host',
+                    '192.168.1.23',
+                    '--led-count',
+                    '10',
+                    '--time',
+                    '4.5',
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        config = run_temporal_dither_test.call_args.args[0]
+        self.assertEqual(config.host, '192.168.1.23')
+        self.assertEqual(config.led_count, 10)
+        self.assertEqual(config.time, 4.5)
+
+    def test_dispersed_pixel_order_visits_each_led_once(self) -> None:
+        order = dispersed_pixel_order(11)
+
+        self.assertEqual(sorted(order.tolist()), list(range(11)))
+        self.assertEqual(order.tolist(), [0, 5, 10, 4, 9, 3, 8, 2, 7, 1, 6])
+
+    def test_temporal_dither_grayscale_frame_spreads_fractional_step(
+        self,
+    ) -> None:
+        device = Device(led_count=4)
+        order = np.array([0, 2, 1, 3], dtype=np.int64)
+
+        frame = temporal_dither_grayscale_frame(device, 0, 1, 2, 5, order)
+
+        npt.assert_array_equal(
+            frame,
+            np.array([[1, 1, 1], [0, 0, 0], [1, 1, 1], [0, 0, 0]], dtype=np.uint8),
+        )
+
+    def test_temporal_dither_comparison_runs_direct_then_dithered(self) -> None:
+        device = Device(led_count=2)
+        phases = []
+
+        def record_fade(
+            client: LyteClient,
+            retry: RetryConfig,
+            host: str,
+            device: Device,
+            fps: float,
+            duration: float,
+            phase: str,
+            frame_at: object,
+        ) -> FadeReport:
+            phases.append((phase, fps, duration))
+            return FadeReport(
+                fps=fps,
+                phase=phase,
+                total_frames=1,
+                unique_frames=1,
+                late_frames=0,
+                short_sends=0,
+                max_late_ms=0,
+                elapsed_ms=0,
+            )
+
+        with (
+            patch('lyte.fps_test.stream_frames', record_fade),
+            patch('lyte.fps_test.report_fades'),
+        ):
+            run_temporal_dither_comparison(
+                LyteClient(host='192.168.1.23'),
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                '192.168.1.23',
+                device,
+                5,
+            )
+
+        self.assertEqual(
+            phases,
+            [
+                ('normal-black-to-white', 240.0, 5),
+                ('normal-white-to-black', 240.0, 5),
+                ('normal-black-hold', 240.0, 1.0),
+                ('dithered-black-to-white', 240.0, 5),
+                ('dithered-white-to-black', 240.0, 5),
+                ('dithered-black-hold', 240.0, 1.0),
+            ],
+        )
 
     def test_run_fades_separates_each_test_with_black(self) -> None:
         device = Device(led_count=2)

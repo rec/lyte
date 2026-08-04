@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import math
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -24,6 +26,9 @@ from .runtime import (
 FPS_VALUES: tuple[float, ...] = (30.0, 60.0, 120.0, 240, 480, 960, 1920)
 LOW_CONTRAST_BLEND: tuple[RGB, RGB] = ((255, 0, 80), (0, 160, 255))
 HIGH_CONTRAST_BLEND: tuple[RGB, RGB] = ((0, 255, 120), (255, 240, 0))
+TEST2_ANIMATION_FPS = 60.0
+TEST2_TEMPORAL_FACTOR = 4
+TEST2_TRANSPORT_FPS = TEST2_ANIMATION_FPS * TEST2_TEMPORAL_FACTOR
 
 
 @dataclass(frozen=True)
@@ -55,6 +60,18 @@ class FpsTestConfig:
     pause: float = 1
 
 
+@dataclass(frozen=True)
+class TemporalDitherTestConfig:
+    host: str | None = None
+    timeout: float = 5.0
+    discovery_timeout: float = 5.0
+    attempts: int = 10
+    retry_delay: float = 0.5
+    retry_backoff: float = 2.0
+    led_count: int | None = None
+    time: float = 5.0
+
+
 def run_fps_test(config: FpsTestConfig) -> int:
     validate_config(config)
     host = config.host or discover_host(config.discovery_timeout)
@@ -84,6 +101,35 @@ def run_fps_test(config: FpsTestConfig) -> int:
     return 0
 
 
+def run_temporal_dither_test(config: TemporalDitherTestConfig) -> int:
+    validate_temporal_dither_config(config)
+    host = config.host or discover_host(config.discovery_timeout)
+    if host is None:
+        return 1
+
+    retry = RetryConfig(
+        attempts=config.attempts,
+        delay=config.retry_delay,
+        backoff=config.retry_backoff,
+    )
+    client = LyteClient(host=host, timeout=config.timeout)
+    led_count = read_led_count(client, retry, config.led_count, host)
+    if led_count is None:
+        return 1
+    device = Device(led_count=led_count)
+    if not prepare_device(client, retry, host):
+        return 1
+
+    try:
+        run_temporal_dither_comparison(client, retry, host, device, config.time)
+    except KeyboardInterrupt:
+        log()
+        log('[ok] Stopped')
+    finally:
+        turn_off_streaming_device(client, retry, host)
+    return 0
+
+
 def validate_config(config: FpsTestConfig) -> None:
     if config.attempts < 1:
         sys.exit('--attempts must be at least 1')
@@ -95,6 +141,17 @@ def validate_config(config: FpsTestConfig) -> None:
         sys.exit('--duration must be greater than zero')
     if config.pause < 0:
         sys.exit('--pause must not be negative')
+
+
+def validate_temporal_dither_config(config: TemporalDitherTestConfig) -> None:
+    if config.attempts < 1:
+        sys.exit('--attempts must be at least 1')
+    if config.retry_delay < 0:
+        sys.exit('--retry-delay must not be negative')
+    if config.retry_backoff < 1:
+        sys.exit('--retry-backoff must be at least 1')
+    if config.time <= 0:
+        sys.exit('--time must be greater than zero')
 
 
 def gradient_frame(led_count: int, start: RGB, end: RGB) -> NDArray[np.uint8]:
@@ -123,6 +180,51 @@ def blend_frames(
         + second_frame.astype(np.float32) * progress
     )
     return np.rint(blended).astype(np.uint8)
+
+
+def dispersed_pixel_order(led_count: int) -> NDArray[np.int64]:
+    if led_count <= 0:
+        raise ValueError('led_count must be greater than zero')
+    if led_count == 1:
+        return np.array([0], dtype=np.int64)
+    midpoint = led_count / 2
+    stride = min(
+        (i for i in range(1, led_count) if math.gcd(i, led_count) == 1),
+        key=lambda i: (abs(i - midpoint), i),
+    )
+    return np.fromiter(
+        ((i * stride) % led_count for i in range(led_count)),
+        dtype=np.int64,
+        count=led_count,
+    )
+
+
+def temporal_dither_grayscale_frame(
+    device: Device,
+    start: int,
+    end: int,
+    index: int,
+    frame_count: int,
+    order: NDArray[np.int64],
+) -> NDArray[np.uint8]:
+    if frame_count < 2:
+        raise ValueError('frame_count must be at least 2')
+    if not 0 <= start <= 255 or not 0 <= end <= 255:
+        raise ValueError('start and end must be 8-bit channel values')
+    if len(order) != device.led_count:
+        raise ValueError('order must have one entry per LED')
+    progress = index / (frame_count - 1)
+    ideal = start + (end - start) * max(0.0, min(1.0, progress))
+    lower = math.floor(ideal)
+    upper = math.ceil(ideal)
+    fraction = ideal - lower
+    high_count = round(fraction * device.led_count)
+    frame = np.full((device.led_count, 3), lower, dtype=np.uint8)
+    if high_count and upper != lower:
+        offset = lower % device.led_count
+        selected = np.concatenate((order[offset:], order[:offset]))[:high_count]
+        frame[selected] = upper
+    return frame
 
 
 def run_fades(
@@ -178,6 +280,101 @@ def run_fades(
             time.sleep(pause)
 
 
+def run_temporal_dither_comparison(
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    device: Device,
+    duration: float,
+) -> None:
+    black_frame = np.zeros((device.led_count, 3), dtype=np.uint8)
+    white_frame = np.full((device.led_count, 3), 255, dtype=np.uint8)
+    log_status(
+        f'[test2] Linear fade at {TEST2_TRANSPORT_FPS:g} FPS for {duration:g} seconds'
+    )
+    report_fades(
+        (
+            stream_fade(
+                client,
+                retry,
+                host,
+                device,
+                black_frame,
+                white_frame,
+                TEST2_TRANSPORT_FPS,
+                duration,
+                'normal-black-to-white',
+            ),
+            stream_fade(
+                client,
+                retry,
+                host,
+                device,
+                white_frame,
+                black_frame,
+                TEST2_TRANSPORT_FPS,
+                duration,
+                'normal-white-to-black',
+            ),
+            stream_frames(
+                client,
+                retry,
+                host,
+                device,
+                TEST2_TRANSPORT_FPS,
+                1.0,
+                'normal-black-hold',
+                lambda _index, _frame_count: black_frame,
+            ),
+        )
+    )
+    log_status(
+        f'[test2] {TEST2_ANIMATION_FPS:g} FPS animation with '
+        f'{TEST2_TEMPORAL_FACTOR}x temporal dithering'
+    )
+    order = dispersed_pixel_order(device.led_count)
+    report_fades(
+        (
+            stream_temporal_dither_fade(
+                client,
+                retry,
+                host,
+                device,
+                0,
+                255,
+                TEST2_ANIMATION_FPS,
+                TEST2_TEMPORAL_FACTOR,
+                duration,
+                'dithered-black-to-white',
+                order,
+            ),
+            stream_temporal_dither_fade(
+                client,
+                retry,
+                host,
+                device,
+                255,
+                0,
+                TEST2_ANIMATION_FPS,
+                TEST2_TEMPORAL_FACTOR,
+                duration,
+                'dithered-white-to-black',
+                order,
+            ),
+            stream_frames(
+                client,
+                retry,
+                host,
+                device,
+                TEST2_TRANSPORT_FPS,
+                1.0,
+                'dithered-black-hold',
+                lambda _index, _frame_count: black_frame,
+            ),
+        )
+    )
+
+
 def stream_fade(
     client: LyteClient,
     retry: RetryConfig,
@@ -189,6 +386,65 @@ def stream_fade(
     duration: float,
     phase: str,
 ) -> FadeReport:
+    return stream_frames(
+        client,
+        retry,
+        host,
+        device,
+        fps,
+        duration,
+        phase,
+        lambda index, frame_count: blend_frames(
+            first_frame,
+            second_frame,
+            index / (frame_count - 1),
+        ),
+    )
+
+
+def stream_temporal_dither_fade(
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    device: Device,
+    start: int,
+    end: int,
+    animation_fps: float,
+    temporal_factor: int,
+    duration: float,
+    phase: str,
+    order: NDArray[np.int64],
+) -> FadeReport:
+    transport_fps = animation_fps * temporal_factor
+    return stream_frames(
+        client,
+        retry,
+        host,
+        device,
+        transport_fps,
+        duration,
+        phase,
+        lambda index, frame_count: temporal_dither_grayscale_frame(
+            device,
+            start,
+            end,
+            index,
+            frame_count,
+            order,
+        ),
+    )
+
+
+def stream_frames(
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    device: Device,
+    fps: float,
+    duration: float,
+    phase: str,
+    frame_at: Callable[[int, int], NDArray[np.uint8]],
+) -> FadeReport:
     frame_delay = 1 / fps
     frame_count = max(2, round(fps * duration))
     unique_frames: set[bytes] = set()
@@ -198,10 +454,7 @@ def stream_fade(
     started_at = time.monotonic()
     for index in range(frame_count):
         frame_started_at = time.monotonic()
-        progress = index / (frame_count - 1)
-        frame = validate_frame(
-            device, blend_frames(first_frame, second_frame, progress)
-        )
+        frame = validate_frame(device, frame_at(index, frame_count))
         unique_frames.add(frame.tobytes())
         sent = send_realtime_frame(client, retry, host, frame)
         if sent < frame.nbytes:

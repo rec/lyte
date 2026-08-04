@@ -4,12 +4,17 @@ from collections.abc import Sequence
 
 import tyro
 
-from .fps_test import FpsTestConfig, run_fps_test
+from .fps_test import (
+    FpsTestConfig,
+    TemporalDitherTestConfig,
+    run_fps_test,
+    run_temporal_dither_test,
+)
 
 
 def main(args: Sequence[str] | None = None) -> int:
     return tyro.extras.subcommand_cli_from_dict(
-        {'test': test},
+        {'test': test, 'test2': test2},
         prog='lyte',
         args=args,
     )
@@ -26,7 +31,7 @@ def test(
     duration: float = 2.0,
     pause: float = 0.5,
 ) -> int:
-    """Show contrasting blend fades at 20, 45, and 60 FPS."""
+    """Show contrasting blend fades at several FPS values."""
     return run_fps_test(
         FpsTestConfig(
             host=host,
@@ -38,5 +43,30 @@ def test(
             led_count=led_count,
             duration=duration,
             pause=pause,
+        )
+    )
+
+
+def test2(
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float = 5.0,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+    led_count: int | None = None,
+    time: float = 5.0,
+) -> int:
+    """Compare direct 240 FPS fades with 60 FPS fades using 4x temporal dithering."""
+    return run_temporal_dither_test(
+        TemporalDitherTestConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+            led_count=led_count,
+            time=time,
         )
     )
