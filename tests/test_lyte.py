@@ -57,6 +57,7 @@ from lyte.fps_test import (
     blend_frames,
     dispersed_pixel_order,
     gradient_frame,
+    read_single_key,
     report_fades,
     run_black_floor_keys,
     run_fades,
@@ -354,6 +355,13 @@ class FpsTestTests(unittest.TestCase):
             [tuple(int(i) for i in f[0]) for f in sent_frames],
             [(0, 0, 0), (1, 0, 0), (1, 1, 0), (1, 1, 1), (0, 1, 1), (0, 1, 0)],
         )
+
+    def test_read_single_key_uses_unbuffered_file_descriptor(self) -> None:
+        with patch('lyte.fps_test.os.read', return_value=b'r') as read:
+            key = read_single_key(7)
+
+        self.assertEqual(key, 'r')
+        read.assert_called_once_with(7, 1)
 
     def test_temporal_dither_comparison_runs_direct_then_dithered(self) -> None:
         device = Device(led_count=2)
