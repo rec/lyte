@@ -10,7 +10,7 @@ import time
 
 from pydantic import BaseModel
 
-from ..errors import AuthenticationError, ProtocolError
+from ..errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
 from .authentication import make_challenge_response
 
 AUTH_HEADER = 'X-Auth-Token'
@@ -88,6 +88,30 @@ class LyteClient(BaseModel):
     ) -> LyteResponse:
         return self.request('POST', path, body=body, authenticated=authenticated)
 
+    def post_bytes(
+        self,
+        path: str,
+        payload: bytes,
+        content_type: str,
+        authenticated: bool = True,
+    ) -> LyteResponse:
+        return self.request(
+            'POST',
+            path,
+            payload=payload,
+            content_type=content_type,
+            authenticated=authenticated,
+        )
+
+    def delete(self, path: str, authenticated: bool = True) -> LyteResponse:
+        return self.request('DELETE', path, authenticated=authenticated)
+
+    def get_firmware_version(self, authenticated: bool = False) -> LyteResponse:
+        return self.get('fw/version', authenticated=authenticated)
+
+    def get_status(self, authenticated: bool = False) -> LyteResponse:
+        return self.get('status', authenticated=authenticated)
+
     def set_realtime_mode(self) -> LyteResponse:
         return self.post('led/mode', {'mode': 'rt'})
 
@@ -99,14 +123,18 @@ class LyteClient(BaseModel):
         method: str,
         path: str,
         body: dict[str, object] | None = None,
+        payload: bytes | None = None,
+        content_type: str = 'application/json',
         authenticated: bool = True,
     ) -> LyteResponse:
-        payload = None
-        headers = {'Content-Type': 'application/json'}
+        if body is not None and payload is not None:
+            raise ValueError('request cannot use both JSON body and binary payload')
+        headers = {'Content-Type': content_type}
         if authenticated:
             headers[AUTH_HEADER] = self._auth_token()
         if body is not None:
             payload = json.dumps(body).encode()
+        if payload is not None:
             headers['Content-Length'] = str(len(payload))
 
         connection = http.client.HTTPConnection(self.host, 80, timeout=self.timeout)
@@ -129,6 +157,9 @@ class LyteClient(BaseModel):
         if response.status == 401:
             self.token = None
             raise AuthenticationError('Device rejected the authentication token')
+        if response.status == 404:
+            text = raw.decode(errors='replace')
+            raise UnsupportedEndpointError(path, text)
         if response.status < 200 or response.status >= 300:
             text = raw.decode(errors='replace')
             raise ProtocolError(f'HTTP {response.status} from {self.host}: {text}')

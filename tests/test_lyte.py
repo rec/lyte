@@ -49,7 +49,7 @@ from lyte.animations.hamiltonian import (
     parse_order,
 )
 from lyte.animations.random_walk import RandomWalk, perturb
-from lyte.errors import DiscoveryError, ProtocolError
+from lyte.errors import DiscoveryError, ProtocolError, UnsupportedEndpointError
 from lyte.fps_test import (
     DOWN_KEY,
     FPS_VALUES,
@@ -88,7 +88,11 @@ from lyte.network.frame import (
     frame_payload,
     send_frame_v3,
 )
-from lyte.network.session import led_count_from_gestalt, set_mac_from_gestalt
+from lyte.network.session import (
+    led_count_from_gestalt,
+    set_mac_from_gestalt,
+    xled_request_label,
+)
 from lyte.preview import Layout, animation_document, render_animation_html
 from lyte.retry import RetryConfig, retry_call
 from lyte.runtime import read_device_led_count, send_authenticated_frame
@@ -734,12 +738,160 @@ class FpsTestTests(unittest.TestCase):
         self.assertIn('1 short UDP sends', errors.getvalue())
 
 
+class FakeHttpResponse:
+    def __init__(self, status: int, raw: bytes) -> None:
+        self.status = status
+        self.raw = raw
+
+    def read(self) -> bytes:
+        return self.raw
+
+
+class FakeHttpConnection:
+    response = FakeHttpResponse(200, b'{}')
+    requests: list[
+        tuple[str, int, float, str, str, bytes | None, dict[str, str] | None]
+    ] = []
+
+    def __init__(self, host: str, port: int, timeout: float) -> None:
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+
+    def request(
+        self,
+        method: str,
+        url: str,
+        body: bytes | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        self.requests.append(
+            (self.host, self.port, self.timeout, method, url, body, headers)
+        )
+
+    def getresponse(self) -> FakeHttpResponse:
+        return self.response
+
+    def close(self) -> None:
+        return None
+
+
 class ClientTests(unittest.TestCase):
     def test_constructs_with_keyword_arguments(self) -> None:
         client = LyteClient(host='192.168.1.23', timeout=1.5)
 
         self.assertEqual(client.host, '192.168.1.23')
         self.assertEqual(client.timeout, 1.5)
+
+    def test_delete_uses_delete_request(self) -> None:
+        FakeHttpConnection.response = FakeHttpResponse(200, b'{"code":1000}')
+        FakeHttpConnection.requests = []
+
+        with patch(
+            'lyte.network.client.http.client.HTTPConnection', FakeHttpConnection
+        ):
+            response = LyteClient(host='192.168.1.23').delete(
+                'movies', authenticated=False
+            )
+
+        self.assertEqual(response.data, {'code': 1000})
+        self.assertEqual(
+            FakeHttpConnection.requests,
+            [
+                (
+                    '192.168.1.23',
+                    80,
+                    5.0,
+                    'DELETE',
+                    '/xled/v1/movies',
+                    None,
+                    {'Content-Type': 'application/json'},
+                )
+            ],
+        )
+
+    def test_post_bytes_sends_binary_payload(self) -> None:
+        FakeHttpConnection.response = FakeHttpResponse(200, b'{"code":1000}')
+        FakeHttpConnection.requests = []
+
+        with patch(
+            'lyte.network.client.http.client.HTTPConnection', FakeHttpConnection
+        ):
+            response = LyteClient(host='192.168.1.23').post_bytes(
+                'movies/full',
+                b'\x01\x02\x03',
+                'application/octet-stream',
+                authenticated=False,
+            )
+
+        self.assertEqual(response.data, {'code': 1000})
+        self.assertEqual(
+            FakeHttpConnection.requests,
+            [
+                (
+                    '192.168.1.23',
+                    80,
+                    5.0,
+                    'POST',
+                    '/xled/v1/movies/full',
+                    b'\x01\x02\x03',
+                    {
+                        'Content-Type': 'application/octet-stream',
+                        'Content-Length': '3',
+                    },
+                )
+            ],
+        )
+
+    def test_request_rejects_json_body_and_binary_payload(self) -> None:
+        client = LyteClient(host='192.168.1.23')
+
+        with self.assertRaisesRegex(ValueError, 'both JSON body and binary payload'):
+            client.request(
+                'POST',
+                'movies/full',
+                body={'code': 1000},
+                payload=b'\x00',
+                authenticated=False,
+            )
+
+    def test_404_raises_unsupported_endpoint_error(self) -> None:
+        FakeHttpConnection.response = FakeHttpResponse(404, b'{"code":1101}')
+        FakeHttpConnection.requests = []
+
+        with (
+            patch('lyte.network.client.http.client.HTTPConnection', FakeHttpConnection),
+            self.assertRaises(UnsupportedEndpointError) as raised,
+        ):
+            LyteClient(host='192.168.1.23').get('missing', authenticated=False)
+
+        self.assertEqual(raised.exception.path, 'missing')
+        self.assertEqual(raised.exception.text, '{"code":1101}')
+
+    def test_firmware_version_and_status_default_to_unauthenticated_gets(self) -> None:
+        calls = []
+
+        def get(
+            self: LyteClient,
+            path: str,
+            authenticated: bool = True,
+        ) -> LyteResponse:
+            calls.append((self.host, path, authenticated))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        client = LyteClient(host='192.168.1.23')
+
+        with patch.object(LyteClient, 'get', get):
+            client.get_firmware_version()
+            client.get_status()
+
+        self.assertEqual(
+            calls,
+            [
+                ('192.168.1.23', 'fw/version', False),
+                ('192.168.1.23', 'status', False),
+            ],
+        )
 
     def test_set_off_mode_uses_led_mode_off(self) -> None:
         calls = []
@@ -766,6 +918,12 @@ class ClientTests(unittest.TestCase):
 
 
 class SessionTests(unittest.TestCase):
+    def test_xled_request_label_includes_method_path_and_host(self) -> None:
+        self.assertEqual(
+            xled_request_label('get', 'fw/version', '192.168.1.23'),
+            'GET /xled/v1/fw/version on 192.168.1.23',
+        )
+
     def test_set_mac_from_gestalt_updates_client(self) -> None:
         client = LyteClient(host='192.168.1.23')
 

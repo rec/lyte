@@ -11,6 +11,10 @@ from .client import AuthToken, LyteClient, LyteResponse
 from .frame import send_frame_v3
 
 
+def xled_request_label(method: str, path: str, host: str) -> str:
+    return f'{method.upper()} /xled/v1/{path} on {host}'
+
+
 def read_gestalt(
     client: LyteClient,
     retry: RetryConfig,

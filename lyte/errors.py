@@ -13,5 +13,14 @@ class ProtocolError(LyteError):
     """The device returned a response that does not match the protocol."""
 
 
+class UnsupportedEndpointError(ProtocolError):
+    """The device does not support an XLED endpoint."""
+
+    def __init__(self, path: str, text: str) -> None:
+        self.path = path
+        self.text = text
+        super().__init__(f'XLED endpoint {path!r} is not supported: {text}')
+
+
 class AuthenticationError(LyteError):
     """The authentication handshake failed."""
