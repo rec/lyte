@@ -35,6 +35,7 @@ from .errors import (
     DiscoveryError,
     LyteError,
     ProtocolError,
+    UnsupportedEndpointError,
 )
 from .network.client import LyteClient
 from .network.discovery import DiscoveredDevice, discover
@@ -46,6 +47,7 @@ from .network.session import (
     set_mac_from_gestalt,
     set_off_mode_with_retry,
     set_realtime_mode_with_retry,
+    xled_request_label,
 )
 from .preview import Layout, animation_document, render_animation_html
 from .retry import RetryConfig, retry_call
@@ -98,5 +100,7 @@ __all__ = [
     'set_off_mode_with_retry',
     'set_mac_from_gestalt',
     'set_realtime_mode_with_retry',
+    'UnsupportedEndpointError',
     'validate_frame',
+    'xled_request_label',
 ]
