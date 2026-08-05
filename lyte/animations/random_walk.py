@@ -69,7 +69,7 @@ class RandomWalk(Animation[RandomWalkState]):
         )
         return result
 
-    def render(self, device: Device, state: RandomWalkState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: RandomWalkState) -> NDArray[np.float32]:
         self._advance_cache(device, state)
         fraction = state.total_pixels % 1
         colors = [

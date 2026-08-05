@@ -142,7 +142,7 @@ def render(
     device: Device,
     state: State,
 ) -> NDArray[np.uint8]:
-    return animation.render(device, state)
+    return byte_light_frame_from_float(animation.render(device, state))
 
 
 def initial_state(animation: Animation, led_count: int) -> tuple[Device, State]:
@@ -3055,11 +3055,13 @@ class AnimateScriptTests(unittest.TestCase):
         self.assertEqual(self.script.random_overlap_duration(30), 15)
 
     def test_blend_frames_crossfades_rgb_values(self) -> None:
-        current_frame = np.array([[0, 100, 200]], dtype=np.uint8)
-        next_frame = np.array([[100, 200, 0]], dtype=np.uint8)
+        current_frame = np.array([[0.0, 100 / 255, 200 / 255]], dtype=np.float32)
+        next_frame = np.array([[100 / 255, 200 / 255, 0.0]], dtype=np.float32)
 
-        npt.assert_array_equal(
-            self.script.blend_frames(current_frame, next_frame, 0.25),
+        npt.assert_allclose(
+            byte_light_frame_from_float(
+                self.script.blend_frames(current_frame, next_frame, 0.25)
+            ),
             np.array([[25, 125, 150]], dtype=np.uint8),
         )
 
@@ -3068,10 +3070,10 @@ class AnimateScriptTests(unittest.TestCase):
             color: tuple[int, int, int]
             calls: int = 0
 
-            def render(self, device: Device, state: State) -> NDArray[np.uint8]:
+            def render(self, device: Device, state: State) -> NDArray[np.float32]:
                 state.frame += 1
                 object.__setattr__(self, 'calls', self.calls + 1)
-                return np.array([self.color], dtype=np.uint8)
+                return np.array([self.color], dtype=np.float32) / 255
 
         current_animation = ConstantAnimation(color=(0, 0, 0))
         next_animation = ConstantAnimation(color=(100, 200, 250))
@@ -3219,7 +3221,7 @@ class AnimateScriptTests(unittest.TestCase):
 
     def test_animation_turns_off_device_after_exception(self) -> None:
         class BrokenAnimation(Animation):
-            def render(self, device: Device, state: State) -> NDArray[np.uint8]:
+            def render(self, device: Device, state: State) -> NDArray[np.float32]:
                 raise RuntimeError('boom')
 
         with (

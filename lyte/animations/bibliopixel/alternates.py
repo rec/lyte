@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State
+from ...animation import Animation, Device, State, float_light_frame_from_byte
 from ..colors import RGB
 from ..validators import resolve_end, validate_rgb
 
@@ -29,11 +29,11 @@ class Alternates(Animation[AlternatesState]):
             raise ValueError('max_led must not be negative')
         return AlternatesState()
 
-    def render(self, device: Device, state: AlternatesState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: AlternatesState) -> NDArray[np.float32]:
         frame = np.zeros((device.led_count, 3), dtype=np.uint8)
         for i in range(resolve_end(device.led_count, self.max_led) + 1):
             odd = bool(i % 2)
             frame[i] = self.color1 if odd == state.positive else self.color2
         state.positive = not state.positive
         state.frame += 1
-        return frame
+        return float_light_frame_from_byte(frame)

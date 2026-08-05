@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State
+from ...animation import Animation, Device, State, float_light_frame_from_byte
 from ..colors import RGB
 from ..validators import validate_palette
 
@@ -29,7 +29,7 @@ class SaberBlade(Animation[SaberBladeState]):
     def initial_state(self, device: Device) -> SaberBladeState:
         return SaberBladeState(speed=self.speed)
 
-    def render(self, device: Device, state: SaberBladeState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: SaberBladeState) -> NDArray[np.float32]:
         frame = np.zeros((device.led_count, 3), dtype=np.uint8)
         if state.position > 0:
             frame[: min(state.position, device.led_count)] = self.colors[
@@ -43,4 +43,4 @@ class SaberBlade(Animation[SaberBladeState]):
             state.color_index += 1
             state.speed *= -1
         state.frame += 1
-        return frame
+        return float_light_frame_from_byte(frame)

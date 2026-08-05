@@ -9,7 +9,13 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from .animation import Animation, Device, State, validate_frame
+from .animation import (
+    Animation,
+    Device,
+    State,
+    byte_light_frame_from_float,
+    validate_frame,
+)
 
 
 class Layout(BaseModel):
@@ -112,7 +118,9 @@ def encoded_frames(
     frame_count = max(1, round(fps * duration))
     frames = []
     for _ in range(frame_count):
-        frame = validate_frame(device, animation.render(device, state))
+        frame = byte_light_frame_from_float(
+            validate_frame(device, animation.render(device, state))
+        )
         frames.append(base64.b64encode(memoryview(frame).cast('B')).decode('ascii'))
     return frames
 

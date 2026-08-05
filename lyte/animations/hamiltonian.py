@@ -110,7 +110,7 @@ class Hamiltonian(Animation[HamiltonianState]):
             cache = [to_float_rgb(counter.next_color()) for _ in cache]
         return HamiltonianState(counter=counter, cache=cache)
 
-    def render(self, device: Device, state: HamiltonianState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: HamiltonianState) -> NDArray[np.float32]:
         self._advance_cache(device, state)
         fraction = state.total_pixels % 1
         colors = [
@@ -167,9 +167,9 @@ def to_float_rgb(color: RGB) -> FloatRGB:
     return float(color[0]), float(color[1]), float(color[2])
 
 
-def frame_array(colors: list[FloatRGB]) -> NDArray[np.uint8]:
-    frame = np.empty((len(colors), 3), dtype=np.uint8)
+def frame_array(colors: list[FloatRGB]) -> NDArray[np.float32]:
+    frame = np.empty((len(colors), 3), dtype=np.float32)
     for i, color in enumerate(colors):
         for channel, component in enumerate(color):
-            frame[i, channel] = max(0, min(255, round(component)))
+            frame[i, channel] = max(0.0, min(1.0, component / 255))
     return frame
