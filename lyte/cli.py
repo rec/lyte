@@ -24,14 +24,18 @@ from .xled import (
     LedConfigAction,
     LedMode,
     ModeAction,
+    MovieAction,
     OutputControlAction,
+    PlaylistAction,
     TimerAction,
     run_color_control,
     run_effect_control,
     run_layout_control,
     run_led_config_control,
     run_mode_control,
+    run_movie_control,
     run_output_control,
+    run_playlist_control,
     run_timer_control,
 )
 
@@ -47,6 +51,8 @@ def main(args: Sequence[str] | None = None) -> int:
             'layout': layout,
             'led-config': led_config,
             'mode': mode,
+            'movie': movie,
+            'playlist': playlist,
             'saturation': saturation,
             'test': test,
             'test2': test2,
@@ -386,4 +392,50 @@ def timer(
         time_on,
         time_off,
         time_now,
+    )
+
+
+def movie(
+    action: Annotated[MovieAction, tyro.conf.Positional] = 'list',
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Read Twinkly movie config, list, or current movie, then turn the lights off."""
+    return run_movie_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        action,
+    )
+
+
+def playlist(
+    action: Annotated[PlaylistAction, tyro.conf.Positional] = 'list',
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Read Twinkly playlist or current playlist entry, then turn the lights off."""
+    return run_playlist_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        action,
     )

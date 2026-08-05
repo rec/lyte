@@ -115,7 +115,9 @@ from lyte.xled import (
     run_layout_control,
     run_led_config_control,
     run_mode_control,
+    run_movie_control,
     run_output_control,
+    run_playlist_control,
     run_timer_control,
     write_output_control,
 )
@@ -465,6 +467,28 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(time_on, 3600)
         self.assertEqual(time_off, 7200)
         self.assertEqual(time_now, 1800)
+
+    def test_cli_movie_command_dispatches_movie_control(self) -> None:
+        with patch.object(
+            cli, 'run_movie_control', return_value=0
+        ) as run_movie_control:
+            result = cli.main(['movie', 'current'])
+
+        self.assertEqual(result, 0)
+        config, action = run_movie_control.call_args.args
+        self.assertIsNone(config.host)
+        self.assertEqual(action, 'current')
+
+    def test_cli_playlist_command_dispatches_playlist_control(self) -> None:
+        with patch.object(
+            cli, 'run_playlist_control', return_value=0
+        ) as run_playlist_control:
+            result = cli.main(['playlist', 'current'])
+
+        self.assertEqual(result, 0)
+        config, action = run_playlist_control.call_args.args
+        self.assertIsNone(config.host)
+        self.assertEqual(action, 'current')
 
     def test_discover_host_retries_until_a_device_replies(self) -> None:
         device = DiscoveredDevice(ip_address='192.168.1.23', device_id='twinkly')
@@ -1239,6 +1263,11 @@ class ClientTests(unittest.TestCase):
             client.set_led_config({'strings': []})
             client.get_timer()
             client.set_timer({'time_now': 1800, 'time_on': 3600, 'time_off': 7200})
+            client.get_movie_config()
+            client.get_movies()
+            client.get_current_movie()
+            client.get_playlist()
+            client.get_current_playlist_entry()
 
         self.assertEqual(
             calls,
@@ -1256,6 +1285,11 @@ class ClientTests(unittest.TestCase):
                     {'time_now': 1800, 'time_on': 3600, 'time_off': 7200},
                     True,
                 ),
+                ('GET', '192.168.1.23', 'led/movie/config', True),
+                ('GET', '192.168.1.23', 'movies', True),
+                ('GET', '192.168.1.23', 'led/movies/current', True),
+                ('GET', '192.168.1.23', 'playlist', True),
+                ('GET', '192.168.1.23', 'playlist/current', True),
             ],
         )
 
@@ -1400,6 +1434,26 @@ class PackageDiagnosticTests(unittest.TestCase):
                 data={'code': 1000, 'time_now': 1800, 'time_on': -1, 'time_off': -1},
             )
 
+        def get_movie_config(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'movie-config'))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        def get_movies(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'movies'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'entries': []})
+
+        def get_current_movie(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'current-movie'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'id': 0})
+
+        def get_playlist(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'playlist'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'entries': []})
+
+        def get_current_playlist_entry(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'current-playlist-entry'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'id': 0})
+
         def get_led_color(self: LyteClient) -> LyteResponse:
             calls.append(('GET', 'color'))
             return LyteResponse(http_status=200, data={'code': 1000, 'red': 1})
@@ -1437,6 +1491,15 @@ class PackageDiagnosticTests(unittest.TestCase):
             patch.object(LyteClient, 'get_led_config', get_led_config),
             patch.object(LyteClient, 'get_led_mode', get_led_mode),
             patch.object(LyteClient, 'get_timer', get_timer),
+            patch.object(LyteClient, 'get_movie_config', get_movie_config),
+            patch.object(LyteClient, 'get_movies', get_movies),
+            patch.object(LyteClient, 'get_current_movie', get_current_movie),
+            patch.object(LyteClient, 'get_playlist', get_playlist),
+            patch.object(
+                LyteClient,
+                'get_current_playlist_entry',
+                get_current_playlist_entry,
+            ),
             patch.object(LyteClient, 'get_led_color', get_led_color),
             patch.object(LyteClient, 'get_effects', get_effects),
             patch.object(LyteClient, 'get_current_effect', get_current_effect),
@@ -1458,6 +1521,11 @@ class PackageDiagnosticTests(unittest.TestCase):
                 'led-config',
                 'mode',
                 'timer',
+                'movie-config',
+                'movies',
+                'current-movie',
+                'playlist',
+                'current-playlist-entry',
                 'color',
                 'effects',
                 'current-effect',
@@ -1475,6 +1543,11 @@ class PackageDiagnosticTests(unittest.TestCase):
                 ('GET', 'led-config'),
                 ('GET', 'mode'),
                 ('GET', 'timer'),
+                ('GET', 'movie-config'),
+                ('GET', 'movies'),
+                ('GET', 'current-movie'),
+                ('GET', 'playlist'),
+                ('GET', 'current-playlist-entry'),
                 ('GET', 'color'),
                 ('GET', 'effects'),
                 ('GET', 'current-effect'),
@@ -1879,6 +1952,52 @@ class XledControlTests(unittest.TestCase):
             {'time_on': 3600, 'time_off': 7200, 'time_now': 1800}
         )
         turn_off.assert_called_once()
+
+    def test_run_movie_control_reads_current_movie_then_turns_off(self) -> None:
+        output = io.StringIO()
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch.object(
+                LyteClient,
+                'get_current_movie',
+                return_value=LyteResponse(http_status=200, data={'id': 0}),
+            ) as get_current_movie,
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', output),
+        ):
+            result = run_movie_control(DiagnosticConfig(), 'current')
+
+        self.assertEqual(result, 0)
+        get_current_movie.assert_called_once()
+        turn_off.assert_called_once()
+        self.assertIn("[movie] current {'id': 0}", output.getvalue())
+
+    def test_run_playlist_control_reads_playlist_then_turns_off(self) -> None:
+        output = io.StringIO()
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch.object(
+                LyteClient,
+                'get_playlist',
+                return_value=LyteResponse(http_status=200, data={'entries': []}),
+            ) as get_playlist,
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', output),
+        ):
+            result = run_playlist_control(DiagnosticConfig(), 'list')
+
+        self.assertEqual(result, 0)
+        get_playlist.assert_called_once()
+        turn_off.assert_called_once()
+        self.assertIn("[playlist] list {'entries': []}", output.getvalue())
 
 
 class RuntimeTests(unittest.TestCase):

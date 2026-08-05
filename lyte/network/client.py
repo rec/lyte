@@ -175,6 +175,21 @@ class LyteClient(BaseModel):
     def set_timer(self, body: dict[str, object]) -> LyteResponse:
         return self.post('timer', body)
 
+    def get_movie_config(self) -> LyteResponse:
+        return self.get('led/movie/config')
+
+    def get_movies(self) -> LyteResponse:
+        return self.get('movies')
+
+    def get_current_movie(self) -> LyteResponse:
+        return self.get('led/movies/current')
+
+    def get_playlist(self) -> LyteResponse:
+        return self.get('playlist')
+
+    def get_current_playlist_entry(self) -> LyteResponse:
+        return self.get('playlist/current')
+
     def set_realtime_mode(self) -> LyteResponse:
         return self.post('led/mode', {'mode': 'rt'})
 
