@@ -18,7 +18,16 @@ from numpy import testing as npt
 from numpy.typing import NDArray
 
 from lyte import cli
-from lyte.animation import Animation, Device, State
+from lyte.animation import (
+    Animation,
+    Device,
+    State,
+    byte_light_frame_from_float,
+    float_color_from_rgb,
+    rgb_from_float_color,
+    solid_float_light_frame,
+    validate_float_light_frame,
+)
 from lyte.animations.bibliopixel import (
     Alternates,
     ColorChase,
@@ -176,6 +185,55 @@ class RealtimeTests(unittest.TestCase):
             solid_rgb_frame(3, 230, 85, 0),
             np.array([[230, 85, 0], [230, 85, 0], [230, 85, 0]], dtype=np.uint8),
         )
+
+    def test_solid_float_light_frame(self) -> None:
+        npt.assert_array_equal(
+            solid_float_light_frame(2, (1.0, 0.5, 0.0, 0.25)),
+            np.array(
+                [[1.0, 0.5, 0.0, 0.25], [1.0, 0.5, 0.0, 0.25]],
+                dtype=np.float32,
+            ),
+        )
+
+    def test_validate_float_light_frame_checks_shape_dtype_and_finiteness(
+        self,
+    ) -> None:
+        frame = np.zeros((2, 3), dtype=np.float32)
+
+        self.assertIs(validate_float_light_frame(2, 3, frame), frame)
+        with self.assertRaisesRegex(ValueError, 'dtype float32'):
+            validate_float_light_frame(2, 3, frame.astype(np.float64))
+        with self.assertRaisesRegex(ValueError, 'shape light_count x light channels'):
+            validate_float_light_frame(2, 4, frame)
+        with self.assertRaisesRegex(ValueError, 'finite'):
+            validate_float_light_frame(
+                1,
+                3,
+                np.array([[np.nan, 0.0, 0.0]], dtype=np.float32),
+            )
+        with self.assertRaisesRegex(ValueError, 'C-contiguous'):
+            validate_float_light_frame(2, 3, np.zeros((3, 2), dtype=np.float32).T)
+
+    def test_byte_light_frame_from_float_clips_rounds_and_contiguates(self) -> None:
+        frame = np.array(
+            [
+                [-0.25, 0.0, 0.5],
+                [1.0, 1.25, 128 / 255],
+            ],
+            dtype=np.float32,
+        ).T
+
+        encoded = byte_light_frame_from_float(frame)
+
+        npt.assert_array_equal(
+            encoded,
+            np.array([[0, 255], [0, 255], [128, 128]], dtype=np.uint8),
+        )
+        self.assertTrue(encoded.flags.c_contiguous)
+
+    def test_float_rgb_helpers_convert_at_byte_boundary(self) -> None:
+        self.assertEqual(float_color_from_rgb((255, 128, 0)), (1.0, 128 / 255, 0.0))
+        self.assertEqual(rgb_from_float_color((1.25, 0.5, -0.25)), (255, 128, 0))
 
     def test_generation_2_v3_packet(self) -> None:
         frame = solid_rgb_frame(250, 230, 85, 0)
