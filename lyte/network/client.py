@@ -154,6 +154,21 @@ class LyteClient(BaseModel):
     def set_current_effect(self, body: dict[str, object]) -> LyteResponse:
         return self.post('led/effects/current', body)
 
+    def get_layout_full(self) -> LyteResponse:
+        return self.get('led/layout/full')
+
+    def set_layout_full(self, body: dict[str, object]) -> LyteResponse:
+        return self.post('led/layout/full', body)
+
+    def delete_layout_full(self) -> LyteResponse:
+        return self.delete('led/layout/full')
+
+    def get_led_config(self) -> LyteResponse:
+        return self.get('led/config')
+
+    def set_led_config(self, body: dict[str, object]) -> LyteResponse:
+        return self.post('led/config', body)
+
     def set_realtime_mode(self) -> LyteResponse:
         return self.post('led/mode', {'mode': 'rt'})
 
