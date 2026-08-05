@@ -18,6 +18,12 @@ from .fps_test import (
     run_temporal_dither_test,
     run_verify_test,
 )
+from .preview_command import (
+    PreviewAnimationName,
+    PreviewConfig,
+    print_preview_patterns,
+    run_preview,
+)
 from .xled import (
     ColorAction,
     EffectAction,
@@ -67,6 +73,7 @@ def main(args: Sequence[str] | None = None) -> int:
             'music': music,
             'network': network,
             'playlist': playlist,
+            'preview': preview,
             'saturation': saturation,
             'test': test,
             'test2': test2,
@@ -194,6 +201,102 @@ def test(
             led_count=led_count,
             duration=duration,
             pause=pause,
+        )
+    )
+
+
+def preview(
+    animation: Annotated[PreviewAnimationName | None, tyro.conf.Positional] = None,
+    output: Annotated[Path | None, tyro.conf.Positional] = None,
+    open: bool = False,
+    name: str | None = None,
+    width: int = 16,
+    height: int = 16,
+    spacing: float = 1.0,
+    led_size: float = 1.0,
+    fps: float = 20,
+    duration: float = 10,
+    speed: float = 25,
+    pre_fill: bool = False,
+    center_in: bool = False,
+    individual_pixel: bool = False,
+    step: int = 1,
+    start: int = 0,
+    end: int | None = None,
+    count: int = 1,
+    tail: int = 2,
+    chance: int = 30,
+    min_speed: int = 1,
+    max_speed: int = 5,
+    total_pixels: int = 1,
+    fade_delay: int = 1,
+    density: int = 20,
+    max_bright: int = 255,
+    cycles: int = 2,
+    level_step: int = 5,
+    rainbow_inc: int = 4,
+    max_led: int | None = None,
+    reverse: bool = False,
+    n: int = 32,
+    order: str = 'rgb',
+    inverted: str = '',
+    variance: float = 1,
+    bounds: tuple[float, float] = (0, 180),
+    color: tuple[int, int, int] | None = None,
+    color2: tuple[int, int, int] | None = None,
+    colors: tuple[int, ...] | None = None,
+    period: float = 0,
+    seed: int | None = None,
+) -> int:
+    """Render a selected animation to a standalone HTML preview."""
+    if animation is None and output is None:
+        print_preview_patterns()
+        return 0
+    if animation is None or output is None:
+        raise SystemExit('preview requires both animation and output')
+    return run_preview(
+        PreviewConfig(
+            animation=animation,
+            output=output,
+            open=open,
+            name=name,
+            width=width,
+            height=height,
+            spacing=spacing,
+            led_size=led_size,
+            fps=fps,
+            duration=duration,
+            speed=speed,
+            pre_fill=pre_fill,
+            center_in=center_in,
+            individual_pixel=individual_pixel,
+            step=step,
+            start=start,
+            end=end,
+            count=count,
+            tail=tail,
+            chance=chance,
+            min_speed=min_speed,
+            max_speed=max_speed,
+            total_pixels=total_pixels,
+            fade_delay=fade_delay,
+            density=density,
+            max_bright=max_bright,
+            cycles=cycles,
+            level_step=level_step,
+            rainbow_inc=rainbow_inc,
+            max_led=max_led,
+            reverse=reverse,
+            n=n,
+            order=order,
+            inverted=inverted,
+            variance=variance,
+            bounds=bounds,
+            color=color,
+            color2=color2,
+            colors=colors,
+            period=period,
+            seed=seed,
         )
     )
 
