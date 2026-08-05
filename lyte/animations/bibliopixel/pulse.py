@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State
+from ...animation import Animation, Device, State, float_light_frame_from_byte
 from ..colors import RGB, scale_color
 from ..validators import bounded_tail, validate_palette
 
@@ -44,7 +44,7 @@ class Pulse(Animation[PulseState]):
             random=random.Random(self.seed),
         )
 
-    def render(self, device: Device, state: PulseState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: PulseState) -> NDArray[np.float32]:
         frame = np.zeros((device.led_count, 3), dtype=np.uint8)
         if state.speed == 0 and state.random.randrange(0, 100) <= self.chance:
             state.color = state.random.choice(self.colors)
@@ -62,4 +62,4 @@ class Pulse(Animation[PulseState]):
             else:
                 state.position += state.speed
         state.frame += 1
-        return frame
+        return float_light_frame_from_byte(frame)

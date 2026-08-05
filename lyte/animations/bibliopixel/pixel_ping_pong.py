@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State
+from ...animation import Animation, Device, State, float_light_frame_from_byte
 from ..colors import RGB
 from ..validators import resolve_end, validate_rgb
 
@@ -35,7 +35,7 @@ class PixelPingPong(Animation[PixelPingPongState]):
             frame_buffer=np.zeros((device.led_count, 3), dtype=np.uint8)
         )
 
-    def render(self, device: Device, state: PixelPingPongState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: PixelPingPongState) -> NDArray[np.float32]:
         decrement = np.array(self.color, dtype=np.float64) / self.fade_delay
         faded = state.frame_buffer.astype(np.float64) - decrement
         state.frame_buffer[:] = np.maximum(faded, 0).astype(np.uint8)
@@ -49,4 +49,4 @@ class PixelPingPong(Animation[PixelPingPongState]):
             state.current = 0
             state.positive = True
         state.frame += 1
-        return state.frame_buffer
+        return float_light_frame_from_byte(state.frame_buffer)

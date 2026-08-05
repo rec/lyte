@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State
+from ...animation import Animation, Device, State, float_light_frame_from_byte
 from ..colors import RGB
 from ..validators import (
     advance_position,
@@ -42,7 +42,7 @@ class ColorChase(Animation[ColorChaseState]):
         )
         return ColorChaseState()
 
-    def render(self, device: Device, state: ColorChaseState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: ColorChaseState) -> NDArray[np.float32]:
         frame = np.zeros((device.led_count, 3), dtype=np.uint8)
         end = resolve_end(device.led_count, self.end)
         position = self.start + state.position
@@ -52,4 +52,4 @@ class ColorChase(Animation[ColorChaseState]):
                 frame[index] = self.color
         state.position = advance_position(self.start, end, state.position, self.step)
         state.frame += 1
-        return frame
+        return float_light_frame_from_byte(frame)

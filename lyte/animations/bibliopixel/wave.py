@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State
+from ...animation import Animation, Device, State, float_light_frame_from_byte
 from ..colors import RGB, wave_color
 from ..validators import (
     resolve_end,
@@ -43,7 +43,7 @@ class Wave(Animation[WaveState]):
         )
         return WaveState()
 
-    def render(self, device: Device, state: WaveState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: WaveState) -> NDArray[np.float32]:
         frame = np.zeros((device.led_count, 3), dtype=np.uint8)
         size = span_size(device.led_count, self.start, self.end)
         for i in range(size):
@@ -59,4 +59,4 @@ class Wave(Animation[WaveState]):
         else:
             state.position += 1
         state.frame += 1
-        return frame
+        return float_light_frame_from_byte(frame)

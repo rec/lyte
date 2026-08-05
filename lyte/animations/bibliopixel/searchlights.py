@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State
+from ...animation import Animation, Device, State, float_light_frame_from_byte
 from ..colors import RGB, blend_color, scale_color
 from ..validators import (
     bounded_tail,
@@ -61,7 +61,7 @@ class Searchlights(Animation[SearchlightsState]):
             ),
         )
 
-    def render(self, device: Device, state: SearchlightsState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: SearchlightsState) -> NDArray[np.float32]:
         frame = np.zeros((device.led_count, 3), dtype=np.uint8)
         end = resolve_end(device.led_count, self.end)
         fade = 256 / state.tail
@@ -80,4 +80,4 @@ class Searchlights(Animation[SearchlightsState]):
             if state.random.random() > i * 0.05:
                 state.steps[i] += state.directions[i]
         state.frame += 1
-        return frame
+        return float_light_frame_from_byte(frame)

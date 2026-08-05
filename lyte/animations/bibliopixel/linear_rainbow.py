@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State
+from ...animation import Animation, Device, State, float_light_frame_from_byte
 from ..colors import wheel_color
 from ..validators import resolve_end, validate_step
 
@@ -30,7 +30,7 @@ class LinearRainbow(Animation[LinearRainbowState]):
             frame_buffer=np.zeros((device.led_count, 3), dtype=np.uint8)
         )
 
-    def render(self, device: Device, state: LinearRainbowState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: LinearRainbowState) -> NDArray[np.float32]:
         max_led = resolve_end(device.led_count, self.max_led)
         if self.individual_pixel:
             state.frame_buffer[state.current] = wheel_color(state.position)
@@ -41,4 +41,4 @@ class LinearRainbow(Animation[LinearRainbowState]):
         if state.current > max_led:
             state.current = max_led
         state.frame += 1
-        return state.frame_buffer
+        return float_light_frame_from_byte(state.frame_buffer)

@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State
+from ...animation import Animation, Device, State, float_light_frame_from_byte
 from ..colors import DEFAULT_PATTERN, RGB
 from ..validators import validate_palette
 
@@ -28,7 +28,7 @@ class ColorPattern(Animation[ColorPatternState]):
     def initial_state(self, device: Device) -> ColorPatternState:
         return ColorPatternState()
 
-    def render(self, device: Device, state: ColorPatternState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: ColorPatternState) -> NDArray[np.float32]:
         frame = np.empty((device.led_count, 3), dtype=np.uint8)
         total_width = self.width * len(self.colors)
         for i in range(device.led_count):
@@ -36,4 +36,4 @@ class ColorPattern(Animation[ColorPatternState]):
             frame[i] = self.colors[color_index]
         state.offset += -1 if self.reverse else 1
         state.frame += 1
-        return frame
+        return float_light_frame_from_byte(frame)

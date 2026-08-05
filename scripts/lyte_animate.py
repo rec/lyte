@@ -15,7 +15,15 @@ from numpy.typing import NDArray
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from lyte import Animation, Device, LyteClient, State, discover, validate_frame
+from lyte import (
+    Animation,
+    Device,
+    LyteClient,
+    State,
+    byte_light_frame_from_float,
+    discover,
+    validate_frame,
+)
 from lyte.animations.bibliopixel import (
     DEFAULT_PATTERN,
     RGB,
@@ -409,7 +417,9 @@ def run_animation_state(
 
     while stop_at is None or time.monotonic() < stop_at:
         started_at = time.monotonic()
-        frame = validate_frame(device, animation.render(device, state))
+        frame = byte_light_frame_from_float(
+            validate_frame(device, animation.render(device, state))
+        )
         send_realtime_frame(client, retry, host, frame)
         remaining = frame_delay - (time.monotonic() - started_at)
         if remaining > 0:
@@ -440,25 +450,21 @@ def run_crossfade(
             validate_frame(device, next_animation.render(device, next_state)),
             progress,
         )
-        send_realtime_frame(client, retry, host, frame)
+        send_realtime_frame(client, retry, host, byte_light_frame_from_float(frame))
         remaining = frame_delay - (time.monotonic() - frame_started_at)
         if remaining > 0:
             time.sleep(remaining)
 
 
 def blend_frames(
-    current_frame: NDArray[np.uint8],
-    next_frame: NDArray[np.uint8],
+    current_frame: NDArray[np.float32],
+    next_frame: NDArray[np.float32],
     progress: float,
-) -> NDArray[np.uint8]:
+) -> NDArray[np.float32]:
     if current_frame.shape != next_frame.shape:
         raise ValueError('cannot blend frames with different shapes')
     progress = max(0.0, min(1.0, progress))
-    blended = (
-        current_frame.astype(np.float32) * (1.0 - progress)
-        + next_frame.astype(np.float32) * progress
-    )
-    return np.rint(blended).astype(np.uint8)
+    return current_frame * (1.0 - progress) + next_frame * progress
 
 
 def send_realtime_frame(

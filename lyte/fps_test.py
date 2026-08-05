@@ -15,7 +15,7 @@ from typing import Literal, TextIO
 import numpy as np
 from numpy.typing import NDArray
 
-from .animation import Device, validate_frame
+from .animation import Device, validate_byte_rgb_frame
 from .animations.bibliopixel import RGB
 from .logging import log, log_error, log_status
 from .network.client import LyteClient
@@ -517,7 +517,9 @@ def stream_demo_until_vote(
     last_frame = demo.frame_at(device, 0, frame_count)
     while True:
         frame_started_at = time.monotonic()
-        last_frame = validate_frame(device, demo.frame_at(device, index, frame_count))
+        last_frame = validate_byte_rgb_frame(
+            device, demo.frame_at(device, index, frame_count)
+        )
         sent = send_realtime_frame(client, retry, host, last_frame)
         if sent < last_frame.nbytes:
             log_error(
@@ -913,7 +915,7 @@ def stream_frames(
     started_at = time.monotonic()
     for index in range(frame_count):
         frame_started_at = time.monotonic()
-        frame = validate_frame(device, frame_at(index, frame_count))
+        frame = validate_byte_rgb_frame(device, frame_at(index, frame_count))
         unique_frames.add(frame.tobytes())
         sent = send_realtime_frame(client, retry, host, frame)
         if sent < frame.nbytes:

@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State
+from ...animation import Animation, Device, State, float_light_frame_from_byte
 from ..colors import RGB, scale_color
 from ..validators import (
     resolve_end,
@@ -40,7 +40,7 @@ class ColorFade(Animation[ColorFadeState]):
         levels = list(range(30, 256, self.level_step))
         return ColorFadeState(levels=levels + list(reversed(levels[:-1])))
 
-    def render(self, device: Device, state: ColorFadeState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: ColorFadeState) -> NDArray[np.float32]:
         color_index, level_index = divmod(state.position, len(state.levels))
         color = scale_color(
             self.colors[color_index % len(self.colors)], state.levels[level_index]
@@ -49,4 +49,4 @@ class ColorFade(Animation[ColorFadeState]):
         frame[self.start : resolve_end(device.led_count, self.end) + 1] = color
         state.position += 1
         state.frame += 1
-        return frame
+        return float_light_frame_from_byte(frame)

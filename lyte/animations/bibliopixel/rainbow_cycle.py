@@ -3,17 +3,17 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 
-from ...animation import Device
+from ...animation import Device, float_light_frame_from_byte
 from ..colors import wheel_color
 from ..validators import advance_rainbow, span_size
 from .rainbow import Rainbow, RainbowState
 
 
 class RainbowCycle(Rainbow):
-    def render(self, device: Device, state: RainbowState) -> NDArray[np.uint8]:
+    def render(self, device: Device, state: RainbowState) -> NDArray[np.float32]:
         frame = np.zeros((device.led_count, 3), dtype=np.uint8)
         size = span_size(device.led_count, self.start, self.end)
         for i in range(size):
             frame[self.start + i] = wheel_color(round(i * 255 / size + state.position))
         advance_rainbow(state, self.step)
-        return frame
+        return float_light_frame_from_byte(frame)
