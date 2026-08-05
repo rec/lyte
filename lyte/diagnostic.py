@@ -10,7 +10,11 @@ from .errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
 from .fps_test import discover_host
 from .logging import log_error, log_status
 from .network.client import LyteClient
-from .network.session import set_mac_from_gestalt, xled_request_label
+from .network.session import (
+    set_mac_from_gestalt,
+    turn_off_with_retry,
+    xled_request_label,
+)
 from .retry import RetryConfig, retry_call
 from .runtime import authenticate_device
 
@@ -121,8 +125,14 @@ def run_diagnostic(config: DiagnosticConfig) -> int:
         report_endpoint(report)
 
     if authenticate_device(client, retry, xled_request_label('POST', 'login', host)):
-        for report in authenticated_reports(client, retry):
-            report_endpoint(report)
+        off_succeeded = True
+        try:
+            for report in authenticated_reports(client, retry):
+                report_endpoint(report)
+        finally:
+            off_succeeded = turn_off_with_retry(client, retry, host)
+        if not off_succeeded:
+            return 1
     else:
         log_error('[diagnostic] Authenticated endpoint probes skipped.')
         return 1
@@ -145,6 +155,22 @@ def authenticated_reports(
     retry: RetryConfig,
 ) -> tuple[XledEndpointReport, ...]:
     return (
+        read_endpoint(
+            client,
+            retry,
+            'brightness',
+            'GET',
+            'led/out/brightness',
+            lambda: client.get_brightness().data,
+        ),
+        read_endpoint(
+            client,
+            retry,
+            'saturation',
+            'GET',
+            'led/out/saturation',
+            lambda: client.get_saturation().data,
+        ),
         read_endpoint(
             client,
             retry,

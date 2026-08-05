@@ -121,6 +121,18 @@ class LyteClient(BaseModel):
     def echo(self, body: dict[str, object]) -> LyteResponse:
         return self.post('echo', body)
 
+    def get_brightness(self) -> LyteResponse:
+        return self.get('led/out/brightness')
+
+    def set_brightness(self, body: dict[str, object]) -> LyteResponse:
+        return self.post('led/out/brightness', body)
+
+    def get_saturation(self) -> LyteResponse:
+        return self.get('led/out/saturation')
+
+    def set_saturation(self, body: dict[str, object]) -> LyteResponse:
+        return self.post('led/out/saturation', body)
+
     def set_realtime_mode(self) -> LyteResponse:
         return self.post('led/mode', {'mode': 'rt'})
 

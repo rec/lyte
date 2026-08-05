@@ -84,6 +84,17 @@ def set_off_mode_with_retry(
     )
 
 
+def turn_off_with_retry(client: LyteClient, retry: RetryConfig, host: str) -> bool:
+    return (
+        set_off_mode_with_retry(
+            client,
+            retry,
+            xled_request_label('POST', 'led/mode', host),
+        )
+        is not None
+    )
+
+
 def send_frame_with_retry(
     host: str,
     token: str,
