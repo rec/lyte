@@ -169,6 +169,12 @@ class LyteClient(BaseModel):
     def set_led_config(self, body: dict[str, object]) -> LyteResponse:
         return self.post('led/config', body)
 
+    def get_timer(self) -> LyteResponse:
+        return self.get('timer')
+
+    def set_timer(self, body: dict[str, object]) -> LyteResponse:
+        return self.post('timer', body)
+
     def set_realtime_mode(self) -> LyteResponse:
         return self.post('led/mode', {'mode': 'rt'})
 

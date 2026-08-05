@@ -182,6 +182,14 @@ def authenticated_reports(
         read_endpoint(
             client,
             retry,
+            'timer',
+            'GET',
+            'timer',
+            lambda: client.get_timer().data,
+        ),
+        read_endpoint(
+            client,
+            retry,
             'color',
             'GET',
             'led/color',
