@@ -324,6 +324,38 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(config.duration, 1.5)
         self.assertEqual(config.fps, 30)
 
+    def test_cli_preview_command_dispatches_preview(self) -> None:
+        with patch.object(cli, 'run_preview', return_value=0) as run_preview:
+            result = cli.main(
+                [
+                    'preview',
+                    'rainbow',
+                    'preview.html',
+                    '--width',
+                    '24',
+                    '--duration',
+                    '1.5',
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        config = run_preview.call_args.args[0]
+        self.assertEqual(config.animation, 'rainbow')
+        self.assertEqual(config.output, Path('preview.html'))
+        self.assertEqual(config.width, 24)
+        self.assertEqual(config.duration, 1.5)
+
+    def test_cli_preview_command_lists_patterns_without_arguments(self) -> None:
+        output = io.StringIO()
+
+        with patch('sys.stdout', output):
+            result = cli.main(['preview'])
+
+        self.assertEqual(result, 0)
+        self.assertIn('color_fill\n', output.getvalue())
+        self.assertIn('rainbow\n', output.getvalue())
+        self.assertNotIn('off\n', output.getvalue())
+
     def test_gradient_frame_blends_between_endpoint_colors(self) -> None:
         npt.assert_array_equal(
             gradient_frame(3, (0, 0, 0), (100, 50, 200)),
@@ -3268,21 +3300,16 @@ class AnimateTests(unittest.TestCase):
         set_off_mode.assert_called_once()
 
 
-class PreviewScriptTests(unittest.TestCase):
+class PreviewCommandTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        path = Path(__file__).parents[1] / 'scripts' / 'lyte_preview.py'
-        spec = importlib.util.spec_from_file_location('lyte_preview', path)
-        assert spec is not None
-        assert spec.loader is not None
-        cls.script = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(cls.script)
+        cls.script = importlib.import_module('lyte.preview_command')
 
     def test_parse_args_builds_preview_animation(self) -> None:
         with patch(
             'sys.argv',
             [
-                'lyte_preview.py',
+                'lyte',
                 'color_fill',
                 'preview.html',
                 '--color',
@@ -3306,7 +3333,7 @@ class PreviewScriptTests(unittest.TestCase):
         output = io.StringIO()
 
         with (
-            patch('sys.argv', ['lyte_preview.py']),
+            patch('sys.argv', ['lyte']),
             patch('sys.stdout', output),
             patch.object(self.script, 'render_animation_html') as render_animation_html,
         ):
@@ -3322,7 +3349,7 @@ class PreviewScriptTests(unittest.TestCase):
     def test_animation_config_keeps_layout_width_out_of_animation(self) -> None:
         with patch(
             'sys.argv',
-            ['lyte_preview.py', 'color_chase', 'preview.html', '--width', '24'],
+            ['lyte', 'color_chase', 'preview.html', '--width', '24'],
         ):
             args = self.script.parse_args()
 
@@ -3335,7 +3362,7 @@ class PreviewScriptTests(unittest.TestCase):
             with patch(
                 'sys.argv',
                 [
-                    'lyte_preview.py',
+                    'lyte',
                     'color_fill',
                     str(output),
                     '--width',

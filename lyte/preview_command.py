@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Render a Lyte animation to a standalone HTML preview."""
 
 import sys
@@ -10,11 +9,8 @@ from typing import Annotated, Literal, NoReturn, cast
 
 import tyro
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from lyte import Layout, render_animation_html
-from lyte.animate import ANIMATIONS, AnimateConfig, AnimationName, build_animation
+from .animate import ANIMATIONS, AnimateConfig, AnimationName, build_animation
+from .preview import Layout, render_animation_html
 
 PreviewAnimationName = Literal[
     'alternates',
@@ -137,6 +133,11 @@ def main() -> int:
         print_preview_patterns()
         return 0
     args = parse_args()
+    return run_preview(args)
+
+
+def run_preview(args: PreviewConfig) -> int:
+    validate_args(args)
     layout = Layout(
         name=args.name or args.animation,
         dims=[args.height, args.width],
@@ -157,9 +158,7 @@ def main() -> int:
 
 
 def parse_args(args: Sequence[str] | None = None) -> PreviewConfig:
-    config = tyro.cli(PreviewConfig, args=args)
-    validate_args(config)
-    return config
+    return tyro.cli(PreviewConfig, args=args)
 
 
 def validate_args(args: PreviewConfig) -> None:
