@@ -69,6 +69,7 @@ from lyte.fps_test import (
     run_black_floor_keys,
     run_fades,
     run_fast_verify,
+    run_realtime_command,
     run_temporal_dither_comparison,
     run_verify_test,
     solid_grayscale_frame,
@@ -339,7 +340,7 @@ class FpsTestTests(unittest.TestCase):
             patch('lyte.fps_test.read_led_count', return_value=2),
             patch('lyte.fps_test.prepare_device', return_value=True),
             patch('lyte.fps_test.run_fast_verify', return_value=()),
-            patch('lyte.fps_test.turn_off_streaming_device', return_value=True),
+            patch('lyte.fps_test.turn_off_device', return_value=True),
             patch('sys.stdout', output),
         ):
             result = run_verify_test(VerifyConfig())
@@ -350,6 +351,34 @@ class FpsTestTests(unittest.TestCase):
             'temporal-dither',
             output.getvalue(),
         )
+
+    def test_realtime_command_turns_off_device_after_setup_interrupt(self) -> None:
+        def interrupt_setup(
+            client: LyteClient,
+            retry: RetryConfig,
+            host: str,
+        ) -> bool:
+            raise KeyboardInterrupt
+
+        with (
+            patch('lyte.fps_test.read_led_count', return_value=2),
+            patch('lyte.fps_test.prepare_device', interrupt_setup),
+            patch('lyte.fps_test.turn_off_device', return_value=True) as turn_off,
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            result = run_realtime_command(
+                '192.168.1.23',
+                5.0,
+                None,
+                1,
+                0,
+                1,
+                None,
+                lambda _client, _retry, _host, _device: None,
+            )
+
+        self.assertEqual(result, 0)
+        turn_off.assert_called_once()
 
     def test_dispersed_pixel_order_visits_each_led_once(self) -> None:
         order = dispersed_pixel_order(11)
