@@ -30,6 +30,7 @@ from .animations.hamiltonian import (
     hamiltonian_colors,
 )
 from .animations.random_walk import RandomWalk
+from .diagnostic import DiagnosticConfig, TwinklyDeviceInfo, XledEndpointReport
 from .errors import (
     AuthenticationError,
     DiscoveryError,
@@ -66,6 +67,7 @@ __all__ = [
     'DiscoveredDevice',
     'DiscoveryError',
     'Device',
+    'DiagnosticConfig',
     'Hamiltonian',
     'HamiltonianCounter',
     'HamiltonianState',
@@ -87,8 +89,10 @@ __all__ = [
     'RetryConfig',
     'State',
     'Twinkle',
+    'TwinklyDeviceInfo',
     'Wave',
     'WhiteTwinkle',
+    'XledEndpointReport',
     'authenticate_with_retry',
     'animation_document',
     'discover',

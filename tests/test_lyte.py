@@ -49,6 +49,14 @@ from lyte.animations.hamiltonian import (
     parse_order,
 )
 from lyte.animations.random_walk import RandomWalk, perturb
+from lyte.diagnostic import (
+    DiagnosticConfig,
+    TwinklyDeviceInfo,
+    XledEndpointReport,
+    authenticated_reports,
+    read_endpoint,
+    run_diagnostic,
+)
 from lyte.errors import DiscoveryError, ProtocolError, UnsupportedEndpointError
 from lyte.fps_test import (
     DOWN_KEY,
@@ -312,6 +320,23 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(config.host, '192.168.1.23')
         self.assertEqual(config.led_count, 10)
         self.assertEqual(config.mode, 'slow')
+
+    def test_cli_diagnostic_command_dispatches_diagnostic(self) -> None:
+        with patch.object(cli, 'run_diagnostic', return_value=0) as run_diagnostic:
+            result = cli.main(
+                [
+                    'diagnostic',
+                    '--host',
+                    '192.168.1.23',
+                    '--attempts',
+                    '2',
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        config = run_diagnostic.call_args.args[0]
+        self.assertEqual(config.host, '192.168.1.23')
+        self.assertEqual(config.attempts, 2)
 
     def test_discover_host_retries_until_a_device_replies(self) -> None:
         device = DiscoveredDevice(ip_address='192.168.1.23', device_id='twinkly')
@@ -893,6 +918,45 @@ class ClientTests(unittest.TestCase):
             ],
         )
 
+    def test_device_name_summary_and_echo_use_documented_paths(self) -> None:
+        calls = []
+
+        def get(
+            self: LyteClient,
+            path: str,
+            authenticated: bool = True,
+        ) -> LyteResponse:
+            calls.append(('GET', self.host, path, authenticated))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        def post(
+            self: LyteClient,
+            path: str,
+            body: dict[str, object],
+            authenticated: bool = True,
+        ) -> LyteResponse:
+            calls.append(('POST', self.host, path, body, authenticated))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch.object(LyteClient, 'get', get),
+            patch.object(LyteClient, 'post', post),
+        ):
+            client.get_device_name()
+            client.get_summary()
+            client.echo({'message': 'hello'})
+
+        self.assertEqual(
+            calls,
+            [
+                ('GET', '192.168.1.23', 'device_name', True),
+                ('GET', '192.168.1.23', 'summary', True),
+                ('POST', '192.168.1.23', 'echo', {'message': 'hello'}, True),
+            ],
+        )
+
     def test_set_off_mode_uses_led_mode_off(self) -> None:
         calls = []
 
@@ -936,6 +1000,136 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(led_count_from_gestalt({'number_of_led': 250}), 250)
         self.assertIsNone(led_count_from_gestalt({'number_of_led': 0}))
         self.assertIsNone(led_count_from_gestalt({'number_of_led': '250'}))
+
+
+class PackageDiagnosticTests(unittest.TestCase):
+    def test_device_info_preserves_raw_gestalt_and_extracts_fields(self) -> None:
+        raw = {
+            'device_name': 'Twinkly',
+            'product_name': 'Twinkly',
+            'product_code': 'TWI190SPP',
+            'hw_id': '1cc190',
+            'fw_family': 'G',
+            'mac': 'AA',
+            'uuid': 'UUID',
+            'led_profile': 'RGBW',
+            'number_of_led': 190,
+            'bytes_per_led': 4,
+            'frame_rate': 28.57,
+            'movie_capacity': 992,
+            'max_supported_led': 1200,
+            'unknown': 'preserved',
+        }
+
+        device = TwinklyDeviceInfo.from_gestalt(raw)
+
+        self.assertEqual(device.raw, raw)
+        self.assertEqual(device.device_name, 'Twinkly')
+        self.assertEqual(device.product_code, 'TWI190SPP')
+        self.assertEqual(device.hardware_id, '1cc190')
+        self.assertEqual(device.firmware_family, 'G')
+        self.assertEqual(device.led_count, 190)
+        self.assertEqual(device.bytes_per_led, 4)
+        self.assertEqual(device.frame_rate, 28.57)
+
+    def test_read_endpoint_reports_unsupported_endpoint(self) -> None:
+        def request() -> dict[str, object]:
+            raise UnsupportedEndpointError('summary', 'Resource not found.')
+
+        report = read_endpoint(
+            LyteClient(host='192.168.1.23'),
+            RetryConfig(attempts=1, delay=0, backoff=1),
+            'summary',
+            'GET',
+            'summary',
+            request,
+        )
+
+        self.assertEqual(
+            report,
+            XledEndpointReport(
+                name='summary',
+                path='summary',
+                supported=False,
+                error='Resource not found.',
+            ),
+        )
+
+    def test_authenticated_reports_probe_device_name_summary_and_echo(self) -> None:
+        calls = []
+
+        def get_device_name(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'device_name'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'name': 'Tree'})
+
+        def get_summary(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'summary'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'leds': 250})
+
+        def echo(self: LyteClient, body: dict[str, object]) -> LyteResponse:
+            calls.append(('POST', 'echo', body))
+            return LyteResponse(http_status=200, data={'code': 1000, 'json': body})
+
+        with (
+            patch.object(LyteClient, 'get_device_name', get_device_name),
+            patch.object(LyteClient, 'get_summary', get_summary),
+            patch.object(LyteClient, 'echo', echo),
+        ):
+            reports = authenticated_reports(
+                LyteClient(host='192.168.1.23'),
+                RetryConfig(attempts=1, delay=0, backoff=1),
+            )
+
+        self.assertEqual([i.name for i in reports], ['device-name', 'summary', 'echo'])
+        self.assertEqual(
+            calls,
+            [
+                ('GET', 'device_name'),
+                ('GET', 'summary'),
+                ('POST', 'echo', {'message': 'lyte diagnostic'}),
+            ],
+        )
+
+    def test_run_diagnostic_reports_read_only_device_state(self) -> None:
+        output = io.StringIO()
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.diagnostic.discover_host', return_value='192.168.1.23'),
+            patch('lyte.diagnostic.LyteClient', return_value=client),
+            patch(
+                'lyte.diagnostic.read_endpoint',
+                side_effect=(
+                    XledEndpointReport(
+                        name='gestalt',
+                        path='gestalt',
+                        supported=True,
+                        data={'device_name': 'Tree', 'mac': 'AA', 'number_of_led': 250},
+                    ),
+                    XledEndpointReport(
+                        name='firmware',
+                        path='fw/version',
+                        supported=True,
+                        data={'version': '1.0'},
+                    ),
+                    XledEndpointReport(
+                        name='status',
+                        path='status',
+                        supported=True,
+                        data={'mode': 'rt'},
+                    ),
+                ),
+            ),
+            patch('lyte.diagnostic.authenticate_device', return_value=object()),
+            patch('lyte.diagnostic.authenticated_reports', return_value=()),
+            patch('sys.stdout', output),
+        ):
+            result = run_diagnostic(DiagnosticConfig())
+
+        self.assertEqual(result, 0)
+        self.assertEqual(client.mac, 'AA')
+        self.assertIn('Device name: Tree', output.getvalue())
+        self.assertIn("firmware: {'version': '1.0'}", output.getvalue())
 
 
 class RuntimeTests(unittest.TestCase):

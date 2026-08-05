@@ -5,6 +5,7 @@ from typing import Literal
 
 import tyro
 
+from .diagnostic import DiagnosticConfig, run_diagnostic
 from .fps_test import (
     BlackFloorTestConfig,
     FpsTestConfig,
@@ -19,7 +20,13 @@ from .fps_test import (
 
 def main(args: Sequence[str] | None = None) -> int:
     return tyro.extras.subcommand_cli_from_dict(
-        {'black-floor': black_floor, 'test': test, 'test2': test2, 'verify': verify},
+        {
+            'black-floor': black_floor,
+            'diagnostic': diagnostic,
+            'test': test,
+            'test2': test2,
+            'verify': verify,
+        },
         prog='lyte',
         args=args,
     )
@@ -121,5 +128,26 @@ def verify(
             retry_backoff=retry_backoff,
             led_count=led_count,
             mode=mode,
+        )
+    )
+
+
+def diagnostic(
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Report Twinkly XLED device state and endpoint support."""
+    return run_diagnostic(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
         )
     )

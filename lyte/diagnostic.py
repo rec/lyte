@@ -1,0 +1,262 @@
+from __future__ import annotations
+
+import sys
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+
+from pydantic import BaseModel
+
+from .errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
+from .fps_test import discover_host
+from .logging import log_error, log_status
+from .network.client import LyteClient
+from .network.session import set_mac_from_gestalt, xled_request_label
+from .retry import RetryConfig, retry_call
+from .runtime import authenticate_device
+
+
+class TwinklyDeviceInfo(BaseModel, frozen=True):
+    raw: dict[str, object]
+    device_name: str | None = None
+    product_name: str | None = None
+    product_code: str | None = None
+    hardware_id: str | None = None
+    firmware_family: str | None = None
+    mac: str | None = None
+    uuid: str | None = None
+    led_profile: str | None = None
+    led_count: int | None = None
+    bytes_per_led: int | None = None
+    frame_rate: float | None = None
+    movie_capacity: int | None = None
+    max_supported_led: int | None = None
+
+    @classmethod
+    def from_gestalt(cls, data: Mapping[str, object]) -> TwinklyDeviceInfo:
+        return cls(
+            raw=dict(data),
+            device_name=optional_str(data, 'device_name'),
+            product_name=optional_str(data, 'product_name'),
+            product_code=optional_str(data, 'product_code'),
+            hardware_id=optional_str(data, 'hw_id'),
+            firmware_family=optional_str(data, 'fw_family'),
+            mac=optional_str(data, 'mac'),
+            uuid=optional_str(data, 'uuid'),
+            led_profile=optional_str(data, 'led_profile'),
+            led_count=optional_int(data, 'number_of_led'),
+            bytes_per_led=optional_int(data, 'bytes_per_led'),
+            frame_rate=optional_float(data, 'frame_rate'),
+            movie_capacity=optional_int(data, 'movie_capacity'),
+            max_supported_led=optional_int(data, 'max_supported_led'),
+        )
+
+
+class XledEndpointReport(BaseModel, frozen=True):
+    name: str
+    path: str
+    supported: bool
+    data: dict[str, object] | None = None
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class DiagnosticConfig:
+    host: str | None = None
+    timeout: float = 5.0
+    discovery_timeout: float | None = None
+    attempts: int = 10
+    retry_delay: float = 0.5
+    retry_backoff: float = 2.0
+
+
+def run_diagnostic(config: DiagnosticConfig) -> int:
+    validate_diagnostic_config(config)
+    host = config.host or discover_host(config.discovery_timeout)
+    if host is None:
+        return 1
+
+    retry = RetryConfig(
+        attempts=config.attempts,
+        delay=config.retry_delay,
+        backoff=config.retry_backoff,
+    )
+    client = LyteClient(host=host, timeout=config.timeout)
+    log_status(f'[diagnostic] Host: {host}')
+
+    gestalt = read_endpoint(
+        client,
+        retry,
+        'gestalt',
+        'GET',
+        'gestalt',
+        lambda: client.get('gestalt', authenticated=False).data,
+    )
+    if not gestalt.supported or gestalt.data is None:
+        report_endpoint(gestalt)
+        return 1
+
+    device = TwinklyDeviceInfo.from_gestalt(gestalt.data)
+    set_mac_from_gestalt(client, gestalt.data)
+    report_device_info(device)
+
+    unauthenticated_reports = (
+        read_endpoint(
+            client,
+            retry,
+            'firmware',
+            'GET',
+            'fw/version',
+            lambda: client.get_firmware_version().data,
+        ),
+        read_endpoint(
+            client,
+            retry,
+            'status',
+            'GET',
+            'status',
+            lambda: client.get_status().data,
+        ),
+    )
+    for report in unauthenticated_reports:
+        report_endpoint(report)
+
+    if authenticate_device(client, retry, xled_request_label('POST', 'login', host)):
+        for report in authenticated_reports(client, retry):
+            report_endpoint(report)
+    else:
+        log_error('[diagnostic] Authenticated endpoint probes skipped.')
+        return 1
+    return 0
+
+
+def validate_diagnostic_config(config: DiagnosticConfig) -> None:
+    if config.discovery_timeout is not None and config.discovery_timeout <= 0:
+        sys.exit('--discovery-timeout must be greater than zero')
+    if config.attempts < 1:
+        sys.exit('--attempts must be at least 1')
+    if config.retry_delay < 0:
+        sys.exit('--retry-delay must not be negative')
+    if config.retry_backoff < 1:
+        sys.exit('--retry-backoff must be at least 1')
+
+
+def authenticated_reports(
+    client: LyteClient,
+    retry: RetryConfig,
+) -> tuple[XledEndpointReport, ...]:
+    return (
+        read_endpoint(
+            client,
+            retry,
+            'device-name',
+            'GET',
+            'device_name',
+            lambda: client.get_device_name().data,
+        ),
+        read_endpoint(
+            client,
+            retry,
+            'summary',
+            'GET',
+            'summary',
+            lambda: client.get_summary().data,
+        ),
+        read_endpoint(
+            client,
+            retry,
+            'echo',
+            'POST',
+            'echo',
+            lambda: client.echo({'message': 'lyte diagnostic'}).data,
+        ),
+    )
+
+
+def read_endpoint(
+    client: LyteClient,
+    retry: RetryConfig,
+    name: str,
+    method: str,
+    path: str,
+    request: Callable[[], dict[str, object]],
+) -> XledEndpointReport:
+    def read_once() -> XledEndpointReport:
+        try:
+            return XledEndpointReport(
+                name=name,
+                path=path,
+                supported=True,
+                data=request(),
+            )
+        except UnsupportedEndpointError as err:
+            return XledEndpointReport(
+                name=name,
+                path=path,
+                supported=False,
+                error=err.text,
+            )
+
+    result = retry_call(
+        xled_request_label(method, path, client.host),
+        retry,
+        read_once,
+        (AuthenticationError, ProtocolError),
+    )
+    if result is not None:
+        return result
+    return XledEndpointReport(
+        name=name,
+        path=path,
+        supported=False,
+        error='request failed',
+    )
+
+
+def report_device_info(device: TwinklyDeviceInfo) -> None:
+    log_status(f'[diagnostic] Device name: {display(device.device_name)}')
+    log_status(f'[diagnostic] Product: {display(device.product_name)}')
+    log_status(f'[diagnostic] Product code: {display(device.product_code)}')
+    log_status(f'[diagnostic] Hardware ID: {display(device.hardware_id)}')
+    log_status(f'[diagnostic] Firmware family: {display(device.firmware_family)}')
+    log_status(f'[diagnostic] MAC: {display(device.mac)}')
+    log_status(f'[diagnostic] UUID: {display(device.uuid)}')
+    log_status(f'[diagnostic] LED profile: {display(device.led_profile)}')
+    log_status(f'[diagnostic] LED count: {display(device.led_count)}')
+    log_status(f'[diagnostic] Bytes per LED: {display(device.bytes_per_led)}')
+    log_status(f'[diagnostic] Frame rate: {display(device.frame_rate)}')
+    log_status(f'[diagnostic] Movie capacity: {display(device.movie_capacity)}')
+    log_status(f'[diagnostic] Max supported LED: {display(device.max_supported_led)}')
+
+
+def report_endpoint(report: XledEndpointReport) -> None:
+    if report.supported:
+        log_status(f'[diagnostic] {report.name}: {report.data}')
+    else:
+        log_error(f'[diagnostic] {report.name}: unsupported or failed: {report.error}')
+
+
+def optional_str(data: Mapping[str, object], key: str) -> str | None:
+    value = data.get(key)
+    if isinstance(value, str):
+        return value
+    return None
+
+
+def optional_int(data: Mapping[str, object], key: str) -> int | None:
+    value = data.get(key)
+    if isinstance(value, int):
+        return value
+    return None
+
+
+def optional_float(data: Mapping[str, object], key: str) -> float | None:
+    value = data.get(key)
+    if isinstance(value, int | float):
+        return float(value)
+    return None
+
+
+def display(value: object | None) -> object:
+    if value is None:
+        return '<missing>'
+    return value

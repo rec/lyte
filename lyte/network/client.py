@@ -112,6 +112,15 @@ class LyteClient(BaseModel):
     def get_status(self, authenticated: bool = False) -> LyteResponse:
         return self.get('status', authenticated=authenticated)
 
+    def get_device_name(self) -> LyteResponse:
+        return self.get('device_name')
+
+    def get_summary(self) -> LyteResponse:
+        return self.get('summary')
+
+    def echo(self, body: dict[str, object]) -> LyteResponse:
+        return self.post('echo', body)
+
     def set_realtime_mode(self) -> LyteResponse:
         return self.post('led/mode', {'mode': 'rt'})
 
