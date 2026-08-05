@@ -4,14 +4,20 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State, float_light_frame_from_byte
+from ...animation import (
+    Animation,
+    Device,
+    State,
+    byte_light_frame_from_float,
+    float_color_from_rgb,
+)
 from ..colors import RGB
 from ..validators import resolve_end, validate_rgb
 
 
 class PixelPingPongState(State):
     current: int = 0
-    frame_buffer: NDArray[np.uint8]
+    frame_buffer: NDArray[np.float32]
     positive: bool = True
 
 
@@ -32,16 +38,19 @@ class PixelPingPong(Animation[PixelPingPongState]):
 
     def initial_state(self, device: Device) -> PixelPingPongState:
         return PixelPingPongState(
-            frame_buffer=np.zeros((device.led_count, 3), dtype=np.uint8)
+            frame_buffer=np.zeros((device.led_count, 3), dtype=np.float32)
         )
 
     def render(self, device: Device, state: PixelPingPongState) -> NDArray[np.float32]:
+        byte_buffer = byte_light_frame_from_float(state.frame_buffer)
         decrement = np.array(self.color, dtype=np.float64) / self.fade_delay
-        faded = state.frame_buffer.astype(np.float64) - decrement
-        state.frame_buffer[:] = np.maximum(faded, 0).astype(np.uint8)
+        faded = byte_buffer.astype(np.float64) - decrement
+        state.frame_buffer[:] = (
+            np.maximum(faded, 0).astype(np.uint8).astype(np.float32) / 255
+        )
         max_led = resolve_end(device.led_count, self.max_led)
         end = min(state.current + self.total_pixels, max_led + 1)
-        state.frame_buffer[state.current : end] = self.color
+        state.frame_buffer[state.current : end] = float_color_from_rgb(self.color)
         state.current += 1 if state.positive else -1
         if state.current + self.total_pixels - 1 >= max_led:
             state.positive = False
@@ -49,4 +58,4 @@ class PixelPingPong(Animation[PixelPingPongState]):
             state.current = 0
             state.positive = True
         state.frame += 1
-        return float_light_frame_from_byte(state.frame_buffer)
+        return state.frame_buffer
