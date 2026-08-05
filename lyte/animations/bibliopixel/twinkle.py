@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, model_validator
 
-from ...animation import Animation, Device, State, float_light_frame_from_byte
+from ...animation import Animation, Device, State, float_color_from_rgb
 from ..colors import DEFAULT_PATTERN, RGB, scale_color
 from ..validators import validate_palette
 
@@ -53,7 +53,7 @@ class Twinkle(Animation[TwinkleState]):
         )
 
     def render(self, device: Device, state: TwinkleState) -> NDArray[np.float32]:
-        frame = np.zeros((device.led_count, 3), dtype=np.uint8)
+        frame = np.zeros((device.led_count, 3), dtype=np.float32)
         pick_twinkle_led(state, self.colors, self.bounded_density, self.bounded_speed)
         for i, pixel in enumerate(state.pixels):
             if pixel.direction == 1:
@@ -61,15 +61,15 @@ class Twinkle(Animation[TwinkleState]):
                 if pixel.level > self.bounded_max_bright:
                     pixel.level = self.bounded_max_bright
                     pixel.direction = 2
-                frame[i] = scale_color(pixel.color, pixel.level)
+                frame[i] = float_color_from_rgb(scale_color(pixel.color, pixel.level))
             elif pixel.direction == 2:
                 pixel.level -= self.bounded_speed
                 if pixel.level < 0:
                     pixel.level = 0
                     pixel.direction = 0
-                frame[i] = scale_color(pixel.color, pixel.level)
+                frame[i] = float_color_from_rgb(scale_color(pixel.color, pixel.level))
         state.frame += 1
-        return float_light_frame_from_byte(frame)
+        return frame
 
 
 def pick_twinkle_led(
