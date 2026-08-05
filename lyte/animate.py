@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Run a selected Lyte animation on Twinkly generation 2 lights."""
 
 import random
@@ -6,16 +5,13 @@ import sys
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from pathlib import Path
 from typing import Annotated, Literal, NoReturn, cast
 
 import numpy as np
 import tyro
 from numpy.typing import NDArray
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from lyte import (
+from . import (
     Animation,
     Device,
     LyteClient,
@@ -24,7 +20,7 @@ from lyte import (
     discover,
     validate_frame,
 )
-from lyte.animations.bibliopixel import (
+from .animations.bibliopixel import (
     DEFAULT_PATTERN,
     RGB,
     Alternates,
@@ -48,16 +44,16 @@ from lyte.animations.bibliopixel import (
     Wave,
     WhiteTwinkle,
 )
-from lyte.animations.hamiltonian import Hamiltonian
-from lyte.animations.random_walk import RandomWalk
-from lyte.logging import log, log_error, log_status
-from lyte.network.session import (
+from .animations.hamiltonian import Hamiltonian
+from .animations.random_walk import RandomWalk
+from .logging import log, log_error, log_status
+from .network.session import (
     read_gestalt,
     set_mac_from_gestalt,
     set_off_mode_with_retry,
 )
-from lyte.retry import RetryConfig
-from lyte.runtime import (
+from .retry import RetryConfig
+from .runtime import (
     authenticate_device,
     read_device_led_count,
     send_authenticated_frame,
@@ -179,6 +175,11 @@ class AnimateConfig:
 
 def main() -> int:
     args = parse_args()
+    return run_animate(args)
+
+
+def run_animate(args: AnimateConfig) -> int:
+    validate_args(args)
     host = args.host or discover_host(args.discovery_timeout)
     if host is None:
         return 1
@@ -213,9 +214,7 @@ def main() -> int:
 
 
 def parse_args(args: Sequence[str] | None = None) -> AnimateConfig:
-    config = tyro.cli(AnimateConfig, args=args)
-    validate_args(config)
-    return config
+    return tyro.cli(AnimateConfig, args=args)
 
 
 def validate_args(args: AnimateConfig) -> None:

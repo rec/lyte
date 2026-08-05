@@ -13,9 +13,8 @@ import tyro
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from lyte_animate import ANIMATIONS, AnimateConfig, AnimationName, build_animation
-
 from lyte import Layout, render_animation_html
+from lyte.animate import ANIMATIONS, AnimateConfig, AnimationName, build_animation
 
 PreviewAnimationName = Literal[
     'alternates',

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import argparse
 import base64
+import importlib
 import importlib.util
 import io
 import json
@@ -304,6 +304,25 @@ class RealtimeTests(unittest.TestCase):
 class FpsTestTests(unittest.TestCase):
     def test_fps_values_include_120_hz(self) -> None:
         self.assertEqual(FPS_VALUES, (30.0, 60.0, 120.0, 240, 480, 960, 1920))
+
+    def test_cli_animate_command_dispatches_animation(self) -> None:
+        with patch.object(cli, 'run_animate', return_value=0) as run_animate:
+            result = cli.main(
+                [
+                    'animate',
+                    'rainbow',
+                    '--duration',
+                    '1.5',
+                    '--fps',
+                    '30',
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        config = run_animate.call_args.args[0]
+        self.assertEqual(config.animation, 'rainbow')
+        self.assertEqual(config.duration, 1.5)
+        self.assertEqual(config.fps, 30)
 
     def test_gradient_frame_blends_between_endpoint_colors(self) -> None:
         npt.assert_array_equal(
@@ -2973,18 +2992,13 @@ class HamiltonianAnimationTests(unittest.TestCase):
         self.assertEqual(frame.dtype, np.uint8)
 
 
-class AnimateScriptTests(unittest.TestCase):
+class AnimateTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        path = Path(__file__).parents[1] / 'scripts' / 'lyte_animate.py'
-        spec = importlib.util.spec_from_file_location('lyte_animate', path)
-        assert spec is not None
-        assert spec.loader is not None
-        cls.script = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(cls.script)
+        cls.script = importlib.import_module('lyte.animate')
 
     def test_build_animation_creates_hamiltonian(self) -> None:
-        with patch('sys.argv', ['lyte_animate.py', 'hamiltonian']):
+        with patch('sys.argv', ['lyte', 'hamiltonian']):
             args = self.script.parse_args()
 
         animation = self.script.build_animation(args)
@@ -2992,13 +3006,13 @@ class AnimateScriptTests(unittest.TestCase):
         self.assertIsInstance(animation, Hamiltonian)
 
     def test_parse_args_defaults_to_random_animation(self) -> None:
-        with patch('sys.argv', ['lyte_animate.py']):
+        with patch('sys.argv', ['lyte']):
             args = self.script.parse_args()
 
         self.assertEqual(args.animation, 'random')
 
     def test_random_mode_uses_hamiltonian_settings(self) -> None:
-        with patch('sys.argv', ['lyte_animate.py']):
+        with patch('sys.argv', ['lyte']):
             args = self.script.parse_args()
 
         with patch.object(self.script, 'RANDOM_ANIMATIONS', ('hamiltonian',)):
@@ -3011,7 +3025,7 @@ class AnimateScriptTests(unittest.TestCase):
         self.assertEqual(segment_args.speed, 100)
 
     def test_random_mode_uses_exciting_random_walk_settings(self) -> None:
-        with patch('sys.argv', ['lyte_animate.py']):
+        with patch('sys.argv', ['lyte']):
             args = self.script.parse_args()
 
         with patch.object(self.script, 'RANDOM_ANIMATIONS', ('random_walk',)):
@@ -3027,7 +3041,7 @@ class AnimateScriptTests(unittest.TestCase):
         self.assertTrue(segment_args.pre_fill)
 
     def test_random_mode_prints_selected_pattern(self) -> None:
-        with patch('sys.argv', ['lyte_animate.py', '--duration', '1']):
+        with patch('sys.argv', ['lyte', '--duration', '1']):
             args = self.script.parse_args()
 
         output = io.StringIO()
@@ -3080,7 +3094,7 @@ class AnimateScriptTests(unittest.TestCase):
         device = Device(led_count=1)
         current_state = State()
         next_state = State()
-        args = argparse.Namespace(fps=1, animation='next')
+        args = self.script.AnimateConfig(fps=1, animation='color_fill')
         sent_frames = []
 
         with (
@@ -3118,7 +3132,7 @@ class AnimateScriptTests(unittest.TestCase):
         with patch(
             'sys.argv',
             [
-                'lyte_animate.py',
+                'lyte',
                 'random_walk',
                 '--color',
                 '10',
@@ -3143,7 +3157,7 @@ class AnimateScriptTests(unittest.TestCase):
         with patch(
             'sys.argv',
             [
-                'lyte_animate.py',
+                'lyte',
                 'color_chase',
                 '--color',
                 '1',
@@ -3165,7 +3179,7 @@ class AnimateScriptTests(unittest.TestCase):
         )
 
     def test_build_animation_creates_ported_strip_animation(self) -> None:
-        with patch('sys.argv', ['lyte_animate.py', 'rainbow']):
+        with patch('sys.argv', ['lyte', 'rainbow']):
             args = self.script.parse_args()
 
         animation = self.script.build_animation(args)
@@ -3179,7 +3193,7 @@ class AnimateScriptTests(unittest.TestCase):
 
     def test_off_mode_skips_realtime_streaming(self) -> None:
         with (
-            patch('sys.argv', ['lyte_animate.py', 'off', '--host', '192.168.1.23']),
+            patch('sys.argv', ['lyte', 'off', '--host', '192.168.1.23']),
             patch.object(self.script, 'read_gestalt', return_value={'mac': 'AA'}),
             patch.object(self.script, 'authenticate_device', return_value=object()),
             patch.object(
@@ -3228,7 +3242,7 @@ class AnimateScriptTests(unittest.TestCase):
             patch(
                 'sys.argv',
                 [
-                    'lyte_animate.py',
+                    'lyte',
                     'color_fill',
                     '--host',
                     '192.168.1.23',

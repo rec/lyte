@@ -19,26 +19,20 @@ This is a proof of concept with:
 - HTTP authentication and JSON API calls on port 80
 - generation 2 realtime UDP frames on port 7777
 
-Run the diagnostic script from a checkout:
+Run the diagnostic:
 
 ```sh
-python3 scripts/lyte_diagnostic.py
-```
-
-If UDP discovery is blocked by the network, pass the light controller IP:
-
-```sh
-python3 scripts/lyte_diagnostic.py --host 192.168.1.50
+lyte diagnostic
 ```
 
 Run the Hamiltonian streamer:
 
 ```sh
-python3 scripts/lyte_animate.py hamiltonian --host 192.168.1.50 --speed 80
+lyte animate hamiltonian --speed 80
 ```
 
 Increase playback speed:
 
 ```sh
-python3 scripts/lyte_animate.py hamiltonian --host 192.168.1.50 --speed 120
+lyte animate hamiltonian --speed 120
 ```

@@ -6,6 +6,7 @@ from typing import Annotated, Literal
 
 import tyro
 
+from .animate import AnimateConfig, AnimationName, run_animate
 from .diagnostic import DiagnosticConfig, run_diagnostic
 from .fps_test import (
     BlackFloorTestConfig,
@@ -51,6 +52,7 @@ from .xled import (
 def main(args: Sequence[str] | None = None) -> int:
     return tyro.extras.subcommand_cli_from_dict(
         {
+            'animate': animate,
             'black-floor': black_floor,
             'brightness': brightness,
             'color': color,
@@ -73,6 +75,99 @@ def main(args: Sequence[str] | None = None) -> int:
         },
         prog='lyte',
         args=args,
+    )
+
+
+def animate(
+    animation: Annotated[AnimationName, tyro.conf.Positional] = 'random',
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float = 5.0,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+    led_count: int | None = None,
+    speed: float = 25,
+    fps: float = 20,
+    duration: float | None = None,
+    pre_fill: bool = False,
+    center_in: bool = False,
+    individual_pixel: bool = False,
+    step: int = 1,
+    start: int = 0,
+    end: int | None = None,
+    width: int = 1,
+    count: int = 1,
+    tail: int = 2,
+    chance: int = 30,
+    min_speed: int = 1,
+    max_speed: int = 5,
+    total_pixels: int = 1,
+    fade_delay: int = 1,
+    density: int = 20,
+    max_bright: int = 255,
+    cycles: int = 2,
+    level_step: int = 5,
+    rainbow_inc: int = 4,
+    max_led: int | None = None,
+    reverse: bool = False,
+    n: int = 32,
+    order: str = 'rgb',
+    inverted: str = '',
+    variance: float = 1,
+    bounds: tuple[float, float] = (0, 180),
+    color: tuple[int, int, int] | None = None,
+    color2: tuple[int, int, int] | None = None,
+    colors: tuple[int, ...] | None = None,
+    period: float = 0,
+    seed: int | None = None,
+) -> int:
+    """Run a selected animation on Twinkly lights."""
+    return run_animate(
+        AnimateConfig(
+            animation=animation,
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+            led_count=led_count,
+            speed=speed,
+            fps=fps,
+            duration=duration,
+            pre_fill=pre_fill,
+            center_in=center_in,
+            individual_pixel=individual_pixel,
+            step=step,
+            start=start,
+            end=end,
+            width=width,
+            count=count,
+            tail=tail,
+            chance=chance,
+            min_speed=min_speed,
+            max_speed=max_speed,
+            total_pixels=total_pixels,
+            fade_delay=fade_delay,
+            density=density,
+            max_bright=max_bright,
+            cycles=cycles,
+            level_step=level_step,
+            rainbow_inc=rainbow_inc,
+            max_led=max_led,
+            reverse=reverse,
+            n=n,
+            order=order,
+            inverted=inverted,
+            variance=variance,
+            bounds=bounds,
+            color=color,
+            color2=color2,
+            colors=colors,
+            period=period,
+            seed=seed,
+        )
     )
 
 
