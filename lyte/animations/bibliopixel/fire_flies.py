@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State, float_light_frame_from_byte
+from ...animation import Animation, Device, State, float_color_from_rgb
 from ..colors import RGB
 from ..validators import resolve_end, validate_palette, validate_span, validate_start
 
@@ -40,11 +40,11 @@ class FireFlies(Animation[FireFliesState]):
         return FireFliesState(random=random.Random(self.seed))
 
     def render(self, device: Device, state: FireFliesState) -> NDArray[np.float32]:
-        frame = np.zeros((device.led_count, 3), dtype=np.uint8)
+        frame = np.zeros((device.led_count, 3), dtype=np.float32)
         end = resolve_end(device.led_count, self.end)
         for _ in range(self.count):
             pixel = state.random.randint(self.start, end)
-            color = state.random.choice(self.colors)
+            color = float_color_from_rgb(state.random.choice(self.colors))
             frame[pixel : min(pixel + self.width, end + 1)] = color
         state.frame += 1
-        return float_light_frame_from_byte(frame)
+        return frame

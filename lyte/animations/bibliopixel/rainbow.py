@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State, float_light_frame_from_byte
+from ...animation import Animation, Device, State, float_color_from_rgb
 from ..colors import wheel_color
 from ..validators import (
     advance_rainbow,
@@ -38,8 +38,10 @@ class Rainbow(Animation[RainbowState]):
         return RainbowState()
 
     def render(self, device: Device, state: RainbowState) -> NDArray[np.float32]:
-        frame = np.zeros((device.led_count, 3), dtype=np.uint8)
+        frame = np.zeros((device.led_count, 3), dtype=np.float32)
         for i in range(span_size(device.led_count, self.start, self.end)):
-            frame[self.start + i] = wheel_color((i + state.position) % 255)
+            frame[self.start + i] = float_color_from_rgb(
+                wheel_color((i + state.position) % 255)
+            )
         advance_rainbow(state, self.step)
-        return float_light_frame_from_byte(frame)
+        return frame
