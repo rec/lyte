@@ -190,6 +190,15 @@ class LyteClient(BaseModel):
     def get_current_playlist_entry(self) -> LyteResponse:
         return self.get('playlist/current')
 
+    def get_network_scan(self) -> LyteResponse:
+        return self.get('network/scan')
+
+    def get_network_scan_results(self) -> LyteResponse:
+        return self.get('network/scan_results')
+
+    def get_network_status(self) -> LyteResponse:
+        return self.get('network/status')
+
     def set_realtime_mode(self) -> LyteResponse:
         return self.post('led/mode', {'mode': 'rt'})
 

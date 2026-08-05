@@ -116,6 +116,7 @@ from lyte.xled import (
     run_led_config_control,
     run_mode_control,
     run_movie_control,
+    run_network_control,
     run_output_control,
     run_playlist_control,
     run_timer_control,
@@ -489,6 +490,17 @@ class FpsTestTests(unittest.TestCase):
         config, action = run_playlist_control.call_args.args
         self.assertIsNone(config.host)
         self.assertEqual(action, 'current')
+
+    def test_cli_network_command_dispatches_network_control(self) -> None:
+        with patch.object(
+            cli, 'run_network_control', return_value=0
+        ) as run_network_control:
+            result = cli.main(['network', 'scan-results'])
+
+        self.assertEqual(result, 0)
+        config, action = run_network_control.call_args.args
+        self.assertIsNone(config.host)
+        self.assertEqual(action, 'scan-results')
 
     def test_discover_host_retries_until_a_device_replies(self) -> None:
         device = DiscoveredDevice(ip_address='192.168.1.23', device_id='twinkly')
@@ -1268,6 +1280,9 @@ class ClientTests(unittest.TestCase):
             client.get_current_movie()
             client.get_playlist()
             client.get_current_playlist_entry()
+            client.get_network_scan()
+            client.get_network_scan_results()
+            client.get_network_status()
 
         self.assertEqual(
             calls,
@@ -1290,6 +1305,9 @@ class ClientTests(unittest.TestCase):
                 ('GET', '192.168.1.23', 'led/movies/current', True),
                 ('GET', '192.168.1.23', 'playlist', True),
                 ('GET', '192.168.1.23', 'playlist/current', True),
+                ('GET', '192.168.1.23', 'network/scan', True),
+                ('GET', '192.168.1.23', 'network/scan_results', True),
+                ('GET', '192.168.1.23', 'network/status', True),
             ],
         )
 
@@ -1454,6 +1472,18 @@ class PackageDiagnosticTests(unittest.TestCase):
             calls.append(('GET', 'current-playlist-entry'))
             return LyteResponse(http_status=200, data={'code': 1000, 'id': 0})
 
+        def get_network_status(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'network-status'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'mode': 1})
+
+        def get_network_scan(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'network-scan'))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        def get_network_scan_results(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'network-scan-results'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'networks': []})
+
         def get_led_color(self: LyteClient) -> LyteResponse:
             calls.append(('GET', 'color'))
             return LyteResponse(http_status=200, data={'code': 1000, 'red': 1})
@@ -1500,6 +1530,13 @@ class PackageDiagnosticTests(unittest.TestCase):
                 'get_current_playlist_entry',
                 get_current_playlist_entry,
             ),
+            patch.object(LyteClient, 'get_network_status', get_network_status),
+            patch.object(LyteClient, 'get_network_scan', get_network_scan),
+            patch.object(
+                LyteClient,
+                'get_network_scan_results',
+                get_network_scan_results,
+            ),
             patch.object(LyteClient, 'get_led_color', get_led_color),
             patch.object(LyteClient, 'get_effects', get_effects),
             patch.object(LyteClient, 'get_current_effect', get_current_effect),
@@ -1526,6 +1563,9 @@ class PackageDiagnosticTests(unittest.TestCase):
                 'current-movie',
                 'playlist',
                 'current-playlist-entry',
+                'network-status',
+                'network-scan',
+                'network-scan-results',
                 'color',
                 'effects',
                 'current-effect',
@@ -1548,6 +1588,9 @@ class PackageDiagnosticTests(unittest.TestCase):
                 ('GET', 'current-movie'),
                 ('GET', 'playlist'),
                 ('GET', 'current-playlist-entry'),
+                ('GET', 'network-status'),
+                ('GET', 'network-scan'),
+                ('GET', 'network-scan-results'),
                 ('GET', 'color'),
                 ('GET', 'effects'),
                 ('GET', 'current-effect'),
@@ -1998,6 +2041,29 @@ class XledControlTests(unittest.TestCase):
         get_playlist.assert_called_once()
         turn_off.assert_called_once()
         self.assertIn("[playlist] list {'entries': []}", output.getvalue())
+
+    def test_run_network_control_reads_status_then_turns_off(self) -> None:
+        output = io.StringIO()
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch.object(
+                LyteClient,
+                'get_network_status',
+                return_value=LyteResponse(http_status=200, data={'mode': 1}),
+            ) as get_network_status,
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', output),
+        ):
+            result = run_network_control(DiagnosticConfig(), 'status')
+
+        self.assertEqual(result, 0)
+        get_network_status.assert_called_once()
+        turn_off.assert_called_once()
+        self.assertIn("[network] status {'mode': 1}", output.getvalue())
 
 
 class RuntimeTests(unittest.TestCase):
