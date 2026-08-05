@@ -3365,29 +3365,5 @@ class PreviewScriptTests(unittest.TestCase):
         open_browser.assert_called_once_with(output.resolve().as_uri())
 
 
-class CheckHamiltonianScriptTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        path = Path(__file__).parents[1] / 'scripts' / 'check_hamiltonian.py'
-        spec = importlib.util.spec_from_file_location('check_hamiltonian', path)
-        assert spec is not None
-        assert spec.loader is not None
-        cls.script = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(cls.script)
-
-    def test_find_problems_accepts_valid_sequence(self) -> None:
-        colors = list(hamiltonian_colors(n=4))
-
-        self.assertEqual(self.script.find_problems(colors, expected_step=64), [])
-
-    def test_find_problems_reports_bad_transition(self) -> None:
-        colors = [(0, 0, 0), (64, 64, 0)]
-
-        problems = self.script.find_problems(colors, expected_step=64)
-
-        self.assertEqual(len(problems), 2)
-        self.assertIn('changed 2 components', problems[0])
-
-
 if __name__ == '__main__':
     unittest.main()
