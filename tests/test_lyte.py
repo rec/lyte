@@ -56,9 +56,11 @@ from lyte.fps_test import (
     UP_KEY,
     VERIFY_DEMOS,
     FadeReport,
+    VerifyConfig,
     VerifyResult,
     adjust_black_floor_level,
     blend_frames,
+    discover_host,
     dispersed_pixel_order,
     gradient_frame,
     read_single_key,
@@ -68,6 +70,7 @@ from lyte.fps_test import (
     run_fades,
     run_fast_verify,
     run_temporal_dither_comparison,
+    run_verify_test,
     solid_grayscale_frame,
     solid_rgb_level_frame,
     stream_fade,
@@ -305,6 +308,49 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(config.led_count, 10)
         self.assertEqual(config.mode, 'slow')
 
+    def test_discover_host_retries_until_a_device_replies(self) -> None:
+        device = DiscoveredDevice(ip_address='192.168.1.23', device_id='twinkly')
+
+        with (
+            patch('lyte.fps_test.discover', side_effect=(iter(()), iter([device]))),
+            patch('sys.stdout', new_callable=io.StringIO),
+            patch('sys.stderr', new_callable=io.StringIO),
+        ):
+            host = discover_host(None)
+
+        self.assertEqual(host, '192.168.1.23')
+
+    def test_discover_host_stops_at_timeout(self) -> None:
+        with (
+            patch('lyte.fps_test.discover', return_value=iter(())),
+            patch('lyte.fps_test.time.monotonic', side_effect=(0.0, 0.0, 1.0)),
+            patch('sys.stdout', new_callable=io.StringIO),
+            patch('sys.stderr', new_callable=io.StringIO),
+        ):
+            host = discover_host(1.0)
+
+        self.assertIsNone(host)
+
+    def test_verify_lists_demos_before_running_them(self) -> None:
+        output = io.StringIO()
+
+        with (
+            patch('lyte.fps_test.discover_host', return_value='192.168.1.23'),
+            patch('lyte.fps_test.read_led_count', return_value=2),
+            patch('lyte.fps_test.prepare_device', return_value=True),
+            patch('lyte.fps_test.run_fast_verify', return_value=()),
+            patch('lyte.fps_test.turn_off_streaming_device', return_value=True),
+            patch('sys.stdout', output),
+        ):
+            result = run_verify_test(VerifyConfig())
+
+        self.assertEqual(result, 0)
+        self.assertIn(
+            '[verify] Demos: primary-channels, moving-gradient, crossfade, '
+            'temporal-dither',
+            output.getvalue(),
+        )
+
     def test_dispersed_pixel_order_visits_each_led_once(self) -> None:
         order = dispersed_pixel_order(11)
 
@@ -523,10 +569,10 @@ class FpsTestTests(unittest.TestCase):
             phases,
             [
                 ('primary-channels-black-before', 60.0, 1.0),
-                ('primary-channels', 60.0, 5.0),
+                ('primary-channels', 60.0, 3.0),
                 ('primary-channels-black-after', 60.0, 1.0),
                 ('moving-gradient-black-before', 60.0, 1.0),
-                ('moving-gradient', 60.0, 5.0),
+                ('moving-gradient', 60.0, 3.0),
                 ('moving-gradient-black-after', 60.0, 1.0),
             ],
         )

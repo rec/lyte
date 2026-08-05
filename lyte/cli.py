@@ -28,7 +28,7 @@ def main(args: Sequence[str] | None = None) -> int:
 def test(
     host: str | None = None,
     timeout: float = 5.0,
-    discovery_timeout: float = 5.0,
+    discovery_timeout: float | None = None,
     attempts: int = 10,
     retry_delay: float = 0.5,
     retry_backoff: float = 2.0,
@@ -55,7 +55,7 @@ def test(
 def test2(
     host: str | None = None,
     timeout: float = 5.0,
-    discovery_timeout: float = 5.0,
+    discovery_timeout: float | None = None,
     attempts: int = 10,
     retry_delay: float = 0.5,
     retry_backoff: float = 2.0,
@@ -80,7 +80,7 @@ def test2(
 def black_floor(
     host: str | None = None,
     timeout: float = 5.0,
-    discovery_timeout: float = 5.0,
+    discovery_timeout: float | None = None,
     attempts: int = 10,
     retry_delay: float = 0.5,
     retry_backoff: float = 2.0,
@@ -103,7 +103,7 @@ def black_floor(
 def verify(
     host: str | None = None,
     timeout: float = 5.0,
-    discovery_timeout: float = 5.0,
+    discovery_timeout: float | None = None,
     attempts: int = 10,
     retry_delay: float = 0.5,
     retry_backoff: float = 2.0,

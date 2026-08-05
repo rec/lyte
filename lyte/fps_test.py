@@ -35,9 +35,10 @@ HIGH_CONTRAST_BLEND: tuple[RGB, RGB] = ((0, 255, 120), (255, 240, 0))
 TEST2_ANIMATION_FPS = 60.0
 TEST2_TEMPORAL_FACTOR = 4
 TEST2_TRANSPORT_FPS = TEST2_ANIMATION_FPS * TEST2_TEMPORAL_FACTOR
+DISCOVERY_ATTEMPT_TIMEOUT = 5.0
 VERIFY_FPS = 60.0
 VERIFY_BLACK_DURATION = 1.0
-VERIFY_DEMO_DURATION = 5.0
+VERIFY_DEMO_DURATION = 3.0
 VERIFY_SLOW_FADE_DURATION = 1.0
 UP_KEY = '\x1b[A'
 DOWN_KEY = '\x1b[B'
@@ -75,7 +76,7 @@ class VerifyResult:
 class FpsTestConfig:
     host: str | None = None
     timeout: float = 5.0
-    discovery_timeout: float = 5.0
+    discovery_timeout: float | None = None
     attempts: int = 10
     retry_delay: float = 0.5
     retry_backoff: float = 2.0
@@ -88,7 +89,7 @@ class FpsTestConfig:
 class TemporalDitherTestConfig:
     host: str | None = None
     timeout: float = 5.0
-    discovery_timeout: float = 5.0
+    discovery_timeout: float | None = None
     attempts: int = 10
     retry_delay: float = 0.5
     retry_backoff: float = 2.0
@@ -100,7 +101,7 @@ class TemporalDitherTestConfig:
 class BlackFloorTestConfig:
     host: str | None = None
     timeout: float = 5.0
-    discovery_timeout: float = 5.0
+    discovery_timeout: float | None = None
     attempts: int = 10
     retry_delay: float = 0.5
     retry_backoff: float = 2.0
@@ -111,7 +112,7 @@ class BlackFloorTestConfig:
 class VerifyConfig:
     host: str | None = None
     timeout: float = 5.0
-    discovery_timeout: float = 5.0
+    discovery_timeout: float | None = None
     attempts: int = 10
     retry_delay: float = 0.5
     retry_backoff: float = 2.0
@@ -168,6 +169,7 @@ def run_verify_test(config: VerifyConfig) -> int:
         return 1
 
     try:
+        log_verify_demos()
         if config.mode == 'slow':
             results = run_slow_verify(client, retry, host, device)
         else:
@@ -245,6 +247,7 @@ def run_black_floor_test(config: BlackFloorTestConfig) -> int:
 
 
 def validate_config(config: FpsTestConfig) -> None:
+    validate_discovery_timeout(config.discovery_timeout)
     if config.attempts < 1:
         sys.exit('--attempts must be at least 1')
     if config.retry_delay < 0:
@@ -258,6 +261,7 @@ def validate_config(config: FpsTestConfig) -> None:
 
 
 def validate_temporal_dither_config(config: TemporalDitherTestConfig) -> None:
+    validate_discovery_timeout(config.discovery_timeout)
     if config.attempts < 1:
         sys.exit('--attempts must be at least 1')
     if config.retry_delay < 0:
@@ -269,6 +273,7 @@ def validate_temporal_dither_config(config: TemporalDitherTestConfig) -> None:
 
 
 def validate_black_floor_config(config: BlackFloorTestConfig) -> None:
+    validate_discovery_timeout(config.discovery_timeout)
     if config.attempts < 1:
         sys.exit('--attempts must be at least 1')
     if config.retry_delay < 0:
@@ -278,12 +283,18 @@ def validate_black_floor_config(config: BlackFloorTestConfig) -> None:
 
 
 def validate_verify_config(config: VerifyConfig) -> None:
+    validate_discovery_timeout(config.discovery_timeout)
     if config.attempts < 1:
         sys.exit('--attempts must be at least 1')
     if config.retry_delay < 0:
         sys.exit('--retry-delay must not be negative')
     if config.retry_backoff < 1:
         sys.exit('--retry-backoff must be at least 1')
+
+
+def validate_discovery_timeout(timeout: float | None) -> None:
+    if timeout is not None and timeout <= 0:
+        sys.exit('--discovery-timeout must be greater than zero')
 
 
 def gradient_frame(led_count: int, start: RGB, end: RGB) -> NDArray[np.uint8]:
@@ -556,6 +567,10 @@ def report_verify_results(results: tuple[VerifyResult, ...]) -> None:
         log_error('[verify] Did not work: ' + ', '.join(failed))
     if shown:
         log_status('[verify] Shown without pass/fail: ' + ', '.join(shown))
+
+
+def log_verify_demos() -> None:
+    log_status('[verify] Demos: ' + ', '.join(i.name for i in VERIFY_DEMOS))
 
 
 def verify_primary_channels_frame(
@@ -1050,21 +1065,37 @@ def turn_off_streaming_device(
     return True
 
 
-def discover_host(timeout: float) -> str | None:
+def discover_host(timeout: float | None) -> str | None:
     log('[step] Discovering Twinkly devices')
-    devices = list(discover(timeout=timeout))
-    if not devices:
-        log_error('[failed] No Twinkly discovery replies received.')
-        log_error('Pass --host with the device IP address.')
-        return None
-    if len(devices) > 1:
-        log('[warn] Multiple devices found; using the first one.')
-    device = devices[0]
-    log_status(f'[connected] Found {device.device_id} at {device.ip_address}')
-    return device.ip_address
+    started_at = time.monotonic()
+    attempts = 0
+    while True:
+        remaining = (
+            None if timeout is None else timeout - (time.monotonic() - started_at)
+        )
+        if remaining is not None and remaining <= 0:
+            log_error('[failed] No Twinkly discovery replies received.')
+            log_error('Pass --host with the device IP address.')
+            return None
+        attempt_timeout = DISCOVERY_ATTEMPT_TIMEOUT
+        if remaining is not None:
+            attempt_timeout = min(attempt_timeout, remaining)
+        attempts += 1
+        devices = list(discover(timeout=attempt_timeout))
+        if devices:
+            if len(devices) > 1:
+                log('[warn] Multiple devices found; using the first one.')
+            device = devices[0]
+            log_status(f'[connected] Found {device.device_id} at {device.ip_address}')
+            return device.ip_address
+        if timeout is None:
+            log(f'[warn] No Twinkly discovery replies on attempt {attempts}; retrying.')
+        else:
+            log(f'[warn] No Twinkly discovery replies on attempt {attempts}.')
 
 
 VERIFY_DEMOS: tuple[VerifyDemo, ...] = (
+    # Add new demos at the start; new features are the most likely to break.
     VerifyDemo('primary-channels', verify_primary_channels_frame),
     VerifyDemo('moving-gradient', verify_moving_gradient_frame),
     VerifyDemo('crossfade', verify_crossfade_frame),
