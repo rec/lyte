@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State, float_light_frame_from_byte
+from ...animation import Animation, Device, State, float_color_from_rgb
 from ..colors import DEFAULT_PATTERN, RGB
 from ..validators import validate_palette
 
@@ -25,9 +25,11 @@ class PartyMode(Animation[PartyModeState]):
         return PartyModeState()
 
     def render(self, device: Device, state: PartyModeState) -> NDArray[np.float32]:
-        frame = np.zeros((device.led_count, 3), dtype=np.uint8)
+        frame = np.zeros((device.led_count, 3), dtype=np.float32)
         if state.position % 2 == 0:
-            frame[:] = self.colors[(state.position // 2) % len(self.colors)]
+            frame[:] = float_color_from_rgb(
+                self.colors[(state.position // 2) % len(self.colors)]
+            )
         state.position += 1
         state.frame += 1
-        return float_light_frame_from_byte(frame)
+        return frame
