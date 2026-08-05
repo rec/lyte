@@ -133,6 +133,27 @@ class LyteClient(BaseModel):
     def set_saturation(self, body: dict[str, object]) -> LyteResponse:
         return self.post('led/out/saturation', body)
 
+    def get_led_mode(self) -> LyteResponse:
+        return self.get('led/mode')
+
+    def set_led_mode(self, body: dict[str, object]) -> LyteResponse:
+        return self.post('led/mode', body)
+
+    def get_led_color(self) -> LyteResponse:
+        return self.get('led/color')
+
+    def set_led_color(self, body: dict[str, object]) -> LyteResponse:
+        return self.post('led/color', body)
+
+    def get_effects(self) -> LyteResponse:
+        return self.get('led/effects')
+
+    def get_current_effect(self) -> LyteResponse:
+        return self.get('led/effects/current')
+
+    def set_current_effect(self, body: dict[str, object]) -> LyteResponse:
+        return self.post('led/effects/current', body)
+
     def set_realtime_mode(self) -> LyteResponse:
         return self.post('led/mode', {'mode': 'rt'})
 

@@ -108,6 +108,9 @@ from lyte.runtime import read_device_led_count, send_authenticated_frame
 from lyte.xled import (
     OutputControl,
     read_output_control,
+    run_color_control,
+    run_effect_control,
+    run_mode_control,
     run_output_control,
     write_output_control,
 )
@@ -385,6 +388,40 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(kind, 'saturation')
         self.assertEqual(action, 'get')
         self.assertIsNone(value)
+
+    def test_cli_mode_command_dispatches_mode_control(self) -> None:
+        with patch.object(cli, 'run_mode_control', return_value=0) as run_mode_control:
+            result = cli.main(['mode', 'set', 'demo'])
+
+        self.assertEqual(result, 0)
+        config, action, mode = run_mode_control.call_args.args
+        self.assertIsNone(config.host)
+        self.assertEqual(action, 'set')
+        self.assertEqual(mode, 'demo')
+
+    def test_cli_color_command_dispatches_color_control(self) -> None:
+        with patch.object(
+            cli, 'run_color_control', return_value=0
+        ) as run_color_control:
+            result = cli.main(['color', 'set', '1', '2', '3'])
+
+        self.assertEqual(result, 0)
+        config, action, red, green, blue = run_color_control.call_args.args
+        self.assertIsNone(config.host)
+        self.assertEqual(action, 'set')
+        self.assertEqual((red, green, blue), (1, 2, 3))
+
+    def test_cli_effects_command_dispatches_effect_control(self) -> None:
+        with patch.object(
+            cli, 'run_effect_control', return_value=0
+        ) as run_effect_control:
+            result = cli.main(['effects', 'set-current', '4'])
+
+        self.assertEqual(result, 0)
+        config, action, effect_id = run_effect_control.call_args.args
+        self.assertIsNone(config.host)
+        self.assertEqual(action, 'set-current')
+        self.assertEqual(effect_id, 4)
 
     def test_discover_host_retries_until_a_device_replies(self) -> None:
         device = DiscoveredDevice(ip_address='192.168.1.23', device_id='twinkly')
@@ -1058,6 +1095,65 @@ class ClientTests(unittest.TestCase):
             ],
         )
 
+    def test_mode_color_and_effects_use_documented_paths(self) -> None:
+        calls = []
+
+        def get(
+            self: LyteClient,
+            path: str,
+            authenticated: bool = True,
+        ) -> LyteResponse:
+            calls.append(('GET', self.host, path, authenticated))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        def post(
+            self: LyteClient,
+            path: str,
+            body: dict[str, object],
+            authenticated: bool = True,
+        ) -> LyteResponse:
+            calls.append(('POST', self.host, path, body, authenticated))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch.object(LyteClient, 'get', get),
+            patch.object(LyteClient, 'post', post),
+        ):
+            client.get_led_mode()
+            client.set_led_mode({'mode': 'demo'})
+            client.get_led_color()
+            client.set_led_color({'mode': 'rgb', 'red': 1, 'green': 2, 'blue': 3})
+            client.get_effects()
+            client.get_current_effect()
+            client.set_current_effect({'effect_id': 4})
+
+        self.assertEqual(
+            calls,
+            [
+                ('GET', '192.168.1.23', 'led/mode', True),
+                ('POST', '192.168.1.23', 'led/mode', {'mode': 'demo'}, True),
+                ('GET', '192.168.1.23', 'led/color', True),
+                (
+                    'POST',
+                    '192.168.1.23',
+                    'led/color',
+                    {'mode': 'rgb', 'red': 1, 'green': 2, 'blue': 3},
+                    True,
+                ),
+                ('GET', '192.168.1.23', 'led/effects', True),
+                ('GET', '192.168.1.23', 'led/effects/current', True),
+                (
+                    'POST',
+                    '192.168.1.23',
+                    'led/effects/current',
+                    {'effect_id': 4},
+                    True,
+                ),
+            ],
+        )
+
     def test_set_off_mode_uses_led_mode_off(self) -> None:
         calls = []
 
@@ -1180,6 +1276,22 @@ class PackageDiagnosticTests(unittest.TestCase):
     def test_authenticated_reports_probe_device_name_summary_and_echo(self) -> None:
         calls = []
 
+        def get_led_mode(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'mode'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'mode': 'off'})
+
+        def get_led_color(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'color'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'red': 1})
+
+        def get_effects(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'effects'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'effects': []})
+
+        def get_current_effect(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'current-effect'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'effect_id': 0})
+
         def get_brightness(self: LyteClient) -> LyteResponse:
             calls.append(('GET', 'brightness'))
             return LyteResponse(http_status=200, data={'code': 1000, 'value': 75})
@@ -1201,6 +1313,10 @@ class PackageDiagnosticTests(unittest.TestCase):
             return LyteResponse(http_status=200, data={'code': 1000, 'json': body})
 
         with (
+            patch.object(LyteClient, 'get_led_mode', get_led_mode),
+            patch.object(LyteClient, 'get_led_color', get_led_color),
+            patch.object(LyteClient, 'get_effects', get_effects),
+            patch.object(LyteClient, 'get_current_effect', get_current_effect),
             patch.object(LyteClient, 'get_brightness', get_brightness),
             patch.object(LyteClient, 'get_saturation', get_saturation),
             patch.object(LyteClient, 'get_device_name', get_device_name),
@@ -1214,11 +1330,25 @@ class PackageDiagnosticTests(unittest.TestCase):
 
         self.assertEqual(
             [i.name for i in reports],
-            ['brightness', 'saturation', 'device-name', 'summary', 'echo'],
+            [
+                'mode',
+                'color',
+                'effects',
+                'current-effect',
+                'brightness',
+                'saturation',
+                'device-name',
+                'summary',
+                'echo',
+            ],
         )
         self.assertEqual(
             calls,
             [
+                ('GET', 'mode'),
+                ('GET', 'color'),
+                ('GET', 'effects'),
+                ('GET', 'current-effect'),
                 ('GET', 'brightness'),
                 ('GET', 'saturation'),
                 ('GET', 'device_name'),
@@ -1388,6 +1518,59 @@ class XledControlTests(unittest.TestCase):
             '[saturation] set mode=enabled type=A value=80',
             output.getvalue(),
         )
+
+    def test_run_mode_control_sets_mode_then_turns_off(self) -> None:
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch.object(LyteClient, 'set_led_mode') as set_led_mode,
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            result = run_mode_control(DiagnosticConfig(), 'set', 'demo')
+
+        self.assertEqual(result, 0)
+        set_led_mode.assert_called_once_with({'mode': 'demo'})
+        turn_off.assert_called_once()
+
+    def test_run_color_control_sets_rgb_then_turns_off(self) -> None:
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch.object(LyteClient, 'set_led_color') as set_led_color,
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            result = run_color_control(DiagnosticConfig(), 'set', 1, 2, 3)
+
+        self.assertEqual(result, 0)
+        set_led_color.assert_called_once_with(
+            {'mode': 'rgb', 'red': 1, 'green': 2, 'blue': 3}
+        )
+        turn_off.assert_called_once()
+
+    def test_run_effect_control_sets_current_effect_then_turns_off(self) -> None:
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch.object(LyteClient, 'set_current_effect') as set_current_effect,
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            result = run_effect_control(DiagnosticConfig(), 'set-current', 4)
+
+        self.assertEqual(result, 0)
+        set_current_effect.assert_called_once_with({'effect_id': 4})
+        turn_off.assert_called_once()
 
 
 class RuntimeTests(unittest.TestCase):

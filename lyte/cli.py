@@ -16,7 +16,17 @@ from .fps_test import (
     run_temporal_dither_test,
     run_verify_test,
 )
-from .xled import OutputControlAction, run_output_control
+from .xled import (
+    ColorAction,
+    EffectAction,
+    LedMode,
+    ModeAction,
+    OutputControlAction,
+    run_color_control,
+    run_effect_control,
+    run_mode_control,
+    run_output_control,
+)
 
 
 def main(args: Sequence[str] | None = None) -> int:
@@ -24,7 +34,10 @@ def main(args: Sequence[str] | None = None) -> int:
         {
             'black-floor': black_floor,
             'brightness': brightness,
+            'color': color,
             'diagnostic': diagnostic,
+            'effects': effects,
+            'mode': mode,
             'saturation': saturation,
             'test': test,
             'test2': test2,
@@ -205,4 +218,83 @@ def saturation(
         'saturation',
         action,
         value,
+    )
+
+
+def mode(
+    action: Annotated[ModeAction, tyro.conf.Positional] = 'get',
+    value: Annotated[LedMode | None, tyro.conf.Positional] = None,
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Get or set Twinkly LED mode, then turn the lights off."""
+    return run_mode_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        action,
+        value,
+    )
+
+
+def color(
+    action: Annotated[ColorAction, tyro.conf.Positional] = 'get',
+    red: Annotated[int | None, tyro.conf.Positional] = None,
+    green: Annotated[int | None, tyro.conf.Positional] = None,
+    blue: Annotated[int | None, tyro.conf.Positional] = None,
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Get or set Twinkly static RGB color, then turn the lights off."""
+    return run_color_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        action,
+        red,
+        green,
+        blue,
+    )
+
+
+def effects(
+    action: Annotated[EffectAction, tyro.conf.Positional] = 'list',
+    effect_id: Annotated[int | None, tyro.conf.Positional] = None,
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """List, read, or set Twinkly built-in effects, then turn the lights off."""
+    return run_effect_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        action,
+        effect_id,
     )
