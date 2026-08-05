@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal
+from typing import Annotated, Literal
 
 import tyro
 
@@ -16,13 +16,16 @@ from .fps_test import (
     run_temporal_dither_test,
     run_verify_test,
 )
+from .xled import OutputControlAction, run_output_control
 
 
 def main(args: Sequence[str] | None = None) -> int:
     return tyro.extras.subcommand_cli_from_dict(
         {
             'black-floor': black_floor,
+            'brightness': brightness,
             'diagnostic': diagnostic,
+            'saturation': saturation,
             'test': test,
             'test2': test2,
             'verify': verify,
@@ -150,4 +153,56 @@ def diagnostic(
             retry_delay=retry_delay,
             retry_backoff=retry_backoff,
         )
+    )
+
+
+def brightness(
+    action: Annotated[OutputControlAction, tyro.conf.Positional] = 'get',
+    value: Annotated[int | None, tyro.conf.Positional] = None,
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Get or set Twinkly app brightness."""
+    return run_output_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        'brightness',
+        action,
+        value,
+    )
+
+
+def saturation(
+    action: Annotated[OutputControlAction, tyro.conf.Positional] = 'get',
+    value: Annotated[int | None, tyro.conf.Positional] = None,
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Get or set Twinkly app saturation."""
+    return run_output_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        'saturation',
+        action,
+        value,
     )

@@ -99,11 +99,18 @@ from lyte.network.frame import (
 from lyte.network.session import (
     led_count_from_gestalt,
     set_mac_from_gestalt,
+    turn_off_with_retry,
     xled_request_label,
 )
 from lyte.preview import Layout, animation_document, render_animation_html
 from lyte.retry import RetryConfig, retry_call
 from lyte.runtime import read_device_led_count, send_authenticated_frame
+from lyte.xled import (
+    OutputControl,
+    read_output_control,
+    run_output_control,
+    write_output_control,
+)
 
 
 def render(
@@ -337,6 +344,47 @@ class FpsTestTests(unittest.TestCase):
         config = run_diagnostic.call_args.args[0]
         self.assertEqual(config.host, '192.168.1.23')
         self.assertEqual(config.attempts, 2)
+
+    def test_cli_brightness_command_dispatches_output_control(self) -> None:
+        with patch.object(
+            cli, 'run_output_control', return_value=0
+        ) as run_output_control:
+            result = cli.main(
+                [
+                    'brightness',
+                    'set',
+                    '75',
+                    '--host',
+                    '192.168.1.23',
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        config, kind, action, value = run_output_control.call_args.args
+        self.assertEqual(config.host, '192.168.1.23')
+        self.assertEqual(kind, 'brightness')
+        self.assertEqual(action, 'set')
+        self.assertEqual(value, 75)
+
+    def test_cli_saturation_command_dispatches_output_control(self) -> None:
+        with patch.object(
+            cli, 'run_output_control', return_value=0
+        ) as run_output_control:
+            result = cli.main(
+                [
+                    'saturation',
+                    'get',
+                    '--host',
+                    '192.168.1.23',
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        config, kind, action, value = run_output_control.call_args.args
+        self.assertEqual(config.host, '192.168.1.23')
+        self.assertEqual(kind, 'saturation')
+        self.assertEqual(action, 'get')
+        self.assertIsNone(value)
 
     def test_discover_host_retries_until_a_device_replies(self) -> None:
         device = DiscoveredDevice(ip_address='192.168.1.23', device_id='twinkly')
@@ -957,6 +1005,59 @@ class ClientTests(unittest.TestCase):
             ],
         )
 
+    def test_brightness_and_saturation_use_documented_paths(self) -> None:
+        calls = []
+
+        def get(
+            self: LyteClient,
+            path: str,
+            authenticated: bool = True,
+        ) -> LyteResponse:
+            calls.append(('GET', self.host, path, authenticated))
+            return LyteResponse(http_status=200, data={'code': 1000, 'value': 100})
+
+        def post(
+            self: LyteClient,
+            path: str,
+            body: dict[str, object],
+            authenticated: bool = True,
+        ) -> LyteResponse:
+            calls.append(('POST', self.host, path, body, authenticated))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch.object(LyteClient, 'get', get),
+            patch.object(LyteClient, 'post', post),
+        ):
+            client.get_brightness()
+            client.set_brightness({'mode': 'enabled', 'type': 'A', 'value': 75})
+            client.get_saturation()
+            client.set_saturation({'mode': 'enabled', 'type': 'A', 'value': 80})
+
+        self.assertEqual(
+            calls,
+            [
+                ('GET', '192.168.1.23', 'led/out/brightness', True),
+                (
+                    'POST',
+                    '192.168.1.23',
+                    'led/out/brightness',
+                    {'mode': 'enabled', 'type': 'A', 'value': 75},
+                    True,
+                ),
+                ('GET', '192.168.1.23', 'led/out/saturation', True),
+                (
+                    'POST',
+                    '192.168.1.23',
+                    'led/out/saturation',
+                    {'mode': 'enabled', 'type': 'A', 'value': 80},
+                    True,
+                ),
+            ],
+        )
+
     def test_set_off_mode_uses_led_mode_off(self) -> None:
         calls = []
 
@@ -1000,6 +1101,27 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(led_count_from_gestalt({'number_of_led': 250}), 250)
         self.assertIsNone(led_count_from_gestalt({'number_of_led': 0}))
         self.assertIsNone(led_count_from_gestalt({'number_of_led': '250'}))
+
+    def test_turn_off_with_retry_uses_xled_label(self) -> None:
+        labels = []
+
+        def set_off_mode(
+            client: LyteClient,
+            retry: RetryConfig,
+            label: str,
+        ) -> LyteResponse:
+            labels.append(label)
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        with patch('lyte.network.session.set_off_mode_with_retry', set_off_mode):
+            result = turn_off_with_retry(
+                LyteClient(host='192.168.1.23'),
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                '192.168.1.23',
+            )
+
+        self.assertTrue(result)
+        self.assertEqual(labels, ['POST /xled/v1/led/mode on 192.168.1.23'])
 
 
 class PackageDiagnosticTests(unittest.TestCase):
@@ -1058,6 +1180,14 @@ class PackageDiagnosticTests(unittest.TestCase):
     def test_authenticated_reports_probe_device_name_summary_and_echo(self) -> None:
         calls = []
 
+        def get_brightness(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'brightness'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'value': 75})
+
+        def get_saturation(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'saturation'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'value': 80})
+
         def get_device_name(self: LyteClient) -> LyteResponse:
             calls.append(('GET', 'device_name'))
             return LyteResponse(http_status=200, data={'code': 1000, 'name': 'Tree'})
@@ -1071,6 +1201,8 @@ class PackageDiagnosticTests(unittest.TestCase):
             return LyteResponse(http_status=200, data={'code': 1000, 'json': body})
 
         with (
+            patch.object(LyteClient, 'get_brightness', get_brightness),
+            patch.object(LyteClient, 'get_saturation', get_saturation),
             patch.object(LyteClient, 'get_device_name', get_device_name),
             patch.object(LyteClient, 'get_summary', get_summary),
             patch.object(LyteClient, 'echo', echo),
@@ -1080,10 +1212,15 @@ class PackageDiagnosticTests(unittest.TestCase):
                 RetryConfig(attempts=1, delay=0, backoff=1),
             )
 
-        self.assertEqual([i.name for i in reports], ['device-name', 'summary', 'echo'])
+        self.assertEqual(
+            [i.name for i in reports],
+            ['brightness', 'saturation', 'device-name', 'summary', 'echo'],
+        )
         self.assertEqual(
             calls,
             [
+                ('GET', 'brightness'),
+                ('GET', 'saturation'),
                 ('GET', 'device_name'),
                 ('GET', 'summary'),
                 ('POST', 'echo', {'message': 'lyte diagnostic'}),
@@ -1122,14 +1259,135 @@ class PackageDiagnosticTests(unittest.TestCase):
             ),
             patch('lyte.diagnostic.authenticate_device', return_value=object()),
             patch('lyte.diagnostic.authenticated_reports', return_value=()),
+            patch('lyte.diagnostic.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_diagnostic(DiagnosticConfig())
 
         self.assertEqual(result, 0)
         self.assertEqual(client.mac, 'AA')
+        turn_off.assert_called_once()
         self.assertIn('Device name: Tree', output.getvalue())
         self.assertIn("firmware: {'version': '1.0'}", output.getvalue())
+
+
+class XledControlTests(unittest.TestCase):
+    def test_output_control_accepts_string_values_from_device(self) -> None:
+        control = OutputControl.from_response({'mode': 'enabled', 'value': '75'})
+
+        self.assertEqual(control.mode, 'enabled')
+        self.assertEqual(control.type, 'A')
+        self.assertEqual(control.value, 75)
+
+    def test_output_control_request_body_uses_documented_shape(self) -> None:
+        self.assertEqual(
+            OutputControl(value=80).request_body(),
+            {'mode': 'enabled', 'type': 'A', 'value': 80},
+        )
+
+    def test_read_output_control_dispatches_by_kind(self) -> None:
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch.object(
+                LyteClient,
+                'get_brightness',
+                return_value=LyteResponse(
+                    http_status=200,
+                    data={'mode': 'enabled', 'value': 75},
+                ),
+            ) as get_brightness,
+            patch.object(
+                LyteClient,
+                'get_saturation',
+                return_value=LyteResponse(
+                    http_status=200,
+                    data={'mode': 'enabled', 'value': 80},
+                ),
+            ) as get_saturation,
+        ):
+            brightness = read_output_control(client, 'brightness')
+            saturation = read_output_control(client, 'saturation')
+
+        self.assertEqual(brightness.value, 75)
+        self.assertEqual(saturation.value, 80)
+        get_brightness.assert_called_once()
+        get_saturation.assert_called_once()
+
+    def test_write_output_control_dispatches_by_kind(self) -> None:
+        client = LyteClient(host='192.168.1.23')
+        control = OutputControl(value=90)
+
+        with (
+            patch.object(LyteClient, 'set_brightness') as set_brightness,
+            patch.object(LyteClient, 'set_saturation') as set_saturation,
+        ):
+            write_output_control(client, 'brightness', control)
+            write_output_control(client, 'saturation', control)
+
+        set_brightness.assert_called_once_with(
+            {'mode': 'enabled', 'type': 'A', 'value': 90}
+        )
+        set_saturation.assert_called_once_with(
+            {'mode': 'enabled', 'type': 'A', 'value': 90}
+        )
+
+    def test_run_output_control_get_reports_current_value(self) -> None:
+        output = io.StringIO()
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch(
+                'lyte.xled.read_output_control',
+                return_value=OutputControl(value=75),
+            ),
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', output),
+        ):
+            result = run_output_control(
+                DiagnosticConfig(),
+                'brightness',
+                'get',
+                None,
+            )
+
+        self.assertEqual(result, 0)
+        turn_off.assert_called_once()
+        self.assertIn('[brightness] mode=enabled type=A value=75', output.getvalue())
+
+    def test_run_output_control_set_writes_value(self) -> None:
+        output = io.StringIO()
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.xled.write_output_control') as write_output_control,
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', output),
+        ):
+            result = run_output_control(
+                DiagnosticConfig(),
+                'saturation',
+                'set',
+                80,
+            )
+
+        self.assertEqual(result, 0)
+        turn_off.assert_called_once()
+        write_output_control.assert_called_once_with(
+            client,
+            'saturation',
+            OutputControl(value=80),
+        )
+        self.assertIn(
+            '[saturation] set mode=enabled type=A value=80',
+            output.getvalue(),
+        )
 
 
 class RuntimeTests(unittest.TestCase):
