@@ -1,6 +1,16 @@
 """Small dependency-free Lyte client."""
 
-from .animation import Animation, Device, State, validate_frame
+from .animation import (
+    Animation,
+    Device,
+    State,
+    byte_light_frame_from_float,
+    float_color_from_rgb,
+    rgb_from_float_color,
+    solid_float_light_frame,
+    validate_float_light_frame,
+    validate_frame,
+)
 from .animations.bibliopixel import (
     Alternates,
     ColorChase,
@@ -57,12 +67,14 @@ __all__ = [
     'AuthenticationError',
     'Alternates',
     'Animation',
+    'byte_light_frame_from_float',
     'ColorChase',
     'ColorFade',
     'ColorFill',
     'ColorPattern',
     'ColorWipe',
     'FireFlies',
+    'float_color_from_rgb',
     'HalvesRainbow',
     'DiscoveredDevice',
     'DiscoveryError',
@@ -100,11 +112,14 @@ __all__ = [
     'led_count_from_gestalt',
     'read_gestalt',
     'render_animation_html',
+    'rgb_from_float_color',
     'send_frame_with_retry',
     'set_off_mode_with_retry',
     'set_mac_from_gestalt',
     'set_realtime_mode_with_retry',
+    'solid_float_light_frame',
     'UnsupportedEndpointError',
+    'validate_float_light_frame',
     'validate_frame',
     'xled_request_label',
 ]
