@@ -25,12 +25,14 @@ from .xled import (
     LedMode,
     ModeAction,
     OutputControlAction,
+    TimerAction,
     run_color_control,
     run_effect_control,
     run_layout_control,
     run_led_config_control,
     run_mode_control,
     run_output_control,
+    run_timer_control,
 )
 
 
@@ -48,6 +50,7 @@ def main(args: Sequence[str] | None = None) -> int:
             'saturation': saturation,
             'test': test,
             'test2': test2,
+            'timer': timer,
             'verify': verify,
         },
         prog='lyte',
@@ -354,4 +357,33 @@ def led_config(
         ),
         action,
         path,
+    )
+
+
+def timer(
+    action: Annotated[TimerAction, tyro.conf.Positional] = 'get',
+    time_on: Annotated[int | None, tyro.conf.Positional] = None,
+    time_off: Annotated[int | None, tyro.conf.Positional] = None,
+    time_now: int | None = None,
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Get or set Twinkly timer, then turn the lights off."""
+    return run_timer_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        action,
+        time_on,
+        time_off,
+        time_now,
     )

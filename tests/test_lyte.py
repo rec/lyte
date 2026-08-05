@@ -108,6 +108,7 @@ from lyte.runtime import read_device_led_count, send_authenticated_frame
 from lyte.xled import (
     OutputControl,
     XledLayout,
+    XledTimer,
     read_output_control,
     run_color_control,
     run_effect_control,
@@ -115,6 +116,7 @@ from lyte.xled import (
     run_led_config_control,
     run_mode_control,
     run_output_control,
+    run_timer_control,
     write_output_control,
 )
 
@@ -449,6 +451,20 @@ class FpsTestTests(unittest.TestCase):
         self.assertIsNone(config.host)
         self.assertEqual(action, 'set')
         self.assertEqual(path, Path('config.json'))
+
+    def test_cli_timer_command_dispatches_timer_control(self) -> None:
+        with patch.object(
+            cli, 'run_timer_control', return_value=0
+        ) as run_timer_control:
+            result = cli.main(['timer', 'set', '3600', '7200', '--time-now', '1800'])
+
+        self.assertEqual(result, 0)
+        config, action, time_on, time_off, time_now = run_timer_control.call_args.args
+        self.assertIsNone(config.host)
+        self.assertEqual(action, 'set')
+        self.assertEqual(time_on, 3600)
+        self.assertEqual(time_off, 7200)
+        self.assertEqual(time_now, 1800)
 
     def test_discover_host_retries_until_a_device_replies(self) -> None:
         device = DiscoveredDevice(ip_address='192.168.1.23', device_id='twinkly')
@@ -1221,6 +1237,8 @@ class ClientTests(unittest.TestCase):
             client.delete_layout_full()
             client.get_led_config()
             client.set_led_config({'strings': []})
+            client.get_timer()
+            client.set_timer({'time_now': 1800, 'time_on': 3600, 'time_off': 7200})
 
         self.assertEqual(
             calls,
@@ -1230,6 +1248,14 @@ class ClientTests(unittest.TestCase):
                 ('DELETE', '192.168.1.23', 'led/layout/full', True),
                 ('GET', '192.168.1.23', 'led/config', True),
                 ('POST', '192.168.1.23', 'led/config', {'strings': []}, True),
+                ('GET', '192.168.1.23', 'timer', True),
+                (
+                    'POST',
+                    '192.168.1.23',
+                    'timer',
+                    {'time_now': 1800, 'time_on': 3600, 'time_off': 7200},
+                    True,
+                ),
             ],
         )
 
@@ -1367,6 +1393,13 @@ class PackageDiagnosticTests(unittest.TestCase):
             calls.append(('GET', 'mode'))
             return LyteResponse(http_status=200, data={'code': 1000, 'mode': 'off'})
 
+        def get_timer(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'timer'))
+            return LyteResponse(
+                http_status=200,
+                data={'code': 1000, 'time_now': 1800, 'time_on': -1, 'time_off': -1},
+            )
+
         def get_led_color(self: LyteClient) -> LyteResponse:
             calls.append(('GET', 'color'))
             return LyteResponse(http_status=200, data={'code': 1000, 'red': 1})
@@ -1403,6 +1436,7 @@ class PackageDiagnosticTests(unittest.TestCase):
             patch.object(LyteClient, 'get_layout_full', get_layout_full),
             patch.object(LyteClient, 'get_led_config', get_led_config),
             patch.object(LyteClient, 'get_led_mode', get_led_mode),
+            patch.object(LyteClient, 'get_timer', get_timer),
             patch.object(LyteClient, 'get_led_color', get_led_color),
             patch.object(LyteClient, 'get_effects', get_effects),
             patch.object(LyteClient, 'get_current_effect', get_current_effect),
@@ -1423,6 +1457,7 @@ class PackageDiagnosticTests(unittest.TestCase):
                 'layout',
                 'led-config',
                 'mode',
+                'timer',
                 'color',
                 'effects',
                 'current-effect',
@@ -1439,6 +1474,7 @@ class PackageDiagnosticTests(unittest.TestCase):
                 ('GET', 'layout'),
                 ('GET', 'led-config'),
                 ('GET', 'mode'),
+                ('GET', 'timer'),
                 ('GET', 'color'),
                 ('GET', 'effects'),
                 ('GET', 'current-effect'),
@@ -1530,6 +1566,25 @@ class XledControlTests(unittest.TestCase):
                 'synthesized': False,
                 'uuid': '00000000-0000-0000-0000-000000000000',
             },
+        )
+
+    def test_timer_model_uses_seconds_after_midnight(self) -> None:
+        timer = XledTimer.from_response(
+            {'time_now': 1800, 'time_on': -1, 'time_off': 7200, 'code': 1000}
+        )
+
+        self.assertEqual(timer.time_now, 1800)
+        self.assertEqual(timer.time_on, -1)
+        self.assertEqual(timer.time_off, 7200)
+        self.assertEqual(
+            timer.request_body(),
+            {'time_on': -1, 'time_off': 7200, 'time_now': 1800},
+        )
+
+    def test_timer_request_can_omit_current_time(self) -> None:
+        self.assertEqual(
+            XledTimer(time_on=3600, time_off=7200).request_body(),
+            {'time_on': 3600, 'time_off': 7200},
         )
 
     def test_read_output_control_dispatches_by_kind(self) -> None:
@@ -1776,6 +1831,53 @@ class XledControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         set_led_config.assert_called_once_with({'strings': [{'first_led_id': 0}]})
+        turn_off.assert_called_once()
+
+    def test_run_timer_control_reads_timer_then_turns_off(self) -> None:
+        output = io.StringIO()
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch.object(
+                LyteClient,
+                'get_timer',
+                return_value=LyteResponse(
+                    http_status=200,
+                    data={'time_now': 1800, 'time_on': -1, 'time_off': 7200},
+                ),
+            ),
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', output),
+        ):
+            result = run_timer_control(DiagnosticConfig(), 'get', None, None, None)
+
+        self.assertEqual(result, 0)
+        self.assertIn(
+            '[timer] time_now=1800 time_on=-1 time_off=7200',
+            output.getvalue(),
+        )
+        turn_off.assert_called_once()
+
+    def test_run_timer_control_sets_timer_then_turns_off(self) -> None:
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch.object(LyteClient, 'set_timer') as set_timer,
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            result = run_timer_control(DiagnosticConfig(), 'set', 3600, 7200, 1800)
+
+        self.assertEqual(result, 0)
+        set_timer.assert_called_once_with(
+            {'time_on': 3600, 'time_off': 7200, 'time_now': 1800}
+        )
         turn_off.assert_called_once()
 
 
