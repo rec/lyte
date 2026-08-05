@@ -112,16 +112,6 @@ def byte_light_frame_from_float(frame: NDArray[np.float32]) -> NDArray[np.uint8]
     return np.ascontiguousarray(encoded)
 
 
-def float_light_frame_from_byte(frame: NDArray[np.uint8]) -> NDArray[np.float32]:
-    if frame.dtype != np.uint8:
-        raise ValueError('Byte light frames must have dtype uint8')
-    if frame.ndim != 2:
-        raise ValueError('Byte light frames must be two-dimensional')
-    if not frame.flags.c_contiguous:
-        raise ValueError('Byte light frames must be C-contiguous')
-    return np.ascontiguousarray(frame.astype(np.float32) / 255)
-
-
 def float_color_from_rgb(color: RGB) -> FloatRGB:
     validate_rgb_color(color)
     return color[0] / 255, color[1] / 255, color[2] / 255
