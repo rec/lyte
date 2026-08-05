@@ -25,6 +25,7 @@ from .xled import (
     LedMode,
     ModeAction,
     MovieAction,
+    NetworkAction,
     OutputControlAction,
     PlaylistAction,
     TimerAction,
@@ -34,6 +35,7 @@ from .xled import (
     run_led_config_control,
     run_mode_control,
     run_movie_control,
+    run_network_control,
     run_output_control,
     run_playlist_control,
     run_timer_control,
@@ -52,6 +54,7 @@ def main(args: Sequence[str] | None = None) -> int:
             'led-config': led_config,
             'mode': mode,
             'movie': movie,
+            'network': network,
             'playlist': playlist,
             'saturation': saturation,
             'test': test,
@@ -429,6 +432,29 @@ def playlist(
 ) -> int:
     """Read Twinkly playlist or current playlist entry, then turn the lights off."""
     return run_playlist_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        action,
+    )
+
+
+def network(
+    action: Annotated[NetworkAction, tyro.conf.Positional] = 'status',
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Read Twinkly network status or WiFi scan results, then turn the lights off."""
+    return run_network_control(
         DiagnosticConfig(
             host=host,
             timeout=timeout,

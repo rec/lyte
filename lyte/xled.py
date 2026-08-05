@@ -35,6 +35,7 @@ LedConfigAction = Literal['get', 'set']
 TimerAction = Literal['get', 'set']
 MovieAction = Literal['config', 'list', 'current']
 PlaylistAction = Literal['list', 'current']
+NetworkAction = Literal['status', 'scan', 'scan-results']
 
 
 class LayoutCoordinate(BaseModel, frozen=True):
@@ -310,6 +311,20 @@ def run_playlist_control(config: DiagnosticConfig, action: PlaylistAction) -> in
             log_status(f'[playlist] list {client.get_playlist().data}')
         else:
             log_status(f'[playlist] current {client.get_current_playlist_entry().data}')
+
+    return run_xled_command(config, run)
+
+
+def run_network_control(config: DiagnosticConfig, action: NetworkAction) -> int:
+    def run(client: LyteClient) -> None:
+        if action == 'status':
+            log_status(f'[network] status {client.get_network_status().data}')
+        elif action == 'scan':
+            log_status(f'[network] scan {client.get_network_scan().data}')
+        else:
+            log_status(
+                f'[network] scan-results {client.get_network_scan_results().data}'
+            )
 
     return run_xled_command(config, run)
 
