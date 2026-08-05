@@ -20,7 +20,7 @@ from .animations.bibliopixel import RGB
 from .logging import log, log_error, log_status
 from .network.client import LyteClient
 from .network.discovery import discover
-from .network.session import set_off_mode_with_retry
+from .network.session import read_gestalt, set_mac_from_gestalt, set_off_mode_with_retry
 from .retry import RetryConfig
 from .runtime import (
     authenticate_device,
@@ -122,127 +122,111 @@ class VerifyConfig:
 
 def run_fps_test(config: FpsTestConfig) -> int:
     validate_config(config)
-    host = config.host or discover_host(config.discovery_timeout)
-    if host is None:
-        return 1
-
-    retry = RetryConfig(
-        attempts=config.attempts,
-        delay=config.retry_delay,
-        backoff=config.retry_backoff,
+    return run_realtime_command(
+        config.host,
+        config.timeout,
+        config.discovery_timeout,
+        config.attempts,
+        config.retry_delay,
+        config.retry_backoff,
+        config.led_count,
+        lambda client, retry, host, device: run_fades(
+            client, retry, host, device, config.duration, config.pause
+        ),
     )
-    client = LyteClient(host=host, timeout=config.timeout)
-    led_count = read_led_count(client, retry, config.led_count, host)
-    if led_count is None:
-        return 1
-    device = Device(led_count=led_count)
-    if not prepare_device(client, retry, host):
-        return 1
-
-    try:
-        run_fades(client, retry, host, device, config.duration, config.pause)
-    except KeyboardInterrupt:
-        log()
-        log('[ok] Stopped')
-    finally:
-        turn_off_streaming_device(client, retry, host)
-    return 0
 
 
 def run_verify_test(config: VerifyConfig) -> int:
     validate_verify_config(config)
-    host = config.host or discover_host(config.discovery_timeout)
-    if host is None:
-        return 1
 
-    retry = RetryConfig(
-        attempts=config.attempts,
-        delay=config.retry_delay,
-        backoff=config.retry_backoff,
-    )
-    client = LyteClient(host=host, timeout=config.timeout)
-    led_count = read_led_count(client, retry, config.led_count, host)
-    if led_count is None:
-        return 1
-    device = Device(led_count=led_count)
-    if not prepare_device(client, retry, host):
-        return 1
-
-    try:
+    def verify_action(
+        client: LyteClient,
+        retry: RetryConfig,
+        host: str,
+        device: Device,
+    ) -> None:
         log_verify_demos()
         if config.mode == 'slow':
             results = run_slow_verify(client, retry, host, device)
         else:
             results = run_fast_verify(client, retry, host, device)
         report_verify_results(results)
-    except KeyboardInterrupt:
-        log()
-        log('[ok] Stopped')
-    finally:
-        turn_off_streaming_device(client, retry, host)
-    return 0
+
+    return run_realtime_command(
+        config.host,
+        config.timeout,
+        config.discovery_timeout,
+        config.attempts,
+        config.retry_delay,
+        config.retry_backoff,
+        config.led_count,
+        verify_action,
+    )
 
 
 def run_temporal_dither_test(config: TemporalDitherTestConfig) -> int:
     validate_temporal_dither_config(config)
-    host = config.host or discover_host(config.discovery_timeout)
-    if host is None:
-        return 1
-
-    retry = RetryConfig(
-        attempts=config.attempts,
-        delay=config.retry_delay,
-        backoff=config.retry_backoff,
+    return run_realtime_command(
+        config.host,
+        config.timeout,
+        config.discovery_timeout,
+        config.attempts,
+        config.retry_delay,
+        config.retry_backoff,
+        config.led_count,
+        lambda client, retry, host, device: run_temporal_dither_comparison(
+            client, retry, host, device, config.time
+        ),
     )
-    client = LyteClient(host=host, timeout=config.timeout)
-    led_count = read_led_count(client, retry, config.led_count, host)
-    if led_count is None:
-        return 1
-    device = Device(led_count=led_count)
-    if not prepare_device(client, retry, host):
-        return 1
-
-    try:
-        run_temporal_dither_comparison(client, retry, host, device, config.time)
-    except KeyboardInterrupt:
-        log()
-        log('[ok] Stopped')
-    finally:
-        turn_off_streaming_device(client, retry, host)
-    return 0
 
 
 def run_black_floor_test(config: BlackFloorTestConfig) -> int:
     validate_black_floor_config(config)
-    host = config.host or discover_host(config.discovery_timeout)
+    return run_realtime_command(
+        config.host,
+        config.timeout,
+        config.discovery_timeout,
+        config.attempts,
+        config.retry_delay,
+        config.retry_backoff,
+        config.led_count,
+        run_interactive_black_floor,
+    )
+
+
+def run_realtime_command(
+    configured_host: str | None,
+    timeout: float,
+    discovery_timeout: float | None,
+    attempts: int,
+    retry_delay: float,
+    retry_backoff: float,
+    configured_led_count: int | None,
+    action: Callable[[LyteClient, RetryConfig, str, Device], None],
+) -> int:
+    host = configured_host or discover_host(discovery_timeout)
     if host is None:
         return 1
 
     retry = RetryConfig(
-        attempts=config.attempts,
-        delay=config.retry_delay,
-        backoff=config.retry_backoff,
+        attempts=attempts,
+        delay=retry_delay,
+        backoff=retry_backoff,
     )
-    client = LyteClient(host=host, timeout=config.timeout)
-    led_count = read_led_count(client, retry, config.led_count, host)
-    if led_count is None:
-        return 1
-    device = Device(led_count=led_count)
-    if not prepare_device(client, retry, host):
-        return 1
-
+    client = LyteClient(host=host, timeout=timeout)
     try:
-        run_interactive_black_floor(
-            client,
-            retry,
-            host,
-            device,
-        )
+        led_count = read_led_count(client, retry, configured_led_count, host)
+        if led_count is None:
+            return 1
+        device = Device(led_count=led_count)
+        if not prepare_device(client, retry, host):
+            return 1
+        action(client, retry, host, device)
     except KeyboardInterrupt:
         log()
         log('[ok] Stopped')
     finally:
-        turn_off_streaming_device(client, retry, host)
+        turn_off_device(client, retry, host)
     return 0
 
 
@@ -1049,9 +1033,25 @@ def prepare_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
     return True
 
 
-def turn_off_streaming_device(
-    client: LyteClient, retry: RetryConfig, host: str
-) -> bool:
+def turn_off_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
+    log(f'[step] Reading device info from {host}')
+    gestalt = read_gestalt(client, retry, f'HTTP device info read from {host}')
+    if gestalt is None:
+        sys.exit(f'Could not read device info from {host}.')
+    set_mac_from_gestalt(client, gestalt)
+
+    log('[step] Authenticating')
+    token = authenticate_device(
+        client,
+        retry,
+        f'login and verify with {host}',
+    )
+    if token is None:
+        sys.exit(f'Could not authenticate with {host}.')
+    if client.token is None:
+        sys.exit('Authentication succeeded without producing a token.')
+    log_status(f'[connected] Authenticated with {host}')
+
     log('[step] Switching device to off mode')
     response = set_off_mode_with_retry(
         client,
@@ -1059,8 +1059,7 @@ def turn_off_streaming_device(
         f'switch {host} to off mode',
     )
     if response is None:
-        log_error(f'[failed] Could not switch {host} to off mode.')
-        return False
+        sys.exit(f'Could not switch {host} to off mode.')
     log(f'[ok] {host} is off')
     return True
 
