@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Annotated, Literal
 
 import tyro
@@ -19,11 +20,15 @@ from .fps_test import (
 from .xled import (
     ColorAction,
     EffectAction,
+    LayoutAction,
+    LedConfigAction,
     LedMode,
     ModeAction,
     OutputControlAction,
     run_color_control,
     run_effect_control,
+    run_layout_control,
+    run_led_config_control,
     run_mode_control,
     run_output_control,
 )
@@ -37,6 +42,8 @@ def main(args: Sequence[str] | None = None) -> int:
             'color': color,
             'diagnostic': diagnostic,
             'effects': effects,
+            'layout': layout,
+            'led-config': led_config,
             'mode': mode,
             'saturation': saturation,
             'test': test,
@@ -297,4 +304,54 @@ def effects(
         ),
         action,
         effect_id,
+    )
+
+
+def layout(
+    action: Annotated[LayoutAction, tyro.conf.Positional] = 'get',
+    path: Annotated[Path | None, tyro.conf.Positional] = None,
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Get, export, upload, or delete Twinkly layout, then turn the lights off."""
+    return run_layout_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        action,
+        path,
+    )
+
+
+def led_config(
+    action: Annotated[LedConfigAction, tyro.conf.Positional] = 'get',
+    path: Annotated[Path | None, tyro.conf.Positional] = None,
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Get or set Twinkly LED string config, then turn the lights off."""
+    return run_led_config_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        action,
+        path,
     )

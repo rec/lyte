@@ -107,9 +107,12 @@ from lyte.retry import RetryConfig, retry_call
 from lyte.runtime import read_device_led_count, send_authenticated_frame
 from lyte.xled import (
     OutputControl,
+    XledLayout,
     read_output_control,
     run_color_control,
     run_effect_control,
+    run_layout_control,
+    run_led_config_control,
     run_mode_control,
     run_output_control,
     write_output_control,
@@ -422,6 +425,30 @@ class FpsTestTests(unittest.TestCase):
         self.assertIsNone(config.host)
         self.assertEqual(action, 'set-current')
         self.assertEqual(effect_id, 4)
+
+    def test_cli_layout_command_dispatches_layout_control(self) -> None:
+        with patch.object(
+            cli, 'run_layout_control', return_value=0
+        ) as run_layout_control:
+            result = cli.main(['layout', 'export', 'layout.json'])
+
+        self.assertEqual(result, 0)
+        config, action, path = run_layout_control.call_args.args
+        self.assertIsNone(config.host)
+        self.assertEqual(action, 'export')
+        self.assertEqual(path, Path('layout.json'))
+
+    def test_cli_led_config_command_dispatches_led_config_control(self) -> None:
+        with patch.object(
+            cli, 'run_led_config_control', return_value=0
+        ) as run_led_config_control:
+            result = cli.main(['led-config', 'set', 'config.json'])
+
+        self.assertEqual(result, 0)
+        config, action, path = run_led_config_control.call_args.args
+        self.assertIsNone(config.host)
+        self.assertEqual(action, 'set')
+        self.assertEqual(path, Path('config.json'))
 
     def test_discover_host_retries_until_a_device_replies(self) -> None:
         device = DiscoveredDevice(ip_address='192.168.1.23', device_id='twinkly')
@@ -1154,6 +1181,58 @@ class ClientTests(unittest.TestCase):
             ],
         )
 
+    def test_layout_and_led_config_use_documented_paths(self) -> None:
+        calls = []
+
+        def get(
+            self: LyteClient,
+            path: str,
+            authenticated: bool = True,
+        ) -> LyteResponse:
+            calls.append(('GET', self.host, path, authenticated))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        def post(
+            self: LyteClient,
+            path: str,
+            body: dict[str, object],
+            authenticated: bool = True,
+        ) -> LyteResponse:
+            calls.append(('POST', self.host, path, body, authenticated))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        def delete(
+            self: LyteClient,
+            path: str,
+            authenticated: bool = True,
+        ) -> LyteResponse:
+            calls.append(('DELETE', self.host, path, authenticated))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch.object(LyteClient, 'get', get),
+            patch.object(LyteClient, 'post', post),
+            patch.object(LyteClient, 'delete', delete),
+        ):
+            client.get_layout_full()
+            client.set_layout_full({'source': '3d'})
+            client.delete_layout_full()
+            client.get_led_config()
+            client.set_led_config({'strings': []})
+
+        self.assertEqual(
+            calls,
+            [
+                ('GET', '192.168.1.23', 'led/layout/full', True),
+                ('POST', '192.168.1.23', 'led/layout/full', {'source': '3d'}, True),
+                ('DELETE', '192.168.1.23', 'led/layout/full', True),
+                ('GET', '192.168.1.23', 'led/config', True),
+                ('POST', '192.168.1.23', 'led/config', {'strings': []}, True),
+            ],
+        )
+
     def test_set_off_mode_uses_led_mode_off(self) -> None:
         calls = []
 
@@ -1276,6 +1355,14 @@ class PackageDiagnosticTests(unittest.TestCase):
     def test_authenticated_reports_probe_device_name_summary_and_echo(self) -> None:
         calls = []
 
+        def get_layout_full(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'layout'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'coordinates': []})
+
+        def get_led_config(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'led-config'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'strings': []})
+
         def get_led_mode(self: LyteClient) -> LyteResponse:
             calls.append(('GET', 'mode'))
             return LyteResponse(http_status=200, data={'code': 1000, 'mode': 'off'})
@@ -1313,6 +1400,8 @@ class PackageDiagnosticTests(unittest.TestCase):
             return LyteResponse(http_status=200, data={'code': 1000, 'json': body})
 
         with (
+            patch.object(LyteClient, 'get_layout_full', get_layout_full),
+            patch.object(LyteClient, 'get_led_config', get_led_config),
             patch.object(LyteClient, 'get_led_mode', get_led_mode),
             patch.object(LyteClient, 'get_led_color', get_led_color),
             patch.object(LyteClient, 'get_effects', get_effects),
@@ -1331,6 +1420,8 @@ class PackageDiagnosticTests(unittest.TestCase):
         self.assertEqual(
             [i.name for i in reports],
             [
+                'layout',
+                'led-config',
                 'mode',
                 'color',
                 'effects',
@@ -1345,6 +1436,8 @@ class PackageDiagnosticTests(unittest.TestCase):
         self.assertEqual(
             calls,
             [
+                ('GET', 'layout'),
+                ('GET', 'led-config'),
                 ('GET', 'mode'),
                 ('GET', 'color'),
                 ('GET', 'effects'),
@@ -1413,6 +1506,30 @@ class XledControlTests(unittest.TestCase):
         self.assertEqual(
             OutputControl(value=80).request_body(),
             {'mode': 'enabled', 'type': 'A', 'value': 80},
+        )
+
+    def test_layout_model_accepts_documented_shape(self) -> None:
+        layout = XledLayout.from_response(
+            {
+                'aspectXY': 1,
+                'aspectXZ': 2,
+                'coordinates': [{'x': 1.0, 'y': 2.0, 'z': 3.0}],
+                'source': '3d',
+                'synthesized': False,
+                'uuid': '00000000-0000-0000-0000-000000000000',
+            }
+        )
+
+        self.assertEqual(
+            layout.request_body(),
+            {
+                'aspectXY': 1,
+                'aspectXZ': 2,
+                'coordinates': [{'x': 1.0, 'y': 2.0, 'z': 3.0}],
+                'source': '3d',
+                'synthesized': False,
+                'uuid': '00000000-0000-0000-0000-000000000000',
+            },
         )
 
     def test_read_output_control_dispatches_by_kind(self) -> None:
@@ -1570,6 +1687,95 @@ class XledControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         set_current_effect.assert_called_once_with({'effect_id': 4})
+        turn_off.assert_called_once()
+
+    def test_run_layout_control_exports_layout_then_turns_off(self) -> None:
+        output = io.StringIO()
+        client = LyteClient(host='192.168.1.23')
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'layout.json'
+            with (
+                patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+                patch('lyte.xled.LyteClient', return_value=client),
+                patch('lyte.xled.prepare_authenticated_client'),
+                patch.object(
+                    LyteClient,
+                    'get_layout_full',
+                    return_value=LyteResponse(
+                        http_status=200,
+                        data={'source': '3d', 'coordinates': []},
+                    ),
+                ),
+                patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+                patch('sys.stdout', output),
+            ):
+                result = run_layout_control(DiagnosticConfig(), 'export', path)
+
+            self.assertEqual(result, 0)
+            self.assertEqual(
+                json.loads(path.read_text()),
+                {'coordinates': [], 'source': '3d'},
+            )
+            turn_off.assert_called_once()
+            self.assertIn('[layout] exported', output.getvalue())
+
+    def test_run_layout_control_uploads_layout_then_turns_off(self) -> None:
+        client = LyteClient(host='192.168.1.23')
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'layout.json'
+            path.write_text(
+                json.dumps(
+                    {
+                        'aspectXY': 0,
+                        'aspectXZ': 0,
+                        'coordinates': [{'x': 1, 'y': 2, 'z': 3}],
+                        'source': '3d',
+                        'synthesized': False,
+                    }
+                )
+            )
+            with (
+                patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+                patch('lyte.xled.LyteClient', return_value=client),
+                patch('lyte.xled.prepare_authenticated_client'),
+                patch.object(LyteClient, 'set_layout_full') as set_layout_full,
+                patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+                patch('sys.stdout', new_callable=io.StringIO),
+            ):
+                result = run_layout_control(DiagnosticConfig(), 'upload', path)
+
+        self.assertEqual(result, 0)
+        set_layout_full.assert_called_once_with(
+            {
+                'aspectXY': 0,
+                'aspectXZ': 0,
+                'coordinates': [{'x': 1.0, 'y': 2.0, 'z': 3.0}],
+                'source': '3d',
+                'synthesized': False,
+            }
+        )
+        turn_off.assert_called_once()
+
+    def test_run_led_config_control_sets_json_config_then_turns_off(self) -> None:
+        client = LyteClient(host='192.168.1.23')
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'config.json'
+            path.write_text(json.dumps({'strings': [{'first_led_id': 0}]}))
+            with (
+                patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+                patch('lyte.xled.LyteClient', return_value=client),
+                patch('lyte.xled.prepare_authenticated_client'),
+                patch.object(LyteClient, 'set_led_config') as set_led_config,
+                patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+                patch('sys.stdout', new_callable=io.StringIO),
+            ):
+                result = run_led_config_control(DiagnosticConfig(), 'set', path)
+
+        self.assertEqual(result, 0)
+        set_led_config.assert_called_once_with({'strings': [{'first_led_id': 0}]})
         turn_off.assert_called_once()
 
 

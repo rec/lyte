@@ -158,6 +158,22 @@ def authenticated_reports(
         read_endpoint(
             client,
             retry,
+            'layout',
+            'GET',
+            'led/layout/full',
+            lambda: client.get_layout_full().data,
+        ),
+        read_endpoint(
+            client,
+            retry,
+            'led-config',
+            'GET',
+            'led/config',
+            lambda: client.get_led_config().data,
+        ),
+        read_endpoint(
+            client,
+            retry,
             'mode',
             'GET',
             'led/mode',

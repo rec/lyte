@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, field_validator
@@ -27,6 +29,15 @@ LedMode = Literal['off', 'color', 'demo', 'effect', 'movie', 'playlist', 'rt']
 ModeAction = Literal['get', 'set']
 ColorAction = Literal['get', 'set']
 EffectAction = Literal['list', 'current', 'set-current']
+LayoutAction = Literal['get', 'export', 'upload', 'delete']
+LayoutSource = Literal['linear', '2d', '3d']
+LedConfigAction = Literal['get', 'set']
+
+
+class LayoutCoordinate(BaseModel, frozen=True):
+    x: float
+    y: float
+    z: float
 
 
 class OutputControl(BaseModel, frozen=True):
@@ -61,6 +72,24 @@ class OutputControl(BaseModel, frozen=True):
 
     def request_body(self) -> dict[str, object]:
         return {'mode': self.mode, 'type': self.type, 'value': self.value}
+
+
+class XledLayout(BaseModel, frozen=True):
+    aspectXY: int = 0
+    aspectXZ: int = 0
+    coordinates: list[LayoutCoordinate]
+    source: LayoutSource
+    synthesized: bool = False
+    uuid: str | None = None
+
+    @classmethod
+    def from_response(cls, data: dict[str, object]) -> XledLayout:
+        return cls.model_validate(data)
+
+    def request_body(self) -> dict[str, object]:
+        data = self.model_dump(exclude_none=True)
+        data['coordinates'] = [i.model_dump() for i in self.coordinates]
+        return data
 
 
 def run_output_control(
@@ -156,6 +185,50 @@ def run_effect_control(
     return run_xled_command(config, run)
 
 
+def run_layout_control(
+    config: DiagnosticConfig,
+    action: LayoutAction,
+    path: Path | None,
+) -> int:
+    validate_layout_args(action, path)
+
+    def run(client: LyteClient) -> None:
+        if action == 'get':
+            log_status(f'[layout] {client.get_layout_full().data}')
+        elif action == 'export':
+            assert path is not None
+            write_json_file(path, client.get_layout_full().data)
+            log_status(f'[layout] exported {path}')
+        elif action == 'upload':
+            assert path is not None
+            layout = XledLayout.from_response(read_json_object(path))
+            client.set_layout_full(layout.request_body())
+            log_status(f'[layout] uploaded {path}')
+        else:
+            client.delete_layout_full()
+            log_status('[layout] deleted')
+
+    return run_xled_command(config, run)
+
+
+def run_led_config_control(
+    config: DiagnosticConfig,
+    action: LedConfigAction,
+    path: Path | None,
+) -> int:
+    validate_led_config_args(action, path)
+
+    def run(client: LyteClient) -> None:
+        if action == 'get':
+            log_status(f'[led-config] {client.get_led_config().data}')
+        else:
+            assert path is not None
+            client.set_led_config(read_json_object(path))
+            log_status(f'[led-config] set {path}')
+
+    return run_xled_command(config, run)
+
+
 def run_xled_command(
     config: DiagnosticConfig,
     action: Callable[[LyteClient], None],
@@ -221,6 +294,31 @@ def validate_effect_args(action: EffectAction, effect_id: int | None) -> None:
         sys.exit('set-current requires an effect id')
     if effect_id is not None and effect_id < 0:
         sys.exit('effect id must not be negative')
+
+
+def validate_layout_args(action: LayoutAction, path: Path | None) -> None:
+    if action in ('get', 'delete') and path is not None:
+        sys.exit(f'{action} does not accept a path')
+    if action in ('export', 'upload') and path is None:
+        sys.exit(f'{action} requires a path')
+
+
+def validate_led_config_args(action: LedConfigAction, path: Path | None) -> None:
+    if action == 'get' and path is not None:
+        sys.exit('get does not accept a path')
+    if action == 'set' and path is None:
+        sys.exit('set requires a path')
+
+
+def read_json_object(path: Path) -> dict[str, object]:
+    data = json.loads(path.read_text())
+    if not isinstance(data, dict):
+        sys.exit(f'{path} must contain a JSON object')
+    return data
+
+
+def write_json_file(path: Path, data: dict[str, object]) -> None:
+    path.write_text(json.dumps(data, indent=2, sort_keys=True) + '\n')
 
 
 def prepare_authenticated_client(
