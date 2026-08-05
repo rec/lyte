@@ -6,14 +6,14 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State, float_light_frame_from_byte
+from ...animation import Animation, Device, State, float_color_from_rgb
 from ..colors import wheel_color
 from ..validators import resolve_end, validate_step
 
 
 class HalvesRainbowState(State):
     current: int = 0
-    frame_buffer: NDArray[np.uint8]
+    frame_buffer: NDArray[np.float32]
     position: int = 0
 
 
@@ -32,12 +32,12 @@ class HalvesRainbow(Animation[HalvesRainbowState]):
 
     def initial_state(self, device: Device) -> HalvesRainbowState:
         return HalvesRainbowState(
-            frame_buffer=np.zeros((device.led_count, 3), dtype=np.uint8)
+            frame_buffer=np.zeros((device.led_count, 3), dtype=np.float32)
         )
 
     def render(self, device: Device, state: HalvesRainbowState) -> NDArray[np.float32]:
         max_led = resolve_end(device.led_count, self.max_led)
-        color = wheel_color(state.position)
+        color = float_color_from_rgb(wheel_color(state.position))
         center = max_led / 2
         center_floor = math.floor(center)
         center_ceil = math.ceil(center)
@@ -54,4 +54,4 @@ class HalvesRainbow(Animation[HalvesRainbowState]):
         if state.current > center_floor:
             state.current = center_floor
         state.frame += 1
-        return float_light_frame_from_byte(state.frame_buffer)
+        return state.frame_buffer

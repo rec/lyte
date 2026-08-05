@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import Animation, Device, State, float_light_frame_from_byte
+from ...animation import Animation, Device, State, float_color_from_rgb
 from ..colors import RGB
 from ..validators import (
     advance_position,
@@ -17,7 +17,7 @@ from ..validators import (
 
 
 class ColorWipeState(State):
-    frame_buffer: NDArray[np.uint8]
+    frame_buffer: NDArray[np.float32]
     position: int = 0
 
 
@@ -39,7 +39,7 @@ class ColorWipe(Animation[ColorWipeState]):
             device.led_count, self.start, resolve_end(device.led_count, self.end)
         )
         return ColorWipeState(
-            frame_buffer=np.zeros((device.led_count, 3), dtype=np.uint8)
+            frame_buffer=np.zeros((device.led_count, 3), dtype=np.float32)
         )
 
     def render(self, device: Device, state: ColorWipeState) -> NDArray[np.float32]:
@@ -49,7 +49,7 @@ class ColorWipe(Animation[ColorWipeState]):
         for i in range(self.step):
             index = self.start + state.position - i
             if self.start <= index <= end:
-                state.frame_buffer[index] = self.color
+                state.frame_buffer[index] = float_color_from_rgb(self.color)
         state.position = advance_position(self.start, end, state.position, self.step)
         state.frame += 1
-        return float_light_frame_from_byte(state.frame_buffer)
+        return state.frame_buffer
