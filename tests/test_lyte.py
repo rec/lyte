@@ -9,6 +9,7 @@ import random
 import tempfile
 import unittest
 from collections.abc import Sized
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 
@@ -114,8 +115,11 @@ from lyte.xled import (
     run_effect_control,
     run_layout_control,
     run_led_config_control,
+    run_mic_control,
     run_mode_control,
     run_movie_control,
+    run_mqtt_control,
+    run_music_control,
     run_network_control,
     run_output_control,
     run_playlist_control,
@@ -501,6 +505,35 @@ class FpsTestTests(unittest.TestCase):
         config, action = run_network_control.call_args.args
         self.assertIsNone(config.host)
         self.assertEqual(action, 'scan-results')
+
+    def test_cli_mqtt_command_dispatches_mqtt_control(self) -> None:
+        with patch.object(cli, 'run_mqtt_control', return_value=0) as run_mqtt_control:
+            result = cli.main(['mqtt', 'config'])
+
+        self.assertEqual(result, 0)
+        config, action = run_mqtt_control.call_args.args
+        self.assertIsNone(config.host)
+        self.assertEqual(action, 'config')
+
+    def test_cli_mic_command_dispatches_mic_control(self) -> None:
+        with patch.object(cli, 'run_mic_control', return_value=0) as run_mic_control:
+            result = cli.main(['mic', 'sample'])
+
+        self.assertEqual(result, 0)
+        config, action = run_mic_control.call_args.args
+        self.assertIsNone(config.host)
+        self.assertEqual(action, 'sample')
+
+    def test_cli_music_command_dispatches_music_control(self) -> None:
+        with patch.object(
+            cli, 'run_music_control', return_value=0
+        ) as run_music_control:
+            result = cli.main(['music', 'current-driver-set'])
+
+        self.assertEqual(result, 0)
+        config, action = run_music_control.call_args.args
+        self.assertIsNone(config.host)
+        self.assertEqual(action, 'current-driver-set')
 
     def test_discover_host_retries_until_a_device_replies(self) -> None:
         device = DiscoveredDevice(ip_address='192.168.1.23', device_id='twinkly')
@@ -1283,6 +1316,12 @@ class ClientTests(unittest.TestCase):
             client.get_network_scan()
             client.get_network_scan_results()
             client.get_network_status()
+            client.get_mqtt_config()
+            client.get_mic_config()
+            client.get_mic_sample()
+            client.get_music_drivers()
+            client.get_music_driver_sets()
+            client.get_current_music_driver_set()
 
         self.assertEqual(
             calls,
@@ -1308,6 +1347,12 @@ class ClientTests(unittest.TestCase):
                 ('GET', '192.168.1.23', 'network/scan', True),
                 ('GET', '192.168.1.23', 'network/scan_results', True),
                 ('GET', '192.168.1.23', 'network/status', True),
+                ('GET', '192.168.1.23', 'mqtt/config', True),
+                ('GET', '192.168.1.23', 'mic/config', True),
+                ('GET', '192.168.1.23', 'mic/sample', True),
+                ('GET', '192.168.1.23', 'music/drivers', True),
+                ('GET', '192.168.1.23', 'music/drivers/sets', True),
+                ('GET', '192.168.1.23', 'music/drivers/sets/current', True),
             ],
         )
 
@@ -1484,6 +1529,30 @@ class PackageDiagnosticTests(unittest.TestCase):
             calls.append(('GET', 'network-scan-results'))
             return LyteResponse(http_status=200, data={'code': 1000, 'networks': []})
 
+        def get_mqtt_config(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'mqtt-config'))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        def get_mic_config(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'mic-config'))
+            return LyteResponse(http_status=200, data={'code': 1000})
+
+        def get_mic_sample(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'mic-sample'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'sample': 0})
+
+        def get_music_drivers(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'music-drivers'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'drivers': []})
+
+        def get_music_driver_sets(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'music-driver-sets'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'sets': []})
+
+        def get_current_music_driver_set(self: LyteClient) -> LyteResponse:
+            calls.append(('GET', 'current-music-driver-set'))
+            return LyteResponse(http_status=200, data={'code': 1000, 'id': 0})
+
         def get_led_color(self: LyteClient) -> LyteResponse:
             calls.append(('GET', 'color'))
             return LyteResponse(http_status=200, data={'code': 1000, 'red': 1})
@@ -1516,36 +1585,37 @@ class PackageDiagnosticTests(unittest.TestCase):
             calls.append(('POST', 'echo', body))
             return LyteResponse(http_status=200, data={'code': 1000, 'json': body})
 
-        with (
-            patch.object(LyteClient, 'get_layout_full', get_layout_full),
-            patch.object(LyteClient, 'get_led_config', get_led_config),
-            patch.object(LyteClient, 'get_led_mode', get_led_mode),
-            patch.object(LyteClient, 'get_timer', get_timer),
-            patch.object(LyteClient, 'get_movie_config', get_movie_config),
-            patch.object(LyteClient, 'get_movies', get_movies),
-            patch.object(LyteClient, 'get_current_movie', get_current_movie),
-            patch.object(LyteClient, 'get_playlist', get_playlist),
-            patch.object(
-                LyteClient,
-                'get_current_playlist_entry',
-                get_current_playlist_entry,
-            ),
-            patch.object(LyteClient, 'get_network_status', get_network_status),
-            patch.object(LyteClient, 'get_network_scan', get_network_scan),
-            patch.object(
-                LyteClient,
-                'get_network_scan_results',
-                get_network_scan_results,
-            ),
-            patch.object(LyteClient, 'get_led_color', get_led_color),
-            patch.object(LyteClient, 'get_effects', get_effects),
-            patch.object(LyteClient, 'get_current_effect', get_current_effect),
-            patch.object(LyteClient, 'get_brightness', get_brightness),
-            patch.object(LyteClient, 'get_saturation', get_saturation),
-            patch.object(LyteClient, 'get_device_name', get_device_name),
-            patch.object(LyteClient, 'get_summary', get_summary),
-            patch.object(LyteClient, 'echo', echo),
-        ):
+        methods = {
+            'get_layout_full': get_layout_full,
+            'get_led_config': get_led_config,
+            'get_led_mode': get_led_mode,
+            'get_timer': get_timer,
+            'get_movie_config': get_movie_config,
+            'get_movies': get_movies,
+            'get_current_movie': get_current_movie,
+            'get_playlist': get_playlist,
+            'get_current_playlist_entry': get_current_playlist_entry,
+            'get_network_status': get_network_status,
+            'get_network_scan': get_network_scan,
+            'get_network_scan_results': get_network_scan_results,
+            'get_mqtt_config': get_mqtt_config,
+            'get_mic_config': get_mic_config,
+            'get_mic_sample': get_mic_sample,
+            'get_music_drivers': get_music_drivers,
+            'get_music_driver_sets': get_music_driver_sets,
+            'get_current_music_driver_set': get_current_music_driver_set,
+            'get_led_color': get_led_color,
+            'get_effects': get_effects,
+            'get_current_effect': get_current_effect,
+            'get_brightness': get_brightness,
+            'get_saturation': get_saturation,
+            'get_device_name': get_device_name,
+            'get_summary': get_summary,
+            'echo': echo,
+        }
+        with ExitStack() as stack:
+            for name, method in methods.items():
+                stack.enter_context(patch.object(LyteClient, name, method))
             reports = authenticated_reports(
                 LyteClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
@@ -1566,6 +1636,12 @@ class PackageDiagnosticTests(unittest.TestCase):
                 'network-status',
                 'network-scan',
                 'network-scan-results',
+                'mqtt-config',
+                'mic-config',
+                'mic-sample',
+                'music-drivers',
+                'music-driver-sets',
+                'current-music-driver-set',
                 'color',
                 'effects',
                 'current-effect',
@@ -1591,6 +1667,12 @@ class PackageDiagnosticTests(unittest.TestCase):
                 ('GET', 'network-status'),
                 ('GET', 'network-scan'),
                 ('GET', 'network-scan-results'),
+                ('GET', 'mqtt-config'),
+                ('GET', 'mic-config'),
+                ('GET', 'mic-sample'),
+                ('GET', 'music-drivers'),
+                ('GET', 'music-driver-sets'),
+                ('GET', 'current-music-driver-set'),
                 ('GET', 'color'),
                 ('GET', 'effects'),
                 ('GET', 'current-effect'),
@@ -2064,6 +2146,75 @@ class XledControlTests(unittest.TestCase):
         get_network_status.assert_called_once()
         turn_off.assert_called_once()
         self.assertIn("[network] status {'mode': 1}", output.getvalue())
+
+    def test_run_mqtt_control_reads_config_then_turns_off(self) -> None:
+        output = io.StringIO()
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch.object(
+                LyteClient,
+                'get_mqtt_config',
+                return_value=LyteResponse(http_status=200, data={'enabled': False}),
+            ) as get_mqtt_config,
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', output),
+        ):
+            result = run_mqtt_control(DiagnosticConfig(), 'config')
+
+        self.assertEqual(result, 0)
+        get_mqtt_config.assert_called_once()
+        turn_off.assert_called_once()
+        self.assertIn("[mqtt] config {'enabled': False}", output.getvalue())
+
+    def test_run_mic_control_reads_sample_then_turns_off(self) -> None:
+        output = io.StringIO()
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch.object(
+                LyteClient,
+                'get_mic_sample',
+                return_value=LyteResponse(http_status=200, data={'sample': 3}),
+            ) as get_mic_sample,
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', output),
+        ):
+            result = run_mic_control(DiagnosticConfig(), 'sample')
+
+        self.assertEqual(result, 0)
+        get_mic_sample.assert_called_once()
+        turn_off.assert_called_once()
+        self.assertIn("[mic] sample {'sample': 3}", output.getvalue())
+
+    def test_run_music_control_reads_current_driver_set_then_turns_off(self) -> None:
+        output = io.StringIO()
+        client = LyteClient(host='192.168.1.23')
+
+        with (
+            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
+            patch('lyte.xled.LyteClient', return_value=client),
+            patch('lyte.xled.prepare_authenticated_client'),
+            patch.object(
+                LyteClient,
+                'get_current_music_driver_set',
+                return_value=LyteResponse(http_status=200, data={'id': 1}),
+            ) as get_current_music_driver_set,
+            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('sys.stdout', output),
+        ):
+            result = run_music_control(DiagnosticConfig(), 'current-driver-set')
+
+        self.assertEqual(result, 0)
+        get_current_music_driver_set.assert_called_once()
+        turn_off.assert_called_once()
+        self.assertIn("[music] current-driver-set {'id': 1}", output.getvalue())
 
 
 class RuntimeTests(unittest.TestCase):

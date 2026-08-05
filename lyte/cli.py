@@ -23,8 +23,11 @@ from .xled import (
     LayoutAction,
     LedConfigAction,
     LedMode,
+    MicAction,
     ModeAction,
     MovieAction,
+    MqttAction,
+    MusicAction,
     NetworkAction,
     OutputControlAction,
     PlaylistAction,
@@ -33,8 +36,11 @@ from .xled import (
     run_effect_control,
     run_layout_control,
     run_led_config_control,
+    run_mic_control,
     run_mode_control,
     run_movie_control,
+    run_mqtt_control,
+    run_music_control,
     run_network_control,
     run_output_control,
     run_playlist_control,
@@ -52,8 +58,11 @@ def main(args: Sequence[str] | None = None) -> int:
             'effects': effects,
             'layout': layout,
             'led-config': led_config,
+            'mic': mic,
             'mode': mode,
             'movie': movie,
+            'mqtt': mqtt,
+            'music': music,
             'network': network,
             'playlist': playlist,
             'saturation': saturation,
@@ -455,6 +464,75 @@ def network(
 ) -> int:
     """Read Twinkly network status or WiFi scan results, then turn the lights off."""
     return run_network_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        action,
+    )
+
+
+def mqtt(
+    action: Annotated[MqttAction, tyro.conf.Positional] = 'config',
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Read Twinkly MQTT config, then turn the lights off."""
+    return run_mqtt_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        action,
+    )
+
+
+def mic(
+    action: Annotated[MicAction, tyro.conf.Positional] = 'config',
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Read Twinkly mic config or sample, then turn the lights off."""
+    return run_mic_control(
+        DiagnosticConfig(
+            host=host,
+            timeout=timeout,
+            discovery_timeout=discovery_timeout,
+            attempts=attempts,
+            retry_delay=retry_delay,
+            retry_backoff=retry_backoff,
+        ),
+        action,
+    )
+
+
+def music(
+    action: Annotated[MusicAction, tyro.conf.Positional] = 'drivers',
+    host: str | None = None,
+    timeout: float = 5.0,
+    discovery_timeout: float | None = None,
+    attempts: int = 10,
+    retry_delay: float = 0.5,
+    retry_backoff: float = 2.0,
+) -> int:
+    """Read Twinkly music drivers and driver sets, then turn the lights off."""
+    return run_music_control(
         DiagnosticConfig(
             host=host,
             timeout=timeout,
