@@ -199,6 +199,24 @@ class LyteClient(BaseModel):
     def get_network_status(self) -> LyteResponse:
         return self.get('network/status')
 
+    def get_mqtt_config(self) -> LyteResponse:
+        return self.get('mqtt/config')
+
+    def get_mic_config(self) -> LyteResponse:
+        return self.get('mic/config')
+
+    def get_mic_sample(self) -> LyteResponse:
+        return self.get('mic/sample')
+
+    def get_music_drivers(self) -> LyteResponse:
+        return self.get('music/drivers')
+
+    def get_music_driver_sets(self) -> LyteResponse:
+        return self.get('music/drivers/sets')
+
+    def get_current_music_driver_set(self) -> LyteResponse:
+        return self.get('music/drivers/sets/current')
+
     def set_realtime_mode(self) -> LyteResponse:
         return self.post('led/mode', {'mode': 'rt'})
 
