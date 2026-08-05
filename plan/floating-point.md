@@ -1,19 +1,20 @@
-# Floating-Point Color Plan
+# Floating-Point Channel Plan
 
 Lyte should move animation and color computation from `uint8` RGB frames to
-`float32` RGB frames. Integer byte frames should become a final output encoding
-step owned by preview, Twinkly, DMX, or other protocol drivers.
+`float32` channel frames. Integer byte frames should become a final output
+encoding step owned by preview, Twinkly, DMX, or other protocol drivers.
 
 The reason to do this now is that 8-bit RGB is convenient but too specific. It
 matches Twinkly and DMX byte output, but it is a poor working model for fades,
 gain, gamma correction, empirical device remapping, color correction, and future
-protocols with different output depth.
+protocols with different output depth or different channel layouts.
 
 ## Goals
 
-- Use `float32` for all internal RGB frame computation.
-- Use the normalized channel range `0.0..1.0` for internal RGB values.
+- Use `float32` for all internal pixel channel computation.
+- Use the normalized channel range `0.0..1.0` for internal channel values.
 - Convert to protocol-specific integers only at output boundaries.
+- Do not hard-code three color channels into the core frame model.
 - Preserve current animation behavior as closely as practical during the port.
 - Port the BiblioPixel-derived animations rather than keeping a byte-only
   compatibility layer.
@@ -33,15 +34,28 @@ protocols with different output depth.
 
 ## Target Frame Model
 
-Internal pixel frames should have this contract:
+Internal pixel frames should eventually have this contract:
 
 ```text
-shape: (device.led_count, 3)
+shape: (device.light_count, device.channel_count)
 dtype: np.float32
-channels: red, green, blue
+channels: device/profile-defined
 range: 0.0..1.0
 layout: C-contiguous
 ```
+
+`device.light_count` is the number of independently addressed lights. For the
+current Twinkly work this is the same thing as `led_count`.
+
+`device.channel_count` is the number of output channels per light. It is `3` for
+RGB, but it may be `1` for single-color strands, `2` for warm/cool white, `4`
+for RGBW, or more for layouts with amber, lime, ultraviolet, or other emitters.
+
+Channel identity belongs to the device or output profile. The core frame model
+should not assume that channel 0, 1, and 2 are always red, green, and blue.
+RGB-only animations may still declare that they produce RGB frames, and RGB
+outputs may remain the first migration target, but the generic frame storage
+should allow any channel count.
 
 The existing `Animation.render(device, state)` flow should remain, but its
 return type should change from `NDArray[np.uint8]` to `NDArray[np.float32]`.
@@ -59,16 +73,22 @@ bug, not a hidden output decision.
 
 ## Type Names
 
-Add explicit names for the two different concepts:
+Add explicit names for the different concepts:
 
 - `RGB`: legacy or user-facing 8-bit color tuple, `tuple[int, int, int]`.
-- `FloatRGB`: internal normalized color tuple, `tuple[float, float, float]`.
-- `FloatFrame`: `NDArray[np.float32]`, shape `(led_count, 3)`.
-- `ByteFrame`: `NDArray[np.uint8]`, shape `(led_count, 3)`.
+- `FloatRGB`: normalized RGB color tuple, `tuple[float, float, float]`.
+- `FloatChannelFrame`: `NDArray[np.float32]`, shape `(light_count, channel_count)`.
+- `FloatRGBFrame`: `NDArray[np.float32]`, shape `(light_count, 3)`.
+- `ByteChannelFrame`: `NDArray[np.uint8]`, shape `(light_count, channel_count)`.
+- `ByteRGBFrame`: `NDArray[np.uint8]`, shape `(light_count, 3)`.
+- `ChannelLayout`: immutable channel labels and output meaning for a device.
 
 Type aliases should be used only where they make code clearer. If the alias
 syntax becomes noisy, keep annotations explicit and make helper names carry the
 meaning.
+
+The first implementation can use `FloatRGBFrame` for existing animations, but it
+should not name that type as the universal frame model.
 
 ## Boundary Conversion
 
@@ -76,8 +96,8 @@ Add explicit helpers for output encoding:
 
 ```text
 float_rgb_frame(...)
-solid_float_frame(...)
-byte_frame_from_float(frame)
+solid_float_channel_frame(...)
+byte_channel_frame_from_float(frame)
 float_color_from_rgb(color)
 rgb_from_float_color(color)
 ```
@@ -97,24 +117,36 @@ slightly overshoot. Animation render methods should still try to stay in range.
 Twinkly realtime sending should receive byte frames exactly as it does today,
 but the runner should convert float frames immediately before sending.
 
+For RGBW or non-RGB devices, output encoding may require a color-conversion
+step before byte quantization. For example, an RGB animation rendered for an
+RGBW device may need an RGB-to-RGBW extraction policy. A white-only device may
+need RGB-to-luminance conversion. Those conversions are device/profile output
+decisions, not core animation math.
+
 ## Animation API Changes
 
 Change the core `Animation` contract:
 
 ```text
-render(...) -> FloatFrame
+render(...) -> FloatChannelFrame
 ```
 
 The runner owns conversion:
 
 ```text
-float frame = animation.render(device, state)
-output frame = encode_for_twinkly(float frame)
+float channel frame = animation.render(device, state)
+output frame = encode_for_device(float channel frame)
 send output frame
 ```
 
 Preview should also render from float frames and convert to CSS or encoded
 preview payload values at the preview boundary.
+
+Existing animations are RGB animations. During the first migration, their
+rendered shape can remain `(led_count, 3)` as a specialized `FloatRGBFrame`.
+The important architectural change is that the output layer, not the animation
+base class, should be the place where RGB is mapped to a concrete device channel
+layout.
 
 The test FPS utilities and black-floor command are special cases. They are
 hardware-output probes and may continue constructing byte frames directly where
@@ -123,7 +155,8 @@ they are explicitly testing Twinkly byte input values.
 ## Legacy BiblioPixel Port
 
 BiblioPixel-derived animations currently use 8-bit RGB tuples and often depend
-on integer arithmetic. They should be ported directly to normalized floats.
+on integer arithmetic. They are RGB animations, and they should be ported
+directly to normalized RGB floats.
 
 Keep constructor arguments as 8-bit RGB tuples for now, because they are concise
 for command-line examples and existing defaults:
@@ -154,7 +187,7 @@ Behavior should be tested at byte-output equivalence where practical:
 
 ```text
 old uint8 render
-new float render -> byte_frame_from_float
+new float render -> byte_channel_frame_from_float
 same or intentionally near-same byte frame
 ```
 
@@ -185,9 +218,10 @@ The Twinkly network layer should remain byte-oriented:
 The runtime or runner should become the boundary:
 
 ```text
-Animation.render() -> float32 frame
-validate float frame
-encode Twinkly byte frame
+Animation.render() -> float32 channel frame
+validate float channel frame
+map to device channel layout
+encode device byte frame
 validate byte frame
 send byte frame
 ```
@@ -196,7 +230,8 @@ This keeps device-specific compensation in one place. Later Twinkly output can
 be:
 
 ```text
-float frame
+float channel frame
+-> RGB-to-device channel mapping if needed
 -> gain / gamma / empirical LUT / spatial dither
 -> uint8 byte frame
 -> UDP packet
@@ -214,6 +249,10 @@ float frames at the preview boundary.
 This gives preview the same animation math as hardware output while keeping the
 generated HTML compact and simple.
 
+The preview renderer can stay RGB-only until there is a concrete non-RGB preview
+need. It should still consume the new float output from RGB animations rather
+than requiring animations to return byte frames.
+
 ## Temporal Dithering
 
 The current temporal dithering prototype operates on byte levels. It should not
@@ -221,7 +260,7 @@ be generalized in that form.
 
 After the float migration:
 
-- animation produces ideal `float32` brightness
+- animation produces ideal `float32` channel values
 - output mapping chooses neighboring device-visible levels
 - temporal or spatial dithering chooses which pixels receive each level
 - the final result becomes a byte frame
@@ -238,7 +277,8 @@ device output maps.
 Tests should move in stages:
 
 1. Add float frame validation tests.
-2. Add byte encoding tests for clipping, rounding, dtype, and shape.
+2. Add byte encoding tests for clipping, rounding, dtype, shape, and channel
+   count.
 3. Port one simple animation and assert encoded byte output matches current
    behavior.
 4. Port Hamiltonian and RandomWalk.
@@ -251,10 +291,10 @@ frame output and validation failures.
 
 ## Migration Sequence
 
-1. Add float frame helpers and byte encoder while keeping current animation
-   render type unchanged.
+1. Add float channel-frame helpers and byte encoder while keeping current
+   animation render type unchanged.
 2. Change `Animation.render()` and `validate_frame()` to the float contract.
-3. Update the runner to encode float frames before Twinkly send.
+3. Update the runner to encode float RGB frames before Twinkly send.
 4. Port Hamiltonian.
 5. Port RandomWalk.
 6. Port shared color helpers in `lyte/animations/colors.py`.
@@ -262,9 +302,11 @@ frame output and validation failures.
 8. Update preview rendering to consume float frames.
 9. Update `lyte test2` or replace its byte-level dither with float-output
    mapping once the migration is stable.
-10. Search for remaining `NDArray[np.uint8]` animation render annotations,
+10. Add channel layout fields to `Device` or a device profile when the first
+    non-RGB output needs them.
+11. Search for remaining `NDArray[np.uint8]` animation render annotations,
     `dtype=np.uint8` frame construction, and direct RGB byte assignment.
-11. Remove any temporary conversion helpers used only during migration.
+12. Remove any temporary conversion helpers used only during migration.
 
 Each commit should leave tests passing. If the port is too large for one safe
 change, commit the helper/boundary work first, then commit animation families in
@@ -274,6 +316,10 @@ small batches.
 
 - Should animation constructor colors remain byte RGB tuples permanently, or
   should Lyte eventually expose user-facing float color constructors?
+- Should `Device` itself own `channel_count` and channel labels, or should those
+  live in a separate pixel-output profile?
+- Should RGB animations declare their required color space explicitly before
+  non-RGB outputs are implemented?
 - Should out-of-range float frames fail at animation validation or only clip at
   output encoding? The plan recommends validation failure for render outputs and
   clipping only inside explicit output encoders.
