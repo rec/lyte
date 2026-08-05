@@ -33,6 +33,8 @@ LayoutAction = Literal['get', 'export', 'upload', 'delete']
 LayoutSource = Literal['linear', '2d', '3d']
 LedConfigAction = Literal['get', 'set']
 TimerAction = Literal['get', 'set']
+MovieAction = Literal['config', 'list', 'current']
+PlaylistAction = Literal['list', 'current']
 
 
 class LayoutCoordinate(BaseModel, frozen=True):
@@ -286,6 +288,28 @@ def run_timer_control(
                 f'time_on={timer.time_on} '
                 f'time_off={timer.time_off}'
             )
+
+    return run_xled_command(config, run)
+
+
+def run_movie_control(config: DiagnosticConfig, action: MovieAction) -> int:
+    def run(client: LyteClient) -> None:
+        if action == 'config':
+            log_status(f'[movie] config {client.get_movie_config().data}')
+        elif action == 'list':
+            log_status(f'[movie] list {client.get_movies().data}')
+        else:
+            log_status(f'[movie] current {client.get_current_movie().data}')
+
+    return run_xled_command(config, run)
+
+
+def run_playlist_control(config: DiagnosticConfig, action: PlaylistAction) -> int:
+    def run(client: LyteClient) -> None:
+        if action == 'list':
+            log_status(f'[playlist] list {client.get_playlist().data}')
+        else:
+            log_status(f'[playlist] current {client.get_current_playlist_entry().data}')
 
     return run_xled_command(config, run)
 
