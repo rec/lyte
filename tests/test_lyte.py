@@ -54,20 +54,26 @@ from lyte.fps_test import (
     DOWN_KEY,
     FPS_VALUES,
     UP_KEY,
+    VERIFY_DEMOS,
     FadeReport,
+    VerifyResult,
     adjust_black_floor_level,
     blend_frames,
     dispersed_pixel_order,
     gradient_frame,
     read_single_key,
     report_fades,
+    report_verify_results,
     run_black_floor_keys,
     run_fades,
+    run_fast_verify,
     run_temporal_dither_comparison,
     solid_grayscale_frame,
     solid_rgb_level_frame,
     stream_fade,
     temporal_dither_grayscale_frame,
+    verify_answer,
+    verify_primary_channels_frame,
 )
 from lyte.logging import LOGGING, log, log_error, log_status
 from lyte.network.authentication import CHALLENGE_KEY, derive_key, mac_bytes, rc4
@@ -279,6 +285,26 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(config.host, '192.168.1.23')
         self.assertEqual(config.led_count, 10)
 
+    def test_cli_verify_command_dispatches_verify_test(self) -> None:
+        with patch.object(cli, 'run_verify_test', return_value=0) as run_verify_test:
+            result = cli.main(
+                [
+                    'verify',
+                    '--host',
+                    '192.168.1.23',
+                    '--led-count',
+                    '10',
+                    '--mode',
+                    'slow',
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        config = run_verify_test.call_args.args[0]
+        self.assertEqual(config.host, '192.168.1.23')
+        self.assertEqual(config.led_count, 10)
+        self.assertEqual(config.mode, 'slow')
+
     def test_dispersed_pixel_order_visits_each_led_once(self) -> None:
         order = dispersed_pixel_order(11)
 
@@ -436,6 +462,101 @@ class FpsTestTests(unittest.TestCase):
                 ('dithered-black-hold', 240.0, 1.0),
             ],
         )
+
+    def test_verify_primary_channels_cycles_rgb_and_white(self) -> None:
+        device = Device(led_count=2)
+
+        frames = [verify_primary_channels_frame(device, i, 4) for i in range(4)]
+
+        npt.assert_array_equal(frames[0], np.full((2, 3), (255, 0, 0), dtype=np.uint8))
+        npt.assert_array_equal(frames[1], np.full((2, 3), (0, 255, 0), dtype=np.uint8))
+        npt.assert_array_equal(frames[2], np.full((2, 3), (0, 0, 255), dtype=np.uint8))
+        npt.assert_array_equal(
+            frames[3], np.full((2, 3), (255, 255, 255), dtype=np.uint8)
+        )
+
+    def test_verify_answer_accepts_only_yes_and_no(self) -> None:
+        self.assertIs(verify_answer('y'), True)
+        self.assertIs(verify_answer('n'), False)
+        self.assertIsNone(verify_answer('x'))
+        self.assertIsNone(verify_answer(None))
+
+    def test_fast_verify_shows_black_demo_black_for_each_demo(self) -> None:
+        device = Device(led_count=2)
+        phases = []
+
+        def record_frames(
+            client: LyteClient,
+            retry: RetryConfig,
+            host: str,
+            device: Device,
+            fps: float,
+            duration: float,
+            phase: str,
+            frame_at: object,
+        ) -> FadeReport:
+            phases.append((phase, fps, duration))
+            return FadeReport(
+                fps=fps,
+                phase=phase,
+                total_frames=1,
+                unique_frames=1,
+                late_frames=0,
+                short_sends=0,
+                max_late_ms=0,
+                elapsed_ms=0,
+            )
+
+        with (
+            patch('lyte.fps_test.VERIFY_DEMOS', (VERIFY_DEMOS[0], VERIFY_DEMOS[1])),
+            patch('lyte.fps_test.stream_frames', record_frames),
+            patch('lyte.fps_test.report_fades'),
+        ):
+            results = run_fast_verify(
+                LyteClient(host='192.168.1.23'),
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                '192.168.1.23',
+                device,
+            )
+
+        self.assertEqual(
+            phases,
+            [
+                ('primary-channels-black-before', 60.0, 1.0),
+                ('primary-channels', 60.0, 5.0),
+                ('primary-channels-black-after', 60.0, 1.0),
+                ('moving-gradient-black-before', 60.0, 1.0),
+                ('moving-gradient', 60.0, 5.0),
+                ('moving-gradient-black-after', 60.0, 1.0),
+            ],
+        )
+        self.assertEqual(
+            results,
+            (
+                VerifyResult('primary-channels', None),
+                VerifyResult('moving-gradient', None),
+            ),
+        )
+
+    def test_report_verify_results_lists_status_groups(self) -> None:
+        output = io.StringIO()
+        errors = io.StringIO()
+
+        with (
+            patch('sys.stdout', output),
+            patch('sys.stderr', errors),
+        ):
+            report_verify_results(
+                (
+                    VerifyResult('good', True),
+                    VerifyResult('bad', False),
+                    VerifyResult('shown', None),
+                )
+            )
+
+        self.assertIn('Worked: good', output.getvalue())
+        self.assertIn('Shown without pass/fail: shown', output.getvalue())
+        self.assertIn('Did not work: bad', errors.getvalue())
 
     def test_run_fades_separates_each_test_with_black(self) -> None:
         device = Device(led_count=2)

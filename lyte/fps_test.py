@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import os
+import select
 import sys
 import termios
 import time
@@ -9,7 +10,7 @@ import tty
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TextIO
+from typing import Literal, TextIO
 
 import numpy as np
 from numpy.typing import NDArray
@@ -34,6 +35,10 @@ HIGH_CONTRAST_BLEND: tuple[RGB, RGB] = ((0, 255, 120), (255, 240, 0))
 TEST2_ANIMATION_FPS = 60.0
 TEST2_TEMPORAL_FACTOR = 4
 TEST2_TRANSPORT_FPS = TEST2_ANIMATION_FPS * TEST2_TEMPORAL_FACTOR
+VERIFY_FPS = 60.0
+VERIFY_BLACK_DURATION = 1.0
+VERIFY_DEMO_DURATION = 5.0
+VERIFY_SLOW_FADE_DURATION = 1.0
 UP_KEY = '\x1b[A'
 DOWN_KEY = '\x1b[B'
 
@@ -52,6 +57,18 @@ class FadeReport:
     @property
     def duplicate_frames(self) -> int:
         return self.total_frames - self.unique_frames
+
+
+@dataclass(frozen=True)
+class VerifyDemo:
+    name: str
+    frame_at: Callable[[Device, int, int], NDArray[np.uint8]]
+
+
+@dataclass(frozen=True)
+class VerifyResult:
+    name: str
+    worked: bool | None
 
 
 @dataclass(frozen=True)
@@ -90,6 +107,18 @@ class BlackFloorTestConfig:
     led_count: int | None = None
 
 
+@dataclass(frozen=True)
+class VerifyConfig:
+    host: str | None = None
+    timeout: float = 5.0
+    discovery_timeout: float = 5.0
+    attempts: int = 10
+    retry_delay: float = 0.5
+    retry_backoff: float = 2.0
+    led_count: int | None = None
+    mode: Literal['fast', 'slow'] = 'fast'
+
+
 def run_fps_test(config: FpsTestConfig) -> int:
     validate_config(config)
     host = config.host or discover_host(config.discovery_timeout)
@@ -111,6 +140,39 @@ def run_fps_test(config: FpsTestConfig) -> int:
 
     try:
         run_fades(client, retry, host, device, config.duration, config.pause)
+    except KeyboardInterrupt:
+        log()
+        log('[ok] Stopped')
+    finally:
+        turn_off_streaming_device(client, retry, host)
+    return 0
+
+
+def run_verify_test(config: VerifyConfig) -> int:
+    validate_verify_config(config)
+    host = config.host or discover_host(config.discovery_timeout)
+    if host is None:
+        return 1
+
+    retry = RetryConfig(
+        attempts=config.attempts,
+        delay=config.retry_delay,
+        backoff=config.retry_backoff,
+    )
+    client = LyteClient(host=host, timeout=config.timeout)
+    led_count = read_led_count(client, retry, config.led_count, host)
+    if led_count is None:
+        return 1
+    device = Device(led_count=led_count)
+    if not prepare_device(client, retry, host):
+        return 1
+
+    try:
+        if config.mode == 'slow':
+            results = run_slow_verify(client, retry, host, device)
+        else:
+            results = run_fast_verify(client, retry, host, device)
+        report_verify_results(results)
     except KeyboardInterrupt:
         log()
         log('[ok] Stopped')
@@ -207,6 +269,15 @@ def validate_temporal_dither_config(config: TemporalDitherTestConfig) -> None:
 
 
 def validate_black_floor_config(config: BlackFloorTestConfig) -> None:
+    if config.attempts < 1:
+        sys.exit('--attempts must be at least 1')
+    if config.retry_delay < 0:
+        sys.exit('--retry-delay must not be negative')
+    if config.retry_backoff < 1:
+        sys.exit('--retry-backoff must be at least 1')
+
+
+def validate_verify_config(config: VerifyConfig) -> None:
     if config.attempts < 1:
         sys.exit('--attempts must be at least 1')
     if config.retry_delay < 0:
@@ -341,6 +412,209 @@ def run_fades(
             time.sleep(pause)
 
 
+def run_fast_verify(
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    device: Device,
+) -> tuple[VerifyResult, ...]:
+    results = []
+    black_frame = np.zeros((device.led_count, 3), dtype=np.uint8)
+    for demo in VERIFY_DEMOS:
+        log_status(f'[verify] {demo.name}')
+        reports = (
+            stream_frames(
+                client,
+                retry,
+                host,
+                device,
+                VERIFY_FPS,
+                VERIFY_BLACK_DURATION,
+                f'{demo.name}-black-before',
+                lambda _index, _frame_count: black_frame,
+            ),
+            stream_frames(
+                client,
+                retry,
+                host,
+                device,
+                VERIFY_FPS,
+                VERIFY_DEMO_DURATION,
+                demo.name,
+                lambda index, frame_count, demo=demo: demo.frame_at(
+                    device, index, frame_count
+                ),
+            ),
+            stream_frames(
+                client,
+                retry,
+                host,
+                device,
+                VERIFY_FPS,
+                VERIFY_BLACK_DURATION,
+                f'{demo.name}-black-after',
+                lambda _index, _frame_count: black_frame,
+            ),
+        )
+        report_fades(reports)
+        results.append(VerifyResult(demo.name, None))
+    return tuple(results)
+
+
+def run_slow_verify(
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    device: Device,
+) -> tuple[VerifyResult, ...]:
+    results = []
+    black_frame = np.zeros((device.led_count, 3), dtype=np.uint8)
+    log('[verify] Press y if the demo works, n if it does not.')
+    with single_key_polling_input(sys.stdin) as read_key:
+        for demo in VERIFY_DEMOS:
+            log_status(f'[verify] {demo.name}')
+            first_frame = demo.frame_at(device, 0, 2)
+            stream_fade(
+                client,
+                retry,
+                host,
+                device,
+                black_frame,
+                first_frame,
+                VERIFY_FPS,
+                VERIFY_SLOW_FADE_DURATION,
+                f'{demo.name}-fade-in',
+            )
+            worked, last_frame = stream_demo_until_vote(
+                client,
+                retry,
+                host,
+                device,
+                demo,
+                read_key,
+            )
+            stream_fade(
+                client,
+                retry,
+                host,
+                device,
+                last_frame,
+                black_frame,
+                VERIFY_FPS,
+                VERIFY_SLOW_FADE_DURATION,
+                f'{demo.name}-fade-out',
+            )
+            results.append(VerifyResult(demo.name, worked))
+    return tuple(results)
+
+
+def stream_demo_until_vote(
+    client: LyteClient,
+    retry: RetryConfig,
+    host: str,
+    device: Device,
+    demo: VerifyDemo,
+    read_key: Callable[[], str | None],
+) -> tuple[bool, NDArray[np.uint8]]:
+    frame_delay = 1 / VERIFY_FPS
+    index = 0
+    frame_count = round(VERIFY_FPS * VERIFY_DEMO_DURATION)
+    last_frame = demo.frame_at(device, 0, frame_count)
+    while True:
+        frame_started_at = time.monotonic()
+        last_frame = validate_frame(device, demo.frame_at(device, index, frame_count))
+        sent = send_realtime_frame(client, retry, host, last_frame)
+        if sent < last_frame.nbytes:
+            log_error(
+                '[unexpected] '
+                f'{demo.name} sent {sent} bytes for {last_frame.nbytes} bytes '
+                'of RGB data.'
+            )
+        if (answer := verify_answer(read_key())) is not None:
+            return answer, last_frame
+        remaining = frame_delay - (time.monotonic() - frame_started_at)
+        if remaining > 0:
+            time.sleep(remaining)
+        index = (index + 1) % frame_count
+
+
+def verify_answer(key: str | None) -> bool | None:
+    if key == 'y':
+        return True
+    if key == 'n':
+        return False
+    return None
+
+
+def report_verify_results(results: tuple[VerifyResult, ...]) -> None:
+    worked = [i.name for i in results if i.worked is True]
+    failed = [i.name for i in results if i.worked is False]
+    shown = [i.name for i in results if i.worked is None]
+    if worked:
+        log_status('[verify] Worked: ' + ', '.join(worked))
+    if failed:
+        log_error('[verify] Did not work: ' + ', '.join(failed))
+    if shown:
+        log_status('[verify] Shown without pass/fail: ' + ', '.join(shown))
+
+
+def verify_primary_channels_frame(
+    device: Device,
+    index: int,
+    frame_count: int,
+) -> NDArray[np.uint8]:
+    colors: tuple[RGB, ...] = ((255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255))
+    color = colors[(index * len(colors)) // frame_count % len(colors)]
+    return solid_rgb_level_frame(device, color)
+
+
+def verify_moving_gradient_frame(
+    device: Device,
+    index: int,
+    frame_count: int,
+) -> NDArray[np.uint8]:
+    frame = gradient_frame(device.led_count, (255, 0, 80), (0, 160, 255))
+    return np.roll(frame, round(index * device.led_count / frame_count), axis=0)
+
+
+def verify_crossfade_frame(
+    device: Device,
+    index: int,
+    frame_count: int,
+) -> NDArray[np.uint8]:
+    first_frame = gradient_frame(device.led_count, *LOW_CONTRAST_BLEND)
+    second_frame = gradient_frame(device.led_count, *HIGH_CONTRAST_BLEND)
+    cycle = math.sin((index / frame_count) * math.tau) * 0.5 + 0.5
+    return blend_frames(first_frame, second_frame, cycle)
+
+
+def verify_temporal_dither_frame(
+    device: Device,
+    index: int,
+    frame_count: int,
+) -> NDArray[np.uint8]:
+    if frame_count < 2:
+        raise ValueError('frame_count must be at least 2')
+    half = max(2, frame_count // 2)
+    if index < half:
+        return temporal_dither_grayscale_frame(
+            device,
+            0,
+            32,
+            index,
+            half,
+            dispersed_pixel_order(device.led_count),
+        )
+    return temporal_dither_grayscale_frame(
+        device,
+        32,
+        0,
+        index - half,
+        max(2, frame_count - half),
+        dispersed_pixel_order(device.led_count),
+    )
+
+
 def solid_grayscale_frame(device: Device, level: int) -> NDArray[np.uint8]:
     if not 0 <= level <= 255:
         raise ValueError('level must be an 8-bit channel value')
@@ -441,11 +715,29 @@ def single_key_input(stream: TextIO) -> Iterator[Callable[[], str]]:
         termios.tcsetattr(fd, termios.TCSADRAIN, settings)
 
 
+@contextmanager
+def single_key_polling_input(stream: TextIO) -> Iterator[Callable[[], str | None]]:
+    fd = stream.fileno()
+    settings = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd)
+        yield lambda: read_available_key(fd)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, settings)
+
+
 def read_single_key(fd: int) -> str:
     key = os.read(fd, 1).decode()
     if key == '\x1b':
         key += os.read(fd, 2).decode()
     return key
+
+
+def read_available_key(fd: int) -> str | None:
+    ready, _, _ = select.select([fd], [], [], 0)
+    if not ready:
+        return None
+    return read_single_key(fd)
 
 
 def run_temporal_dither_comparison(
@@ -770,3 +1062,11 @@ def discover_host(timeout: float) -> str | None:
     device = devices[0]
     log_status(f'[connected] Found {device.device_id} at {device.ip_address}')
     return device.ip_address
+
+
+VERIFY_DEMOS: tuple[VerifyDemo, ...] = (
+    VerifyDemo('primary-channels', verify_primary_channels_frame),
+    VerifyDemo('moving-gradient', verify_moving_gradient_frame),
+    VerifyDemo('crossfade', verify_crossfade_frame),
+    VerifyDemo('temporal-dither', verify_temporal_dither_frame),
+)
