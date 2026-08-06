@@ -113,7 +113,7 @@ from lyte.twinkly import (
     write_output_control,
 )
 from lyte.twinkly.authentication import CHALLENGE_KEY, derive_key, mac_bytes, rc4
-from lyte.twinkly.client import TWINKLY_API_PREFIX, LyteClient, LyteResponse
+from lyte.twinkly.client import TWINKLY_API_PREFIX, TwinklyClient, TwinklyResponse
 from lyte.twinkly.diagnostic import (
     DiagnosticCommandConfig,
     DiagnosticConfig,
@@ -720,7 +720,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_realtime_command_turns_off_device_after_setup_interrupt(self) -> None:
         def interrupt_setup(
-            client: LyteClient,
+            client: TwinklyClient,
             retry: RetryConfig,
             host: str,
         ) -> bool:
@@ -799,7 +799,7 @@ class FpsTestTests(unittest.TestCase):
         keys = iter(['r', 'g', 'b', 'R', 'x', 'B', UP_KEY, DOWN_KEY])
 
         def record_frame(
-            client: LyteClient,
+            client: TwinklyClient,
             retry: RetryConfig,
             host: str,
             frame: NDArray[np.uint8],
@@ -818,7 +818,7 @@ class FpsTestTests(unittest.TestCase):
             self.assertRaises(KeyboardInterrupt),
         ):
             run_black_floor_keys(
-                LyteClient(host='192.168.1.23'),
+                TwinklyClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 '192.168.1.23',
                 Device(led_count=1),
@@ -859,7 +859,7 @@ class FpsTestTests(unittest.TestCase):
         phases = []
 
         def record_fade(
-            client: LyteClient,
+            client: TwinklyClient,
             retry: RetryConfig,
             host: str,
             device: Device,
@@ -885,7 +885,7 @@ class FpsTestTests(unittest.TestCase):
             patch('lyte.fps_test.report_fades'),
         ):
             run_temporal_dither_comparison(
-                LyteClient(host='192.168.1.23'),
+                TwinklyClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 '192.168.1.23',
                 device,
@@ -927,7 +927,7 @@ class FpsTestTests(unittest.TestCase):
         phases = []
 
         def record_frames(
-            client: LyteClient,
+            client: TwinklyClient,
             retry: RetryConfig,
             host: str,
             device: Device,
@@ -954,7 +954,7 @@ class FpsTestTests(unittest.TestCase):
             patch('lyte.fps_test.report_fades'),
         ):
             results = run_fast_verify(
-                LyteClient(host='192.168.1.23'),
+                TwinklyClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 '192.168.1.23',
                 device,
@@ -1004,7 +1004,7 @@ class FpsTestTests(unittest.TestCase):
         fades = []
 
         def record_fade(
-            client: LyteClient,
+            client: TwinklyClient,
             retry: RetryConfig,
             host: str,
             device: Device,
@@ -1032,7 +1032,7 @@ class FpsTestTests(unittest.TestCase):
             patch('lyte.fps_test.report_fades'),
         ):
             run_fades(
-                LyteClient(host='192.168.1.23'),
+                TwinklyClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 '192.168.1.23',
                 device,
@@ -1056,7 +1056,7 @@ class FpsTestTests(unittest.TestCase):
             patch('lyte.fps_test.time.sleep'),
         ):
             report = stream_fade(
-                LyteClient(host='192.168.1.23'),
+                TwinklyClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 '192.168.1.23',
                 device,
@@ -1140,7 +1140,7 @@ class FakeHttpConnection:
 
 class ClientTests(unittest.TestCase):
     def test_constructs_with_keyword_arguments(self) -> None:
-        client = LyteClient(host='192.168.1.23', timeout=1.5)
+        client = TwinklyClient(host='192.168.1.23', timeout=1.5)
 
         self.assertEqual(client.host, '192.168.1.23')
         self.assertEqual(client.timeout, 1.5)
@@ -1152,7 +1152,7 @@ class ClientTests(unittest.TestCase):
         with patch(
             'lyte.twinkly.client.http.client.HTTPConnection', FakeHttpConnection
         ):
-            response = LyteClient(host='192.168.1.23').delete(
+            response = TwinklyClient(host='192.168.1.23').delete(
                 'movies', authenticated=False
             )
 
@@ -1179,7 +1179,7 @@ class ClientTests(unittest.TestCase):
         with patch(
             'lyte.twinkly.client.http.client.HTTPConnection', FakeHttpConnection
         ):
-            response = LyteClient(host='192.168.1.23').post_bytes(
+            response = TwinklyClient(host='192.168.1.23').post_bytes(
                 'movies/full',
                 b'\x01\x02\x03',
                 'application/octet-stream',
@@ -1206,7 +1206,7 @@ class ClientTests(unittest.TestCase):
         )
 
     def test_request_rejects_json_body_and_binary_payload(self) -> None:
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with self.assertRaisesRegex(ValueError, 'both JSON body and binary payload'):
             client.request(
@@ -1225,7 +1225,7 @@ class ClientTests(unittest.TestCase):
             patch('lyte.twinkly.client.http.client.HTTPConnection', FakeHttpConnection),
             self.assertRaises(UnsupportedEndpointError) as raised,
         ):
-            LyteClient(host='192.168.1.23').get('missing', authenticated=False)
+            TwinklyClient(host='192.168.1.23').get('missing', authenticated=False)
 
         self.assertEqual(raised.exception.path, 'missing')
         self.assertEqual(raised.exception.text, '{"code":1101}')
@@ -1234,16 +1234,16 @@ class ClientTests(unittest.TestCase):
         calls = []
 
         def get(
-            self: LyteClient,
+            self: TwinklyClient,
             path: str,
             authenticated: bool = True,
-        ) -> LyteResponse:
+        ) -> TwinklyResponse:
             calls.append((self.host, path, authenticated))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
-        with patch.object(LyteClient, 'get', get):
+        with patch.object(TwinklyClient, 'get', get):
             client.get_firmware_version()
             client.get_status()
 
@@ -1259,27 +1259,27 @@ class ClientTests(unittest.TestCase):
         calls = []
 
         def get(
-            self: LyteClient,
+            self: TwinklyClient,
             path: str,
             authenticated: bool = True,
-        ) -> LyteResponse:
+        ) -> TwinklyResponse:
             calls.append(('GET', self.host, path, authenticated))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
         def post(
-            self: LyteClient,
+            self: TwinklyClient,
             path: str,
             body: dict[str, object],
             authenticated: bool = True,
-        ) -> LyteResponse:
+        ) -> TwinklyResponse:
             calls.append(('POST', self.host, path, body, authenticated))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
-            patch.object(LyteClient, 'get', get),
-            patch.object(LyteClient, 'post', post),
+            patch.object(TwinklyClient, 'get', get),
+            patch.object(TwinklyClient, 'post', post),
         ):
             client.get_device_name()
             client.get_summary()
@@ -1298,27 +1298,27 @@ class ClientTests(unittest.TestCase):
         calls = []
 
         def get(
-            self: LyteClient,
+            self: TwinklyClient,
             path: str,
             authenticated: bool = True,
-        ) -> LyteResponse:
+        ) -> TwinklyResponse:
             calls.append(('GET', self.host, path, authenticated))
-            return LyteResponse(http_status=200, data={'code': 1000, 'value': 100})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'value': 100})
 
         def post(
-            self: LyteClient,
+            self: TwinklyClient,
             path: str,
             body: dict[str, object],
             authenticated: bool = True,
-        ) -> LyteResponse:
+        ) -> TwinklyResponse:
             calls.append(('POST', self.host, path, body, authenticated))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
-            patch.object(LyteClient, 'get', get),
-            patch.object(LyteClient, 'post', post),
+            patch.object(TwinklyClient, 'get', get),
+            patch.object(TwinklyClient, 'post', post),
         ):
             client.get_brightness()
             client.set_brightness({'mode': 'enabled', 'type': 'A', 'value': 75})
@@ -1351,27 +1351,27 @@ class ClientTests(unittest.TestCase):
         calls = []
 
         def get(
-            self: LyteClient,
+            self: TwinklyClient,
             path: str,
             authenticated: bool = True,
-        ) -> LyteResponse:
+        ) -> TwinklyResponse:
             calls.append(('GET', self.host, path, authenticated))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
         def post(
-            self: LyteClient,
+            self: TwinklyClient,
             path: str,
             body: dict[str, object],
             authenticated: bool = True,
-        ) -> LyteResponse:
+        ) -> TwinklyResponse:
             calls.append(('POST', self.host, path, body, authenticated))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
-            patch.object(LyteClient, 'get', get),
-            patch.object(LyteClient, 'post', post),
+            patch.object(TwinklyClient, 'get', get),
+            patch.object(TwinklyClient, 'post', post),
         ):
             client.get_led_mode()
             client.set_led_mode({'mode': 'demo'})
@@ -1410,36 +1410,36 @@ class ClientTests(unittest.TestCase):
         calls = []
 
         def get(
-            self: LyteClient,
+            self: TwinklyClient,
             path: str,
             authenticated: bool = True,
-        ) -> LyteResponse:
+        ) -> TwinklyResponse:
             calls.append(('GET', self.host, path, authenticated))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
         def post(
-            self: LyteClient,
+            self: TwinklyClient,
             path: str,
             body: dict[str, object],
             authenticated: bool = True,
-        ) -> LyteResponse:
+        ) -> TwinklyResponse:
             calls.append(('POST', self.host, path, body, authenticated))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
         def delete(
-            self: LyteClient,
+            self: TwinklyClient,
             path: str,
             authenticated: bool = True,
-        ) -> LyteResponse:
+        ) -> TwinklyResponse:
             calls.append(('DELETE', self.host, path, authenticated))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
-            patch.object(LyteClient, 'get', get),
-            patch.object(LyteClient, 'post', post),
-            patch.object(LyteClient, 'delete', delete),
+            patch.object(TwinklyClient, 'get', get),
+            patch.object(TwinklyClient, 'post', post),
+            patch.object(TwinklyClient, 'delete', delete),
         ):
             client.get_layout_full()
             client.set_layout_full({'source': '3d'})
@@ -1500,17 +1500,17 @@ class ClientTests(unittest.TestCase):
         calls = []
 
         def post(
-            self: LyteClient,
+            self: TwinklyClient,
             path: str,
             body: dict[str, object],
             authenticated: bool = True,
-        ) -> LyteResponse:
+        ) -> TwinklyResponse:
             calls.append((self.host, path, body, authenticated))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
-        with patch.object(LyteClient, 'post', post):
+        with patch.object(TwinklyClient, 'post', post):
             response = client.set_off_mode()
 
         self.assertEqual(response.data, {'code': 1000})
@@ -1528,7 +1528,7 @@ class SessionTests(unittest.TestCase):
         )
 
     def test_set_mac_from_gestalt_updates_client(self) -> None:
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         result = set_mac_from_gestalt(client, {'mac': 'AA:BB:CC:DD:EE:FF'})
 
@@ -1544,16 +1544,16 @@ class SessionTests(unittest.TestCase):
         labels = []
 
         def set_off_mode(
-            client: LyteClient,
+            client: TwinklyClient,
             retry: RetryConfig,
             label: str,
-        ) -> LyteResponse:
+        ) -> TwinklyResponse:
             labels.append(label)
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
         with patch('lyte.twinkly.session.set_off_mode_with_retry', set_off_mode):
             result = turn_off_with_retry(
-                LyteClient(host='192.168.1.23'),
+                TwinklyClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 '192.168.1.23',
             )
@@ -1599,7 +1599,7 @@ class PackageDiagnosticTests(unittest.TestCase):
             raise UnsupportedEndpointError('summary', 'Resource not found.')
 
         report = read_endpoint(
-            LyteClient(host='192.168.1.23'),
+            TwinklyClient(host='192.168.1.23'),
             RetryConfig(attempts=1, delay=0, backoff=1),
             'summary',
             'GET',
@@ -1620,112 +1620,114 @@ class PackageDiagnosticTests(unittest.TestCase):
     def test_authenticated_reports_probe_device_name_summary_and_echo(self) -> None:
         calls = []
 
-        def get_layout_full(self: LyteClient) -> LyteResponse:
+        def get_layout_full(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'layout'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'coordinates': []})
+            return TwinklyResponse(
+                http_status=200, data={'code': 1000, 'coordinates': []}
+            )
 
-        def get_led_config(self: LyteClient) -> LyteResponse:
+        def get_led_config(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'led-config'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'strings': []})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'strings': []})
 
-        def get_led_mode(self: LyteClient) -> LyteResponse:
+        def get_led_mode(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'mode'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'mode': 'off'})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'mode': 'off'})
 
-        def get_timer(self: LyteClient) -> LyteResponse:
+        def get_timer(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'timer'))
-            return LyteResponse(
+            return TwinklyResponse(
                 http_status=200,
                 data={'code': 1000, 'time_now': 1800, 'time_on': -1, 'time_off': -1},
             )
 
-        def get_movie_config(self: LyteClient) -> LyteResponse:
+        def get_movie_config(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'movie-config'))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
-        def get_movies(self: LyteClient) -> LyteResponse:
+        def get_movies(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'movies'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'entries': []})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'entries': []})
 
-        def get_current_movie(self: LyteClient) -> LyteResponse:
+        def get_current_movie(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'current-movie'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'id': 0})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'id': 0})
 
-        def get_playlist(self: LyteClient) -> LyteResponse:
+        def get_playlist(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'playlist'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'entries': []})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'entries': []})
 
-        def get_current_playlist_entry(self: LyteClient) -> LyteResponse:
+        def get_current_playlist_entry(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'current-playlist-entry'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'id': 0})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'id': 0})
 
-        def get_network_status(self: LyteClient) -> LyteResponse:
+        def get_network_status(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'network-status'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'mode': 1})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'mode': 1})
 
-        def get_network_scan(self: LyteClient) -> LyteResponse:
+        def get_network_scan(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'network-scan'))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
-        def get_network_scan_results(self: LyteClient) -> LyteResponse:
+        def get_network_scan_results(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'network-scan-results'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'networks': []})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'networks': []})
 
-        def get_mqtt_config(self: LyteClient) -> LyteResponse:
+        def get_mqtt_config(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'mqtt-config'))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
-        def get_mic_config(self: LyteClient) -> LyteResponse:
+        def get_mic_config(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'mic-config'))
-            return LyteResponse(http_status=200, data={'code': 1000})
+            return TwinklyResponse(http_status=200, data={'code': 1000})
 
-        def get_mic_sample(self: LyteClient) -> LyteResponse:
+        def get_mic_sample(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'mic-sample'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'sample': 0})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'sample': 0})
 
-        def get_music_drivers(self: LyteClient) -> LyteResponse:
+        def get_music_drivers(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'music-drivers'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'drivers': []})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'drivers': []})
 
-        def get_music_driver_sets(self: LyteClient) -> LyteResponse:
+        def get_music_driver_sets(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'music-driver-sets'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'sets': []})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'sets': []})
 
-        def get_current_music_driver_set(self: LyteClient) -> LyteResponse:
+        def get_current_music_driver_set(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'current-music-driver-set'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'id': 0})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'id': 0})
 
-        def get_led_color(self: LyteClient) -> LyteResponse:
+        def get_led_color(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'color'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'red': 1})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'red': 1})
 
-        def get_effects(self: LyteClient) -> LyteResponse:
+        def get_effects(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'effects'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'effects': []})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'effects': []})
 
-        def get_current_effect(self: LyteClient) -> LyteResponse:
+        def get_current_effect(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'current-effect'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'effect_id': 0})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'effect_id': 0})
 
-        def get_brightness(self: LyteClient) -> LyteResponse:
+        def get_brightness(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'brightness'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'value': 75})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'value': 75})
 
-        def get_saturation(self: LyteClient) -> LyteResponse:
+        def get_saturation(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'saturation'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'value': 80})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'value': 80})
 
-        def get_device_name(self: LyteClient) -> LyteResponse:
+        def get_device_name(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'device_name'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'name': 'Tree'})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'name': 'Tree'})
 
-        def get_summary(self: LyteClient) -> LyteResponse:
+        def get_summary(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'summary'))
-            return LyteResponse(http_status=200, data={'code': 1000, 'leds': 250})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'leds': 250})
 
-        def echo(self: LyteClient, body: dict[str, object]) -> LyteResponse:
+        def echo(self: TwinklyClient, body: dict[str, object]) -> TwinklyResponse:
             calls.append(('POST', 'echo', body))
-            return LyteResponse(http_status=200, data={'code': 1000, 'json': body})
+            return TwinklyResponse(http_status=200, data={'code': 1000, 'json': body})
 
         methods = {
             'get_layout_full': get_layout_full,
@@ -1757,9 +1759,9 @@ class PackageDiagnosticTests(unittest.TestCase):
         }
         with ExitStack() as stack:
             for name, method in methods.items():
-                stack.enter_context(patch.object(LyteClient, name, method))
+                stack.enter_context(patch.object(TwinklyClient, name, method))
             reports = authenticated_reports(
-                LyteClient(host='192.168.1.23'),
+                TwinklyClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
             )
 
@@ -1828,11 +1830,11 @@ class PackageDiagnosticTests(unittest.TestCase):
 
     def test_run_diagnostic_reports_read_only_device_state(self) -> None:
         output = io.StringIO()
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{DIAGNOSTIC}.discover_host', return_value='192.168.1.23'),
-            patch(f'{DIAGNOSTIC}.LyteClient', return_value=client),
+            patch(f'{DIAGNOSTIC}.TwinklyClient', return_value=client),
             patch(
                 f'{DIAGNOSTIC}.read_endpoint',
                 side_effect=(
@@ -1955,21 +1957,21 @@ class TwinklyControlTests(unittest.TestCase):
         )
 
     def test_read_output_control_dispatches_by_kind(self) -> None:
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch.object(
-                LyteClient,
+                TwinklyClient,
                 'get_brightness',
-                return_value=LyteResponse(
+                return_value=TwinklyResponse(
                     http_status=200,
                     data={'mode': 'enabled', 'value': 75},
                 ),
             ) as get_brightness,
             patch.object(
-                LyteClient,
+                TwinklyClient,
                 'get_saturation',
-                return_value=LyteResponse(
+                return_value=TwinklyResponse(
                     http_status=200,
                     data={'mode': 'enabled', 'value': 80},
                 ),
@@ -1984,12 +1986,12 @@ class TwinklyControlTests(unittest.TestCase):
         get_saturation.assert_called_once()
 
     def test_write_output_control_dispatches_by_kind(self) -> None:
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
         control = OutputControl(value=90)
 
         with (
-            patch.object(LyteClient, 'set_brightness') as set_brightness,
-            patch.object(LyteClient, 'set_saturation') as set_saturation,
+            patch.object(TwinklyClient, 'set_brightness') as set_brightness,
+            patch.object(TwinklyClient, 'set_saturation') as set_saturation,
         ):
             write_output_control(client, 'brightness', control)
             write_output_control(client, 'saturation', control)
@@ -2003,11 +2005,11 @@ class TwinklyControlTests(unittest.TestCase):
 
     def test_run_output_control_get_reports_current_value(self) -> None:
         output = io.StringIO()
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch(
                 f'{OUTPUT}.read_output_control',
@@ -2029,11 +2031,11 @@ class TwinklyControlTests(unittest.TestCase):
 
     def test_run_output_control_set_writes_value(self) -> None:
         output = io.StringIO()
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch(f'{OUTPUT}.write_output_control') as write_output_control,
             patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
@@ -2059,13 +2061,13 @@ class TwinklyControlTests(unittest.TestCase):
         )
 
     def test_run_mode_control_sets_mode_then_turns_off(self) -> None:
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
-            patch.object(LyteClient, 'set_led_mode') as set_led_mode,
+            patch.object(TwinklyClient, 'set_led_mode') as set_led_mode,
             patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
@@ -2076,13 +2078,13 @@ class TwinklyControlTests(unittest.TestCase):
         turn_off.assert_called_once()
 
     def test_run_color_control_sets_rgb_then_turns_off(self) -> None:
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
-            patch.object(LyteClient, 'set_led_color') as set_led_color,
+            patch.object(TwinklyClient, 'set_led_color') as set_led_color,
             patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
@@ -2095,13 +2097,13 @@ class TwinklyControlTests(unittest.TestCase):
         turn_off.assert_called_once()
 
     def test_run_effect_control_sets_current_effect_then_turns_off(self) -> None:
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
-            patch.object(LyteClient, 'set_current_effect') as set_current_effect,
+            patch.object(TwinklyClient, 'set_current_effect') as set_current_effect,
             patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
@@ -2113,18 +2115,18 @@ class TwinklyControlTests(unittest.TestCase):
 
     def test_run_layout_control_exports_layout_then_turns_off(self) -> None:
         output = io.StringIO()
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'layout.json'
             with (
                 patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-                patch(f'{COMMAND}.LyteClient', return_value=client),
+                patch(f'{COMMAND}.TwinklyClient', return_value=client),
                 patch(f'{COMMAND}.prepare_authenticated_client'),
                 patch.object(
-                    LyteClient,
+                    TwinklyClient,
                     'get_layout_full',
-                    return_value=LyteResponse(
+                    return_value=TwinklyResponse(
                         http_status=200,
                         data={'source': '3d', 'coordinates': []},
                     ),
@@ -2143,7 +2145,7 @@ class TwinklyControlTests(unittest.TestCase):
             self.assertIn('[layout] exported', output.getvalue())
 
     def test_run_layout_control_uploads_layout_then_turns_off(self) -> None:
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'layout.json'
@@ -2160,9 +2162,9 @@ class TwinklyControlTests(unittest.TestCase):
             )
             with (
                 patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-                patch(f'{COMMAND}.LyteClient', return_value=client),
+                patch(f'{COMMAND}.TwinklyClient', return_value=client),
                 patch(f'{COMMAND}.prepare_authenticated_client'),
-                patch.object(LyteClient, 'set_layout_full') as set_layout_full,
+                patch.object(TwinklyClient, 'set_layout_full') as set_layout_full,
                 patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
                 patch('sys.stdout', new_callable=io.StringIO),
             ):
@@ -2181,16 +2183,16 @@ class TwinklyControlTests(unittest.TestCase):
         turn_off.assert_called_once()
 
     def test_run_led_config_control_sets_json_config_then_turns_off(self) -> None:
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'config.json'
             path.write_text(json.dumps({'strings': [{'first_led_id': 0}]}))
             with (
                 patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-                patch(f'{COMMAND}.LyteClient', return_value=client),
+                patch(f'{COMMAND}.TwinklyClient', return_value=client),
                 patch(f'{COMMAND}.prepare_authenticated_client'),
-                patch.object(LyteClient, 'set_led_config') as set_led_config,
+                patch.object(TwinklyClient, 'set_led_config') as set_led_config,
                 patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
                 patch('sys.stdout', new_callable=io.StringIO),
             ):
@@ -2202,16 +2204,16 @@ class TwinklyControlTests(unittest.TestCase):
 
     def test_run_timer_control_reads_timer_then_turns_off(self) -> None:
         output = io.StringIO()
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
-                LyteClient,
+                TwinklyClient,
                 'get_timer',
-                return_value=LyteResponse(
+                return_value=TwinklyResponse(
                     http_status=200,
                     data={'time_now': 1800, 'time_on': -1, 'time_off': 7200},
                 ),
@@ -2229,13 +2231,13 @@ class TwinklyControlTests(unittest.TestCase):
         turn_off.assert_called_once()
 
     def test_run_timer_control_sets_timer_then_turns_off(self) -> None:
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
-            patch.object(LyteClient, 'set_timer') as set_timer,
+            patch.object(TwinklyClient, 'set_timer') as set_timer,
             patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
@@ -2249,16 +2251,16 @@ class TwinklyControlTests(unittest.TestCase):
 
     def test_run_movie_control_reads_current_movie_then_turns_off(self) -> None:
         output = io.StringIO()
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
-                LyteClient,
+                TwinklyClient,
                 'get_current_movie',
-                return_value=LyteResponse(http_status=200, data={'id': 0}),
+                return_value=TwinklyResponse(http_status=200, data={'id': 0}),
             ) as get_current_movie,
             patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
@@ -2272,16 +2274,16 @@ class TwinklyControlTests(unittest.TestCase):
 
     def test_run_playlist_control_reads_playlist_then_turns_off(self) -> None:
         output = io.StringIO()
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
-                LyteClient,
+                TwinklyClient,
                 'get_playlist',
-                return_value=LyteResponse(http_status=200, data={'entries': []}),
+                return_value=TwinklyResponse(http_status=200, data={'entries': []}),
             ) as get_playlist,
             patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
@@ -2295,16 +2297,16 @@ class TwinklyControlTests(unittest.TestCase):
 
     def test_run_network_control_reads_status_then_turns_off(self) -> None:
         output = io.StringIO()
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
-                LyteClient,
+                TwinklyClient,
                 'get_network_status',
-                return_value=LyteResponse(http_status=200, data={'mode': 1}),
+                return_value=TwinklyResponse(http_status=200, data={'mode': 1}),
             ) as get_network_status,
             patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
@@ -2318,16 +2320,16 @@ class TwinklyControlTests(unittest.TestCase):
 
     def test_run_mqtt_control_reads_config_then_turns_off(self) -> None:
         output = io.StringIO()
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
-                LyteClient,
+                TwinklyClient,
                 'get_mqtt_config',
-                return_value=LyteResponse(http_status=200, data={'enabled': False}),
+                return_value=TwinklyResponse(http_status=200, data={'enabled': False}),
             ) as get_mqtt_config,
             patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
@@ -2341,16 +2343,16 @@ class TwinklyControlTests(unittest.TestCase):
 
     def test_run_mic_control_reads_sample_then_turns_off(self) -> None:
         output = io.StringIO()
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
-                LyteClient,
+                TwinklyClient,
                 'get_mic_sample',
-                return_value=LyteResponse(http_status=200, data={'sample': 3}),
+                return_value=TwinklyResponse(http_status=200, data={'sample': 3}),
             ) as get_mic_sample,
             patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
@@ -2364,16 +2366,16 @@ class TwinklyControlTests(unittest.TestCase):
 
     def test_run_music_control_reads_current_driver_set_then_turns_off(self) -> None:
         output = io.StringIO()
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with (
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
-            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
-                LyteClient,
+                TwinklyClient,
                 'get_current_music_driver_set',
-                return_value=LyteResponse(http_status=200, data={'id': 1}),
+                return_value=TwinklyResponse(http_status=200, data={'id': 1}),
             ) as get_current_music_driver_set,
             patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
@@ -2390,7 +2392,7 @@ class RuntimeTests(unittest.TestCase):
     def test_read_device_led_count_uses_configured_count_after_reading_gestalt(
         self,
     ) -> None:
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with patch(
             'lyte.runtime.read_gestalt',
@@ -2408,7 +2410,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(client.mac, 'AA')
 
     def test_read_device_led_count_detects_count_from_gestalt(self) -> None:
-        client = LyteClient(host='192.168.1.23')
+        client = TwinklyClient(host='192.168.1.23')
 
         with patch(
             'lyte.runtime.read_gestalt',
@@ -2427,7 +2429,7 @@ class RuntimeTests(unittest.TestCase):
         frame = solid_rgb_frame(1, 255, 0, 0)
 
         sent = send_authenticated_frame(
-            LyteClient(host='192.168.1.23'),
+            TwinklyClient(host='192.168.1.23'),
             '192.168.1.23',
             frame,
             RetryConfig(attempts=1, delay=0, backoff=1),
@@ -3141,7 +3143,7 @@ class AnimateTests(unittest.TestCase):
         ):
             self.script.run_random_animations(
                 args,
-                LyteClient(host='192.168.1.23'),
+                TwinklyClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 '192.168.1.23',
                 Device(led_count=3),
@@ -3200,7 +3202,7 @@ class AnimateTests(unittest.TestCase):
                 next_animation,
                 next_state,
                 args,
-                LyteClient(host='192.168.1.23'),
+                TwinklyClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 '192.168.1.23',
                 device,
@@ -3284,7 +3286,7 @@ class AnimateTests(unittest.TestCase):
             patch('lyte.twinkly.realtime.authenticate_device', return_value=object()),
             patch(
                 'lyte.twinkly.realtime.set_off_mode_with_retry',
-                return_value=LyteResponse(http_status=200, data={'code': 1000}),
+                return_value=TwinklyResponse(http_status=200, data={'code': 1000}),
             ) as set_off_mode,
             patch('lyte.animate.playback.read_led_count') as read_led_count,
             patch('lyte.animate.playback.prepare_device') as prepare_device,
@@ -3308,7 +3310,7 @@ class AnimateTests(unittest.TestCase):
             patch('sys.stdout', output),
         ):
             led_count = self.script.read_led_count(
-                LyteClient(host='192.168.1.23'),
+                TwinklyClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 None,
                 '192.168.1.23',
@@ -3340,7 +3342,7 @@ class AnimateTests(unittest.TestCase):
             ),
             patch(
                 'lyte.twinkly.realtime.set_off_mode_with_retry',
-                return_value=LyteResponse(http_status=200, data={'code': 1000}),
+                return_value=TwinklyResponse(http_status=200, data={'code': 1000}),
             ) as set_off_mode,
             patch('sys.stdout', new_callable=io.StringIO),
         ):

@@ -17,7 +17,7 @@ from ..animation import (
 )
 from ..logging import log
 from ..retry import RetryConfig
-from ..twinkly.client import LyteClient
+from ..twinkly.client import TwinklyClient
 from ..twinkly.realtime import (
     discover_host,
     prepare_device,
@@ -53,7 +53,7 @@ def run_animate(args: AnimateConfig) -> int:
         delay=args.retry_delay,
         backoff=args.retry_backoff,
     )
-    client = LyteClient(host=host, timeout=args.timeout)
+    client = TwinklyClient(host=host, timeout=args.timeout)
     if args.animation == 'off':
         return 0 if turn_off_device(client, retry, host) else 1
 
@@ -83,7 +83,7 @@ def parse_args(args: Sequence[str] | None = None) -> AnimateConfig:
 
 def run_random_animations(
     args: AnimateConfig,
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -148,7 +148,7 @@ def run_random_animations(
 
 def run_animation(
     args: AnimateConfig,
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -164,7 +164,7 @@ def run_animation_state(
     animation: Animation,
     state: State,
     args: AnimateConfig,
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -195,7 +195,7 @@ def run_crossfade(
     next_animation: Animation,
     next_state: State,
     args: AnimateConfig,
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,

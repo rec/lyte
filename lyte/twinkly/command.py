@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ..retry import RetryConfig
 from ..runtime import authenticate_device
-from .client import LyteClient
+from .client import TwinklyClient
 from .diagnostic import DiagnosticConfig
 from .realtime import discover_host
 from .session import (
@@ -20,7 +20,7 @@ from .session import (
 
 def run_twinkly_command(
     config: DiagnosticConfig,
-    action: Callable[[LyteClient], None],
+    action: Callable[[TwinklyClient], None],
 ) -> int:
     host = config.host or discover_host(config.discovery_timeout)
     if host is None:
@@ -31,7 +31,7 @@ def run_twinkly_command(
         delay=config.retry_delay,
         backoff=config.retry_backoff,
     )
-    client = LyteClient(host=host, timeout=config.timeout)
+    client = TwinklyClient(host=host, timeout=config.timeout)
     prepare_authenticated_client(client, retry, host)
 
     off_succeeded = True
@@ -43,7 +43,7 @@ def run_twinkly_command(
 
 
 def prepare_authenticated_client(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
 ) -> None:

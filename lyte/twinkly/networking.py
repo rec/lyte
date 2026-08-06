@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from ..logging import log_status
-from .client import LyteClient
+from .client import TwinklyClient
 from .command import run_twinkly_command
 from .diagnostic import DiagnosticConfig
 
@@ -11,7 +11,7 @@ NetworkAction = Literal['status', 'scan', 'scan-results']
 
 
 def run_network_control(config: DiagnosticConfig, action: NetworkAction) -> int:
-    def run(client: LyteClient) -> None:
+    def run(client: TwinklyClient) -> None:
         if action == 'status':
             log_status(f'[network] status {client.get_network_status().data}')
         elif action == 'scan':

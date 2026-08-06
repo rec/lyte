@@ -4,7 +4,7 @@ import sys
 from typing import Literal
 
 from ..logging import log_status
-from .client import LyteClient
+from .client import TwinklyClient
 from .command import run_twinkly_command
 from .diagnostic import DiagnosticConfig
 
@@ -21,7 +21,7 @@ def run_mode_control(
 ) -> int:
     validate_mode_args(action, mode)
 
-    def run(client: LyteClient) -> None:
+    def run(client: TwinklyClient) -> None:
         if action == 'get':
             log_status(f'[mode] {client.get_led_mode().data}')
         else:
@@ -41,7 +41,7 @@ def run_color_control(
 ) -> int:
     validate_color_args(action, red, green, blue)
 
-    def run(client: LyteClient) -> None:
+    def run(client: TwinklyClient) -> None:
         if action == 'get':
             log_status(f'[color] {client.get_led_color().data}')
         else:
@@ -67,7 +67,7 @@ def run_effect_control(
 ) -> int:
     validate_effect_args(action, effect_id)
 
-    def run(client: LyteClient) -> None:
+    def run(client: TwinklyClient) -> None:
         if action == 'list':
             log_status(f'[effects] {client.get_effects().data}')
         elif action == 'current':

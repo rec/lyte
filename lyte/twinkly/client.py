@@ -17,7 +17,7 @@ AUTH_HEADER = 'X-Auth-Token'
 TWINKLY_API_PREFIX = '/' + 'x' + 'led/v1'
 
 
-class LyteResponse(BaseModel, frozen=True):
+class TwinklyResponse(BaseModel, frozen=True):
     http_status: int
     data: dict[str, object]
 
@@ -32,7 +32,7 @@ class AuthToken(BaseModel):
         return self.expires_at is not None and self.expires_at <= time.time()
 
 
-class LyteClient(BaseModel):
+class TwinklyClient(BaseModel):
     host: str
     mac: str | None = None
     timeout: float = 5.0
@@ -78,7 +78,7 @@ class LyteClient(BaseModel):
         )
         return self.token
 
-    def get(self, path: str, authenticated: bool = True) -> LyteResponse:
+    def get(self, path: str, authenticated: bool = True) -> TwinklyResponse:
         return self.request('GET', path, authenticated=authenticated)
 
     def post(
@@ -86,7 +86,7 @@ class LyteClient(BaseModel):
         path: str,
         body: dict[str, object],
         authenticated: bool = True,
-    ) -> LyteResponse:
+    ) -> TwinklyResponse:
         return self.request('POST', path, body=body, authenticated=authenticated)
 
     def post_bytes(
@@ -95,7 +95,7 @@ class LyteClient(BaseModel):
         payload: bytes,
         content_type: str,
         authenticated: bool = True,
-    ) -> LyteResponse:
+    ) -> TwinklyResponse:
         return self.request(
             'POST',
             path,
@@ -104,124 +104,124 @@ class LyteClient(BaseModel):
             authenticated=authenticated,
         )
 
-    def delete(self, path: str, authenticated: bool = True) -> LyteResponse:
+    def delete(self, path: str, authenticated: bool = True) -> TwinklyResponse:
         return self.request('DELETE', path, authenticated=authenticated)
 
-    def get_firmware_version(self, authenticated: bool = False) -> LyteResponse:
+    def get_firmware_version(self, authenticated: bool = False) -> TwinklyResponse:
         return self.get('fw/version', authenticated=authenticated)
 
-    def get_status(self, authenticated: bool = False) -> LyteResponse:
+    def get_status(self, authenticated: bool = False) -> TwinklyResponse:
         return self.get('status', authenticated=authenticated)
 
-    def get_device_name(self) -> LyteResponse:
+    def get_device_name(self) -> TwinklyResponse:
         return self.get('device_name')
 
-    def get_summary(self) -> LyteResponse:
+    def get_summary(self) -> TwinklyResponse:
         return self.get('summary')
 
-    def echo(self, body: dict[str, object]) -> LyteResponse:
+    def echo(self, body: dict[str, object]) -> TwinklyResponse:
         return self.post('echo', body)
 
-    def get_brightness(self) -> LyteResponse:
+    def get_brightness(self) -> TwinklyResponse:
         return self.get('led/out/brightness')
 
-    def set_brightness(self, body: dict[str, object]) -> LyteResponse:
+    def set_brightness(self, body: dict[str, object]) -> TwinklyResponse:
         return self.post('led/out/brightness', body)
 
-    def get_saturation(self) -> LyteResponse:
+    def get_saturation(self) -> TwinklyResponse:
         return self.get('led/out/saturation')
 
-    def set_saturation(self, body: dict[str, object]) -> LyteResponse:
+    def set_saturation(self, body: dict[str, object]) -> TwinklyResponse:
         return self.post('led/out/saturation', body)
 
-    def get_led_mode(self) -> LyteResponse:
+    def get_led_mode(self) -> TwinklyResponse:
         return self.get('led/mode')
 
-    def set_led_mode(self, body: dict[str, object]) -> LyteResponse:
+    def set_led_mode(self, body: dict[str, object]) -> TwinklyResponse:
         return self.post('led/mode', body)
 
-    def get_led_color(self) -> LyteResponse:
+    def get_led_color(self) -> TwinklyResponse:
         return self.get('led/color')
 
-    def set_led_color(self, body: dict[str, object]) -> LyteResponse:
+    def set_led_color(self, body: dict[str, object]) -> TwinklyResponse:
         return self.post('led/color', body)
 
-    def get_effects(self) -> LyteResponse:
+    def get_effects(self) -> TwinklyResponse:
         return self.get('led/effects')
 
-    def get_current_effect(self) -> LyteResponse:
+    def get_current_effect(self) -> TwinklyResponse:
         return self.get('led/effects/current')
 
-    def set_current_effect(self, body: dict[str, object]) -> LyteResponse:
+    def set_current_effect(self, body: dict[str, object]) -> TwinklyResponse:
         return self.post('led/effects/current', body)
 
-    def get_layout_full(self) -> LyteResponse:
+    def get_layout_full(self) -> TwinklyResponse:
         return self.get('led/layout/full')
 
-    def set_layout_full(self, body: dict[str, object]) -> LyteResponse:
+    def set_layout_full(self, body: dict[str, object]) -> TwinklyResponse:
         return self.post('led/layout/full', body)
 
-    def delete_layout_full(self) -> LyteResponse:
+    def delete_layout_full(self) -> TwinklyResponse:
         return self.delete('led/layout/full')
 
-    def get_led_config(self) -> LyteResponse:
+    def get_led_config(self) -> TwinklyResponse:
         return self.get('led/config')
 
-    def set_led_config(self, body: dict[str, object]) -> LyteResponse:
+    def set_led_config(self, body: dict[str, object]) -> TwinklyResponse:
         return self.post('led/config', body)
 
-    def get_timer(self) -> LyteResponse:
+    def get_timer(self) -> TwinklyResponse:
         return self.get('timer')
 
-    def set_timer(self, body: dict[str, object]) -> LyteResponse:
+    def set_timer(self, body: dict[str, object]) -> TwinklyResponse:
         return self.post('timer', body)
 
-    def get_movie_config(self) -> LyteResponse:
+    def get_movie_config(self) -> TwinklyResponse:
         return self.get('led/movie/config')
 
-    def get_movies(self) -> LyteResponse:
+    def get_movies(self) -> TwinklyResponse:
         return self.get('movies')
 
-    def get_current_movie(self) -> LyteResponse:
+    def get_current_movie(self) -> TwinklyResponse:
         return self.get('led/movies/current')
 
-    def get_playlist(self) -> LyteResponse:
+    def get_playlist(self) -> TwinklyResponse:
         return self.get('playlist')
 
-    def get_current_playlist_entry(self) -> LyteResponse:
+    def get_current_playlist_entry(self) -> TwinklyResponse:
         return self.get('playlist/current')
 
-    def get_network_scan(self) -> LyteResponse:
+    def get_network_scan(self) -> TwinklyResponse:
         return self.get('network/scan')
 
-    def get_network_scan_results(self) -> LyteResponse:
+    def get_network_scan_results(self) -> TwinklyResponse:
         return self.get('network/scan_results')
 
-    def get_network_status(self) -> LyteResponse:
+    def get_network_status(self) -> TwinklyResponse:
         return self.get('network/status')
 
-    def get_mqtt_config(self) -> LyteResponse:
+    def get_mqtt_config(self) -> TwinklyResponse:
         return self.get('mqtt/config')
 
-    def get_mic_config(self) -> LyteResponse:
+    def get_mic_config(self) -> TwinklyResponse:
         return self.get('mic/config')
 
-    def get_mic_sample(self) -> LyteResponse:
+    def get_mic_sample(self) -> TwinklyResponse:
         return self.get('mic/sample')
 
-    def get_music_drivers(self) -> LyteResponse:
+    def get_music_drivers(self) -> TwinklyResponse:
         return self.get('music/drivers')
 
-    def get_music_driver_sets(self) -> LyteResponse:
+    def get_music_driver_sets(self) -> TwinklyResponse:
         return self.get('music/drivers/sets')
 
-    def get_current_music_driver_set(self) -> LyteResponse:
+    def get_current_music_driver_set(self) -> TwinklyResponse:
         return self.get('music/drivers/sets/current')
 
-    def set_realtime_mode(self) -> LyteResponse:
+    def set_realtime_mode(self) -> TwinklyResponse:
         return self.post('led/mode', {'mode': 'rt'})
 
-    def set_off_mode(self) -> LyteResponse:
+    def set_off_mode(self) -> TwinklyResponse:
         return self.post('led/mode', {'mode': 'off'})
 
     def request(
@@ -232,7 +232,7 @@ class LyteClient(BaseModel):
         payload: bytes | None = None,
         content_type: str = 'application/json',
         authenticated: bool = True,
-    ) -> LyteResponse:
+    ) -> TwinklyResponse:
         if body is not None and payload is not None:
             raise ValueError('request cannot use both JSON body and binary payload')
         headers = {'Content-Type': content_type}
@@ -280,7 +280,7 @@ class LyteClient(BaseModel):
         code = data.get('code')
         if code is not None and code != 1000:
             raise ProtocolError(f'Twinkly application code {code}: {data!r}')
-        return LyteResponse(http_status=response.status, data=data)
+        return TwinklyResponse(http_status=response.status, data=data)
 
     def _auth_token(self) -> str:
         if self.token is None or self.token.expired:

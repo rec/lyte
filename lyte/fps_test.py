@@ -19,7 +19,7 @@ from .animation import Device, validate_byte_rgb_frame
 from .animations.bibliopixel import RGB
 from .logging import log, log_error, log_status
 from .retry import RetryConfig
-from .twinkly.client import LyteClient
+from .twinkly.client import TwinklyClient
 from .twinkly.realtime import (
     discover_host,
     prepare_device,
@@ -138,7 +138,7 @@ def run_verify_test(config: VerifyConfig) -> int:
     validate_verify_config(config)
 
     def verify_action(
-        client: LyteClient,
+        client: TwinklyClient,
         retry: RetryConfig,
         host: str,
         device: Device,
@@ -200,7 +200,7 @@ def run_realtime_command(
     retry_delay: float,
     retry_backoff: float,
     configured_led_count: int | None,
-    action: Callable[[LyteClient, RetryConfig, str, Device], None],
+    action: Callable[[TwinklyClient, RetryConfig, str, Device], None],
 ) -> int:
     host = configured_host or discover_host(discovery_timeout)
     if host is None:
@@ -211,7 +211,7 @@ def run_realtime_command(
         delay=retry_delay,
         backoff=retry_backoff,
     )
-    client = LyteClient(host=host, timeout=timeout)
+    client = TwinklyClient(host=host, timeout=timeout)
     try:
         led_count = read_led_count(client, retry, configured_led_count, host)
         if led_count is None:
@@ -353,7 +353,7 @@ def temporal_dither_grayscale_frame(
 
 
 def run_fades(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -406,7 +406,7 @@ def run_fades(
 
 
 def run_fast_verify(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -455,7 +455,7 @@ def run_fast_verify(
 
 
 def run_slow_verify(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -502,7 +502,7 @@ def run_slow_verify(
 
 
 def stream_demo_until_vote(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -656,7 +656,7 @@ def is_black_floor_key(key: str) -> bool:
 
 
 def run_interactive_black_floor(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -669,7 +669,7 @@ def run_interactive_black_floor(
 
 
 def run_black_floor_keys(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -685,7 +685,7 @@ def run_black_floor_keys(
 
 
 def send_black_floor_level(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -740,7 +740,7 @@ def read_available_key(fd: int) -> str | None:
 
 
 def run_temporal_dither_comparison(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -835,7 +835,7 @@ def run_temporal_dither_comparison(
 
 
 def stream_fade(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -862,7 +862,7 @@ def stream_fade(
 
 
 def stream_temporal_dither_fade(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,
@@ -895,7 +895,7 @@ def stream_temporal_dither_fade(
 
 
 def stream_frames(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     device: Device,

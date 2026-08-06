@@ -14,7 +14,7 @@ from ..runtime import (
     send_authenticated_frame,
     set_device_realtime_mode,
 )
-from .client import LyteClient
+from .client import TwinklyClient
 from .discovery import discover
 from .session import read_gestalt, set_mac_from_gestalt, set_off_mode_with_retry
 
@@ -22,7 +22,7 @@ DISCOVERY_ATTEMPT_TIMEOUT = 5.0
 
 
 def send_realtime_frame(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     frame: NDArray[np.uint8],
@@ -42,7 +42,7 @@ def send_realtime_frame(
 
 
 def read_led_count(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     configured_led_count: int | None,
     host: str,
@@ -65,7 +65,7 @@ def read_led_count(
     return led_count
 
 
-def prepare_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
+def prepare_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool:
     log('[step] Authenticating')
     token = authenticate_device(
         client,
@@ -90,7 +90,7 @@ def prepare_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
     return True
 
 
-def turn_off_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
+def turn_off_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool:
     log(f'[step] Reading device info from {host}')
     gestalt = read_gestalt(client, retry, f'HTTP device info read from {host}')
     if gestalt is None:
@@ -120,7 +120,7 @@ def turn_off_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
 
 
 def turn_off_streaming_device(
-    client: LyteClient, retry: RetryConfig, host: str
+    client: TwinklyClient, retry: RetryConfig, host: str
 ) -> bool:
     log('[step] Switching device to off mode')
     response = set_off_mode_with_retry(

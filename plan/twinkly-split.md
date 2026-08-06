@@ -121,9 +121,9 @@ real duplication. Otherwise, import feature commands directly in `lyte/cli.py`.
 After Twinkly-specific code is contained, review classes and helpers for names
 that sound generic but are still Twinkly-specific:
 
-- `LyteClient` should probably become `TwinklyClient` because it speaks Twinkly
+- `TwinklyClient` should probably become `TwinklyClient` because it speaks Twinkly
   HTTP endpoints and Twinkly auth.
-- `LyteResponse` can become `TwinklyResponse` unless another protocol reuses the
+- `TwinklyResponse` can become `TwinklyResponse` unless another protocol reuses the
   exact same JSON response model.
 - `UnsupportedEndpointError` can either stay generic as a protocol error or move
   into `lyte/twinkly/errors.py` if only Twinkly uses it.

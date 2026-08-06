@@ -7,7 +7,13 @@ from .authentication import (
     make_challenge_response,
     rc4,
 )
-from .client import AUTH_HEADER, TWINKLY_API_PREFIX, AuthToken, LyteClient, LyteResponse
+from .client import (
+    AUTH_HEADER,
+    TWINKLY_API_PREFIX,
+    AuthToken,
+    TwinklyClient,
+    TwinklyResponse,
+)
 from .command import prepare_authenticated_client, run_twinkly_command
 from .diagnostic import (
     DiagnosticCommandConfig,
@@ -92,8 +98,8 @@ __all__ = [
     'LayoutAction',
     'LedConfigAction',
     'LedMode',
-    'LyteClient',
-    'LyteResponse',
+    'TwinklyClient',
+    'TwinklyResponse',
     'MicAction',
     'ModeAction',
     'MovieAction',

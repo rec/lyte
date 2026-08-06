@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .retry import RetryConfig
-from .twinkly.client import AuthToken, LyteClient, LyteResponse
+from .twinkly.client import AuthToken, TwinklyClient, TwinklyResponse
 from .twinkly.session import (
     authenticate_with_retry,
     led_count_from_gestalt,
@@ -18,7 +18,7 @@ from .twinkly.session import (
 
 
 def read_device_led_count(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     configured_led_count: int | None,
     label: str,
@@ -33,7 +33,7 @@ def read_device_led_count(
 
 
 def authenticate_device(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     label: str,
 ) -> AuthToken | None:
@@ -44,15 +44,15 @@ def authenticate_device(
 
 
 def set_device_realtime_mode(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     label: str,
-) -> LyteResponse | None:
+) -> TwinklyResponse | None:
     return set_realtime_mode_with_retry(client, retry, label)
 
 
 def send_authenticated_frame(
-    client: LyteClient,
+    client: TwinklyClient,
     host: str,
     frame: NDArray[np.uint8],
     retry: RetryConfig,

@@ -10,7 +10,7 @@ from ..errors import AuthenticationError, ProtocolError, UnsupportedEndpointErro
 from ..logging import log_error, log_status
 from ..retry import RetryConfig, retry_call
 from ..runtime import authenticate_device
-from .client import LyteClient
+from .client import TwinklyClient
 from .realtime import discover_host
 from .realtime_diagnostic import RealtimeDiagnosticConfig, run_realtime_diagnostic
 from .session import (
@@ -134,7 +134,7 @@ def run_diagnostic(config: DiagnosticConfig) -> int:
         delay=config.retry_delay,
         backoff=config.retry_backoff,
     )
-    client = LyteClient(host=host, timeout=config.timeout)
+    client = TwinklyClient(host=host, timeout=config.timeout)
     log_status(f'[diagnostic] Host: {host}')
 
     gestalt = read_endpoint(
@@ -201,7 +201,7 @@ def validate_diagnostic_config(config: DiagnosticConfig) -> None:
 
 
 def authenticated_reports(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
 ) -> tuple[TwinklyEndpointReport, ...]:
     return (
@@ -417,7 +417,7 @@ def authenticated_reports(
 
 
 def read_endpoint(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     name: str,
     method: str,

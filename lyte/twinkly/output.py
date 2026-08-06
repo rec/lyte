@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, field_validator
 
 from ..logging import log_status
-from .client import LyteClient
+from .client import TwinklyClient
 from .command import run_twinkly_command
 from .diagnostic import DiagnosticConfig
 
@@ -58,7 +58,7 @@ def run_output_control(
 ) -> int:
     validate_output_control_args(action, value)
 
-    def run(client: LyteClient) -> None:
+    def run(client: TwinklyClient) -> None:
         if action == 'get':
             control = read_output_control(client, kind)
             log_status(
@@ -90,7 +90,7 @@ def validate_output_control_args(
 
 
 def read_output_control(
-    client: LyteClient,
+    client: TwinklyClient,
     kind: OutputControlKind,
 ) -> OutputControl:
     if kind == 'brightness':
@@ -99,7 +99,7 @@ def read_output_control(
 
 
 def write_output_control(
-    client: LyteClient,
+    client: TwinklyClient,
     kind: OutputControlKind,
     control: OutputControl,
 ) -> None:
