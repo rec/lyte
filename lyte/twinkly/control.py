@@ -8,12 +8,12 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
-from ..fps_test import discover_host
 from ..logging import log_status
 from ..retry import RetryConfig
 from ..runtime import authenticate_device
 from .client import LyteClient
 from .diagnostic import DiagnosticConfig
+from .realtime import discover_host
 from .session import (
     read_gestalt,
     set_mac_from_gestalt,
