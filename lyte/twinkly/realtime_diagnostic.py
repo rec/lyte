@@ -16,7 +16,7 @@ from ..runtime import (
     send_authenticated_frame,
     set_device_realtime_mode,
 )
-from .client import LyteClient
+from .client import TwinklyClient
 from .discovery import (
     DEFAULT_BROADCAST,
     DISCOVERY_MESSAGE,
@@ -78,7 +78,7 @@ def run_realtime_diagnostic(config: RealtimeDiagnosticConfig) -> int:
     if host is None:
         return 1
 
-    client = LyteClient(host=host, timeout=config.timeout)
+    client = TwinklyClient(host=host, timeout=config.timeout)
     print_step(f'Using device host {host}')
 
     if not get_unauthenticated_info(client, config.retry):
@@ -209,7 +209,7 @@ def discovery_attempt(
     return None
 
 
-def get_unauthenticated_info(client: LyteClient, retry: RetryConfig) -> bool:
+def get_unauthenticated_info(client: TwinklyClient, retry: RetryConfig) -> bool:
     print_step('Reading unauthenticated status, firmware, and device details')
 
     result = retry_call(
@@ -239,7 +239,7 @@ def get_unauthenticated_info(client: LyteClient, retry: RetryConfig) -> bool:
     return True
 
 
-def authenticate(client: LyteClient, retry: RetryConfig) -> bool:
+def authenticate(client: TwinklyClient, retry: RetryConfig) -> bool:
     print_step('Authenticating with login and verify')
 
     token = authenticate_device(
@@ -256,7 +256,7 @@ def authenticate(client: LyteClient, retry: RetryConfig) -> bool:
     return True
 
 
-def detect_led_count(client: LyteClient, retry: RetryConfig) -> int | None:
+def detect_led_count(client: TwinklyClient, retry: RetryConfig) -> int | None:
     print_step('Detecting LED count from gestalt')
 
     led_count, gestalt = read_device_led_count(
@@ -278,7 +278,7 @@ def detect_led_count(client: LyteClient, retry: RetryConfig) -> int | None:
     return None
 
 
-def set_realtime_mode(client: LyteClient, retry: RetryConfig) -> bool:
+def set_realtime_mode(client: TwinklyClient, retry: RetryConfig) -> bool:
     print_step('Switching device to realtime mode')
 
     response = set_device_realtime_mode(
@@ -294,7 +294,7 @@ def set_realtime_mode(client: LyteClient, retry: RetryConfig) -> bool:
 
 
 def send_visible_test(
-    client: LyteClient,
+    client: TwinklyClient,
     host: str,
     led_count: int,
     pause: float,

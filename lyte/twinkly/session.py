@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 
 from ..errors import AuthenticationError, ProtocolError
 from ..retry import RetryConfig, retry_call
-from .client import TWINKLY_API_PREFIX, AuthToken, LyteClient, LyteResponse
+from .client import TWINKLY_API_PREFIX, AuthToken, TwinklyClient, TwinklyResponse
 from .frame import send_frame_v3
 
 
@@ -16,7 +16,7 @@ def twinkly_request_label(method: str, path: str, host: str) -> str:
 
 
 def read_gestalt(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     label: str,
 ) -> dict[str, object] | None:
@@ -28,7 +28,7 @@ def read_gestalt(
     )
 
 
-def set_mac_from_gestalt(client: LyteClient, gestalt: dict[str, object]) -> bool:
+def set_mac_from_gestalt(client: TwinklyClient, gestalt: dict[str, object]) -> bool:
     if isinstance(mac := gestalt.get('mac'), str):
         client.mac = mac
         return True
@@ -42,7 +42,7 @@ def led_count_from_gestalt(gestalt: dict[str, object]) -> int | None:
 
 
 def authenticate_with_retry(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     label: str,
 ) -> AuthToken | None:
@@ -59,10 +59,10 @@ def authenticate_with_retry(
 
 
 def set_realtime_mode_with_retry(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     label: str,
-) -> LyteResponse | None:
+) -> TwinklyResponse | None:
     return retry_call(
         label,
         retry,
@@ -72,10 +72,10 @@ def set_realtime_mode_with_retry(
 
 
 def set_off_mode_with_retry(
-    client: LyteClient,
+    client: TwinklyClient,
     retry: RetryConfig,
     label: str,
-) -> LyteResponse | None:
+) -> TwinklyResponse | None:
     return retry_call(
         label,
         retry,
@@ -84,7 +84,7 @@ def set_off_mode_with_retry(
     )
 
 
-def turn_off_with_retry(client: LyteClient, retry: RetryConfig, host: str) -> bool:
+def turn_off_with_retry(client: TwinklyClient, retry: RetryConfig, host: str) -> bool:
     return (
         set_off_mode_with_retry(
             client,

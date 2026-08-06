@@ -8,7 +8,7 @@ read-only discovery first and mutating operations behind explicit APIs.
 
 Lyte currently supports only a narrow subset of the documented Twinkly API:
 
-- login and verify through `LyteClient.authenticate()`
+- login and verify through `TwinklyClient.authenticate()`
 - unauthenticated `gestalt` through `read_gestalt()`
 - copying MAC and LED count from `gestalt`
 - `POST led/mode` for realtime mode and off mode only

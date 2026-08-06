@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from ..logging import log_status
-from .client import LyteClient
+from .client import TwinklyClient
 from .command import read_json_object, run_twinkly_command, write_json_file
 from .diagnostic import DiagnosticConfig
 
@@ -47,7 +47,7 @@ def run_layout_control(
 ) -> int:
     validate_layout_args(action, path)
 
-    def run(client: LyteClient) -> None:
+    def run(client: TwinklyClient) -> None:
         if action == 'get':
             log_status(f'[layout] {client.get_layout_full().data}')
         elif action == 'export':
@@ -73,7 +73,7 @@ def run_led_config_control(
 ) -> int:
     validate_led_config_args(action, path)
 
-    def run(client: LyteClient) -> None:
+    def run(client: TwinklyClient) -> None:
         if action == 'get':
             log_status(f'[led-config] {client.get_led_config().data}')
         else:

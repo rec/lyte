@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from ..logging import log_status
-from .client import LyteClient
+from .client import TwinklyClient
 from .command import run_twinkly_command
 from .diagnostic import DiagnosticConfig
 
@@ -13,7 +13,7 @@ MusicAction = Literal['drivers', 'driver-sets', 'current-driver-set']
 
 
 def run_mqtt_control(config: DiagnosticConfig, action: MqttAction) -> int:
-    def run(client: LyteClient) -> None:
+    def run(client: TwinklyClient) -> None:
         if action == 'config':
             log_status(f'[mqtt] config {client.get_mqtt_config().data}')
 
@@ -21,7 +21,7 @@ def run_mqtt_control(config: DiagnosticConfig, action: MqttAction) -> int:
 
 
 def run_mic_control(config: DiagnosticConfig, action: MicAction) -> int:
-    def run(client: LyteClient) -> None:
+    def run(client: TwinklyClient) -> None:
         if action == 'config':
             log_status(f'[mic] config {client.get_mic_config().data}')
         else:
@@ -31,7 +31,7 @@ def run_mic_control(config: DiagnosticConfig, action: MicAction) -> int:
 
 
 def run_music_control(config: DiagnosticConfig, action: MusicAction) -> int:
-    def run(client: LyteClient) -> None:
+    def run(client: TwinklyClient) -> None:
         if action == 'drivers':
             log_status(f'[music] drivers {client.get_music_drivers().data}')
         elif action == 'driver-sets':

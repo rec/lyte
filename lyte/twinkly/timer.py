@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, field_validator
 
 from ..logging import log_status
-from .client import LyteClient
+from .client import TwinklyClient
 from .command import run_twinkly_command
 from .diagnostic import DiagnosticConfig
 
@@ -49,7 +49,7 @@ def run_timer_control(
 ) -> int:
     validate_timer_args(action, time_on, time_off, time_now)
 
-    def run(client: LyteClient) -> None:
+    def run(client: TwinklyClient) -> None:
         if action == 'get':
             timer = TwinklyTimer.from_response(client.get_timer().data)
             log_status(

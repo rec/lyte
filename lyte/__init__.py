@@ -50,7 +50,7 @@ from .errors import (
 )
 from .preview import Layout, animation_document, render_animation_html
 from .retry import RetryConfig, retry_call
-from .twinkly.client import LyteClient
+from .twinkly.client import TwinklyClient
 from .twinkly.diagnostic import (
     DiagnosticConfig,
     TwinklyDeviceInfo,
@@ -101,7 +101,7 @@ __all__ = [
     'RandomWalk',
     'SaberBlade',
     'Searchlights',
-    'LyteClient',
+    'TwinklyClient',
     'LyteError',
     'RetryConfig',
     'State',
