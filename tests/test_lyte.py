@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# ruff: noqa: I001
+
 import base64
 import importlib
 import io
@@ -16,15 +18,26 @@ import numpy as np
 from numpy import testing as npt
 from numpy.typing import NDArray
 
-from lyte import animation, cli, fps_test, twinkly
-from lyte.animations import bibliopixel, hamiltonian
+from lyte import animation, cli, fps_test
+from lyte.animate import config, random_show
+from lyte.animations import hamiltonian
+from lyte.animations import bibliopixel
 from lyte.animations.colors import solid_rgb_frame
 from lyte.animations.random_walk import RandomWalk, perturb
 from lyte.errors import DiscoveryError, ProtocolError, UnsupportedEndpointError
 from lyte.logging import LOGGING, log, log_error, log_status
-from lyte.preview import Layout, animation_document, render_animation_html
+from lyte.preview import document
+from lyte.preview.layout import Layout
 from lyte.retry import RetryConfig, retry_call
-from lyte.twinkly import diagnostic, session
+from lyte.twinkly import diagnostic
+from lyte.twinkly import inputs
+from lyte.twinkly import layout
+from lyte.twinkly import media
+from lyte.twinkly import mode
+from lyte.twinkly import networking
+from lyte.twinkly import output
+from lyte.twinkly import session
+from lyte.twinkly import timer
 from lyte.twinkly.authentication import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 from lyte.twinkly.client import TWINKLY_API_PREFIX, TwinklyClient, TwinklyResponse
 from lyte.twinkly.discovery import DiscoveredDevice, parse_discovery_response
@@ -402,7 +415,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_brightness_command_dispatches_output_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_output_control', return_value=0
+            cli.output, 'run_output_control', return_value=0
         ) as run_output_control:
             result = cli.main(
                 [
@@ -423,7 +436,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_saturation_command_dispatches_output_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_output_control', return_value=0
+            cli.output, 'run_output_control', return_value=0
         ) as run_output_control:
             result = cli.main(
                 [
@@ -443,7 +456,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_mode_command_dispatches_mode_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_mode_control', return_value=0
+            cli.mode, 'run_mode_control', return_value=0
         ) as run_mode_control:
             result = cli.main(['mode', 'set', 'demo'])
 
@@ -455,7 +468,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_color_command_dispatches_color_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_color_control', return_value=0
+            cli.mode, 'run_color_control', return_value=0
         ) as run_color_control:
             result = cli.main(['color', 'set', '1', '2', '3'])
 
@@ -467,7 +480,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_effects_command_dispatches_effect_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_effect_control', return_value=0
+            cli.mode, 'run_effect_control', return_value=0
         ) as run_effect_control:
             result = cli.main(['effects', 'set-current', '4'])
 
@@ -479,7 +492,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_layout_command_dispatches_layout_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_layout_control', return_value=0
+            cli.layout, 'run_layout_control', return_value=0
         ) as run_layout_control:
             result = cli.main(['layout', 'export', 'layout.json'])
 
@@ -491,7 +504,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_led_config_command_dispatches_led_config_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_led_config_control', return_value=0
+            cli.layout, 'run_led_config_control', return_value=0
         ) as run_led_config_control:
             result = cli.main(['led-config', 'set', 'config.json'])
 
@@ -503,7 +516,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_timer_command_dispatches_timer_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_timer_control', return_value=0
+            cli.timer, 'run_timer_control', return_value=0
         ) as run_timer_control:
             result = cli.main(['timer', 'set', '3600', '7200', '--time-now', '1800'])
 
@@ -517,7 +530,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_movie_command_dispatches_movie_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_movie_control', return_value=0
+            cli.media, 'run_movie_control', return_value=0
         ) as run_movie_control:
             result = cli.main(['movie', 'current'])
 
@@ -528,7 +541,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_playlist_command_dispatches_playlist_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_playlist_control', return_value=0
+            cli.media, 'run_playlist_control', return_value=0
         ) as run_playlist_control:
             result = cli.main(['playlist', 'current'])
 
@@ -539,7 +552,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_network_command_dispatches_network_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_network_control', return_value=0
+            cli.networking, 'run_network_control', return_value=0
         ) as run_network_control:
             result = cli.main(['network', 'scan-results'])
 
@@ -550,7 +563,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_mqtt_command_dispatches_mqtt_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_mqtt_control', return_value=0
+            cli.inputs, 'run_mqtt_control', return_value=0
         ) as run_mqtt_control:
             result = cli.main(['mqtt', 'config'])
 
@@ -561,7 +574,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_mic_command_dispatches_mic_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_mic_control', return_value=0
+            cli.inputs, 'run_mic_control', return_value=0
         ) as run_mic_control:
             result = cli.main(['mic', 'sample'])
 
@@ -572,7 +585,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_cli_music_command_dispatches_music_control(self) -> None:
         with patch.object(
-            cli.twinkly, 'run_music_control', return_value=0
+            cli.inputs, 'run_music_control', return_value=0
         ) as run_music_control:
             result = cli.main(['music', 'current-driver-set'])
 
@@ -1820,9 +1833,7 @@ class PackageDiagnosticTests(unittest.TestCase):
 
 class TwinklyControlTests(unittest.TestCase):
     def test_output_control_accepts_string_values_from_device(self) -> None:
-        control = twinkly.OutputControl.from_response(
-            {'mode': 'enabled', 'value': '75'}
-        )
+        control = output.OutputControl.from_response({'mode': 'enabled', 'value': '75'})
 
         self.assertEqual(control.mode, 'enabled')
         self.assertEqual(control.type, 'A')
@@ -1830,12 +1841,12 @@ class TwinklyControlTests(unittest.TestCase):
 
     def test_output_control_request_body_uses_documented_shape(self) -> None:
         self.assertEqual(
-            twinkly.OutputControl(value=80).request_body(),
+            output.OutputControl(value=80).request_body(),
             {'mode': 'enabled', 'type': 'A', 'value': 80},
         )
 
     def test_layout_model_accepts_documented_shape(self) -> None:
-        layout = twinkly.TwinklyLayout.from_response(
+        twinkly_layout = layout.TwinklyLayout.from_response(
             {
                 'aspectXY': 1,
                 'aspectXZ': 2,
@@ -1847,7 +1858,7 @@ class TwinklyControlTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            layout.request_body(),
+            twinkly_layout.request_body(),
             {
                 'aspectXY': 1,
                 'aspectXZ': 2,
@@ -1859,21 +1870,21 @@ class TwinklyControlTests(unittest.TestCase):
         )
 
     def test_timer_model_uses_seconds_after_midnight(self) -> None:
-        timer = twinkly.TwinklyTimer.from_response(
+        twinkly_timer = timer.TwinklyTimer.from_response(
             {'time_now': 1800, 'time_on': -1, 'time_off': 7200, 'code': 1000}
         )
 
-        self.assertEqual(timer.time_now, 1800)
-        self.assertEqual(timer.time_on, -1)
-        self.assertEqual(timer.time_off, 7200)
+        self.assertEqual(twinkly_timer.time_now, 1800)
+        self.assertEqual(twinkly_timer.time_on, -1)
+        self.assertEqual(twinkly_timer.time_off, 7200)
         self.assertEqual(
-            timer.request_body(),
+            twinkly_timer.request_body(),
             {'time_on': -1, 'time_off': 7200, 'time_now': 1800},
         )
 
     def test_timer_request_can_omit_current_time(self) -> None:
         self.assertEqual(
-            twinkly.TwinklyTimer(time_on=3600, time_off=7200).request_body(),
+            timer.TwinklyTimer(time_on=3600, time_off=7200).request_body(),
             {'time_on': 3600, 'time_off': 7200},
         )
 
@@ -1898,8 +1909,8 @@ class TwinklyControlTests(unittest.TestCase):
                 ),
             ) as get_saturation,
         ):
-            brightness = twinkly.read_output_control(client, 'brightness')
-            saturation = twinkly.read_output_control(client, 'saturation')
+            brightness = output.read_output_control(client, 'brightness')
+            saturation = output.read_output_control(client, 'saturation')
 
         self.assertEqual(brightness.value, 75)
         self.assertEqual(saturation.value, 80)
@@ -1908,14 +1919,14 @@ class TwinklyControlTests(unittest.TestCase):
 
     def test_write_output_control_dispatches_by_kind(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
-        control = twinkly.OutputControl(value=90)
+        control = output.OutputControl(value=90)
 
         with (
             patch.object(TwinklyClient, 'set_brightness') as set_brightness,
             patch.object(TwinklyClient, 'set_saturation') as set_saturation,
         ):
-            twinkly.write_output_control(client, 'brightness', control)
-            twinkly.write_output_control(client, 'saturation', control)
+            output.write_output_control(client, 'brightness', control)
+            output.write_output_control(client, 'saturation', control)
 
         set_brightness.assert_called_once_with(
             {'mode': 'enabled', 'type': 'A', 'value': 90}
@@ -1925,7 +1936,7 @@ class TwinklyControlTests(unittest.TestCase):
         )
 
     def test_run_output_control_get_reports_current_value(self) -> None:
-        output = io.StringIO()
+        stream = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -1934,14 +1945,14 @@ class TwinklyControlTests(unittest.TestCase):
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch(
                 f'{OUTPUT}.read_output_control',
-                return_value=twinkly.OutputControl(value=75),
+                return_value=output.OutputControl(value=75),
             ),
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
-            patch('sys.stdout', output),
+            patch('sys.stdout', stream),
         ):
-            result = twinkly.run_output_control(
+            result = output.run_output_control(
                 diagnostic.DiagnosticConfig(),
                 'brightness',
                 'get',
@@ -1950,10 +1961,10 @@ class TwinklyControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         turn_off.assert_called_once()
-        self.assertIn('[brightness] mode=enabled type=A value=75', output.getvalue())
+        self.assertIn('[brightness] mode=enabled type=A value=75', stream.getvalue())
 
     def test_run_output_control_set_writes_value(self) -> None:
-        output = io.StringIO()
+        stream = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -1964,9 +1975,9 @@ class TwinklyControlTests(unittest.TestCase):
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
-            patch('sys.stdout', output),
+            patch('sys.stdout', stream),
         ):
-            result = twinkly.run_output_control(
+            result = output.run_output_control(
                 diagnostic.DiagnosticConfig(),
                 'saturation',
                 'set',
@@ -1978,11 +1989,11 @@ class TwinklyControlTests(unittest.TestCase):
         write_output_control.assert_called_once_with(
             client,
             'saturation',
-            twinkly.OutputControl(value=80),
+            output.OutputControl(value=80),
         )
         self.assertIn(
             '[saturation] set mode=enabled type=A value=80',
-            output.getvalue(),
+            stream.getvalue(),
         )
 
     def test_run_mode_control_sets_mode_then_turns_off(self) -> None:
@@ -1998,9 +2009,7 @@ class TwinklyControlTests(unittest.TestCase):
             ) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
-            result = twinkly.run_mode_control(
-                diagnostic.DiagnosticConfig(), 'set', 'demo'
-            )
+            result = mode.run_mode_control(diagnostic.DiagnosticConfig(), 'set', 'demo')
 
         self.assertEqual(result, 0)
         set_led_mode.assert_called_once_with({'mode': 'demo'})
@@ -2019,7 +2028,7 @@ class TwinklyControlTests(unittest.TestCase):
             ) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
-            result = twinkly.run_color_control(
+            result = mode.run_color_control(
                 diagnostic.DiagnosticConfig(), 'set', 1, 2, 3
             )
 
@@ -2042,7 +2051,7 @@ class TwinklyControlTests(unittest.TestCase):
             ) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
-            result = twinkly.run_effect_control(
+            result = mode.run_effect_control(
                 diagnostic.DiagnosticConfig(), 'set-current', 4
             )
 
@@ -2073,7 +2082,7 @@ class TwinklyControlTests(unittest.TestCase):
                 ) as turn_off,
                 patch('sys.stdout', output),
             ):
-                result = twinkly.run_layout_control(
+                result = layout.run_layout_control(
                     diagnostic.DiagnosticConfig(), 'export', path
                 )
 
@@ -2111,7 +2120,7 @@ class TwinklyControlTests(unittest.TestCase):
                 ) as turn_off,
                 patch('sys.stdout', new_callable=io.StringIO),
             ):
-                result = twinkly.run_layout_control(
+                result = layout.run_layout_control(
                     diagnostic.DiagnosticConfig(), 'upload', path
                 )
 
@@ -2143,7 +2152,7 @@ class TwinklyControlTests(unittest.TestCase):
                 ) as turn_off,
                 patch('sys.stdout', new_callable=io.StringIO),
             ):
-                result = twinkly.run_led_config_control(
+                result = layout.run_led_config_control(
                     diagnostic.DiagnosticConfig(), 'set', path
                 )
 
@@ -2172,7 +2181,7 @@ class TwinklyControlTests(unittest.TestCase):
             ) as turn_off,
             patch('sys.stdout', output),
         ):
-            result = twinkly.run_timer_control(
+            result = timer.run_timer_control(
                 diagnostic.DiagnosticConfig(), 'get', None, None, None
             )
 
@@ -2196,7 +2205,7 @@ class TwinklyControlTests(unittest.TestCase):
             ) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
-            result = twinkly.run_timer_control(
+            result = timer.run_timer_control(
                 diagnostic.DiagnosticConfig(), 'set', 3600, 7200, 1800
             )
 
@@ -2224,7 +2233,7 @@ class TwinklyControlTests(unittest.TestCase):
             ) as turn_off,
             patch('sys.stdout', output),
         ):
-            result = twinkly.run_movie_control(diagnostic.DiagnosticConfig(), 'current')
+            result = media.run_movie_control(diagnostic.DiagnosticConfig(), 'current')
 
         self.assertEqual(result, 0)
         get_current_movie.assert_called_once()
@@ -2249,7 +2258,7 @@ class TwinklyControlTests(unittest.TestCase):
             ) as turn_off,
             patch('sys.stdout', output),
         ):
-            result = twinkly.run_playlist_control(diagnostic.DiagnosticConfig(), 'list')
+            result = media.run_playlist_control(diagnostic.DiagnosticConfig(), 'list')
 
         self.assertEqual(result, 0)
         get_playlist.assert_called_once()
@@ -2274,7 +2283,7 @@ class TwinklyControlTests(unittest.TestCase):
             ) as turn_off,
             patch('sys.stdout', output),
         ):
-            result = twinkly.run_network_control(
+            result = networking.run_network_control(
                 diagnostic.DiagnosticConfig(), 'status'
             )
 
@@ -2301,7 +2310,7 @@ class TwinklyControlTests(unittest.TestCase):
             ) as turn_off,
             patch('sys.stdout', output),
         ):
-            result = twinkly.run_mqtt_control(diagnostic.DiagnosticConfig(), 'config')
+            result = inputs.run_mqtt_control(diagnostic.DiagnosticConfig(), 'config')
 
         self.assertEqual(result, 0)
         get_mqtt_config.assert_called_once()
@@ -2326,7 +2335,7 @@ class TwinklyControlTests(unittest.TestCase):
             ) as turn_off,
             patch('sys.stdout', output),
         ):
-            result = twinkly.run_mic_control(diagnostic.DiagnosticConfig(), 'sample')
+            result = inputs.run_mic_control(diagnostic.DiagnosticConfig(), 'sample')
 
         self.assertEqual(result, 0)
         get_mic_sample.assert_called_once()
@@ -2351,7 +2360,7 @@ class TwinklyControlTests(unittest.TestCase):
             ) as turn_off,
             patch('sys.stdout', output),
         ):
-            result = twinkly.run_music_control(
+            result = inputs.run_music_control(
                 diagnostic.DiagnosticConfig(), 'current-driver-set'
             )
 
@@ -2567,18 +2576,18 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_alternates_flips_each_frame(self) -> None:
-        alternates = bibliopixel.Alternates(color1=(1, 1, 1), color2=(2, 2, 2))
-        device, state = initial_state(alternates, 4)
+        source = bibliopixel.Alternates(color1=(1, 1, 1), color2=(2, 2, 2))
+        device, state = initial_state(source, 4)
 
         npt.assert_array_equal(
-            render(alternates, device, state),
+            render(source, device, state),
             np.array(
                 [[2, 2, 2], [1, 1, 1], [2, 2, 2], [1, 1, 1]],
                 dtype=np.uint8,
             ),
         )
         npt.assert_array_equal(
-            render(alternates, device, state),
+            render(source, device, state),
             np.array(
                 [[1, 1, 1], [2, 2, 2], [1, 1, 1], [2, 2, 2]],
                 dtype=np.uint8,
@@ -2642,15 +2651,15 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_fire_flies_lights_seeded_random_pixels(self) -> None:
-        fire_flies = bibliopixel.FireFlies(
+        source = bibliopixel.FireFlies(
             colors=((1, 2, 3),),
             width=2,
             count=1,
             seed=1,
         )
-        device, state = initial_state(fire_flies, 5)
+        device, state = initial_state(source, 5)
 
-        frame = render(fire_flies, device, state)
+        frame = render(source, device, state)
 
         self.assertEqual(frame.shape, (5, 3))
         self.assertGreaterEqual(np.count_nonzero(frame[:, 0]), 1)
@@ -2670,46 +2679,46 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_rainbows_generate_wheel_frames(self) -> None:
-        rainbow = bibliopixel.Rainbow()
-        rainbow_cycle = bibliopixel.RainbowCycle()
-        device, state = initial_state(rainbow, 3)
-        cycle_device, cycle_state = initial_state(rainbow_cycle, 3)
+        source = bibliopixel.Rainbow()
+        cycle = bibliopixel.RainbowCycle()
+        device, state = initial_state(source, 3)
+        cycle_device, cycle_state = initial_state(cycle, 3)
 
         npt.assert_array_equal(
-            render(rainbow, device, state),
+            render(source, device, state),
             np.array([[255, 0, 0], [252, 3, 0], [249, 6, 0]], dtype=np.uint8),
         )
         npt.assert_array_equal(
-            render(rainbow_cycle, cycle_device, cycle_state),
+            render(cycle, cycle_device, cycle_state),
             np.array([[255, 0, 0], [0, 255, 0], [0, 0, 255]], dtype=np.uint8),
         )
 
     def test_linear_rainbow_fills_progressively(self) -> None:
-        rainbow = bibliopixel.LinearRainbow()
-        device, state = initial_state(rainbow, 3)
+        source = bibliopixel.LinearRainbow()
+        device, state = initial_state(source, 3)
 
         npt.assert_array_equal(
-            render(rainbow, device, state),
+            render(source, device, state),
             np.array([[255, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.uint8),
         )
         npt.assert_array_equal(
-            render(rainbow, device, state),
+            render(source, device, state),
             np.array([[252, 3, 0], [252, 3, 0], [0, 0, 0]], dtype=np.uint8),
         )
 
     def test_halves_rainbow_expands_from_center(self) -> None:
-        rainbow = bibliopixel.HalvesRainbow()
-        device, state = initial_state(rainbow, 5)
+        source = bibliopixel.HalvesRainbow()
+        device, state = initial_state(source, 5)
 
         npt.assert_array_equal(
-            render(rainbow, device, state),
+            render(source, device, state),
             np.array(
                 [[0, 0, 0], [0, 0, 0], [255, 0, 0], [0, 0, 0], [0, 0, 0]],
                 dtype=np.uint8,
             ),
         )
         npt.assert_array_equal(
-            render(rainbow, device, state),
+            render(source, device, state),
             np.array(
                 [[0, 0, 0], [240, 15, 0], [255, 0, 0], [240, 15, 0], [0, 0, 0]],
                 dtype=np.uint8,
@@ -2730,7 +2739,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_pulse_starts_when_chance_always_hits(self) -> None:
-        pulse = bibliopixel.Pulse(
+        source = bibliopixel.Pulse(
             colors=((10, 20, 30),),
             tail=0,
             chance=100,
@@ -2738,9 +2747,9 @@ class BiblioPixelTests(unittest.TestCase):
             max_speed=2,
             seed=1,
         )
-        device, state = initial_state(pulse, 4)
+        device, state = initial_state(source, 4)
 
-        frame = render(pulse, device, state)
+        frame = render(source, device, state)
 
         self.assertGreater(np.count_nonzero(frame), 0)
 
@@ -2758,45 +2767,45 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_searchlights_blend_moving_beams(self) -> None:
-        searchlights = bibliopixel.Searchlights(
+        source = bibliopixel.Searchlights(
             colors=((10, 0, 0), (0, 20, 0), (0, 0, 30)),
             tail=0,
             seed=1,
         )
-        device, state = initial_state(searchlights, 8)
+        device, state = initial_state(source, 8)
 
-        frame = render(searchlights, device, state)
+        frame = render(source, device, state)
 
         self.assertEqual(frame.shape, (8, 3))
         self.assertGreater(np.count_nonzero(frame), 0)
 
     def test_wave_generates_sine_colored_frame(self) -> None:
-        wave = bibliopixel.Wave(color=(10, 20, 30), cycles=1)
-        device, state = initial_state(wave, 3)
+        source = bibliopixel.Wave(color=(10, 20, 30), cycles=1)
+        device, state = initial_state(source, 3)
 
         npt.assert_array_equal(
-            render(wave, device, state),
+            render(source, device, state),
             np.array([[10, 20, 30], [10, 20, 30], [10, 20, 30]], dtype=np.uint8),
         )
 
     def test_twinkle_lights_seeded_random_pixel(self) -> None:
-        twinkle = bibliopixel.Twinkle(
+        source = bibliopixel.Twinkle(
             colors=((10, 20, 30),),
             density=100,
             speed=10,
             seed=1,
         )
-        device, state = initial_state(twinkle, 4)
+        device, state = initial_state(source, 4)
 
-        frame = render(twinkle, device, state)
+        frame = render(source, device, state)
 
         self.assertGreater(np.count_nonzero(frame), 0)
 
     def test_white_twinkle_uses_white_pixels(self) -> None:
-        twinkle = bibliopixel.WhiteTwinkle(density=100, speed=10, seed=1)
-        device, state = initial_state(twinkle, 4)
+        source = bibliopixel.WhiteTwinkle(density=100, speed=10, seed=1)
+        device, state = initial_state(source, 4)
 
-        frame = render(twinkle, device, state)
+        frame = render(source, device, state)
 
         self.assertGreater(np.count_nonzero(frame), 0)
         self.assertTrue(np.all(frame[frame > 0] == int(np.max(frame))))
@@ -2830,7 +2839,7 @@ class PreviewTests(unittest.TestCase):
             Layout(coords=[[0.0, 0.0]], dims=[1, 1])
 
     def test_animation_document_embeds_base64_frames(self) -> None:
-        document = animation_document(
+        html = document.animation_document(
             bibliopixel.ColorFill(color=(1, 2, 3)),
             Layout(name='preview', dims=[1, 2]),
             fps=2,
@@ -2838,7 +2847,7 @@ class PreviewTests(unittest.TestCase):
             led_size=2.5,
         )
 
-        data = preview_data(document)
+        data = preview_data(html)
 
         self.assertEqual(data['name'], 'preview')
         self.assertEqual(data['coords'], [[0.0, 0.0], [1.0, 0.0]])
@@ -2859,7 +2868,7 @@ class PreviewTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'preview.html'
 
-            render_animation_html(
+            document.render_animation_html(
                 bibliopixel.ColorFill(color=(1, 2, 3)),
                 Layout(coords=[[0.0, 0.0]]),
                 path,
@@ -3056,7 +3065,7 @@ class HamiltonianAnimationTests(unittest.TestCase):
 class AnimateTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.script = importlib.import_module('lyte.animate')
+        cls.script = importlib.import_module('lyte.animate.playback')
 
     def test_build_animation_creates_hamiltonian(self) -> None:
         with patch('sys.argv', ['lyte', 'hamiltonian']):
@@ -3079,7 +3088,7 @@ class AnimateTests(unittest.TestCase):
         with patch(
             'lyte.animate.random_show.config.RANDOM_ANIMATIONS', ('hamiltonian',)
         ):
-            segment_args = self.script.random_animation_args(
+            segment_args = random_show.random_animation_args(
                 args, random.Random(1), None
             )
 
@@ -3094,15 +3103,15 @@ class AnimateTests(unittest.TestCase):
         with patch(
             'lyte.animate.random_show.config.RANDOM_ANIMATIONS', ('random_walk',)
         ):
-            segment_args = self.script.random_animation_args(
+            segment_args = random_show.random_animation_args(
                 args, random.Random(1), None
             )
 
         self.assertEqual(segment_args.animation, 'random_walk')
-        self.assertEqual(segment_args.speed, self.script.RANDOM_WALK_SPEED)
-        self.assertEqual(segment_args.variance, self.script.RANDOM_WALK_VARIANCE)
-        self.assertEqual(segment_args.bounds, self.script.RANDOM_WALK_BOUNDS)
-        self.assertEqual(segment_args.period, self.script.RANDOM_WALK_PERIOD)
+        self.assertEqual(segment_args.speed, config.RANDOM_WALK_SPEED)
+        self.assertEqual(segment_args.variance, config.RANDOM_WALK_VARIANCE)
+        self.assertEqual(segment_args.bounds, config.RANDOM_WALK_BOUNDS)
+        self.assertEqual(segment_args.period, config.RANDOM_WALK_PERIOD)
         self.assertTrue(segment_args.pre_fill)
 
     def test_random_mode_prints_selected_pattern(self) -> None:
@@ -3135,8 +3144,8 @@ class AnimateTests(unittest.TestCase):
         run_animation_state.assert_called_once()
 
     def test_random_overlap_is_half_the_pattern_duration(self) -> None:
-        self.assertEqual(self.script.random_overlap_duration(10), 5)
-        self.assertEqual(self.script.random_overlap_duration(30), 15)
+        self.assertEqual(random_show.random_overlap_duration(10), 5)
+        self.assertEqual(random_show.random_overlap_duration(30), 15)
 
     def test_blend_frames_crossfades_rgb_values(self) -> None:
         current_frame = np.array([[0.0, 100 / 255, 200 / 255]], dtype=np.float32)
@@ -3166,7 +3175,7 @@ class AnimateTests(unittest.TestCase):
         device = animation.Device(led_count=1)
         current_state = animation.State()
         next_state = animation.State()
-        args = self.script.AnimateConfig(fps=1, animation='color_fill')
+        args = config.AnimateConfig(fps=1, animation='color_fill')
         sent_frames = []
 
         with (
@@ -3298,7 +3307,7 @@ class AnimateTests(unittest.TestCase):
             ),
             patch('sys.stdout', output),
         ):
-            led_count = self.script.read_led_count(
+            led_count = self.script.realtime.read_led_count(
                 TwinklyClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 None,
@@ -3363,7 +3372,7 @@ class PreviewCommandTests(unittest.TestCase):
         ):
             args = self.script.parse_args()
 
-        animation = self.script.build_animation(args.animation_config)
+        animation = self.script.build.build_animation(args.animation_config)
 
         self.assertIsInstance(animation, bibliopixel.ColorFill)
         self.assertEqual(args.output, Path('preview.html'))

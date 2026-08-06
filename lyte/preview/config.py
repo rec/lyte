@@ -6,7 +6,7 @@ from typing import Annotated, Literal, cast
 
 import tyro
 
-from ..animate import ANIMATIONS, AnimateConfig, AnimationName
+from ..animate import config
 
 PreviewAnimationName = Literal[
     'alternates',
@@ -35,7 +35,7 @@ PreviewAnimationName = Literal[
     'white_twinkle',
 ]
 PREVIEW_ANIMATIONS: tuple[str, ...] = tuple(
-    a for a in ANIMATIONS if a not in ('off', 'random')
+    a for a in config.ANIMATIONS if a not in ('off', 'random')
 )
 
 
@@ -84,11 +84,11 @@ class PreviewConfig:
     seed: int | None = None
 
     @property
-    def animation_config(self) -> AnimateConfig:
+    def animation_config(self) -> config.AnimateConfig:
         if self.animation is None:
             raise ValueError('preview animation is required')
-        return AnimateConfig(
-            animation=cast(AnimationName, self.animation),
+        return config.AnimateConfig(
+            animation=cast(config.AnimationName, self.animation),
             speed=self.speed,
             fps=self.fps,
             duration=self.duration,

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 import tyro
 
-from ..animate import build_animation
+from ..animate import build
 from .config import PREVIEW_ANIMATIONS, PreviewConfig
 from .document import render_animation_html
 from .layout import Layout
@@ -30,7 +30,7 @@ def run_preview(args: PreviewConfig) -> int:
         dims=[args.height, args.width],
         spacing=args.spacing,
     )
-    animation = build_animation(args.animation_config)
+    animation = build.build_animation(args.animation_config)
     render_animation_html(
         animation,
         layout,
