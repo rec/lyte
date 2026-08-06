@@ -18,7 +18,7 @@ from .fps_test import (
     run_temporal_dither_test,
     run_verify_test,
 )
-from .preview_command import PreviewConfig, run_preview
+from .preview.command import PreviewConfig, run_preview
 from .twinkly import (
     ColorAction,
     EffectAction,

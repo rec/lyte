@@ -9,7 +9,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from .animation import (
+from ..animation import (
     Animation,
     Device,
     State,

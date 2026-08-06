@@ -3356,7 +3356,7 @@ class AnimateTests(unittest.TestCase):
 class PreviewCommandTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.script = importlib.import_module('lyte.preview_command')
+        cls.script = importlib.import_module('lyte.preview.command')
 
     def test_parse_args_builds_preview_animation(self) -> None:
         with patch(
