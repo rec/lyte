@@ -137,7 +137,8 @@ from lyte.twinkly.session import (
     twinkly_request_label,
 )
 
-CONTROL = 'lyte.twinkly.control'
+COMMAND = 'lyte.twinkly.command'
+OUTPUT = 'lyte.twinkly.output'
 DIAGNOSTIC = 'lyte.twinkly.diagnostic'
 
 
@@ -2005,14 +2006,14 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
             patch(
-                f'{CONTROL}.read_output_control',
+                f'{OUTPUT}.read_output_control',
                 return_value=OutputControl(value=75),
             ),
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_output_control(
@@ -2031,11 +2032,11 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
-            patch(f'{CONTROL}.write_output_control') as write_output_control,
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
+            patch(f'{OUTPUT}.write_output_control') as write_output_control,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_output_control(
@@ -2061,11 +2062,11 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(LyteClient, 'set_led_mode') as set_led_mode,
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = run_mode_control(DiagnosticConfig(), 'set', 'demo')
@@ -2078,11 +2079,11 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(LyteClient, 'set_led_color') as set_led_color,
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = run_color_control(DiagnosticConfig(), 'set', 1, 2, 3)
@@ -2097,11 +2098,11 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(LyteClient, 'set_current_effect') as set_current_effect,
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = run_effect_control(DiagnosticConfig(), 'set-current', 4)
@@ -2117,9 +2118,9 @@ class TwinklyControlTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'layout.json'
             with (
-                patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-                patch(f'{CONTROL}.LyteClient', return_value=client),
-                patch(f'{CONTROL}.prepare_authenticated_client'),
+                patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+                patch(f'{COMMAND}.LyteClient', return_value=client),
+                patch(f'{COMMAND}.prepare_authenticated_client'),
                 patch.object(
                     LyteClient,
                     'get_layout_full',
@@ -2128,7 +2129,7 @@ class TwinklyControlTests(unittest.TestCase):
                         data={'source': '3d', 'coordinates': []},
                     ),
                 ),
-                patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+                patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
                 patch('sys.stdout', output),
             ):
                 result = run_layout_control(DiagnosticConfig(), 'export', path)
@@ -2158,11 +2159,11 @@ class TwinklyControlTests(unittest.TestCase):
                 )
             )
             with (
-                patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-                patch(f'{CONTROL}.LyteClient', return_value=client),
-                patch(f'{CONTROL}.prepare_authenticated_client'),
+                patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+                patch(f'{COMMAND}.LyteClient', return_value=client),
+                patch(f'{COMMAND}.prepare_authenticated_client'),
                 patch.object(LyteClient, 'set_layout_full') as set_layout_full,
-                patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+                patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
                 patch('sys.stdout', new_callable=io.StringIO),
             ):
                 result = run_layout_control(DiagnosticConfig(), 'upload', path)
@@ -2186,11 +2187,11 @@ class TwinklyControlTests(unittest.TestCase):
             path = Path(directory) / 'config.json'
             path.write_text(json.dumps({'strings': [{'first_led_id': 0}]}))
             with (
-                patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-                patch(f'{CONTROL}.LyteClient', return_value=client),
-                patch(f'{CONTROL}.prepare_authenticated_client'),
+                patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+                patch(f'{COMMAND}.LyteClient', return_value=client),
+                patch(f'{COMMAND}.prepare_authenticated_client'),
                 patch.object(LyteClient, 'set_led_config') as set_led_config,
-                patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+                patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
                 patch('sys.stdout', new_callable=io.StringIO),
             ):
                 result = run_led_config_control(DiagnosticConfig(), 'set', path)
@@ -2204,9 +2205,9 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_timer',
@@ -2215,7 +2216,7 @@ class TwinklyControlTests(unittest.TestCase):
                     data={'time_now': 1800, 'time_on': -1, 'time_off': 7200},
                 ),
             ),
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_timer_control(DiagnosticConfig(), 'get', None, None, None)
@@ -2231,11 +2232,11 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(LyteClient, 'set_timer') as set_timer,
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = run_timer_control(DiagnosticConfig(), 'set', 3600, 7200, 1800)
@@ -2251,15 +2252,15 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_current_movie',
                 return_value=LyteResponse(http_status=200, data={'id': 0}),
             ) as get_current_movie,
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_movie_control(DiagnosticConfig(), 'current')
@@ -2274,15 +2275,15 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_playlist',
                 return_value=LyteResponse(http_status=200, data={'entries': []}),
             ) as get_playlist,
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_playlist_control(DiagnosticConfig(), 'list')
@@ -2297,15 +2298,15 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_network_status',
                 return_value=LyteResponse(http_status=200, data={'mode': 1}),
             ) as get_network_status,
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_network_control(DiagnosticConfig(), 'status')
@@ -2320,15 +2321,15 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_mqtt_config',
                 return_value=LyteResponse(http_status=200, data={'enabled': False}),
             ) as get_mqtt_config,
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_mqtt_control(DiagnosticConfig(), 'config')
@@ -2343,15 +2344,15 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_mic_sample',
                 return_value=LyteResponse(http_status=200, data={'sample': 3}),
             ) as get_mic_sample,
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_mic_control(DiagnosticConfig(), 'sample')
@@ -2366,15 +2367,15 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
-            patch(f'{CONTROL}.LyteClient', return_value=client),
-            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
+            patch(f'{COMMAND}.LyteClient', return_value=client),
+            patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_current_music_driver_set',
                 return_value=LyteResponse(http_status=200, data={'id': 1}),
             ) as get_current_music_driver_set,
-            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{COMMAND}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_music_control(DiagnosticConfig(), 'current-driver-set')
