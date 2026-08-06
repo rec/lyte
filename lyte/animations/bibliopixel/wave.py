@@ -7,14 +7,8 @@ from numpy.typing import NDArray
 from pydantic import model_validator
 
 from ...animation import Animation, Device, State, float_color_from_rgb
+from .. import validators
 from ..colors import RGB, wave_color
-from ..validators import (
-    resolve_end,
-    span_size,
-    validate_rgb,
-    validate_span,
-    validate_start,
-)
 
 
 class WaveState(State):
@@ -31,21 +25,23 @@ class Wave(Animation[WaveState]):
 
     @model_validator(mode='after')
     def validate_wave(self) -> Wave:
-        validate_rgb(self.color)
+        validators.validate_rgb(self.color)
         if self.cycles < 1:
             raise ValueError('cycles must be at least 1')
-        validate_start(self.start)
+        validators.validate_start(self.start)
         return self
 
     def initial_state(self, device: Device) -> WaveState:
-        validate_span(
-            device.led_count, self.start, resolve_end(device.led_count, self.end)
+        validators.validate_span(
+            device.led_count,
+            self.start,
+            validators.resolve_end(device.led_count, self.end),
         )
         return WaveState()
 
     def render(self, device: Device, state: WaveState) -> NDArray[np.float32]:
         frame = np.zeros((device.led_count, 3), dtype=np.float32)
-        size = span_size(device.led_count, self.start, self.end)
+        size = validators.span_size(device.led_count, self.start, self.end)
         for i in range(size):
             if self.moving:
                 value = math.sin(math.pi * self.cycles * i / size + state.move_step)

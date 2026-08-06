@@ -8,17 +8,9 @@ from numpy.typing import NDArray
 
 from ..logging import log, log_error, log_status
 from ..retry import RetryConfig
+from . import session
 from .client import TwinklyClient
 from .discovery import discover
-from .session import (
-    authenticate_device,
-    read_device_led_count,
-    read_gestalt,
-    send_authenticated_frame,
-    set_device_realtime_mode,
-    set_mac_from_gestalt,
-    set_off_mode_with_retry,
-)
 
 DISCOVERY_ATTEMPT_TIMEOUT = 5.0
 
@@ -31,7 +23,7 @@ def send_realtime_frame(
 ) -> int:
     if client.token is None:
         sys.exit('Authentication token disappeared before frame send.')
-    sent = send_authenticated_frame(
+    sent = session.send_authenticated_frame(
         client,
         host,
         frame,
@@ -50,7 +42,7 @@ def read_led_count(
     host: str,
 ) -> int | None:
     log(f'[step] Reading device info from {host}')
-    led_count, gestalt = read_device_led_count(
+    led_count, gestalt = session.read_device_led_count(
         client,
         retry,
         configured_led_count,
@@ -69,7 +61,7 @@ def read_led_count(
 
 def prepare_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool:
     log('[step] Authenticating')
-    token = authenticate_device(
+    token = session.authenticate_device(
         client,
         retry,
         f'login and verify with {host}',
@@ -81,7 +73,7 @@ def prepare_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool
     log_status(f'[connected] Authenticated with {host}')
 
     log('[step] Switching to realtime mode')
-    response = set_device_realtime_mode(
+    response = session.set_device_realtime_mode(
         client,
         retry,
         f'switch {host} to realtime mode',
@@ -94,13 +86,13 @@ def prepare_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool
 
 def turn_off_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool:
     log(f'[step] Reading device info from {host}')
-    gestalt = read_gestalt(client, retry, f'HTTP device info read from {host}')
+    gestalt = session.read_gestalt(client, retry, f'HTTP device info read from {host}')
     if gestalt is None:
         sys.exit(f'Could not read device info from {host}.')
-    set_mac_from_gestalt(client, gestalt)
+    session.set_mac_from_gestalt(client, gestalt)
 
     log('[step] Authenticating')
-    token = authenticate_device(
+    token = session.authenticate_device(
         client,
         retry,
         f'login and verify with {host}',
@@ -110,7 +102,7 @@ def turn_off_device(client: TwinklyClient, retry: RetryConfig, host: str) -> boo
     log_status(f'[connected] Authenticated with {host}')
 
     log('[step] Switching device to off mode')
-    response = set_off_mode_with_retry(
+    response = session.set_off_mode_with_retry(
         client,
         retry,
         f'switch {host} to off mode',
@@ -125,7 +117,7 @@ def turn_off_streaming_device(
     client: TwinklyClient, retry: RetryConfig, host: str
 ) -> bool:
     log('[step] Switching device to off mode')
-    response = set_off_mode_with_retry(
+    response = session.set_off_mode_with_retry(
         client,
         retry,
         f'switch {host} to off mode',

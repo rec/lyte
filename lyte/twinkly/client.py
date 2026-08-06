@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import base64
-import http.client
 import json
 import os
 import time
+from http import client
 
 from pydantic import BaseModel
 
@@ -243,7 +243,7 @@ class TwinklyClient(BaseModel):
         if payload is not None:
             headers['Content-Length'] = str(len(payload))
 
-        connection = http.client.HTTPConnection(self.host, 80, timeout=self.timeout)
+        connection = client.HTTPConnection(self.host, 80, timeout=self.timeout)
         try:
             connection.request(
                 method,

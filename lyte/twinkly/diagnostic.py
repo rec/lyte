@@ -9,15 +9,10 @@ from pydantic import BaseModel
 from ..errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
 from ..logging import log_error, log_status
 from ..retry import RetryConfig, retry_call
+from . import session
 from .client import TwinklyClient
 from .realtime import discover_host
 from .realtime_diagnostic import RealtimeDiagnosticConfig, run_realtime_diagnostic
-from .session import (
-    authenticate_device,
-    set_mac_from_gestalt,
-    turn_off_with_retry,
-    twinkly_request_label,
-)
 
 
 class TwinklyDeviceInfo(BaseModel, frozen=True):
@@ -150,7 +145,7 @@ def run_diagnostic(config: DiagnosticConfig) -> int:
         return 1
 
     device = TwinklyDeviceInfo.from_gestalt(gestalt.data)
-    set_mac_from_gestalt(client, gestalt.data)
+    session.set_mac_from_gestalt(client, gestalt.data)
     report_device_info(device)
 
     unauthenticated_reports = (
@@ -174,13 +169,15 @@ def run_diagnostic(config: DiagnosticConfig) -> int:
     for report in unauthenticated_reports:
         report_endpoint(report)
 
-    if authenticate_device(client, retry, twinkly_request_label('POST', 'login', host)):
+    if session.authenticate_device(
+        client, retry, session.twinkly_request_label('POST', 'login', host)
+    ):
         off_succeeded = True
         try:
             for report in authenticated_reports(client, retry):
                 report_endpoint(report)
         finally:
-            off_succeeded = turn_off_with_retry(client, retry, host)
+            off_succeeded = session.turn_off_with_retry(client, retry, host)
         if not off_succeeded:
             return 1
     else:
@@ -441,7 +438,7 @@ def read_endpoint(
             )
 
     result = retry_call(
-        twinkly_request_label(method, path, client.host),
+        session.twinkly_request_label(method, path, client.host),
         retry,
         read_once,
         (AuthenticationError, ProtocolError),

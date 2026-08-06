@@ -6,16 +6,10 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ..retry import RetryConfig
+from . import session
 from .client import TwinklyClient
 from .diagnostic import DiagnosticConfig
 from .realtime import discover_host
-from .session import (
-    authenticate_device,
-    read_gestalt,
-    set_mac_from_gestalt,
-    turn_off_with_retry,
-    twinkly_request_label,
-)
 
 
 def run_twinkly_command(
@@ -38,7 +32,7 @@ def run_twinkly_command(
     try:
         action(client)
     finally:
-        off_succeeded = turn_off_with_retry(client, retry, host)
+        off_succeeded = session.turn_off_with_retry(client, retry, host)
     return 0 if off_succeeded else 1
 
 
@@ -47,11 +41,15 @@ def prepare_authenticated_client(
     retry: RetryConfig,
     host: str,
 ) -> None:
-    gestalt = read_gestalt(client, retry, twinkly_request_label('GET', 'gestalt', host))
+    gestalt = session.read_gestalt(
+        client, retry, session.twinkly_request_label('GET', 'gestalt', host)
+    )
     if gestalt is None:
         sys.exit(f'Could not read device info from {host}.')
-    set_mac_from_gestalt(client, gestalt)
-    if authenticate_device(client, retry, twinkly_request_label('POST', 'login', host)):
+    session.set_mac_from_gestalt(client, gestalt)
+    if session.authenticate_device(
+        client, retry, session.twinkly_request_label('POST', 'login', host)
+    ):
         return
     sys.exit(f'Could not authenticate with {host}.')
 

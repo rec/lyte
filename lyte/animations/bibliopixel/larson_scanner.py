@@ -5,16 +5,8 @@ from numpy.typing import NDArray
 from pydantic import model_validator
 
 from ...animation import Animation, Device, State, float_color_from_rgb
+from .. import validators
 from ..colors import RGB, scale_color, wheel_color
-from ..validators import (
-    bounded_tail,
-    resolve_end,
-    span_size,
-    validate_rgb,
-    validate_span,
-    validate_start,
-    validate_step,
-)
 
 
 class LarsonScannerState(State):
@@ -33,26 +25,28 @@ class LarsonScanner(Animation[LarsonScannerState]):
 
     @model_validator(mode='after')
     def validate_larson_scanner(self) -> LarsonScanner:
-        validate_rgb(self.color)
-        validate_step(self.step)
+        validators.validate_rgb(self.color)
+        validators.validate_step(self.step)
         if self.tail < 0:
             raise ValueError('tail must not be negative')
-        validate_start(self.start)
+        validators.validate_start(self.start)
         return self
 
     def initial_state(self, device: Device) -> LarsonScannerState:
-        validate_span(
-            device.led_count, self.start, resolve_end(device.led_count, self.end)
+        validators.validate_span(
+            device.led_count,
+            self.start,
+            validators.resolve_end(device.led_count, self.end),
         )
         return LarsonScannerState(
-            tail=bounded_tail(
-                self.tail, span_size(device.led_count, self.start, self.end)
+            tail=validators.bounded_tail(
+                self.tail, validators.span_size(device.led_count, self.start, self.end)
             )
         )
 
     def render(self, device: Device, state: LarsonScannerState) -> NDArray[np.float32]:
         frame = np.zeros((device.led_count, 3), dtype=np.float32)
-        end = resolve_end(device.led_count, self.end)
+        end = validators.resolve_end(device.led_count, self.end)
         center = self.start + state.position
         color = wheel_color(state.position) if self.rainbow else self.color
         fade = 256 // state.tail

@@ -10,21 +10,8 @@ from ..animations.colors import solid_rgb_frame
 from ..errors import DiscoveryError, ProtocolError
 from ..logging import log, log_error
 from ..retry import RetryConfig, retry_call
+from . import discovery, session
 from .client import TwinklyClient
-from .discovery import (
-    DEFAULT_BROADCAST,
-    DISCOVERY_MESSAGE,
-    DISCOVERY_PORT,
-    DiscoveredDevice,
-    parse_discovery_response,
-)
-from .session import (
-    authenticate_device,
-    read_device_led_count,
-    send_authenticated_frame,
-    set_device_realtime_mode,
-    set_mac_from_gestalt,
-)
 
 
 @dataclass(frozen=True)
@@ -158,13 +145,13 @@ def discovery_attempt(
     timeout: float,
     attempt: int,
     attempts: int,
-    destination: str = DEFAULT_BROADCAST,
+    destination: str = discovery.DEFAULT_BROADCAST,
     report_failure: bool = True,
-) -> DiscoveredDevice | None:
+) -> discovery.DiscoveredDevice | None:
     log(f'[try] UDP discovery broadcast: attempt {attempt}/{attempts}')
     started_at = time.monotonic()
     deadline = started_at + timeout
-    sock.sendto(DISCOVERY_MESSAGE, (destination, DISCOVERY_PORT))
+    sock.sendto(discovery.DISCOVERY_MESSAGE, (destination, discovery.DISCOVERY_PORT))
     last_failure = ''
 
     while (remaining := deadline - time.monotonic()) > 0:
@@ -173,10 +160,10 @@ def discovery_attempt(
             data, _address = sock.recvfrom(256)
         except TimeoutError:
             break
-        if data == DISCOVERY_MESSAGE:
+        if data == discovery.DISCOVERY_MESSAGE:
             continue
         try:
-            device = parse_discovery_response(data)
+            device = discovery.parse_discovery_response(data)
         except DiscoveryError as err:
             elapsed = (time.monotonic() - started_at) * 1000
             last_failure = (
@@ -231,7 +218,7 @@ def get_unauthenticated_info(client: TwinklyClient, retry: RetryConfig) -> bool:
     print_success(f'MAC: {gestalt.get("mac", "<missing>")}')
     print_success(f'LED count: {gestalt.get("number_of_led", "<missing>")}')
 
-    if not set_mac_from_gestalt(client, gestalt):
+    if not session.set_mac_from_gestalt(client, gestalt):
         log('Warning: gestalt did not include a MAC address.')
         log('Authentication can continue, but challenge-response cannot be verified.')
     return True
@@ -240,7 +227,7 @@ def get_unauthenticated_info(client: TwinklyClient, retry: RetryConfig) -> bool:
 def authenticate(client: TwinklyClient, retry: RetryConfig) -> bool:
     print_step('Authenticating with login and verify')
 
-    token = authenticate_device(
+    token = session.authenticate_device(
         client,
         retry,
         'login and verify',
@@ -257,7 +244,7 @@ def authenticate(client: TwinklyClient, retry: RetryConfig) -> bool:
 def detect_led_count(client: TwinklyClient, retry: RetryConfig) -> int | None:
     print_step('Detecting LED count from gestalt')
 
-    led_count, gestalt = read_device_led_count(
+    led_count, gestalt = session.read_device_led_count(
         client,
         retry,
         None,
@@ -279,7 +266,7 @@ def detect_led_count(client: TwinklyClient, retry: RetryConfig) -> int | None:
 def set_realtime_mode(client: TwinklyClient, retry: RetryConfig) -> bool:
     print_step('Switching device to realtime mode')
 
-    response = set_device_realtime_mode(
+    response = session.set_device_realtime_mode(
         client,
         retry,
         'HTTP switch to realtime mode',
@@ -306,7 +293,7 @@ def send_visible_test(
     colors = (('red', (255, 0, 0)), ('green', (0, 255, 0)), ('blue', (0, 0, 255)))
     for name, color in colors:
         frame = solid_rgb_frame(led_count, *color)
-        bytes_sent = send_authenticated_frame(
+        bytes_sent = session.send_authenticated_frame(
             client,
             host,
             frame,
