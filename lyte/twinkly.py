@@ -16,7 +16,7 @@ from .network.session import (
     read_gestalt,
     set_mac_from_gestalt,
     turn_off_with_retry,
-    xled_request_label,
+    twinkly_request_label,
 )
 from .retry import RetryConfig
 from .runtime import authenticate_device
@@ -81,7 +81,7 @@ class OutputControl(BaseModel, frozen=True):
         return {'mode': self.mode, 'type': self.type, 'value': self.value}
 
 
-class XledLayout(BaseModel, frozen=True):
+class TwinklyLayout(BaseModel, frozen=True):
     aspectXY: int = 0
     aspectXZ: int = 0
     coordinates: list[LayoutCoordinate]
@@ -90,7 +90,7 @@ class XledLayout(BaseModel, frozen=True):
     uuid: str | None = None
 
     @classmethod
-    def from_response(cls, data: dict[str, object]) -> XledLayout:
+    def from_response(cls, data: dict[str, object]) -> TwinklyLayout:
         return cls.model_validate(data)
 
     def request_body(self) -> dict[str, object]:
@@ -99,7 +99,7 @@ class XledLayout(BaseModel, frozen=True):
         return data
 
 
-class XledTimer(BaseModel, frozen=True):
+class TwinklyTimer(BaseModel, frozen=True):
     time_on: int
     time_off: int
     time_now: int | None = None
@@ -119,7 +119,7 @@ class XledTimer(BaseModel, frozen=True):
         return value
 
     @classmethod
-    def from_response(cls, data: dict[str, object]) -> XledTimer:
+    def from_response(cls, data: dict[str, object]) -> TwinklyTimer:
         return cls.model_validate(data)
 
     def request_body(self) -> dict[str, object]:
@@ -150,7 +150,7 @@ def run_output_control(
                 f'value={control.value}'
             )
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
 def run_mode_control(
@@ -168,7 +168,7 @@ def run_mode_control(
             client.set_led_mode({'mode': mode})
             log_status(f'[mode] set {mode}')
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
 def run_color_control(
@@ -196,7 +196,7 @@ def run_color_control(
             client.set_led_color(body)
             log_status(f'[color] set rgb {red} {green} {blue}')
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
 def run_effect_control(
@@ -216,7 +216,7 @@ def run_effect_control(
             client.set_current_effect({'effect_id': effect_id})
             log_status(f'[effects] set current {effect_id}')
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
 def run_layout_control(
@@ -235,14 +235,14 @@ def run_layout_control(
             log_status(f'[layout] exported {path}')
         elif action == 'upload':
             assert path is not None
-            layout = XledLayout.from_response(read_json_object(path))
+            layout = TwinklyLayout.from_response(read_json_object(path))
             client.set_layout_full(layout.request_body())
             log_status(f'[layout] uploaded {path}')
         else:
             client.delete_layout_full()
             log_status('[layout] deleted')
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
 def run_led_config_control(
@@ -260,7 +260,7 @@ def run_led_config_control(
             client.set_led_config(read_json_object(path))
             log_status(f'[led-config] set {path}')
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
 def run_timer_control(
@@ -274,7 +274,7 @@ def run_timer_control(
 
     def run(client: LyteClient) -> None:
         if action == 'get':
-            timer = XledTimer.from_response(client.get_timer().data)
+            timer = TwinklyTimer.from_response(client.get_timer().data)
             log_status(
                 '[timer] '
                 f'time_now={timer.time_now} '
@@ -284,7 +284,7 @@ def run_timer_control(
         else:
             assert time_on is not None
             assert time_off is not None
-            timer = XledTimer(time_on=time_on, time_off=time_off, time_now=time_now)
+            timer = TwinklyTimer(time_on=time_on, time_off=time_off, time_now=time_now)
             client.set_timer(timer.request_body())
             log_status(
                 '[timer] set '
@@ -293,7 +293,7 @@ def run_timer_control(
                 f'time_off={timer.time_off}'
             )
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
 def run_movie_control(config: DiagnosticConfig, action: MovieAction) -> int:
@@ -305,7 +305,7 @@ def run_movie_control(config: DiagnosticConfig, action: MovieAction) -> int:
         else:
             log_status(f'[movie] current {client.get_current_movie().data}')
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
 def run_playlist_control(config: DiagnosticConfig, action: PlaylistAction) -> int:
@@ -315,7 +315,7 @@ def run_playlist_control(config: DiagnosticConfig, action: PlaylistAction) -> in
         else:
             log_status(f'[playlist] current {client.get_current_playlist_entry().data}')
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
 def run_network_control(config: DiagnosticConfig, action: NetworkAction) -> int:
@@ -329,7 +329,7 @@ def run_network_control(config: DiagnosticConfig, action: NetworkAction) -> int:
                 f'[network] scan-results {client.get_network_scan_results().data}'
             )
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
 def run_mqtt_control(config: DiagnosticConfig, action: MqttAction) -> int:
@@ -337,7 +337,7 @@ def run_mqtt_control(config: DiagnosticConfig, action: MqttAction) -> int:
         if action == 'config':
             log_status(f'[mqtt] config {client.get_mqtt_config().data}')
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
 def run_mic_control(config: DiagnosticConfig, action: MicAction) -> int:
@@ -347,7 +347,7 @@ def run_mic_control(config: DiagnosticConfig, action: MicAction) -> int:
         else:
             log_status(f'[mic] sample {client.get_mic_sample().data}')
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
 def run_music_control(config: DiagnosticConfig, action: MusicAction) -> int:
@@ -362,10 +362,10 @@ def run_music_control(config: DiagnosticConfig, action: MusicAction) -> int:
                 f'{client.get_current_music_driver_set().data}'
             )
 
-    return run_xled_command(config, run)
+    return run_twinkly_command(config, run)
 
 
-def run_xled_command(
+def run_twinkly_command(
     config: DiagnosticConfig,
     action: Callable[[LyteClient], None],
 ) -> int:
@@ -459,7 +459,7 @@ def validate_timer_args(
     if time_on is None or time_off is None:
         sys.exit('set requires time-on and time-off')
     try:
-        XledTimer(time_on=time_on, time_off=time_off, time_now=time_now)
+        TwinklyTimer(time_on=time_on, time_off=time_off, time_now=time_now)
     except ValueError as err:
         sys.exit(str(err))
 
@@ -480,11 +480,11 @@ def prepare_authenticated_client(
     retry: RetryConfig,
     host: str,
 ) -> None:
-    gestalt = read_gestalt(client, retry, xled_request_label('GET', 'gestalt', host))
+    gestalt = read_gestalt(client, retry, twinkly_request_label('GET', 'gestalt', host))
     if gestalt is None:
         sys.exit(f'Could not read device info from {host}.')
     set_mac_from_gestalt(client, gestalt)
-    if authenticate_device(client, retry, xled_request_label('POST', 'login', host)):
+    if authenticate_device(client, retry, twinkly_request_label('POST', 'login', host)):
         return
     sys.exit(f'Could not authenticate with {host}.')
 
