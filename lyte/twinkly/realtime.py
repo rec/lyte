@@ -8,15 +8,17 @@ from numpy.typing import NDArray
 
 from ..logging import log, log_error, log_status
 from ..retry import RetryConfig
-from ..runtime import (
-    authenticate_device,
-    read_device_led_count,
-    send_authenticated_frame,
-    set_device_realtime_mode,
-)
 from .client import TwinklyClient
 from .discovery import discover
-from .session import read_gestalt, set_mac_from_gestalt, set_off_mode_with_retry
+from .session import (
+    authenticate_device,
+    read_device_led_count,
+    read_gestalt,
+    send_authenticated_frame,
+    set_device_realtime_mode,
+    set_mac_from_gestalt,
+    set_off_mode_with_retry,
+)
 
 DISCOVERY_ATTEMPT_TIMEOUT = 5.0
 

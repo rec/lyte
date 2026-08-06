@@ -9,11 +9,11 @@ from pydantic import BaseModel
 from ..errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
 from ..logging import log_error, log_status
 from ..retry import RetryConfig, retry_call
-from ..runtime import authenticate_device
 from .client import TwinklyClient
 from .realtime import discover_host
 from .realtime_diagnostic import RealtimeDiagnosticConfig, run_realtime_diagnostic
 from .session import (
+    authenticate_device,
     set_mac_from_gestalt,
     turn_off_with_retry,
     twinkly_request_label,
