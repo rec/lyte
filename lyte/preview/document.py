@@ -4,30 +4,24 @@ import base64
 import json
 from pathlib import Path
 
-from ..animation import (
-    Animation,
-    Device,
-    State,
-    byte_light_frame_from_float,
-    validate_frame,
-)
+from .. import animation
 from .layout import Layout
 from .template import HTML_TEMPLATE
 
 
 def render_animation_html(
-    animation: Animation,
+    source: animation.Animation,
     layout: Layout,
     path: Path,
     fps: float = 20.0,
     duration: float = 10.0,
     led_size: float = 1.0,
 ) -> None:
-    path.write_text(animation_document(animation, layout, fps, duration, led_size))
+    path.write_text(animation_document(source, layout, fps, duration, led_size))
 
 
 def animation_document(
-    animation: Animation,
+    source: animation.Animation,
     layout: Layout,
     fps: float = 20.0,
     duration: float = 10.0,
@@ -41,10 +35,10 @@ def animation_document(
         raise ValueError('led_size must be greater than zero')
 
     points = layout.points()
-    device = Device(led_count=len(points))
-    state = animation.initial_state(device)
+    device = animation.Device(led_count=len(points))
+    state = source.initial_state(device)
     state.fps = fps
-    frames = encoded_frames(animation, device, state, fps, duration)
+    frames = encoded_frames(source, device, state, fps, duration)
     payload = {
         'name': layout.name,
         'coords': points,
@@ -56,17 +50,17 @@ def animation_document(
 
 
 def encoded_frames(
-    animation: Animation,
-    device: Device,
-    state: State,
+    source: animation.Animation,
+    device: animation.Device,
+    state: animation.State,
     fps: float,
     duration: float,
 ) -> list[str]:
     frame_count = max(1, round(fps * duration))
     frames = []
     for _ in range(frame_count):
-        frame = byte_light_frame_from_float(
-            validate_frame(device, animation.render(device, state))
+        frame = animation.byte_light_frame_from_float(
+            animation.validate_frame(device, source.render(device, state))
         )
         frames.append(base64.b64encode(memoryview(frame).cast('B')).decode('ascii'))
     return frames

@@ -8,33 +8,14 @@ import numpy as np
 import tyro
 from numpy.typing import NDArray
 
-from ..animation import (
-    Animation,
-    Device,
-    State,
-    byte_light_frame_from_float,
-    validate_frame,
-)
+from .. import animation
 from ..logging import log
 from ..retry import RetryConfig
+from ..twinkly import realtime
 from ..twinkly.client import TwinklyClient
-from ..twinkly.realtime import (
-    discover_host,
-    prepare_device,
-    read_led_count,
-    send_realtime_frame,
-    turn_off_device,
-    turn_off_streaming_device,
-)
+from . import random_show
 from .build import build_animation
 from .config import AnimateConfig, validate_args
-from .random_show import (
-    clipped_duration,
-    log_pattern_start,
-    random_animation_args,
-    random_overlap_duration,
-    random_pattern_duration,
-)
 
 
 def main() -> int:
@@ -44,7 +25,7 @@ def main() -> int:
 
 def run_animate(args: AnimateConfig) -> int:
     validate_args(args)
-    host = args.host or discover_host(args.discovery_timeout)
+    host = args.host or realtime.discover_host(args.discovery_timeout)
     if host is None:
         return 1
 
@@ -55,13 +36,13 @@ def run_animate(args: AnimateConfig) -> int:
     )
     client = TwinklyClient(host=host, timeout=args.timeout)
     if args.animation == 'off':
-        return 0 if turn_off_device(client, retry, host) else 1
+        return 0 if realtime.turn_off_device(client, retry, host) else 1
 
-    led_count = read_led_count(client, retry, args.led_count, host)
+    led_count = realtime.read_led_count(client, retry, args.led_count, host)
     if led_count is None:
         return 1
-    device = Device(led_count=led_count)
-    if not prepare_device(client, retry, host):
+    device = animation.Device(led_count=led_count)
+    if not realtime.prepare_device(client, retry, host):
         return 1
 
     try:
@@ -73,7 +54,7 @@ def run_animate(args: AnimateConfig) -> int:
         log()
         log('[ok] Stopped')
     finally:
-        turn_off_streaming_device(client, retry, host)
+        realtime.turn_off_streaming_device(client, retry, host)
     return 0
 
 
@@ -86,21 +67,21 @@ def run_random_animations(
     client: TwinklyClient,
     retry: RetryConfig,
     host: str,
-    device: Device,
+    device: animation.Device,
 ) -> None:
     generator = random.Random(args.seed)
     stop_at = None if args.duration is None else time.monotonic() + args.duration
-    current_args = random_animation_args(args, generator, None)
+    current_args = random_show.random_animation_args(args, generator, None)
     current_animation = build_animation(current_args)
     current_state = current_animation.initial_state(device)
     current_state.fps = current_args.fps
-    current_duration = random_pattern_duration(generator)
+    current_duration = random_show.random_pattern_duration(generator)
     previous_animation = current_args.animation
-    log_pattern_start(current_args.animation, current_duration)
+    random_show.log_pattern_start(current_args.animation, current_duration)
 
     while stop_at is None or time.monotonic() < stop_at:
-        overlap_duration = random_overlap_duration(current_duration)
-        solo_duration = clipped_duration(
+        overlap_duration = random_show.random_overlap_duration(current_duration)
+        solo_duration = random_show.clipped_duration(
             current_duration - overlap_duration,
             stop_at,
         )
@@ -118,15 +99,19 @@ def run_random_animations(
         if stop_at is not None and time.monotonic() >= stop_at:
             return
 
-        next_args = random_animation_args(args, generator, previous_animation)
+        next_args = random_show.random_animation_args(
+            args, generator, previous_animation
+        )
         next_animation = build_animation(next_args)
         next_state = next_animation.initial_state(device)
         next_state.fps = next_args.fps
-        next_duration = random_pattern_duration(generator)
+        next_duration = random_show.random_pattern_duration(generator)
         previous_animation = next_args.animation
-        log_pattern_start(next_args.animation, next_duration)
+        random_show.log_pattern_start(next_args.animation, next_duration)
 
-        clipped_overlap_duration = clipped_duration(overlap_duration, stop_at)
+        clipped_overlap_duration = random_show.clipped_duration(
+            overlap_duration, stop_at
+        )
         if clipped_overlap_duration > 0:
             run_crossfade(
                 current_animation,
@@ -151,23 +136,23 @@ def run_animation(
     client: TwinklyClient,
     retry: RetryConfig,
     host: str,
-    device: Device,
+    device: animation.Device,
     duration: float | None,
 ) -> None:
-    animation = build_animation(args)
-    state = animation.initial_state(device)
+    source = build_animation(args)
+    state = source.initial_state(device)
     state.fps = args.fps
-    run_animation_state(animation, state, args, client, retry, host, device, duration)
+    run_animation_state(source, state, args, client, retry, host, device, duration)
 
 
 def run_animation_state(
-    animation: Animation,
-    state: State,
+    source: animation.Animation,
+    state: animation.State,
     args: AnimateConfig,
     client: TwinklyClient,
     retry: RetryConfig,
     host: str,
-    device: Device,
+    device: animation.Device,
     duration: float | None,
 ) -> None:
     frame_delay = 1 / args.fps
@@ -180,25 +165,25 @@ def run_animation_state(
 
     while stop_at is None or time.monotonic() < stop_at:
         started_at = time.monotonic()
-        frame = byte_light_frame_from_float(
-            validate_frame(device, animation.render(device, state))
+        frame = animation.byte_light_frame_from_float(
+            animation.validate_frame(device, source.render(device, state))
         )
-        send_realtime_frame(client, retry, host, frame)
+        realtime.send_realtime_frame(client, retry, host, frame)
         remaining = frame_delay - (time.monotonic() - started_at)
         if remaining > 0:
             time.sleep(remaining)
 
 
 def run_crossfade(
-    current_animation: Animation,
-    current_state: State,
-    next_animation: Animation,
-    next_state: State,
+    current_animation: animation.Animation,
+    current_state: animation.State,
+    next_animation: animation.Animation,
+    next_state: animation.State,
     args: AnimateConfig,
     client: TwinklyClient,
     retry: RetryConfig,
     host: str,
-    device: Device,
+    device: animation.Device,
     duration: float,
 ) -> None:
     frame_delay = 1 / args.fps
@@ -209,11 +194,15 @@ def run_crossfade(
         frame_started_at = time.monotonic()
         progress = (frame_started_at - started_at) / duration
         frame = blend_frames(
-            validate_frame(device, current_animation.render(device, current_state)),
-            validate_frame(device, next_animation.render(device, next_state)),
+            animation.validate_frame(
+                device, current_animation.render(device, current_state)
+            ),
+            animation.validate_frame(device, next_animation.render(device, next_state)),
             progress,
         )
-        send_realtime_frame(client, retry, host, byte_light_frame_from_float(frame))
+        realtime.send_realtime_frame(
+            client, retry, host, animation.byte_light_frame_from_float(frame)
+        )
         remaining = frame_delay - (time.monotonic() - frame_started_at)
         if remaining > 0:
             time.sleep(remaining)

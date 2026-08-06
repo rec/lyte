@@ -4,24 +4,18 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import (
-    Animation,
-    Device,
-    State,
-    byte_light_frame_from_float,
-    float_color_from_rgb,
-)
+from ... import animation
 from ..colors import RGB
 from ..validators import resolve_end, validate_rgb
 
 
-class PixelPingPongState(State):
+class PixelPingPongState(animation.State):
     current: int = 0
     frame_buffer: NDArray[np.float32]
     positive: bool = True
 
 
-class PixelPingPong(Animation[PixelPingPongState]):
+class PixelPingPong(animation.Animation[PixelPingPongState]):
     color: RGB = (255, 255, 255)
     max_led: int | None = None
     total_pixels: int = 1
@@ -36,13 +30,15 @@ class PixelPingPong(Animation[PixelPingPongState]):
             raise ValueError('fade_delay must be at least 1')
         return self
 
-    def initial_state(self, device: Device) -> PixelPingPongState:
+    def initial_state(self, device: animation.Device) -> PixelPingPongState:
         return PixelPingPongState(
             frame_buffer=np.zeros((device.led_count, 3), dtype=np.float32)
         )
 
-    def render(self, device: Device, state: PixelPingPongState) -> NDArray[np.float32]:
-        byte_buffer = byte_light_frame_from_float(state.frame_buffer)
+    def render(
+        self, device: animation.Device, state: PixelPingPongState
+    ) -> NDArray[np.float32]:
+        byte_buffer = animation.byte_light_frame_from_float(state.frame_buffer)
         decrement = np.array(self.color, dtype=np.float64) / self.fade_delay
         faded = byte_buffer.astype(np.float64) - decrement
         state.frame_buffer[:] = (
@@ -50,7 +46,9 @@ class PixelPingPong(Animation[PixelPingPongState]):
         )
         max_led = resolve_end(device.led_count, self.max_led)
         end = min(state.current + self.total_pixels, max_led + 1)
-        state.frame_buffer[state.current : end] = float_color_from_rgb(self.color)
+        state.frame_buffer[state.current : end] = animation.float_color_from_rgb(
+            self.color
+        )
         state.current += 1 if state.positive else -1
         if state.current + self.total_pixels - 1 >= max_led:
             state.positive = False

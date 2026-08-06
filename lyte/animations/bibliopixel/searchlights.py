@@ -6,22 +6,9 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ...animation import (
-    Animation,
-    Device,
-    State,
-    byte_light_frame_from_float,
-    float_color_from_rgb,
-)
+from ... import animation
+from .. import validators
 from ..colors import RGB, scale_color
-from ..validators import (
-    bounded_tail,
-    resolve_end,
-    span_size,
-    validate_palette,
-    validate_span,
-    validate_start,
-)
 
 SEARCHLIGHT_COLORS: tuple[RGB, ...] = (
     (60, 179, 113),
@@ -30,14 +17,14 @@ SEARCHLIGHT_COLORS: tuple[RGB, ...] = (
 )
 
 
-class SearchlightsState(State):
+class SearchlightsState(animation.State):
     directions: list[int]
     random: random.Random
     steps: list[int]
     tail: int = 1
 
 
-class Searchlights(Animation[SearchlightsState]):
+class Searchlights(animation.Animation[SearchlightsState]):
     colors: tuple[RGB, ...] = SEARCHLIGHT_COLORS
     tail: int = 5
     start: int = 0
@@ -46,30 +33,34 @@ class Searchlights(Animation[SearchlightsState]):
 
     @model_validator(mode='after')
     def validate_searchlights(self) -> Searchlights:
-        validate_palette(self.colors)
+        validators.validate_palette(self.colors)
         if len(self.colors) < 3:
             raise ValueError('colors must contain at least three colors')
         if self.tail < 0:
             raise ValueError('tail must not be negative')
-        validate_start(self.start)
+        validators.validate_start(self.start)
         return self
 
-    def initial_state(self, device: Device) -> SearchlightsState:
-        validate_span(
-            device.led_count, self.start, resolve_end(device.led_count, self.end)
+    def initial_state(self, device: animation.Device) -> SearchlightsState:
+        validators.validate_span(
+            device.led_count,
+            self.start,
+            validators.resolve_end(device.led_count, self.end),
         )
         return SearchlightsState(
             directions=[1, 1, 1],
             random=random.Random(self.seed),
             steps=[1, 1, 1],
-            tail=bounded_tail(
-                self.tail, span_size(device.led_count, self.start, self.end)
+            tail=validators.bounded_tail(
+                self.tail, validators.span_size(device.led_count, self.start, self.end)
             ),
         )
 
-    def render(self, device: Device, state: SearchlightsState) -> NDArray[np.float32]:
+    def render(
+        self, device: animation.Device, state: SearchlightsState
+    ) -> NDArray[np.float32]:
         frame = np.zeros((device.led_count, 3), dtype=np.float32)
-        end = resolve_end(device.led_count, self.end)
+        end = validators.resolve_end(device.led_count, self.end)
         fade = 256 / state.tail
         for i in range(3):
             position = self.start + state.steps[i]
@@ -91,10 +82,10 @@ class Searchlights(Animation[SearchlightsState]):
 
 def blend_float_color(frame: NDArray[np.float32], index: int, color: RGB) -> None:
     if 0 <= index < len(frame):
-        byte_frame = byte_light_frame_from_float(frame[index : index + 1])
+        byte_frame = animation.byte_light_frame_from_float(frame[index : index + 1])
         blended = ((byte_frame[0].astype(np.uint16) + np.array(color)) // 2).astype(
             np.uint8
         )
-        frame[index] = float_color_from_rgb(
+        frame[index] = animation.float_color_from_rgb(
             (int(blended[0]), int(blended[1]), int(blended[2]))
         )

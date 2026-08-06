@@ -19,14 +19,8 @@ from .animation import Device, validate_byte_rgb_frame
 from .animations.bibliopixel import RGB
 from .logging import log, log_error, log_status
 from .retry import RetryConfig
+from .twinkly import realtime
 from .twinkly.client import TwinklyClient
-from .twinkly.realtime import (
-    discover_host,
-    prepare_device,
-    read_led_count,
-    send_realtime_frame,
-    turn_off_device,
-)
 
 FPS_VALUES: tuple[float, ...] = (30.0, 60.0, 120.0, 240, 480, 960, 1920)
 LOW_CONTRAST_BLEND: tuple[RGB, RGB] = ((255, 0, 80), (0, 160, 255))
@@ -202,7 +196,7 @@ def run_realtime_command(
     configured_led_count: int | None,
     action: Callable[[TwinklyClient, RetryConfig, str, Device], None],
 ) -> int:
-    host = configured_host or discover_host(discovery_timeout)
+    host = configured_host or realtime.discover_host(discovery_timeout)
     if host is None:
         return 1
 
@@ -213,18 +207,18 @@ def run_realtime_command(
     )
     client = TwinklyClient(host=host, timeout=timeout)
     try:
-        led_count = read_led_count(client, retry, configured_led_count, host)
+        led_count = realtime.read_led_count(client, retry, configured_led_count, host)
         if led_count is None:
             return 1
         device = Device(led_count=led_count)
-        if not prepare_device(client, retry, host):
+        if not realtime.prepare_device(client, retry, host):
             return 1
         action(client, retry, host, device)
     except KeyboardInterrupt:
         log()
         log('[ok] Stopped')
     finally:
-        turn_off_device(client, retry, host)
+        realtime.turn_off_device(client, retry, host)
     return 0
 
 
@@ -518,7 +512,7 @@ def stream_demo_until_vote(
         last_frame = validate_byte_rgb_frame(
             device, demo.frame_at(device, index, frame_count)
         )
-        sent = send_realtime_frame(client, retry, host, last_frame)
+        sent = realtime.send_realtime_frame(client, retry, host, last_frame)
         if sent < last_frame.nbytes:
             log_error(
                 '[unexpected] '
@@ -694,7 +688,7 @@ def send_black_floor_level(
     frame = solid_rgb_level_frame(device, level)
     red, green, blue = level
     log_status(f'[black-floor] RGB {red} {green} {blue}')
-    sent = send_realtime_frame(client, retry, host, frame)
+    sent = realtime.send_realtime_frame(client, retry, host, frame)
     if sent < frame.nbytes:
         log_error(
             '[unexpected] '
@@ -915,7 +909,7 @@ def stream_frames(
         frame_started_at = time.monotonic()
         frame = validate_byte_rgb_frame(device, frame_at(index, frame_count))
         unique_frames.add(frame.tobytes())
-        sent = send_realtime_frame(client, retry, host, frame)
+        sent = realtime.send_realtime_frame(client, retry, host, frame)
         if sent < frame.nbytes:
             short_sends += 1
             log_error(

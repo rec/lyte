@@ -5,13 +5,8 @@ from numpy.typing import NDArray
 from pydantic import model_validator
 
 from ...animation import Animation, Device, State, float_color_from_rgb
+from .. import validators
 from ..colors import RGB, scale_color
-from ..validators import (
-    resolve_end,
-    validate_palette,
-    validate_span,
-    validate_start,
-)
 
 
 class ColorFadeState(State):
@@ -27,15 +22,17 @@ class ColorFade(Animation[ColorFadeState]):
 
     @model_validator(mode='after')
     def validate_color_fade(self) -> ColorFade:
-        validate_palette(self.colors)
+        validators.validate_palette(self.colors)
         if self.level_step < 1:
             raise ValueError('level_step must be at least 1')
-        validate_start(self.start)
+        validators.validate_start(self.start)
         return self
 
     def initial_state(self, device: Device) -> ColorFadeState:
-        validate_span(
-            device.led_count, self.start, resolve_end(device.led_count, self.end)
+        validators.validate_span(
+            device.led_count,
+            self.start,
+            validators.resolve_end(device.led_count, self.end),
         )
         levels = list(range(30, 256, self.level_step))
         return ColorFadeState(levels=levels + list(reversed(levels[:-1])))
@@ -46,7 +43,7 @@ class ColorFade(Animation[ColorFadeState]):
             self.colors[color_index % len(self.colors)], state.levels[level_index]
         )
         frame = np.zeros((device.led_count, 3), dtype=np.float32)
-        frame[self.start : resolve_end(device.led_count, self.end) + 1] = (
+        frame[self.start : validators.resolve_end(device.led_count, self.end) + 1] = (
             float_color_from_rgb(color)
         )
         state.position += 1
