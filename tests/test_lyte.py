@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import importlib
-import importlib.util
 import io
 import json
 import random
@@ -60,12 +59,14 @@ from lyte.animations.hamiltonian import (
 )
 from lyte.animations.random_walk import RandomWalk, perturb
 from lyte.diagnostic import (
+    DiagnosticCommandConfig,
     DiagnosticConfig,
     TwinklyDeviceInfo,
     XledEndpointReport,
     authenticated_reports,
     read_endpoint,
     run_diagnostic,
+    run_diagnostic_command,
 )
 from lyte.errors import DiscoveryError, ProtocolError, UnsupportedEndpointError
 from lyte.fps_test import (
@@ -453,7 +454,9 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(config.mode, 'slow')
 
     def test_cli_diagnostic_command_dispatches_diagnostic(self) -> None:
-        with patch.object(cli, 'run_diagnostic', return_value=0) as run_diagnostic:
+        with patch.object(
+            cli, 'run_diagnostic_command', return_value=0
+        ) as run_diagnostic_command:
             result = cli.main(
                 [
                     'diagnostic',
@@ -465,9 +468,30 @@ class FpsTestTests(unittest.TestCase):
             )
 
         self.assertEqual(result, 0)
-        config = run_diagnostic.call_args.args[0]
+        config = run_diagnostic_command.call_args.args[0]
         self.assertEqual(config.host, '192.168.1.23')
         self.assertEqual(config.attempts, 2)
+
+    def test_cli_diagnostic_realtime_flag_dispatches_diagnostic(self) -> None:
+        with patch.object(
+            cli, 'run_diagnostic_command', return_value=0
+        ) as run_diagnostic_command:
+            result = cli.main(
+                [
+                    'diagnostic',
+                    '--realtime',
+                    '--led-count',
+                    '10',
+                    '--pause',
+                    '0.1',
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        config = run_diagnostic_command.call_args.args[0]
+        self.assertTrue(config.realtime)
+        self.assertEqual(config.led_count, 10)
+        self.assertEqual(config.pause, 0.1)
 
     def test_cli_brightness_command_dispatches_output_control(self) -> None:
         with patch.object(
@@ -1836,6 +1860,35 @@ class PackageDiagnosticTests(unittest.TestCase):
         self.assertIn('Device name: Tree', output.getvalue())
         self.assertIn("firmware: {'version': '1.0'}", output.getvalue())
 
+    def test_diagnostic_command_runs_xled_diagnostic_by_default(self) -> None:
+        with patch('lyte.diagnostic.run_diagnostic', return_value=0) as diagnostic:
+            result = run_diagnostic_command(
+                DiagnosticCommandConfig(host='192.168.1.23', attempts=2)
+            )
+
+        self.assertEqual(result, 0)
+        config = diagnostic.call_args.args[0]
+        self.assertEqual(config.host, '192.168.1.23')
+        self.assertEqual(config.attempts, 2)
+
+    def test_diagnostic_command_runs_realtime_diagnostic_when_requested(self) -> None:
+        with patch(
+            'lyte.diagnostic.run_realtime_diagnostic', return_value=0
+        ) as realtime:
+            result = run_diagnostic_command(
+                DiagnosticCommandConfig(
+                    realtime=True,
+                    led_count=10,
+                    pause=0.1,
+                )
+            )
+
+        self.assertEqual(result, 0)
+        config = realtime.call_args.args[0]
+        self.assertEqual(config.led_count, 10)
+        self.assertEqual(config.pause, 0.1)
+        self.assertEqual(config.discovery_timeout, 0.1)
+
 
 class XledControlTests(unittest.TestCase):
     def test_output_control_accepts_string_values_from_device(self) -> None:
@@ -2950,12 +3003,7 @@ class RetryableTestError(Exception):
 class DiagnosticTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        path = Path(__file__).parents[1] / 'scripts' / 'lyte_diagnostic.py'
-        spec = importlib.util.spec_from_file_location('lyte_diagnostic', path)
-        assert spec is not None
-        assert spec.loader is not None
-        cls.diagnostic = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(cls.diagnostic)
+        cls.diagnostic = importlib.import_module('lyte.realtime_diagnostic')
 
     def test_discover_one_retries_empty_discovery_attempts(self) -> None:
         calls = 0
@@ -3003,9 +3051,8 @@ class DiagnosticTests(unittest.TestCase):
         self.assertEqual(timeouts, [0.01, 0.01])
         self.assertEqual(reported, [False, True])
 
-    def test_parse_args_uses_slower_network_retry_defaults(self) -> None:
-        with patch('sys.argv', ['lyte_diagnostic.py']):
-            config = self.diagnostic.parse_args()
+    def test_config_uses_slower_network_retry_defaults(self) -> None:
+        config = self.diagnostic.RealtimeDiagnosticConfig()
 
         self.assertEqual(config.retry.attempts, 10)
         self.assertEqual(config.retry.delay, 0.5)

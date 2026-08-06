@@ -45,8 +45,8 @@ PREVIEW_ANIMATIONS: tuple[str, ...] = tuple(
 
 @dataclass(frozen=True)
 class PreviewConfig:
-    animation: Annotated[PreviewAnimationName, tyro.conf.Positional]
-    output: Annotated[Path, tyro.conf.Positional]
+    animation: Annotated[PreviewAnimationName | None, tyro.conf.Positional] = None
+    output: Annotated[Path | None, tyro.conf.Positional] = None
     open: bool = False
     name: str | None = None
     width: int = 16
@@ -89,6 +89,8 @@ class PreviewConfig:
 
     @property
     def animation_config(self) -> AnimateConfig:
+        if self.animation is None:
+            raise ValueError('preview animation is required')
         return AnimateConfig(
             animation=cast(AnimationName, self.animation),
             speed=self.speed,
@@ -129,14 +131,16 @@ class PreviewConfig:
 
 
 def main() -> int:
-    if len(sys.argv) == 1:
-        print_preview_patterns()
-        return 0
     args = parse_args()
     return run_preview(args)
 
 
 def run_preview(args: PreviewConfig) -> int:
+    if args.animation is None and args.output is None:
+        print_preview_patterns()
+        return 0
+    if args.animation is None or args.output is None:
+        sys.exit('preview requires both animation and output')
     validate_args(args)
     layout = Layout(
         name=args.name or args.animation,

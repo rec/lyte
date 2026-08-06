@@ -15,6 +15,7 @@ from .network.session import (
     turn_off_with_retry,
     xled_request_label,
 )
+from .realtime_diagnostic import RealtimeDiagnosticConfig, run_realtime_diagnostic
 from .retry import RetryConfig, retry_call
 from .runtime import authenticate_device
 
@@ -71,6 +72,55 @@ class DiagnosticConfig:
     attempts: int = 10
     retry_delay: float = 0.5
     retry_backoff: float = 2.0
+
+
+@dataclass(frozen=True)
+class DiagnosticCommandConfig:
+    realtime: bool = False
+    host: str | None = None
+    timeout: float = 5.0
+    discovery_timeout: float | None = None
+    attempts: int = 10
+    retry_delay: float = 0.5
+    retry_backoff: float = 2.0
+    discovery_attempts: int = 20
+    discovery_retry_delay: float = 0.05
+    discovery_backoff_after: int = 10
+    led_count: int | None = None
+    pause: float = 0.7
+
+
+def run_diagnostic_command(config: DiagnosticCommandConfig) -> int:
+    if config.realtime:
+        return run_realtime_diagnostic(
+            RealtimeDiagnosticConfig(
+                host=config.host,
+                timeout=config.timeout,
+                discovery_timeout=(
+                    0.1
+                    if config.discovery_timeout is None
+                    else config.discovery_timeout
+                ),
+                discovery_attempts=config.discovery_attempts,
+                attempts=config.attempts,
+                retry_delay=config.retry_delay,
+                discovery_retry_delay=config.discovery_retry_delay,
+                retry_backoff=config.retry_backoff,
+                discovery_backoff_after=config.discovery_backoff_after,
+                led_count=config.led_count,
+                pause=config.pause,
+            )
+        )
+    return run_diagnostic(
+        DiagnosticConfig(
+            host=config.host,
+            timeout=config.timeout,
+            discovery_timeout=config.discovery_timeout,
+            attempts=config.attempts,
+            retry_delay=config.retry_delay,
+            retry_backoff=config.retry_backoff,
+        )
+    )
 
 
 def run_diagnostic(config: DiagnosticConfig) -> int:

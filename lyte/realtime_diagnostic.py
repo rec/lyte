@@ -1,37 +1,27 @@
-#!/usr/bin/env python3
 """Exercise a Lyte device with detailed diagnostics."""
 
 import socket
 import sys
 import time
-from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
 from typing import NoReturn
 
-import tyro
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from lyte import (
-    DiscoveredDevice,
-    LyteClient,
-    ProtocolError,
-)
-from lyte.animations.colors import solid_rgb_frame
-from lyte.errors import DiscoveryError
-from lyte.logging import log, log_error
-from lyte.network.discovery import (
+from .animations.colors import solid_rgb_frame
+from .errors import DiscoveryError, ProtocolError
+from .logging import log, log_error
+from .network.client import LyteClient
+from .network.discovery import (
     DEFAULT_BROADCAST,
     DISCOVERY_MESSAGE,
     DISCOVERY_PORT,
+    DiscoveredDevice,
     parse_discovery_response,
 )
-from lyte.network.session import (
+from .network.session import (
     set_mac_from_gestalt,
 )
-from lyte.retry import RetryConfig, retry_call
-from lyte.runtime import (
+from .retry import RetryConfig, retry_call
+from .runtime import (
     authenticate_device,
     read_device_led_count,
     send_authenticated_frame,
@@ -40,7 +30,7 @@ from lyte.runtime import (
 
 
 @dataclass(frozen=True)
-class DiagnosticConfig:
+class RealtimeDiagnosticConfig:
     host: str | None = None
     timeout: float = 5.0
     discovery_timeout: float = 0.1
@@ -72,8 +62,8 @@ class DiagnosticConfig:
         )
 
 
-def main() -> int:
-    config = parse_args()
+def run_realtime_diagnostic(config: RealtimeDiagnosticConfig) -> int:
+    validate_realtime_diagnostic_config(config)
     log('Lyte diagnostic')
     log('==============================')
     log('This script uses only the Python standard library.')
@@ -108,13 +98,7 @@ def main() -> int:
     return 0
 
 
-def parse_args(args: Sequence[str] | None = None) -> DiagnosticConfig:
-    config = tyro.cli(DiagnosticConfig, args=args)
-    validate_args(config)
-    return config
-
-
-def validate_args(args: DiagnosticConfig) -> None:
+def validate_realtime_diagnostic_config(args: RealtimeDiagnosticConfig) -> None:
     if args.attempts < 1:
         fail('--attempts must be at least 1')
     if args.discovery_attempts < 1:
@@ -351,7 +335,3 @@ def print_success(message: str) -> None:
 
 def print_failure(message: str) -> None:
     log_error(f'[failed] {message}')
-
-
-if __name__ == '__main__':
-    raise SystemExit(main())
