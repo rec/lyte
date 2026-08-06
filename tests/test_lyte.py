@@ -3094,7 +3094,7 @@ class AnimateTests(unittest.TestCase):
         with patch('sys.argv', ['lyte']):
             args = self.script.parse_args()
 
-        with patch.object(self.script, 'RANDOM_ANIMATIONS', ('hamiltonian',)):
+        with patch('lyte.animate.random_show.RANDOM_ANIMATIONS', ('hamiltonian',)):
             segment_args = self.script.random_animation_args(
                 args, random.Random(1), None
             )
@@ -3107,7 +3107,7 @@ class AnimateTests(unittest.TestCase):
         with patch('sys.argv', ['lyte']):
             args = self.script.parse_args()
 
-        with patch.object(self.script, 'RANDOM_ANIMATIONS', ('random_walk',)):
+        with patch('lyte.animate.random_show.RANDOM_ANIMATIONS', ('random_walk',)):
             segment_args = self.script.random_animation_args(
                 args, random.Random(1), None
             )
@@ -3126,10 +3126,10 @@ class AnimateTests(unittest.TestCase):
         output = io.StringIO()
 
         with (
-            patch.object(self.script, 'RANDOM_ANIMATIONS', ('hamiltonian',)),
-            patch.object(self.script, 'build_animation', return_value=ColorFill()),
-            patch.object(self.script, 'run_animation_state') as run_animation_state,
-            patch.object(self.script.time, 'monotonic', side_effect=[0, 0, 0, 2]),
+            patch('lyte.animate.random_show.RANDOM_ANIMATIONS', ('hamiltonian',)),
+            patch('lyte.animate.playback.build_animation', return_value=ColorFill()),
+            patch('lyte.animate.playback.run_animation_state') as run_animation_state,
+            patch('lyte.animate.playback.time.monotonic', side_effect=[0, 0, 0, 2]),
             patch('sys.stdout', output),
         ):
             self.script.run_random_animations(
@@ -3177,14 +3177,14 @@ class AnimateTests(unittest.TestCase):
         sent_frames = []
 
         with (
-            patch.object(
-                self.script.time,
-                'monotonic',
+            patch(
+                'lyte.animate.playback.time.monotonic',
                 side_effect=[0.0, 0.5, 0.5, 0.5, 2.0],
             ),
-            patch.object(self.script.time, 'sleep'),
-            patch.object(
-                self.script, 'send_realtime_frame', lambda *a: sent_frames.append(a[-1])
+            patch('lyte.animate.playback.time.sleep'),
+            patch(
+                'lyte.animate.playback.send_realtime_frame',
+                lambda *a: sent_frames.append(a[-1]),
             ),
         ):
             self.script.run_crossfade(
@@ -3273,15 +3273,14 @@ class AnimateTests(unittest.TestCase):
     def test_off_mode_skips_realtime_streaming(self) -> None:
         with (
             patch('sys.argv', ['lyte', 'off', '--host', '192.168.1.23']),
-            patch.object(self.script, 'read_gestalt', return_value={'mac': 'AA'}),
-            patch.object(self.script, 'authenticate_device', return_value=object()),
-            patch.object(
-                self.script,
-                'set_off_mode_with_retry',
+            patch('lyte.animate.device.read_gestalt', return_value={'mac': 'AA'}),
+            patch('lyte.animate.device.authenticate_device', return_value=object()),
+            patch(
+                'lyte.animate.device.set_off_mode_with_retry',
                 return_value=LyteResponse(http_status=200, data={'code': 1000}),
             ) as set_off_mode,
-            patch.object(self.script, 'read_led_count') as read_led_count,
-            patch.object(self.script, 'prepare_device') as prepare_device,
+            patch('lyte.animate.playback.read_led_count') as read_led_count,
+            patch('lyte.animate.playback.prepare_device') as prepare_device,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = self.script.main()
@@ -3295,9 +3294,8 @@ class AnimateTests(unittest.TestCase):
         output = io.StringIO()
 
         with (
-            patch.object(
-                self.script,
-                'read_device_led_count',
+            patch(
+                'lyte.animate.device.read_device_led_count',
                 return_value=(250, {'mac': 'AA', 'number_of_led': 250}),
             ),
             patch('sys.stdout', output),
@@ -3327,16 +3325,14 @@ class AnimateTests(unittest.TestCase):
                     '192.168.1.23',
                 ],
             ),
-            patch.object(self.script, 'read_led_count', return_value=1),
-            patch.object(self.script, 'prepare_device', return_value=True),
-            patch.object(
-                self.script,
-                'build_animation',
+            patch('lyte.animate.playback.read_led_count', return_value=1),
+            patch('lyte.animate.playback.prepare_device', return_value=True),
+            patch(
+                'lyte.animate.playback.build_animation',
                 return_value=BrokenAnimation(),
             ),
-            patch.object(
-                self.script,
-                'set_off_mode_with_retry',
+            patch(
+                'lyte.animate.device.set_off_mode_with_retry',
                 return_value=LyteResponse(http_status=200, data={'code': 1000}),
             ) as set_off_mode,
             patch('sys.stdout', new_callable=io.StringIO),
