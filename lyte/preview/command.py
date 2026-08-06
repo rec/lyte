@@ -9,8 +9,8 @@ from typing import Annotated, Literal, NoReturn, cast
 
 import tyro
 
-from .animate import ANIMATIONS, AnimateConfig, AnimationName, build_animation
-from .preview import Layout, render_animation_html
+from ..animate import ANIMATIONS, AnimateConfig, AnimationName, build_animation
+from . import Layout, render_animation_html
 
 PreviewAnimationName = Literal[
     'alternates',
