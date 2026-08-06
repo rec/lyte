@@ -7,7 +7,6 @@ import mido
 from pydantic import BaseModel, ConfigDict
 
 ConfigT = TypeVar('ConfigT', bound=BaseModel)
-ListenerT = TypeVar('ListenerT', bound='Listener')
 
 
 class MidiIn(BaseModel, frozen=True):
@@ -15,9 +14,9 @@ class MidiIn(BaseModel, frozen=True):
     device_name: str | list[str] | None = None
 
 
-class Listener(BaseModel):
-    patch: Patch[BaseModel, Listener]
-    note_on: mido.Message
+class Listener(BaseModel, ABC):
+    patch: object
+    initial_note_on: mido.Message
 
     """
     When playing a note, the WX7 sends
@@ -29,8 +28,24 @@ class Listener(BaseModel):
 
     """
 
-    # Classes optionally override the below
-    def note_on(self, msg: mido.Message) -> None:  # The next note on
+    def receive(self, msg: mido.Message) -> None:
+        if msg.type == 'control_change' and msg.control == 2:
+            self.breath_control(msg)
+        elif msg.type == 'note_on':
+            if msg.velocity == 0:
+                self.note_off(msg)
+            else:
+                self.note_on(msg)
+        elif msg.type == 'note_off':
+            self.note_off(msg)
+        elif msg.type == 'pitchwheel':
+            self.pitch_bend(msg)
+
+    # Classes optionally override the below.
+    def note_on(self, msg: mido.Message) -> None:
+        pass
+
+    def note_off(self, msg: mido.Message) -> None:
         pass
 
     def breath_control(self, msg: mido.Message) -> None:
@@ -42,6 +57,9 @@ class Listener(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
+ListenerT = TypeVar('ListenerT', bound=Listener)
+
+
 class Patch(BaseModel, Generic[ConfigT, ListenerT], ABC):
     config: ConfigT
     listener: ListenerT | None = None
@@ -51,9 +69,11 @@ class Patch(BaseModel, Generic[ConfigT, ListenerT], ABC):
         pass
 
     def receive(self, msg: mido.Message) -> None:
-        if cb := getattr(self.listener, msg.type):
-            cb(msg)
-        if msg.type == 'note_on':
+        if self.listener is not None:
+            self.listener.receive(msg)
+        if msg.type == 'note_on' and msg.velocity > 0:
             self.listener = self.make_listener(msg)
+        elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
+            self.listener = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

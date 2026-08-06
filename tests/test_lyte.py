@@ -14,11 +14,13 @@ from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 
+import mido
 import numpy as np
 from numpy import testing as npt
 from numpy.typing import NDArray
+from pydantic import BaseModel
 
-from lyte import animation, cli, fps_test
+from lyte import animation, cli, fps_test, midi
 from lyte.animate import config, random_show
 from lyte.animations import hamiltonian
 from lyte.animations import bibliopixel
@@ -61,6 +63,68 @@ def initial_state(
 ) -> tuple[animation.Device, animation.State]:
     device = animation.Device(led_count=led_count)
     return device, source.initial_state(device)
+
+
+class MidiTests(unittest.TestCase):
+    def test_patch_creates_listener_from_first_note_on(self) -> None:
+        class Config(BaseModel, frozen=True):
+            name: str = 'wx7'
+
+        class TestListener(midi.Listener):
+            events: list[str] = []
+
+        class TestPatch(midi.Patch[Config, TestListener]):
+            def make_listener(self, msg: mido.Message) -> TestListener:
+                return TestListener(patch=self, initial_note_on=msg)
+
+        patch = TestPatch(config=Config())
+        msg = mido.Message('note_on', note=64, velocity=100)
+
+        patch.receive(msg)
+
+        self.assertIsNotNone(patch.listener)
+        if patch.listener is None:
+            self.fail('listener was not created')
+        self.assertEqual(patch.listener.initial_note_on, msg)
+
+    def test_listener_normalizes_wx7_messages(self) -> None:
+        class Config(BaseModel, frozen=True):
+            name: str = 'wx7'
+
+        class TestListener(midi.Listener):
+            events: list[str] = []
+
+            def note_on(self, msg: mido.Message) -> None:
+                self.events.append(f'note-on:{msg.note}')
+
+            def note_off(self, msg: mido.Message) -> None:
+                self.events.append(f'note-off:{msg.note}')
+
+            def breath_control(self, msg: mido.Message) -> None:
+                self.events.append(f'breath:{msg.value}')
+
+            def pitch_bend(self, msg: mido.Message) -> None:
+                self.events.append('pitch')
+
+        class TestPatch(midi.Patch[Config, TestListener]):
+            def make_listener(self, msg: mido.Message) -> TestListener:
+                return TestListener(patch=self, initial_note_on=msg)
+
+        patch = TestPatch(config=Config())
+        patch.receive(mido.Message('note_on', note=64, velocity=100))
+        if patch.listener is None:
+            self.fail('listener was not created')
+        listener = patch.listener
+
+        patch.receive(mido.Message('control_change', control=2, value=96))
+        patch.receive(mido.Message('pitchwheel', pitch=1024))
+        patch.receive(mido.Message('note_on', note=64, velocity=0))
+
+        self.assertEqual(
+            listener.events,
+            ['breath:96', 'pitch', 'note-off:64'],
+        )
+        self.assertIsNone(patch.listener)
 
 
 class DiscoveryTests(unittest.TestCase):
