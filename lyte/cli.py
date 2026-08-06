@@ -8,11 +8,6 @@ from typing import Annotated
 import tyro
 
 from .animate import AnimateConfig, run_animate
-from .diagnostic import (
-    DiagnosticCommandConfig,
-    DiagnosticConfig,
-    run_diagnostic_command,
-)
 from .fps_test import (
     BlackFloorTestConfig,
     FpsTestConfig,
@@ -52,6 +47,11 @@ from .twinkly import (
     run_output_control,
     run_playlist_control,
     run_timer_control,
+)
+from .twinkly.diagnostic import (
+    DiagnosticCommandConfig,
+    DiagnosticConfig,
+    run_diagnostic_command,
 )
 
 

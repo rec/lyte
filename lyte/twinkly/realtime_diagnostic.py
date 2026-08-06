@@ -6,26 +6,26 @@ import time
 from dataclasses import dataclass
 from typing import NoReturn
 
-from .animations.colors import solid_rgb_frame
-from .errors import DiscoveryError, ProtocolError
-from .logging import log, log_error
-from .network.client import LyteClient
-from .network.discovery import (
+from ..animations.colors import solid_rgb_frame
+from ..errors import DiscoveryError, ProtocolError
+from ..logging import log, log_error
+from ..retry import RetryConfig, retry_call
+from ..runtime import (
+    authenticate_device,
+    read_device_led_count,
+    send_authenticated_frame,
+    set_device_realtime_mode,
+)
+from .client import LyteClient
+from .discovery import (
     DEFAULT_BROADCAST,
     DISCOVERY_MESSAGE,
     DISCOVERY_PORT,
     DiscoveredDevice,
     parse_discovery_response,
 )
-from .network.session import (
+from .session import (
     set_mac_from_gestalt,
-)
-from .retry import RetryConfig, retry_call
-from .runtime import (
-    authenticate_device,
-    read_device_led_count,
-    send_authenticated_frame,
-    set_device_realtime_mode,
 )
 
 

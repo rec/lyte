@@ -16,8 +16,8 @@ from ..animation import (
     validate_frame,
 )
 from ..logging import log
-from ..network.client import LyteClient
 from ..retry import RetryConfig
+from ..twinkly.client import LyteClient
 from .build import build_animation
 from .config import AnimateConfig, validate_args
 from .device import (

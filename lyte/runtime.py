@@ -5,8 +5,9 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 
-from .network.client import AuthToken, LyteClient, LyteResponse
-from .network.session import (
+from .retry import RetryConfig
+from .twinkly.client import AuthToken, LyteClient, LyteResponse
+from .twinkly.session import (
     authenticate_with_retry,
     led_count_from_gestalt,
     read_gestalt,
@@ -14,7 +15,6 @@ from .network.session import (
     set_mac_from_gestalt,
     set_realtime_mode_with_retry,
 )
-from .retry import RetryConfig
 
 
 def read_device_led_count(

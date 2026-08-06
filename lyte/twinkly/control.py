@@ -8,18 +8,18 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
+from ..fps_test import discover_host
+from ..logging import log_status
+from ..retry import RetryConfig
+from ..runtime import authenticate_device
+from .client import LyteClient
 from .diagnostic import DiagnosticConfig
-from .fps_test import discover_host
-from .logging import log_status
-from .network.client import LyteClient
-from .network.session import (
+from .session import (
     read_gestalt,
     set_mac_from_gestalt,
     turn_off_with_retry,
     twinkly_request_label,
 )
-from .retry import RetryConfig
-from .runtime import authenticate_device
 
 OutputControlKind = Literal['brightness', 'saturation']
 OutputControlAction = Literal['get', 'set']

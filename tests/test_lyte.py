@@ -58,16 +58,6 @@ from lyte.animations.hamiltonian import (
     parse_order,
 )
 from lyte.animations.random_walk import RandomWalk, perturb
-from lyte.diagnostic import (
-    DiagnosticCommandConfig,
-    DiagnosticConfig,
-    TwinklyDeviceInfo,
-    TwinklyEndpointReport,
-    authenticated_reports,
-    read_endpoint,
-    run_diagnostic,
-    run_diagnostic_command,
-)
 from lyte.errors import DiscoveryError, ProtocolError, UnsupportedEndpointError
 from lyte.fps_test import (
     DOWN_KEY,
@@ -99,20 +89,6 @@ from lyte.fps_test import (
     verify_primary_channels_frame,
 )
 from lyte.logging import LOGGING, log, log_error, log_status
-from lyte.network.authentication import CHALLENGE_KEY, derive_key, mac_bytes, rc4
-from lyte.network.client import TWINKLY_API_PREFIX, LyteClient, LyteResponse
-from lyte.network.discovery import DiscoveredDevice, parse_discovery_response
-from lyte.network.frame import (
-    frame_packets_v3,
-    frame_payload,
-    send_frame_v3,
-)
-from lyte.network.session import (
-    led_count_from_gestalt,
-    set_mac_from_gestalt,
-    turn_off_with_retry,
-    twinkly_request_label,
-)
 from lyte.preview import Layout, animation_document, render_animation_html
 from lyte.retry import RetryConfig, retry_call
 from lyte.runtime import read_device_led_count, send_authenticated_frame
@@ -136,6 +112,33 @@ from lyte.twinkly import (
     run_timer_control,
     write_output_control,
 )
+from lyte.twinkly.authentication import CHALLENGE_KEY, derive_key, mac_bytes, rc4
+from lyte.twinkly.client import TWINKLY_API_PREFIX, LyteClient, LyteResponse
+from lyte.twinkly.diagnostic import (
+    DiagnosticCommandConfig,
+    DiagnosticConfig,
+    TwinklyDeviceInfo,
+    TwinklyEndpointReport,
+    authenticated_reports,
+    read_endpoint,
+    run_diagnostic,
+    run_diagnostic_command,
+)
+from lyte.twinkly.discovery import DiscoveredDevice, parse_discovery_response
+from lyte.twinkly.frame import (
+    frame_packets_v3,
+    frame_payload,
+    send_frame_v3,
+)
+from lyte.twinkly.session import (
+    led_count_from_gestalt,
+    set_mac_from_gestalt,
+    turn_off_with_retry,
+    twinkly_request_label,
+)
+
+CONTROL = 'lyte.twinkly.control'
+DIAGNOSTIC = 'lyte.twinkly.diagnostic'
 
 
 def render(
@@ -286,7 +289,7 @@ class RealtimeTests(unittest.TestCase):
                 sent_buffers.append((buffers, flags, mode, address))
                 return sum(len(buffer) for buffer in buffers)
 
-        with patch('lyte.network.frame.socket.socket', return_value=Socket()):
+        with patch('lyte.twinkly.frame.socket.socket', return_value=Socket()):
             sent = send_frame_v3('192.168.1.23', 'MCIGBF1qJlg=', frame)
 
         self.assertEqual(sent, 15)
@@ -1143,7 +1146,7 @@ class ClientTests(unittest.TestCase):
         FakeHttpConnection.requests = []
 
         with patch(
-            'lyte.network.client.http.client.HTTPConnection', FakeHttpConnection
+            'lyte.twinkly.client.http.client.HTTPConnection', FakeHttpConnection
         ):
             response = LyteClient(host='192.168.1.23').delete(
                 'movies', authenticated=False
@@ -1170,7 +1173,7 @@ class ClientTests(unittest.TestCase):
         FakeHttpConnection.requests = []
 
         with patch(
-            'lyte.network.client.http.client.HTTPConnection', FakeHttpConnection
+            'lyte.twinkly.client.http.client.HTTPConnection', FakeHttpConnection
         ):
             response = LyteClient(host='192.168.1.23').post_bytes(
                 'movies/full',
@@ -1215,7 +1218,7 @@ class ClientTests(unittest.TestCase):
         FakeHttpConnection.requests = []
 
         with (
-            patch('lyte.network.client.http.client.HTTPConnection', FakeHttpConnection),
+            patch('lyte.twinkly.client.http.client.HTTPConnection', FakeHttpConnection),
             self.assertRaises(UnsupportedEndpointError) as raised,
         ):
             LyteClient(host='192.168.1.23').get('missing', authenticated=False)
@@ -1544,7 +1547,7 @@ class SessionTests(unittest.TestCase):
             labels.append(label)
             return LyteResponse(http_status=200, data={'code': 1000})
 
-        with patch('lyte.network.session.set_off_mode_with_retry', set_off_mode):
+        with patch('lyte.twinkly.session.set_off_mode_with_retry', set_off_mode):
             result = turn_off_with_retry(
                 LyteClient(host='192.168.1.23'),
                 RetryConfig(attempts=1, delay=0, backoff=1),
@@ -1824,10 +1827,10 @@ class PackageDiagnosticTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.diagnostic.discover_host', return_value='192.168.1.23'),
-            patch('lyte.diagnostic.LyteClient', return_value=client),
+            patch(f'{DIAGNOSTIC}.discover_host', return_value='192.168.1.23'),
+            patch(f'{DIAGNOSTIC}.LyteClient', return_value=client),
             patch(
-                'lyte.diagnostic.read_endpoint',
+                f'{DIAGNOSTIC}.read_endpoint',
                 side_effect=(
                     TwinklyEndpointReport(
                         name='gestalt',
@@ -1849,9 +1852,9 @@ class PackageDiagnosticTests(unittest.TestCase):
                     ),
                 ),
             ),
-            patch('lyte.diagnostic.authenticate_device', return_value=object()),
-            patch('lyte.diagnostic.authenticated_reports', return_value=()),
-            patch('lyte.diagnostic.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{DIAGNOSTIC}.authenticate_device', return_value=object()),
+            patch(f'{DIAGNOSTIC}.authenticated_reports', return_value=()),
+            patch(f'{DIAGNOSTIC}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_diagnostic(DiagnosticConfig())
@@ -1863,7 +1866,7 @@ class PackageDiagnosticTests(unittest.TestCase):
         self.assertIn("firmware: {'version': '1.0'}", output.getvalue())
 
     def test_diagnostic_command_runs_twinkly_diagnostic_by_default(self) -> None:
-        with patch('lyte.diagnostic.run_diagnostic', return_value=0) as diagnostic:
+        with patch(f'{DIAGNOSTIC}.run_diagnostic', return_value=0) as diagnostic:
             result = run_diagnostic_command(
                 DiagnosticCommandConfig(host='192.168.1.23', attempts=2)
             )
@@ -1874,9 +1877,7 @@ class PackageDiagnosticTests(unittest.TestCase):
         self.assertEqual(config.attempts, 2)
 
     def test_diagnostic_command_runs_realtime_diagnostic_when_requested(self) -> None:
-        with patch(
-            'lyte.diagnostic.run_realtime_diagnostic', return_value=0
-        ) as realtime:
+        with patch(f'{DIAGNOSTIC}.run_realtime_diagnostic', return_value=0) as realtime:
             result = run_diagnostic_command(
                 DiagnosticCommandConfig(
                     realtime=True,
@@ -2001,14 +2002,14 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
             patch(
-                'lyte.twinkly.read_output_control',
+                f'{CONTROL}.read_output_control',
                 return_value=OutputControl(value=75),
             ),
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_output_control(
@@ -2027,11 +2028,11 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
-            patch('lyte.twinkly.write_output_control') as write_output_control,
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
+            patch(f'{CONTROL}.write_output_control') as write_output_control,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_output_control(
@@ -2057,11 +2058,11 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
             patch.object(LyteClient, 'set_led_mode') as set_led_mode,
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = run_mode_control(DiagnosticConfig(), 'set', 'demo')
@@ -2074,11 +2075,11 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
             patch.object(LyteClient, 'set_led_color') as set_led_color,
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = run_color_control(DiagnosticConfig(), 'set', 1, 2, 3)
@@ -2093,11 +2094,11 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
             patch.object(LyteClient, 'set_current_effect') as set_current_effect,
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = run_effect_control(DiagnosticConfig(), 'set-current', 4)
@@ -2113,9 +2114,9 @@ class TwinklyControlTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'layout.json'
             with (
-                patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-                patch('lyte.twinkly.LyteClient', return_value=client),
-                patch('lyte.twinkly.prepare_authenticated_client'),
+                patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+                patch(f'{CONTROL}.LyteClient', return_value=client),
+                patch(f'{CONTROL}.prepare_authenticated_client'),
                 patch.object(
                     LyteClient,
                     'get_layout_full',
@@ -2124,9 +2125,7 @@ class TwinklyControlTests(unittest.TestCase):
                         data={'source': '3d', 'coordinates': []},
                     ),
                 ),
-                patch(
-                    'lyte.twinkly.turn_off_with_retry', return_value=True
-                ) as turn_off,
+                patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
                 patch('sys.stdout', output),
             ):
                 result = run_layout_control(DiagnosticConfig(), 'export', path)
@@ -2156,13 +2155,11 @@ class TwinklyControlTests(unittest.TestCase):
                 )
             )
             with (
-                patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-                patch('lyte.twinkly.LyteClient', return_value=client),
-                patch('lyte.twinkly.prepare_authenticated_client'),
+                patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+                patch(f'{CONTROL}.LyteClient', return_value=client),
+                patch(f'{CONTROL}.prepare_authenticated_client'),
                 patch.object(LyteClient, 'set_layout_full') as set_layout_full,
-                patch(
-                    'lyte.twinkly.turn_off_with_retry', return_value=True
-                ) as turn_off,
+                patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
                 patch('sys.stdout', new_callable=io.StringIO),
             ):
                 result = run_layout_control(DiagnosticConfig(), 'upload', path)
@@ -2186,13 +2183,11 @@ class TwinklyControlTests(unittest.TestCase):
             path = Path(directory) / 'config.json'
             path.write_text(json.dumps({'strings': [{'first_led_id': 0}]}))
             with (
-                patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-                patch('lyte.twinkly.LyteClient', return_value=client),
-                patch('lyte.twinkly.prepare_authenticated_client'),
+                patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+                patch(f'{CONTROL}.LyteClient', return_value=client),
+                patch(f'{CONTROL}.prepare_authenticated_client'),
                 patch.object(LyteClient, 'set_led_config') as set_led_config,
-                patch(
-                    'lyte.twinkly.turn_off_with_retry', return_value=True
-                ) as turn_off,
+                patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
                 patch('sys.stdout', new_callable=io.StringIO),
             ):
                 result = run_led_config_control(DiagnosticConfig(), 'set', path)
@@ -2206,9 +2201,9 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_timer',
@@ -2217,7 +2212,7 @@ class TwinklyControlTests(unittest.TestCase):
                     data={'time_now': 1800, 'time_on': -1, 'time_off': 7200},
                 ),
             ),
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_timer_control(DiagnosticConfig(), 'get', None, None, None)
@@ -2233,11 +2228,11 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
             patch.object(LyteClient, 'set_timer') as set_timer,
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = run_timer_control(DiagnosticConfig(), 'set', 3600, 7200, 1800)
@@ -2253,15 +2248,15 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_current_movie',
                 return_value=LyteResponse(http_status=200, data={'id': 0}),
             ) as get_current_movie,
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_movie_control(DiagnosticConfig(), 'current')
@@ -2276,15 +2271,15 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_playlist',
                 return_value=LyteResponse(http_status=200, data={'entries': []}),
             ) as get_playlist,
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_playlist_control(DiagnosticConfig(), 'list')
@@ -2299,15 +2294,15 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_network_status',
                 return_value=LyteResponse(http_status=200, data={'mode': 1}),
             ) as get_network_status,
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_network_control(DiagnosticConfig(), 'status')
@@ -2322,15 +2317,15 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_mqtt_config',
                 return_value=LyteResponse(http_status=200, data={'enabled': False}),
             ) as get_mqtt_config,
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_mqtt_control(DiagnosticConfig(), 'config')
@@ -2345,15 +2340,15 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_mic_sample',
                 return_value=LyteResponse(http_status=200, data={'sample': 3}),
             ) as get_mic_sample,
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_mic_control(DiagnosticConfig(), 'sample')
@@ -2368,15 +2363,15 @@ class TwinklyControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
-            patch('lyte.twinkly.LyteClient', return_value=client),
-            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch(f'{CONTROL}.discover_host', return_value='192.168.1.23'),
+            patch(f'{CONTROL}.LyteClient', return_value=client),
+            patch(f'{CONTROL}.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_current_music_driver_set',
                 return_value=LyteResponse(http_status=200, data={'id': 1}),
             ) as get_current_music_driver_set,
-            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
+            patch(f'{CONTROL}.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_music_control(DiagnosticConfig(), 'current-driver-set')
@@ -3011,7 +3006,7 @@ class RetryableTestError(Exception):
 class DiagnosticTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.diagnostic = importlib.import_module('lyte.realtime_diagnostic')
+        cls.diagnostic = importlib.import_module('lyte.twinkly.realtime_diagnostic')
 
     def test_discover_one_retries_empty_discovery_attempts(self) -> None:
         calls = 0
