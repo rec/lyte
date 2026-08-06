@@ -41,7 +41,6 @@ from .animations.hamiltonian import (
     hamiltonian_colors,
 )
 from .animations.random_walk import RandomWalk
-from .diagnostic import DiagnosticConfig, TwinklyDeviceInfo, TwinklyEndpointReport
 from .errors import (
     AuthenticationError,
     DiscoveryError,
@@ -49,9 +48,16 @@ from .errors import (
     ProtocolError,
     UnsupportedEndpointError,
 )
-from .network.client import LyteClient
-from .network.discovery import DiscoveredDevice, discover
-from .network.session import (
+from .preview import Layout, animation_document, render_animation_html
+from .retry import RetryConfig, retry_call
+from .twinkly.client import LyteClient
+from .twinkly.diagnostic import (
+    DiagnosticConfig,
+    TwinklyDeviceInfo,
+    TwinklyEndpointReport,
+)
+from .twinkly.discovery import DiscoveredDevice, discover
+from .twinkly.session import (
     authenticate_with_retry,
     led_count_from_gestalt,
     read_gestalt,
@@ -61,8 +67,6 @@ from .network.session import (
     set_realtime_mode_with_retry,
     twinkly_request_label,
 )
-from .preview import Layout, animation_document, render_animation_html
-from .retry import RetryConfig, retry_call
 
 __all__ = [
     'AuthenticationError',

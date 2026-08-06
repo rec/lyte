@@ -18,9 +18,6 @@ from numpy.typing import NDArray
 from .animation import Device, validate_byte_rgb_frame
 from .animations.bibliopixel import RGB
 from .logging import log, log_error, log_status
-from .network.client import LyteClient
-from .network.discovery import discover
-from .network.session import read_gestalt, set_mac_from_gestalt, set_off_mode_with_retry
 from .retry import RetryConfig
 from .runtime import (
     authenticate_device,
@@ -28,6 +25,9 @@ from .runtime import (
     send_authenticated_frame,
     set_device_realtime_mode,
 )
+from .twinkly.client import LyteClient
+from .twinkly.discovery import discover
+from .twinkly.session import read_gestalt, set_mac_from_gestalt, set_off_mode_with_retry
 
 FPS_VALUES: tuple[float, ...] = (30.0, 60.0, 120.0, 240, 480, 960, 1920)
 LOW_CONTRAST_BLEND: tuple[RGB, RGB] = ((255, 0, 80), (0, 160, 255))
