@@ -13,7 +13,7 @@ from .network.client import LyteClient
 from .network.session import (
     set_mac_from_gestalt,
     turn_off_with_retry,
-    xled_request_label,
+    twinkly_request_label,
 )
 from .realtime_diagnostic import RealtimeDiagnosticConfig, run_realtime_diagnostic
 from .retry import RetryConfig, retry_call
@@ -56,7 +56,7 @@ class TwinklyDeviceInfo(BaseModel, frozen=True):
         )
 
 
-class XledEndpointReport(BaseModel, frozen=True):
+class TwinklyEndpointReport(BaseModel, frozen=True):
     name: str
     path: str
     supported: bool
@@ -174,7 +174,7 @@ def run_diagnostic(config: DiagnosticConfig) -> int:
     for report in unauthenticated_reports:
         report_endpoint(report)
 
-    if authenticate_device(client, retry, xled_request_label('POST', 'login', host)):
+    if authenticate_device(client, retry, twinkly_request_label('POST', 'login', host)):
         off_succeeded = True
         try:
             for report in authenticated_reports(client, retry):
@@ -203,7 +203,7 @@ def validate_diagnostic_config(config: DiagnosticConfig) -> None:
 def authenticated_reports(
     client: LyteClient,
     retry: RetryConfig,
-) -> tuple[XledEndpointReport, ...]:
+) -> tuple[TwinklyEndpointReport, ...]:
     return (
         read_endpoint(
             client,
@@ -423,17 +423,17 @@ def read_endpoint(
     method: str,
     path: str,
     request: Callable[[], dict[str, object]],
-) -> XledEndpointReport:
-    def read_once() -> XledEndpointReport:
+) -> TwinklyEndpointReport:
+    def read_once() -> TwinklyEndpointReport:
         try:
-            return XledEndpointReport(
+            return TwinklyEndpointReport(
                 name=name,
                 path=path,
                 supported=True,
                 data=request(),
             )
         except UnsupportedEndpointError as err:
-            return XledEndpointReport(
+            return TwinklyEndpointReport(
                 name=name,
                 path=path,
                 supported=False,
@@ -441,14 +441,14 @@ def read_endpoint(
             )
 
     result = retry_call(
-        xled_request_label(method, path, client.host),
+        twinkly_request_label(method, path, client.host),
         retry,
         read_once,
         (AuthenticationError, ProtocolError),
     )
     if result is not None:
         return result
-    return XledEndpointReport(
+    return TwinklyEndpointReport(
         name=name,
         path=path,
         supported=False,
@@ -472,7 +472,7 @@ def report_device_info(device: TwinklyDeviceInfo) -> None:
     log_status(f'[diagnostic] Max supported LED: {display(device.max_supported_led)}')
 
 
-def report_endpoint(report: XledEndpointReport) -> None:
+def report_endpoint(report: TwinklyEndpointReport) -> None:
     if report.supported:
         log_status(f'[diagnostic] {report.name}: {report.data}')
     else:

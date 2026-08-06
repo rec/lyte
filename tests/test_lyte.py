@@ -62,7 +62,7 @@ from lyte.diagnostic import (
     DiagnosticCommandConfig,
     DiagnosticConfig,
     TwinklyDeviceInfo,
-    XledEndpointReport,
+    TwinklyEndpointReport,
     authenticated_reports,
     read_endpoint,
     run_diagnostic,
@@ -100,7 +100,7 @@ from lyte.fps_test import (
 )
 from lyte.logging import LOGGING, log, log_error, log_status
 from lyte.network.authentication import CHALLENGE_KEY, derive_key, mac_bytes, rc4
-from lyte.network.client import LyteClient, LyteResponse
+from lyte.network.client import TWINKLY_API_PREFIX, LyteClient, LyteResponse
 from lyte.network.discovery import DiscoveredDevice, parse_discovery_response
 from lyte.network.frame import (
     frame_packets_v3,
@@ -111,15 +111,15 @@ from lyte.network.session import (
     led_count_from_gestalt,
     set_mac_from_gestalt,
     turn_off_with_retry,
-    xled_request_label,
+    twinkly_request_label,
 )
 from lyte.preview import Layout, animation_document, render_animation_html
 from lyte.retry import RetryConfig, retry_call
 from lyte.runtime import read_device_led_count, send_authenticated_frame
-from lyte.xled import (
+from lyte.twinkly import (
     OutputControl,
-    XledLayout,
-    XledTimer,
+    TwinklyLayout,
+    TwinklyTimer,
     read_output_control,
     run_color_control,
     run_effect_control,
@@ -1158,7 +1158,7 @@ class ClientTests(unittest.TestCase):
                     80,
                     5.0,
                     'DELETE',
-                    '/xled/v1/movies',
+                    f'{TWINKLY_API_PREFIX}/movies',
                     None,
                     {'Content-Type': 'application/json'},
                 )
@@ -1188,7 +1188,7 @@ class ClientTests(unittest.TestCase):
                     80,
                     5.0,
                     'POST',
-                    '/xled/v1/movies/full',
+                    f'{TWINKLY_API_PREFIX}/movies/full',
                     b'\x01\x02\x03',
                     {
                         'Content-Type': 'application/octet-stream',
@@ -1514,10 +1514,10 @@ class ClientTests(unittest.TestCase):
 
 
 class SessionTests(unittest.TestCase):
-    def test_xled_request_label_includes_method_path_and_host(self) -> None:
+    def test_twinkly_request_label_includes_method_path_and_host(self) -> None:
         self.assertEqual(
-            xled_request_label('get', 'fw/version', '192.168.1.23'),
-            'GET /xled/v1/fw/version on 192.168.1.23',
+            twinkly_request_label('get', 'fw/version', '192.168.1.23'),
+            f'GET {TWINKLY_API_PREFIX}/fw/version on 192.168.1.23',
         )
 
     def test_set_mac_from_gestalt_updates_client(self) -> None:
@@ -1533,7 +1533,7 @@ class SessionTests(unittest.TestCase):
         self.assertIsNone(led_count_from_gestalt({'number_of_led': 0}))
         self.assertIsNone(led_count_from_gestalt({'number_of_led': '250'}))
 
-    def test_turn_off_with_retry_uses_xled_label(self) -> None:
+    def test_turn_off_with_retry_uses_twinkly_label(self) -> None:
         labels = []
 
         def set_off_mode(
@@ -1552,7 +1552,9 @@ class SessionTests(unittest.TestCase):
             )
 
         self.assertTrue(result)
-        self.assertEqual(labels, ['POST /xled/v1/led/mode on 192.168.1.23'])
+        self.assertEqual(
+            labels, [f'POST {TWINKLY_API_PREFIX}/led/mode on 192.168.1.23']
+        )
 
 
 class PackageDiagnosticTests(unittest.TestCase):
@@ -1600,7 +1602,7 @@ class PackageDiagnosticTests(unittest.TestCase):
 
         self.assertEqual(
             report,
-            XledEndpointReport(
+            TwinklyEndpointReport(
                 name='summary',
                 path='summary',
                 supported=False,
@@ -1827,19 +1829,19 @@ class PackageDiagnosticTests(unittest.TestCase):
             patch(
                 'lyte.diagnostic.read_endpoint',
                 side_effect=(
-                    XledEndpointReport(
+                    TwinklyEndpointReport(
                         name='gestalt',
                         path='gestalt',
                         supported=True,
                         data={'device_name': 'Tree', 'mac': 'AA', 'number_of_led': 250},
                     ),
-                    XledEndpointReport(
+                    TwinklyEndpointReport(
                         name='firmware',
                         path='fw/version',
                         supported=True,
                         data={'version': '1.0'},
                     ),
-                    XledEndpointReport(
+                    TwinklyEndpointReport(
                         name='status',
                         path='status',
                         supported=True,
@@ -1860,7 +1862,7 @@ class PackageDiagnosticTests(unittest.TestCase):
         self.assertIn('Device name: Tree', output.getvalue())
         self.assertIn("firmware: {'version': '1.0'}", output.getvalue())
 
-    def test_diagnostic_command_runs_xled_diagnostic_by_default(self) -> None:
+    def test_diagnostic_command_runs_twinkly_diagnostic_by_default(self) -> None:
         with patch('lyte.diagnostic.run_diagnostic', return_value=0) as diagnostic:
             result = run_diagnostic_command(
                 DiagnosticCommandConfig(host='192.168.1.23', attempts=2)
@@ -1890,7 +1892,7 @@ class PackageDiagnosticTests(unittest.TestCase):
         self.assertEqual(config.discovery_timeout, 0.1)
 
 
-class XledControlTests(unittest.TestCase):
+class TwinklyControlTests(unittest.TestCase):
     def test_output_control_accepts_string_values_from_device(self) -> None:
         control = OutputControl.from_response({'mode': 'enabled', 'value': '75'})
 
@@ -1905,7 +1907,7 @@ class XledControlTests(unittest.TestCase):
         )
 
     def test_layout_model_accepts_documented_shape(self) -> None:
-        layout = XledLayout.from_response(
+        layout = TwinklyLayout.from_response(
             {
                 'aspectXY': 1,
                 'aspectXZ': 2,
@@ -1929,7 +1931,7 @@ class XledControlTests(unittest.TestCase):
         )
 
     def test_timer_model_uses_seconds_after_midnight(self) -> None:
-        timer = XledTimer.from_response(
+        timer = TwinklyTimer.from_response(
             {'time_now': 1800, 'time_on': -1, 'time_off': 7200, 'code': 1000}
         )
 
@@ -1943,7 +1945,7 @@ class XledControlTests(unittest.TestCase):
 
     def test_timer_request_can_omit_current_time(self) -> None:
         self.assertEqual(
-            XledTimer(time_on=3600, time_off=7200).request_body(),
+            TwinklyTimer(time_on=3600, time_off=7200).request_body(),
             {'time_on': 3600, 'time_off': 7200},
         )
 
@@ -1999,14 +2001,14 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
             patch(
-                'lyte.xled.read_output_control',
+                'lyte.twinkly.read_output_control',
                 return_value=OutputControl(value=75),
             ),
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_output_control(
@@ -2025,11 +2027,11 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
-            patch('lyte.xled.write_output_control') as write_output_control,
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
+            patch('lyte.twinkly.write_output_control') as write_output_control,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_output_control(
@@ -2055,11 +2057,11 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
             patch.object(LyteClient, 'set_led_mode') as set_led_mode,
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = run_mode_control(DiagnosticConfig(), 'set', 'demo')
@@ -2072,11 +2074,11 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
             patch.object(LyteClient, 'set_led_color') as set_led_color,
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = run_color_control(DiagnosticConfig(), 'set', 1, 2, 3)
@@ -2091,11 +2093,11 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
             patch.object(LyteClient, 'set_current_effect') as set_current_effect,
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = run_effect_control(DiagnosticConfig(), 'set-current', 4)
@@ -2111,9 +2113,9 @@ class XledControlTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'layout.json'
             with (
-                patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-                patch('lyte.xled.LyteClient', return_value=client),
-                patch('lyte.xled.prepare_authenticated_client'),
+                patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+                patch('lyte.twinkly.LyteClient', return_value=client),
+                patch('lyte.twinkly.prepare_authenticated_client'),
                 patch.object(
                     LyteClient,
                     'get_layout_full',
@@ -2122,7 +2124,9 @@ class XledControlTests(unittest.TestCase):
                         data={'source': '3d', 'coordinates': []},
                     ),
                 ),
-                patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+                patch(
+                    'lyte.twinkly.turn_off_with_retry', return_value=True
+                ) as turn_off,
                 patch('sys.stdout', output),
             ):
                 result = run_layout_control(DiagnosticConfig(), 'export', path)
@@ -2152,11 +2156,13 @@ class XledControlTests(unittest.TestCase):
                 )
             )
             with (
-                patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-                patch('lyte.xled.LyteClient', return_value=client),
-                patch('lyte.xled.prepare_authenticated_client'),
+                patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+                patch('lyte.twinkly.LyteClient', return_value=client),
+                patch('lyte.twinkly.prepare_authenticated_client'),
                 patch.object(LyteClient, 'set_layout_full') as set_layout_full,
-                patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+                patch(
+                    'lyte.twinkly.turn_off_with_retry', return_value=True
+                ) as turn_off,
                 patch('sys.stdout', new_callable=io.StringIO),
             ):
                 result = run_layout_control(DiagnosticConfig(), 'upload', path)
@@ -2180,11 +2186,13 @@ class XledControlTests(unittest.TestCase):
             path = Path(directory) / 'config.json'
             path.write_text(json.dumps({'strings': [{'first_led_id': 0}]}))
             with (
-                patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-                patch('lyte.xled.LyteClient', return_value=client),
-                patch('lyte.xled.prepare_authenticated_client'),
+                patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+                patch('lyte.twinkly.LyteClient', return_value=client),
+                patch('lyte.twinkly.prepare_authenticated_client'),
                 patch.object(LyteClient, 'set_led_config') as set_led_config,
-                patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+                patch(
+                    'lyte.twinkly.turn_off_with_retry', return_value=True
+                ) as turn_off,
                 patch('sys.stdout', new_callable=io.StringIO),
             ):
                 result = run_led_config_control(DiagnosticConfig(), 'set', path)
@@ -2198,9 +2206,9 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_timer',
@@ -2209,7 +2217,7 @@ class XledControlTests(unittest.TestCase):
                     data={'time_now': 1800, 'time_on': -1, 'time_off': 7200},
                 ),
             ),
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_timer_control(DiagnosticConfig(), 'get', None, None, None)
@@ -2225,11 +2233,11 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
             patch.object(LyteClient, 'set_timer') as set_timer,
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             result = run_timer_control(DiagnosticConfig(), 'set', 3600, 7200, 1800)
@@ -2245,15 +2253,15 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_current_movie',
                 return_value=LyteResponse(http_status=200, data={'id': 0}),
             ) as get_current_movie,
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_movie_control(DiagnosticConfig(), 'current')
@@ -2268,15 +2276,15 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_playlist',
                 return_value=LyteResponse(http_status=200, data={'entries': []}),
             ) as get_playlist,
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_playlist_control(DiagnosticConfig(), 'list')
@@ -2291,15 +2299,15 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_network_status',
                 return_value=LyteResponse(http_status=200, data={'mode': 1}),
             ) as get_network_status,
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_network_control(DiagnosticConfig(), 'status')
@@ -2314,15 +2322,15 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_mqtt_config',
                 return_value=LyteResponse(http_status=200, data={'enabled': False}),
             ) as get_mqtt_config,
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_mqtt_control(DiagnosticConfig(), 'config')
@@ -2337,15 +2345,15 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_mic_sample',
                 return_value=LyteResponse(http_status=200, data={'sample': 3}),
             ) as get_mic_sample,
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_mic_control(DiagnosticConfig(), 'sample')
@@ -2360,15 +2368,15 @@ class XledControlTests(unittest.TestCase):
         client = LyteClient(host='192.168.1.23')
 
         with (
-            patch('lyte.xled.discover_host', return_value='192.168.1.23'),
-            patch('lyte.xled.LyteClient', return_value=client),
-            patch('lyte.xled.prepare_authenticated_client'),
+            patch('lyte.twinkly.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.LyteClient', return_value=client),
+            patch('lyte.twinkly.prepare_authenticated_client'),
             patch.object(
                 LyteClient,
                 'get_current_music_driver_set',
                 return_value=LyteResponse(http_status=200, data={'id': 1}),
             ) as get_current_music_driver_set,
-            patch('lyte.xled.turn_off_with_retry', return_value=True) as turn_off,
+            patch('lyte.twinkly.turn_off_with_retry', return_value=True) as turn_off,
             patch('sys.stdout', output),
         ):
             result = run_music_control(DiagnosticConfig(), 'current-driver-set')

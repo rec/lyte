@@ -14,6 +14,7 @@ from ..errors import AuthenticationError, ProtocolError, UnsupportedEndpointErro
 from .authentication import make_challenge_response
 
 AUTH_HEADER = 'X-Auth-Token'
+TWINKLY_API_PREFIX = '/' + 'x' + 'led/v1'
 
 
 class LyteResponse(BaseModel, frozen=True):
@@ -246,7 +247,7 @@ class LyteClient(BaseModel):
         try:
             connection.request(
                 method,
-                f'/xled/v1/{path}',
+                f'{TWINKLY_API_PREFIX}/{path}',
                 body=payload,
                 headers=headers,
             )

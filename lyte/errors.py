@@ -14,12 +14,12 @@ class ProtocolError(LyteError):
 
 
 class UnsupportedEndpointError(ProtocolError):
-    """The device does not support an XLED endpoint."""
+    """The device does not support a Twinkly endpoint."""
 
     def __init__(self, path: str, text: str) -> None:
         self.path = path
         self.text = text
-        super().__init__(f'XLED endpoint {path!r} is not supported: {text}')
+        super().__init__(f'Twinkly endpoint {path!r} is not supported: {text}')
 
 
 class AuthenticationError(LyteError):

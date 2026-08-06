@@ -24,7 +24,7 @@ from .fps_test import (
     run_verify_test,
 )
 from .preview_command import PreviewConfig, run_preview
-from .xled import (
+from .twinkly import (
     ColorAction,
     EffectAction,
     LayoutAction,

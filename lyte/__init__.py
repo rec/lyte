@@ -41,7 +41,7 @@ from .animations.hamiltonian import (
     hamiltonian_colors,
 )
 from .animations.random_walk import RandomWalk
-from .diagnostic import DiagnosticConfig, TwinklyDeviceInfo, XledEndpointReport
+from .diagnostic import DiagnosticConfig, TwinklyDeviceInfo, TwinklyEndpointReport
 from .errors import (
     AuthenticationError,
     DiscoveryError,
@@ -59,7 +59,7 @@ from .network.session import (
     set_mac_from_gestalt,
     set_off_mode_with_retry,
     set_realtime_mode_with_retry,
-    xled_request_label,
+    twinkly_request_label,
 )
 from .preview import Layout, animation_document, render_animation_html
 from .retry import RetryConfig, retry_call
@@ -105,7 +105,7 @@ __all__ = [
     'TwinklyDeviceInfo',
     'Wave',
     'WhiteTwinkle',
-    'XledEndpointReport',
+    'TwinklyEndpointReport',
     'authenticate_with_retry',
     'animation_document',
     'discover',
@@ -123,5 +123,5 @@ __all__ = [
     'validate_byte_rgb_frame',
     'validate_float_light_frame',
     'validate_frame',
-    'xled_request_label',
+    'twinkly_request_label',
 ]

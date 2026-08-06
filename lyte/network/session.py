@@ -7,12 +7,12 @@ from numpy.typing import NDArray
 
 from ..errors import AuthenticationError, ProtocolError
 from ..retry import RetryConfig, retry_call
-from .client import AuthToken, LyteClient, LyteResponse
+from .client import TWINKLY_API_PREFIX, AuthToken, LyteClient, LyteResponse
 from .frame import send_frame_v3
 
 
-def xled_request_label(method: str, path: str, host: str) -> str:
-    return f'{method.upper()} /xled/v1/{path} on {host}'
+def twinkly_request_label(method: str, path: str, host: str) -> str:
+    return f'{method.upper()} {TWINKLY_API_PREFIX}/{path} on {host}'
 
 
 def read_gestalt(
@@ -89,7 +89,7 @@ def turn_off_with_retry(client: LyteClient, retry: RetryConfig, host: str) -> bo
         set_off_mode_with_retry(
             client,
             retry,
-            xled_request_label('POST', 'led/mode', host),
+            twinkly_request_label('POST', 'led/mode', host),
         )
         is not None
     )

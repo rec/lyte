@@ -10,8 +10,8 @@ but I want to preserve my animations for the lights I have.
 But the only library for the Twinkly protocol uses all sorts of heavy dependencies,
 in particular zeromq, which means only one client per network, which is silly.
 
-This package uses the reverse engineering work of the xled package but in
-a new a stripped build.
+This package uses prior reverse engineering work on the Twinkly protocol,
+but in a stripped-down build.
 
 This is a proof of concept with:
 
