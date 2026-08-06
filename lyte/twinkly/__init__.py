@@ -8,40 +8,7 @@ from .authentication import (
     rc4,
 )
 from .client import AUTH_HEADER, TWINKLY_API_PREFIX, AuthToken, LyteClient, LyteResponse
-from .control import (
-    ColorAction,
-    EffectAction,
-    LayoutAction,
-    LedConfigAction,
-    LedMode,
-    MicAction,
-    ModeAction,
-    MovieAction,
-    MqttAction,
-    MusicAction,
-    NetworkAction,
-    OutputControl,
-    OutputControlAction,
-    PlaylistAction,
-    TimerAction,
-    TwinklyLayout,
-    TwinklyTimer,
-    read_output_control,
-    run_color_control,
-    run_effect_control,
-    run_layout_control,
-    run_led_config_control,
-    run_mic_control,
-    run_mode_control,
-    run_movie_control,
-    run_mqtt_control,
-    run_music_control,
-    run_network_control,
-    run_output_control,
-    run_playlist_control,
-    run_timer_control,
-    write_output_control,
-)
+from .command import prepare_authenticated_client, run_twinkly_command
 from .diagnostic import (
     DiagnosticCommandConfig,
     DiagnosticConfig,
@@ -54,6 +21,44 @@ from .diagnostic import (
 )
 from .discovery import DiscoveredDevice, discover, parse_discovery_response
 from .frame import frame_packets_v3, frame_payload, send_frame_v3
+from .inputs import (
+    MicAction,
+    MqttAction,
+    MusicAction,
+    run_mic_control,
+    run_mqtt_control,
+    run_music_control,
+)
+from .layout import (
+    LayoutAction,
+    LedConfigAction,
+    TwinklyLayout,
+    run_layout_control,
+    run_led_config_control,
+)
+from .media import (
+    MovieAction,
+    PlaylistAction,
+    run_movie_control,
+    run_playlist_control,
+)
+from .mode import (
+    ColorAction,
+    EffectAction,
+    LedMode,
+    ModeAction,
+    run_color_control,
+    run_effect_control,
+    run_mode_control,
+)
+from .networking import NetworkAction, run_network_control
+from .output import (
+    OutputControl,
+    OutputControlAction,
+    read_output_control,
+    run_output_control,
+    write_output_control,
+)
 from .realtime import (
     discover_host,
     prepare_device,
@@ -73,6 +78,7 @@ from .session import (
     turn_off_with_retry,
     twinkly_request_label,
 )
+from .timer import TimerAction, TwinklyTimer, run_timer_control
 
 __all__ = [
     'AUTH_HEADER',
@@ -108,20 +114,18 @@ __all__ = [
     'derive_key',
     'discover',
     'discover_host',
-    'prepare_device',
-    'read_led_count',
-    'send_realtime_frame',
-    'turn_off_device',
-    'turn_off_streaming_device',
     'frame_packets_v3',
     'frame_payload',
     'led_count_from_gestalt',
     'mac_bytes',
     'make_challenge_response',
     'parse_discovery_response',
+    'prepare_authenticated_client',
+    'prepare_device',
     'rc4',
     'read_endpoint',
     'read_gestalt',
+    'read_led_count',
     'read_output_control',
     'run_color_control',
     'run_diagnostic',
@@ -138,11 +142,15 @@ __all__ = [
     'run_output_control',
     'run_playlist_control',
     'run_timer_control',
+    'run_twinkly_command',
     'send_frame_v3',
     'send_frame_with_retry',
+    'send_realtime_frame',
     'set_mac_from_gestalt',
     'set_off_mode_with_retry',
     'set_realtime_mode_with_retry',
+    'turn_off_device',
+    'turn_off_streaming_device',
     'turn_off_with_retry',
     'twinkly_request_label',
     'write_output_control',
