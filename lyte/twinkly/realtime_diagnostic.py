@@ -10,12 +10,6 @@ from ..animations.colors import solid_rgb_frame
 from ..errors import DiscoveryError, ProtocolError
 from ..logging import log, log_error
 from ..retry import RetryConfig, retry_call
-from ..runtime import (
-    authenticate_device,
-    read_device_led_count,
-    send_authenticated_frame,
-    set_device_realtime_mode,
-)
 from .client import TwinklyClient
 from .discovery import (
     DEFAULT_BROADCAST,
@@ -25,6 +19,10 @@ from .discovery import (
     parse_discovery_response,
 )
 from .session import (
+    authenticate_device,
+    read_device_led_count,
+    send_authenticated_frame,
+    set_device_realtime_mode,
     set_mac_from_gestalt,
 )
 

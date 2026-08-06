@@ -6,11 +6,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ..retry import RetryConfig
-from ..runtime import authenticate_device
 from .client import TwinklyClient
 from .diagnostic import DiagnosticConfig
 from .realtime import discover_host
 from .session import (
+    authenticate_device,
     read_gestalt,
     set_mac_from_gestalt,
     turn_off_with_retry,

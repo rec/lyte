@@ -91,7 +91,6 @@ from lyte.fps_test import (
 from lyte.logging import LOGGING, log, log_error, log_status
 from lyte.preview import Layout, animation_document, render_animation_html
 from lyte.retry import RetryConfig, retry_call
-from lyte.runtime import read_device_led_count, send_authenticated_frame
 from lyte.twinkly import (
     OutputControl,
     TwinklyLayout,
@@ -132,6 +131,8 @@ from lyte.twinkly.frame import (
 )
 from lyte.twinkly.session import (
     led_count_from_gestalt,
+    read_device_led_count,
+    send_authenticated_frame,
     set_mac_from_gestalt,
     turn_off_with_retry,
     twinkly_request_label,
@@ -2395,7 +2396,7 @@ class RuntimeTests(unittest.TestCase):
         client = TwinklyClient(host='192.168.1.23')
 
         with patch(
-            'lyte.runtime.read_gestalt',
+            'lyte.twinkly.session.read_gestalt',
             return_value={'mac': 'AA', 'number_of_led': 250},
         ):
             led_count, gestalt = read_device_led_count(
@@ -2413,7 +2414,7 @@ class RuntimeTests(unittest.TestCase):
         client = TwinklyClient(host='192.168.1.23')
 
         with patch(
-            'lyte.runtime.read_gestalt',
+            'lyte.twinkly.session.read_gestalt',
             return_value={'mac': 'AA', 'number_of_led': 250},
         ):
             led_count, _gestalt = read_device_led_count(
