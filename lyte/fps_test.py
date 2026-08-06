@@ -16,7 +16,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .animation import Device, validate_byte_rgb_frame
-from .animations.bibliopixel import RGB
+from .animations.colors import RGB
 from .logging import log, log_error, log_status
 from .retry import RetryConfig
 from .twinkly import realtime

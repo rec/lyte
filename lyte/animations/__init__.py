@@ -1,1 +1,0 @@
-"""Animation implementations for Lyte."""

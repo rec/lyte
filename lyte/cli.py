@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# ruff: noqa: I001
+
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -7,10 +9,18 @@ from typing import Annotated
 
 import tyro
 
-from . import fps_test, twinkly
-from .animate import AnimateConfig, run_animate
+from . import fps_test
+from .animate.config import AnimateConfig
+from .animate.playback import run_animate
 from .preview.command import PreviewConfig, run_preview
 from .twinkly import diagnostic
+from .twinkly import inputs
+from .twinkly import layout
+from .twinkly import media
+from .twinkly import mode
+from .twinkly import networking
+from .twinkly import output
+from .twinkly import timer
 
 
 @dataclass(frozen=True)
@@ -35,25 +45,25 @@ class DeviceCommandConfig:
 
 @dataclass(frozen=True)
 class BrightnessConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.OutputControlAction, tyro.conf.Positional] = 'get'
+    action: Annotated[output.OutputControlAction, tyro.conf.Positional] = 'get'
     value: Annotated[int | None, tyro.conf.Positional] = None
 
 
 @dataclass(frozen=True)
 class SaturationConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.OutputControlAction, tyro.conf.Positional] = 'get'
+    action: Annotated[output.OutputControlAction, tyro.conf.Positional] = 'get'
     value: Annotated[int | None, tyro.conf.Positional] = None
 
 
 @dataclass(frozen=True)
 class ModeConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.ModeAction, tyro.conf.Positional] = 'get'
-    value: Annotated[twinkly.LedMode | None, tyro.conf.Positional] = None
+    action: Annotated[mode.ModeAction, tyro.conf.Positional] = 'get'
+    value: Annotated[mode.LedMode | None, tyro.conf.Positional] = None
 
 
 @dataclass(frozen=True)
 class ColorConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.ColorAction, tyro.conf.Positional] = 'get'
+    action: Annotated[mode.ColorAction, tyro.conf.Positional] = 'get'
     red: Annotated[int | None, tyro.conf.Positional] = None
     green: Annotated[int | None, tyro.conf.Positional] = None
     blue: Annotated[int | None, tyro.conf.Positional] = None
@@ -61,25 +71,25 @@ class ColorConfig(DeviceCommandConfig):
 
 @dataclass(frozen=True)
 class EffectsConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.EffectAction, tyro.conf.Positional] = 'list'
+    action: Annotated[mode.EffectAction, tyro.conf.Positional] = 'list'
     effect_id: Annotated[int | None, tyro.conf.Positional] = None
 
 
 @dataclass(frozen=True)
 class LayoutConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.LayoutAction, tyro.conf.Positional] = 'get'
+    action: Annotated[layout.LayoutAction, tyro.conf.Positional] = 'get'
     path: Annotated[Path | None, tyro.conf.Positional] = None
 
 
 @dataclass(frozen=True)
 class LedConfigConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.LedConfigAction, tyro.conf.Positional] = 'get'
+    action: Annotated[layout.LedConfigAction, tyro.conf.Positional] = 'get'
     path: Annotated[Path | None, tyro.conf.Positional] = None
 
 
 @dataclass(frozen=True)
 class TimerConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.TimerAction, tyro.conf.Positional] = 'get'
+    action: Annotated[timer.TimerAction, tyro.conf.Positional] = 'get'
     time_on: Annotated[int | None, tyro.conf.Positional] = None
     time_off: Annotated[int | None, tyro.conf.Positional] = None
     time_now: int | None = None
@@ -87,32 +97,32 @@ class TimerConfig(DeviceCommandConfig):
 
 @dataclass(frozen=True)
 class MovieConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.MovieAction, tyro.conf.Positional] = 'list'
+    action: Annotated[media.MovieAction, tyro.conf.Positional] = 'list'
 
 
 @dataclass(frozen=True)
 class PlaylistConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.PlaylistAction, tyro.conf.Positional] = 'list'
+    action: Annotated[media.PlaylistAction, tyro.conf.Positional] = 'list'
 
 
 @dataclass(frozen=True)
 class NetworkConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.NetworkAction, tyro.conf.Positional] = 'status'
+    action: Annotated[networking.NetworkAction, tyro.conf.Positional] = 'status'
 
 
 @dataclass(frozen=True)
 class MqttConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.MqttAction, tyro.conf.Positional] = 'config'
+    action: Annotated[inputs.MqttAction, tyro.conf.Positional] = 'config'
 
 
 @dataclass(frozen=True)
 class MicConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.MicAction, tyro.conf.Positional] = 'config'
+    action: Annotated[inputs.MicAction, tyro.conf.Positional] = 'config'
 
 
 @dataclass(frozen=True)
 class MusicConfig(DeviceCommandConfig):
-    action: Annotated[twinkly.MusicAction, tyro.conf.Positional] = 'drivers'
+    action: Annotated[inputs.MusicAction, tyro.conf.Positional] = 'drivers'
 
 
 def main(args: Sequence[str] | None = None) -> int:
@@ -152,11 +162,11 @@ def run_command(config: object) -> int:
     if isinstance(config, fps_test.BlackFloorTestConfig):
         return fps_test.run_black_floor_test(config)
     if isinstance(config, BrightnessConfig):
-        return twinkly.run_output_control(
+        return output.run_output_control(
             config.diagnostic_config(), 'brightness', config.action, config.value
         )
     if isinstance(config, ColorConfig):
-        return twinkly.run_color_control(
+        return mode.run_color_control(
             config.diagnostic_config(),
             config.action,
             config.red,
@@ -166,45 +176,45 @@ def run_command(config: object) -> int:
     if isinstance(config, diagnostic.DiagnosticCommandConfig):
         return diagnostic.run_diagnostic_command(config)
     if isinstance(config, EffectsConfig):
-        return twinkly.run_effect_control(
+        return mode.run_effect_control(
             config.diagnostic_config(), config.action, config.effect_id
         )
     if isinstance(config, fps_test.FpsTestConfig):
         return fps_test.run_fps_test(config)
     if isinstance(config, LayoutConfig):
-        return twinkly.run_layout_control(
+        return layout.run_layout_control(
             config.diagnostic_config(), config.action, config.path
         )
     if isinstance(config, LedConfigConfig):
-        return twinkly.run_led_config_control(
+        return layout.run_led_config_control(
             config.diagnostic_config(), config.action, config.path
         )
     if isinstance(config, MicConfig):
-        return twinkly.run_mic_control(config.diagnostic_config(), config.action)
+        return inputs.run_mic_control(config.diagnostic_config(), config.action)
     if isinstance(config, ModeConfig):
-        return twinkly.run_mode_control(
+        return mode.run_mode_control(
             config.diagnostic_config(), config.action, config.value
         )
     if isinstance(config, MovieConfig):
-        return twinkly.run_movie_control(config.diagnostic_config(), config.action)
+        return media.run_movie_control(config.diagnostic_config(), config.action)
     if isinstance(config, MqttConfig):
-        return twinkly.run_mqtt_control(config.diagnostic_config(), config.action)
+        return inputs.run_mqtt_control(config.diagnostic_config(), config.action)
     if isinstance(config, MusicConfig):
-        return twinkly.run_music_control(config.diagnostic_config(), config.action)
+        return inputs.run_music_control(config.diagnostic_config(), config.action)
     if isinstance(config, NetworkConfig):
-        return twinkly.run_network_control(config.diagnostic_config(), config.action)
+        return networking.run_network_control(config.diagnostic_config(), config.action)
     if isinstance(config, PlaylistConfig):
-        return twinkly.run_playlist_control(config.diagnostic_config(), config.action)
+        return media.run_playlist_control(config.diagnostic_config(), config.action)
     if isinstance(config, PreviewConfig):
         return run_preview(config)
     if isinstance(config, SaturationConfig):
-        return twinkly.run_output_control(
+        return output.run_output_control(
             config.diagnostic_config(), 'saturation', config.action, config.value
         )
     if isinstance(config, fps_test.TemporalDitherTestConfig):
         return fps_test.run_temporal_dither_test(config)
     if isinstance(config, TimerConfig):
-        return twinkly.run_timer_control(
+        return timer.run_timer_control(
             config.diagnostic_config(),
             config.action,
             config.time_on,
