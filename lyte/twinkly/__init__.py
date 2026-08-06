@@ -54,6 +54,14 @@ from .diagnostic import (
 )
 from .discovery import DiscoveredDevice, discover, parse_discovery_response
 from .frame import frame_packets_v3, frame_payload, send_frame_v3
+from .realtime import (
+    discover_host,
+    prepare_device,
+    read_led_count,
+    send_realtime_frame,
+    turn_off_device,
+    turn_off_streaming_device,
+)
 from .session import (
     authenticate_with_retry,
     led_count_from_gestalt,
@@ -99,6 +107,12 @@ __all__ = [
     'authenticated_reports',
     'derive_key',
     'discover',
+    'discover_host',
+    'prepare_device',
+    'read_led_count',
+    'send_realtime_frame',
+    'turn_off_device',
+    'turn_off_streaming_device',
     'frame_packets_v3',
     'frame_payload',
     'led_count_from_gestalt',

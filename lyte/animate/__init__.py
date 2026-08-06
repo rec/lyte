@@ -1,3 +1,11 @@
+from ..twinkly.realtime import (
+    discover_host,
+    prepare_device,
+    read_led_count,
+    send_realtime_frame,
+    turn_off_device,
+    turn_off_streaming_device,
+)
 from .build import build_animation, colors_arg, rgb_arg
 from .config import (
     ANIMATIONS,
@@ -11,14 +19,6 @@ from .config import (
     AnimateConfig,
     AnimationName,
     validate_args,
-)
-from .device import (
-    discover_host,
-    prepare_device,
-    read_led_count,
-    send_realtime_frame,
-    turn_off_device,
-    turn_off_streaming_device,
 )
 from .playback import (
     blend_frames,

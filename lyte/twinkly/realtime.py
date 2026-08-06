@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import time
 
 import numpy as np
 from numpy.typing import NDArray
@@ -13,13 +14,11 @@ from ..runtime import (
     send_authenticated_frame,
     set_device_realtime_mode,
 )
-from ..twinkly.client import LyteClient
-from ..twinkly.discovery import discover
-from ..twinkly.session import (
-    read_gestalt,
-    set_mac_from_gestalt,
-    set_off_mode_with_retry,
-)
+from .client import LyteClient
+from .discovery import discover
+from .session import read_gestalt, set_mac_from_gestalt, set_off_mode_with_retry
+
+DISCOVERY_ATTEMPT_TIMEOUT = 5.0
 
 
 def send_realtime_frame(
@@ -27,7 +26,7 @@ def send_realtime_frame(
     retry: RetryConfig,
     host: str,
     frame: NDArray[np.uint8],
-) -> None:
+) -> int:
     if client.token is None:
         sys.exit('Authentication token disappeared before frame send.')
     sent = send_authenticated_frame(
@@ -39,6 +38,7 @@ def send_realtime_frame(
     )
     if sent is None:
         sys.exit(f'Could not send realtime frame to {host}.')
+    return sent
 
 
 def read_led_count(
@@ -79,12 +79,12 @@ def prepare_device(client: LyteClient, retry: RetryConfig, host: str) -> bool:
     log_status(f'[connected] Authenticated with {host}')
 
     log('[step] Switching to realtime mode')
-    realtime_response = set_device_realtime_mode(
+    response = set_device_realtime_mode(
         client,
         retry,
         f'switch {host} to realtime mode',
     )
-    if realtime_response is None:
+    if response is None:
         sys.exit(f'Could not switch {host} to realtime mode.')
     log_status(f'[connected] {host} is in realtime mode')
     return True
@@ -135,15 +135,30 @@ def turn_off_streaming_device(
     return True
 
 
-def discover_host(timeout: float) -> str | None:
+def discover_host(timeout: float | None) -> str | None:
     log('[step] Discovering Twinkly devices')
-    devices = list(discover(timeout=timeout))
-    if not devices:
-        log_error('[failed] No Twinkly discovery replies received.')
-        log_error('Pass --host with the device IP address.')
-        return None
-    if len(devices) > 1:
-        log('[warn] Multiple devices found; using the first one.')
-    device = devices[0]
-    log_status(f'[connected] Found {device.device_id} at {device.ip_address}')
-    return device.ip_address
+    started_at = time.monotonic()
+    attempts = 0
+    while True:
+        remaining = (
+            None if timeout is None else timeout - (time.monotonic() - started_at)
+        )
+        if remaining is not None and remaining <= 0:
+            log_error('[failed] No Twinkly discovery replies received.')
+            log_error('Pass --host with the device IP address.')
+            return None
+        attempt_timeout = DISCOVERY_ATTEMPT_TIMEOUT
+        if remaining is not None:
+            attempt_timeout = min(attempt_timeout, remaining)
+        attempts += 1
+        devices = list(discover(timeout=attempt_timeout))
+        if devices:
+            if len(devices) > 1:
+                log('[warn] Multiple devices found; using the first one.')
+            device = devices[0]
+            log_status(f'[connected] Found {device.device_id} at {device.ip_address}')
+            return device.ip_address
+        if timeout is None:
+            log(f'[warn] No Twinkly discovery replies on attempt {attempts}; retrying.')
+        else:
+            log(f'[warn] No Twinkly discovery replies on attempt {attempts}.')

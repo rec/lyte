@@ -7,11 +7,11 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 
 from ..errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
-from ..fps_test import discover_host
 from ..logging import log_error, log_status
 from ..retry import RetryConfig, retry_call
 from ..runtime import authenticate_device
 from .client import LyteClient
+from .realtime import discover_host
 from .realtime_diagnostic import RealtimeDiagnosticConfig, run_realtime_diagnostic
 from .session import (
     set_mac_from_gestalt,

@@ -675,7 +675,10 @@ class FpsTestTests(unittest.TestCase):
         device = DiscoveredDevice(ip_address='192.168.1.23', device_id='twinkly')
 
         with (
-            patch('lyte.fps_test.discover', side_effect=(iter(()), iter([device]))),
+            patch(
+                'lyte.twinkly.realtime.discover',
+                side_effect=(iter(()), iter([device])),
+            ),
             patch('sys.stdout', new_callable=io.StringIO),
             patch('sys.stderr', new_callable=io.StringIO),
         ):
@@ -685,8 +688,8 @@ class FpsTestTests(unittest.TestCase):
 
     def test_discover_host_stops_at_timeout(self) -> None:
         with (
-            patch('lyte.fps_test.discover', return_value=iter(())),
-            patch('lyte.fps_test.time.monotonic', side_effect=(0.0, 0.0, 1.0)),
+            patch('lyte.twinkly.realtime.discover', return_value=iter(())),
+            patch('lyte.twinkly.realtime.time.monotonic', side_effect=(0.0, 0.0, 1.0)),
             patch('sys.stdout', new_callable=io.StringIO),
             patch('sys.stderr', new_callable=io.StringIO),
         ):
@@ -3276,10 +3279,10 @@ class AnimateTests(unittest.TestCase):
     def test_off_mode_skips_realtime_streaming(self) -> None:
         with (
             patch('sys.argv', ['lyte', 'off', '--host', '192.168.1.23']),
-            patch('lyte.animate.device.read_gestalt', return_value={'mac': 'AA'}),
-            patch('lyte.animate.device.authenticate_device', return_value=object()),
+            patch('lyte.twinkly.realtime.read_gestalt', return_value={'mac': 'AA'}),
+            patch('lyte.twinkly.realtime.authenticate_device', return_value=object()),
             patch(
-                'lyte.animate.device.set_off_mode_with_retry',
+                'lyte.twinkly.realtime.set_off_mode_with_retry',
                 return_value=LyteResponse(http_status=200, data={'code': 1000}),
             ) as set_off_mode,
             patch('lyte.animate.playback.read_led_count') as read_led_count,
@@ -3298,7 +3301,7 @@ class AnimateTests(unittest.TestCase):
 
         with (
             patch(
-                'lyte.animate.device.read_device_led_count',
+                'lyte.twinkly.realtime.read_device_led_count',
                 return_value=(250, {'mac': 'AA', 'number_of_led': 250}),
             ),
             patch('sys.stdout', output),
@@ -3335,7 +3338,7 @@ class AnimateTests(unittest.TestCase):
                 return_value=BrokenAnimation(),
             ),
             patch(
-                'lyte.animate.device.set_off_mode_with_retry',
+                'lyte.twinkly.realtime.set_off_mode_with_retry',
                 return_value=LyteResponse(http_status=200, data={'code': 1000}),
             ) as set_off_mode,
             patch('sys.stdout', new_callable=io.StringIO),

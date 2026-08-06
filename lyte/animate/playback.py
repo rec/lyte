@@ -18,9 +18,7 @@ from ..animation import (
 from ..logging import log
 from ..retry import RetryConfig
 from ..twinkly.client import LyteClient
-from .build import build_animation
-from .config import AnimateConfig, validate_args
-from .device import (
+from ..twinkly.realtime import (
     discover_host,
     prepare_device,
     read_led_count,
@@ -28,6 +26,8 @@ from .device import (
     turn_off_device,
     turn_off_streaming_device,
 )
+from .build import build_animation
+from .config import AnimateConfig, validate_args
 from .random_show import (
     clipped_duration,
     log_pattern_start,
