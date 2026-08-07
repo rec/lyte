@@ -4,9 +4,14 @@ import importlib
 import tomllib
 from collections.abc import Callable
 from pathlib import Path
-from typing import cast
+from typing import Annotated, cast
 
+import tyro
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class ShowConfig(BaseModel, frozen=True):
+    files: Annotated[list[Path], tyro.conf.Positional]
 
 
 class ShowFileError(ValueError):
@@ -47,6 +52,12 @@ class ResolvedShowFile(BaseModel, frozen=True):
     mixers: dict[str, object] = Field(default_factory=dict)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+def run_show(config: ShowConfig) -> int:
+    show_file = load_show_files(config.files)
+    resolve_show_file(show_file)
+    return 0
 
 
 def load_show_file(path: Path) -> ShowFile:
