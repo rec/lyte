@@ -3,7 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 import mido
-from pydantic import BaseModel, ConfigDict
+import numpy as np
+from numpy.typing import NDArray
+from pydantic import BaseModel, ConfigDict, SkipValidation
+
+from . import animation
 
 
 class MidiIn(BaseModel, frozen=True):
@@ -57,3 +61,50 @@ class Patch[ConfigT: BaseModel, StateT: BaseModel](BaseModel, ABC):
         pass
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class LightPatch[ConfigT: BaseModel, StateT: BaseModel](Patch[ConfigT, StateT], ABC):
+    @abstractmethod
+    def render(self, device: animation.Device) -> NDArray[np.float32]:
+        pass
+
+
+class AdditiveLightPatchConfig(BaseModel, frozen=True):
+    pass
+
+
+class AdditiveLightPatchState(BaseModel):
+    pass
+
+
+class AdditiveLightPatch(LightPatch[AdditiveLightPatchConfig, AdditiveLightPatchState]):
+    patches: list[SkipValidation[LightPatch]]
+
+    def make_state(self, msg: mido.Message) -> AdditiveLightPatchState:
+        return AdditiveLightPatchState()
+
+    def receive(self, msg: mido.Message) -> None:
+        for patch in self.patches:
+            patch.receive(msg)
+
+    def render(self, device: animation.Device) -> NDArray[np.float32]:
+        if not self.patches:
+            return animation.validate_frame(
+                device, np.zeros((device.led_count, 3), dtype=np.float32)
+            )
+        return add_light_frames(
+            device, [patch.render(device) for patch in self.patches]
+        )
+
+
+def add_light_frames(
+    device: animation.Device, frames: list[NDArray[np.float32]]
+) -> NDArray[np.float32]:
+    if not frames:
+        return animation.validate_frame(
+            device, np.zeros((device.led_count, 3), dtype=np.float32)
+        )
+    total = np.zeros_like(animation.validate_frame(device, frames[0]))
+    for frame in frames:
+        total += animation.validate_frame(device, frame)
+    return np.clip(total, 0.0, 1.0)

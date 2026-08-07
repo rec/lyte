@@ -135,6 +135,84 @@ class MidiTests(unittest.TestCase):
         )
         self.assertIsNone(patch.state)
 
+    def test_additive_light_patch_adds_child_frames(self) -> None:
+        class RedConfig(BaseModel, frozen=True):
+            value: float = 0.4
+
+        class GreenConfig(BaseModel, frozen=True):
+            value: float = 0.75
+
+        class RedState(BaseModel):
+            note: int
+
+        class GreenState(BaseModel):
+            note: int
+
+        class RedPatch(midi.LightPatch[RedConfig, RedState]):
+            def make_state(self, msg: mido.Message) -> RedState:
+                return RedState(note=msg.note)
+
+            def render(self, device: animation.Device) -> NDArray[np.float32]:
+                frame = np.zeros((device.led_count, 3), dtype=np.float32)
+                if self.state is not None:
+                    frame[:, 0] = self.config.value
+                return animation.validate_frame(device, frame)
+
+        class GreenPatch(midi.LightPatch[GreenConfig, GreenState]):
+            def make_state(self, msg: mido.Message) -> GreenState:
+                return GreenState(note=msg.note)
+
+            def render(self, device: animation.Device) -> NDArray[np.float32]:
+                frame = np.zeros((device.led_count, 3), dtype=np.float32)
+                if self.state is not None:
+                    frame[:, 1] = self.config.value
+                return animation.validate_frame(device, frame)
+
+        patch = midi.AdditiveLightPatch(
+            config=midi.AdditiveLightPatchConfig(),
+            patches=[
+                RedPatch(config=RedConfig()),
+                GreenPatch(config=GreenConfig()),
+            ],
+        )
+        device = animation.Device(led_count=2)
+
+        patch.receive(mido.Message('note_on', note=64, velocity=100))
+
+        npt.assert_array_equal(
+            patch.render(device),
+            np.array([[0.4, 0.75, 0.0], [0.4, 0.75, 0.0]], dtype=np.float32),
+        )
+
+    def test_additive_light_patch_clips_added_frames(self) -> None:
+        class Config(BaseModel, frozen=True):
+            channel: int
+
+        class State(BaseModel):
+            note: int
+
+        class ConstantPatch(midi.LightPatch[Config, State]):
+            def make_state(self, msg: mido.Message) -> State:
+                return State(note=msg.note)
+
+            def render(self, device: animation.Device) -> NDArray[np.float32]:
+                frame = np.zeros((device.led_count, 3), dtype=np.float32)
+                frame[:, self.config.channel] = 0.75
+                return animation.validate_frame(device, frame)
+
+        patch = midi.AdditiveLightPatch(
+            config=midi.AdditiveLightPatchConfig(),
+            patches=[
+                ConstantPatch(config=Config(channel=0)),
+                ConstantPatch(config=Config(channel=0)),
+            ],
+        )
+
+        npt.assert_array_equal(
+            patch.render(animation.Device(led_count=1)),
+            np.array([[1.0, 0.0, 0.0]], dtype=np.float32),
+        )
+
 
 class DiscoveryTests(unittest.TestCase):
     def test_parse_discovery_response(self) -> None:
