@@ -257,6 +257,23 @@ class ShowFileTests(unittest.TestCase):
         with self.assertRaisesRegex(show.ShowFileError, 'not callable'):
             show.resolve_python_path('lyte.animation.__doc__')
 
+    def test_run_show_loads_and_resolves_files(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            show_file = root / 'show.toml'
+            show_file.write_text(
+                '[run]\n'
+                'tree = "rainbow"\n'
+                '[animations.rainbow]\n'
+                'impl = "lyte.animations.bibliopixel.rainbow.Rainbow"\n'
+                '[devices.tree]\n'
+                'kind = "twinkly"\n'
+            )
+
+            result = show.run_show(show.ShowConfig(files=[show_file]))
+
+        self.assertEqual(result, 0)
+
 
 class MidiTests(unittest.TestCase):
     def test_patch_creates_state_from_first_note_on(self) -> None:
@@ -675,6 +692,14 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(config.host, '192.168.1.23')
         self.assertEqual(config.led_count, 10)
         self.assertEqual(config.time, 4.5)
+
+    def test_cli_show_command_dispatches_show_validation(self) -> None:
+        with patch.object(cli.show, 'run_show', return_value=0) as run_show:
+            result = cli.main(['show', 'first.toml', 'second.toml'])
+
+        self.assertEqual(result, 0)
+        config = run_show.call_args.args[0]
+        self.assertEqual(config.files, [Path('first.toml'), Path('second.toml')])
 
     def test_cli_black_floor_command_dispatches_black_floor_test(self) -> None:
         with patch.object(

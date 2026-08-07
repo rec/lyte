@@ -10,6 +10,7 @@ from typing import Annotated
 import tyro
 
 from . import fps_test
+from . import show
 from .animate.config import AnimateConfig
 from .animate.playback import run_animate
 from .preview.command import PreviewConfig, run_preview
@@ -145,6 +146,7 @@ def main(args: Sequence[str] | None = None) -> int:
             'playlist': PlaylistConfig,
             'preview': PreviewConfig,
             'saturation': SaturationConfig,
+            'show': show.ShowConfig,
             'test': fps_test.FpsTestConfig,
             'test2': fps_test.TemporalDitherTestConfig,
             'timer': TimerConfig,
@@ -207,6 +209,8 @@ def run_command(config: object) -> int:
         return media.run_playlist_control(config.diagnostic_config(), config.action)
     if isinstance(config, PreviewConfig):
         return run_preview(config)
+    if isinstance(config, show.ShowConfig):
+        return show.run_show(config)
     if isinstance(config, SaturationConfig):
         return output.run_output_control(
             config.diagnostic_config(), 'saturation', config.action, config.value
