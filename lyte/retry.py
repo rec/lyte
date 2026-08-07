@@ -4,13 +4,10 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from typing import TypeVar
 
 from pydantic import BaseModel
 
 from .logging import log, log_error
-
-T = TypeVar('T')
 
 
 class RetryConfig(BaseModel, frozen=True):
@@ -20,12 +17,12 @@ class RetryConfig(BaseModel, frozen=True):
     backoff_after: int = 1
 
 
-def retry_call(
+def retry_call[Result](
     label: str,
     retry: RetryConfig,
-    operation: Callable[[], T],
+    operation: Callable[[], Result],
     retry_errors: tuple[type[BaseException], ...],
-) -> T | None:
+) -> Result | None:
     delay = retry.delay
     last_failure = ''
     for attempt in range(1, retry.attempts + 1):

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Generic, TypeVar, cast
+from typing import cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -34,12 +34,11 @@ class State(BaseModel):
         return self
 
 
-StateT = TypeVar('StateT', bound=State)
 RGB = tuple[int, int, int]
 FloatRGB = tuple[float, float, float]
 
 
-class Animation(BaseModel, Generic[StateT]):
+class Animation[StateT: State](BaseModel):
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     def initial_state(self, device: Device) -> StateT:
