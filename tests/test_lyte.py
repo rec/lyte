@@ -18,7 +18,7 @@ import mido
 import numpy as np
 from numpy import testing as npt
 from numpy.typing import NDArray
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from lyte import animation, cli, fps_test, midi
 from lyte.animate import config, random_show
@@ -66,65 +66,74 @@ def initial_state(
 
 
 class MidiTests(unittest.TestCase):
-    def test_patch_creates_listener_from_first_note_on(self) -> None:
+    def test_patch_creates_state_from_first_note_on(self) -> None:
         class Config(BaseModel, frozen=True):
             name: str = 'wx7'
 
-        class TestListener(midi.Listener):
+        class TestState(BaseModel):
+            initial_note_on: mido.Message
             events: list[str] = []
 
-        class TestPatch(midi.Patch[Config, TestListener]):
-            def make_listener(self, msg: mido.Message) -> TestListener:
-                return TestListener(patch=self, initial_note_on=msg)
+            model_config = ConfigDict(arbitrary_types_allowed=True)
+
+        class TestPatch(midi.Patch[Config, TestState]):
+            def make_state(self, msg: mido.Message) -> TestState:
+                return TestState(initial_note_on=msg)
 
         patch = TestPatch(config=Config())
         msg = mido.Message('note_on', note=64, velocity=100)
 
         patch.receive(msg)
 
-        self.assertIsNotNone(patch.listener)
-        if patch.listener is None:
-            self.fail('listener was not created')
-        self.assertEqual(patch.listener.initial_note_on, msg)
+        self.assertIsNotNone(patch.state)
+        if patch.state is None:
+            self.fail('state was not created')
+        self.assertEqual(patch.state.initial_note_on, msg)
 
-    def test_listener_normalizes_wx7_messages(self) -> None:
+    def test_patch_routes_wx7_messages_to_state_callbacks(self) -> None:
         class Config(BaseModel, frozen=True):
             name: str = 'wx7'
 
-        class TestListener(midi.Listener):
+        class TestState(BaseModel):
+            initial_note_on: mido.Message
             events: list[str] = []
 
-            def note_on(self, msg: mido.Message) -> None:
-                self.events.append(f'note-on:{msg.note}')
+            model_config = ConfigDict(arbitrary_types_allowed=True)
 
-            def note_off(self, msg: mido.Message) -> None:
-                self.events.append(f'note-off:{msg.note}')
+        class TestPatch(midi.Patch[Config, TestState]):
+            def make_state(self, msg: mido.Message) -> TestState:
+                return TestState(initial_note_on=msg)
+
+            def note_off(self) -> None:
+                if (state := self.state) is None:
+                    raise AssertionError('state was not set')
+                state.events.append('note-off')
 
             def breath_control(self, msg: mido.Message) -> None:
-                self.events.append(f'breath:{msg.value}')
+                if (state := self.state) is None:
+                    raise AssertionError('state was not set')
+                state.events.append(f'breath:{msg.value}')
 
             def pitch_bend(self, msg: mido.Message) -> None:
-                self.events.append('pitch')
-
-        class TestPatch(midi.Patch[Config, TestListener]):
-            def make_listener(self, msg: mido.Message) -> TestListener:
-                return TestListener(patch=self, initial_note_on=msg)
+                if (state := self.state) is None:
+                    raise AssertionError('state was not set')
+                state.events.append('pitch')
 
         patch = TestPatch(config=Config())
         patch.receive(mido.Message('note_on', note=64, velocity=100))
-        if patch.listener is None:
-            self.fail('listener was not created')
-        listener = patch.listener
+        if patch.state is None:
+            self.fail('state was not created')
+        state = patch.state
 
         patch.receive(mido.Message('control_change', control=2, value=96))
         patch.receive(mido.Message('pitchwheel', pitch=1024))
         patch.receive(mido.Message('note_on', note=64, velocity=0))
 
         self.assertEqual(
-            listener.events,
-            ['breath:96', 'pitch', 'note-off:64'],
+            state.events,
+            ['breath:96', 'pitch', 'note-off'],
         )
-        self.assertIsNone(patch.listener)
+        self.assertIsNone(patch.state)
 
 
 class DiscoveryTests(unittest.TestCase):
