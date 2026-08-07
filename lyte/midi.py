@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
 
 import mido
 from pydantic import BaseModel, ConfigDict
-
-ConfigT = TypeVar('ConfigT', bound=BaseModel)
 
 
 class MidiIn(BaseModel, frozen=True):
@@ -57,10 +54,7 @@ class Listener(BaseModel, ABC):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
-ListenerT = TypeVar('ListenerT', bound=Listener)
-
-
-class Patch(BaseModel, Generic[ConfigT, ListenerT], ABC):
+class Patch[ConfigT: BaseModel, ListenerT: Listener](BaseModel, ABC):
     config: ConfigT
     listener: ListenerT | None = None
 
