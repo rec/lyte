@@ -25,19 +25,6 @@ class Listener(BaseModel, ABC):
 
     """
 
-    def receive(self, msg: mido.Message) -> None:
-        if msg.type == 'control_change' and msg.control == 2:
-            self.breath_control(msg)
-        elif msg.type == 'note_on':
-            if msg.velocity == 0:
-                self.note_off(msg)
-            else:
-                self.note_on(msg)
-        elif msg.type == 'note_off':
-            self.note_off(msg)
-        elif msg.type == 'pitchwheel':
-            self.pitch_bend(msg)
-
     # Classes optionally override the below.
     def note_on(self, msg: mido.Message) -> None:
         pass
@@ -63,11 +50,25 @@ class Patch[ConfigT: BaseModel, ListenerT: Listener](BaseModel, ABC):
         pass
 
     def receive(self, msg: mido.Message) -> None:
-        if self.listener is not None:
-            self.listener.receive(msg)
-        if msg.type == 'note_on' and msg.velocity > 0:
-            self.listener = self.make_listener(msg)
-        elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
-            self.listener = None
+        match msg.type:
+            case 'control_change':
+                if self.listener is not None and msg.control == 2:
+                    self.listener.breath_control(msg)
+            case 'note_on':
+                if msg.velocity == 0:
+                    if self.listener is not None:
+                        self.listener.note_off(msg)
+                    self.listener = None
+                else:
+                    if self.listener is not None:
+                        self.listener.note_on(msg)
+                    self.listener = self.make_listener(msg)
+            case 'note_off':
+                if self.listener is not None:
+                    self.listener.note_off(msg)
+                self.listener = None
+            case 'pitchwheel':
+                if self.listener is not None:
+                    self.listener.pitch_bend(msg)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
