@@ -171,3 +171,130 @@ layers = ["vertical_warm_gradient"]
 
 [patches.static_cool_gradient]
 layers = ["vertical_cool_gradient"]
+
+
+[layers.five_color_fill]
+kind = "solid"
+color = [1.0, 0.2, 0.2]
+
+[layers.alternating_steps]
+kind = "chase"
+color = [0.2, 0.8, 1.0]
+speed = 2
+
+[layers.chest_spiral]
+kind = "rainbow"
+speed = 1
+
+[layers.limb_fill]
+kind = "solid"
+color = [0.1, 0.2, 0.8]
+
+[layers.five_phase_rainbow]
+kind = "rainbow"
+speed = 2
+
+[layers.dark_fill]
+kind = "solid"
+color = [0.02, 0.02, 0.02]
+
+[layers.region_twinkle]
+kind = "twinkle"
+color = [1.0, 1.0, 1.0]
+speed = 4
+
+[layers.five_searchlights]
+kind = "chase"
+color = [1.0, 1.0, 1.0]
+speed = 3
+
+[layers.body_chase]
+kind = "chase"
+color = [1.0, 0.1, 0.1]
+speed = 4
+
+[layers.chest_pulse]
+kind = "twinkle"
+color = [1.0, 0.0, 0.5]
+speed = 6
+
+[layers.limb_afterglow]
+kind = "twinkle"
+color = [0.1, 0.2, 1.0]
+speed = 2
+
+[layers.random_walk]
+kind = "random_walk"
+color = [0.1, 0.8, 1.0]
+speed = 10
+
+[layers.hamiltonian_stream]
+kind = "rainbow"
+speed = 3
+
+[layers.binary_counter]
+kind = "chase"
+color = [0.8, 0.8, 0.8]
+speed = 1
+
+[layers.five_phase_wave]
+kind = "rainbow"
+speed = 1
+
+[layers.rain]
+kind = "chase"
+color = [0.2, 0.5, 1.0]
+speed = 1
+
+[layers.vertical_gradient]
+kind = "rainbow"
+speed = 1
+
+[layers.left_to_right_wipe]
+kind = "chase"
+color = [1.0, 0.3, 0.0]
+speed = 2
+
+[layers.right_to_left_wipe]
+kind = "chase"
+color = [0.0, 0.5, 1.0]
+speed = 2
+
+[layers.warm_twinkle]
+kind = "twinkle"
+color = [1.0, 0.3, 0.05]
+speed = 3
+
+[layers.cool_twinkle]
+kind = "twinkle"
+color = [0.1, 0.4, 1.0]
+speed = 3
+
+[layers.white_twinkle]
+kind = "twinkle"
+color = [1.0, 1.0, 1.0]
+speed = 2
+
+[layers.low_saturation_fill]
+kind = "solid"
+color = [0.3, 0.35, 0.4]
+
+[layers.rainbow_cycle]
+kind = "rainbow"
+speed = 2
+
+[layers.black]
+kind = "solid"
+color = [0.0, 0.0, 0.0]
+
+[layers.dark_limbs]
+kind = "solid"
+color = [0.02, 0.02, 0.02]
+
+[layers.vertical_warm_gradient]
+kind = "rainbow"
+speed = 1
+
+[layers.vertical_cool_gradient]
+kind = "rainbow"
+speed = 1
