@@ -423,6 +423,58 @@ class MidiTests(unittest.TestCase):
             np.array([[1.0, 0.0, 0.0]], dtype=np.float32),
         )
 
+    def test_union_light_patch_renders_for_each_named_device(self) -> None:
+        class Config(BaseModel, frozen=True):
+            channel: int
+
+        class State(BaseModel):
+            note: int
+
+        class ConstantPatch(midi.LightPatch[Config, State]):
+            def make_state(self, msg: mido.Message) -> State:
+                return State(note=msg.note)
+
+            def render(self, device: animation.Device) -> NDArray[np.float32]:
+                frame = np.zeros((device.led_count, 3), dtype=np.float32)
+                frame[:, self.config.channel] = 0.5
+                return animation.validate_frame(device, frame)
+
+        patch = midi.UnionLightPatch(
+            config=midi.UnionLightPatchConfig(),
+            patches={
+                'tree': ConstantPatch(config=Config(channel=0)),
+                'window': ConstantPatch(config=Config(channel=1)),
+            },
+        )
+
+        frames = patch.render(
+            {
+                'tree': animation.Device(led_count=2),
+                'window': animation.Device(led_count=3),
+            }
+        )
+
+        npt.assert_array_equal(
+            frames['tree'],
+            np.array([[0.5, 0.0, 0.0], [0.5, 0.0, 0.0]], dtype=np.float32),
+        )
+        npt.assert_array_equal(
+            frames['window'],
+            np.array(
+                [[0.0, 0.5, 0.0], [0.0, 0.5, 0.0], [0.0, 0.5, 0.0]],
+                dtype=np.float32,
+            ),
+        )
+
+    def test_union_light_patch_requires_matching_device_names(self) -> None:
+        patch = midi.UnionLightPatch(
+            config=midi.UnionLightPatchConfig(),
+            patches={},
+        )
+
+        with self.assertRaisesRegex(ValueError, 'must match'):
+            patch.render({'tree': animation.Device(led_count=2)})
+
 
 class DiscoveryTests(unittest.TestCase):
     def test_parse_discovery_response(self) -> None:
