@@ -15,7 +15,7 @@ class ExponentialFadeState(State):
     pixels: NDArray[np.float32]
 
 
-class ExponentialFade(Animation[ExponentialFadeState]):
+class ExponentialFade(Animation[ExponentialFadeState], frozen=True):
     ratio: float = 0.98
     color: RGB = (255, 0, 0)
 
@@ -46,7 +46,7 @@ class RandomizeState(State):
     generator: np.random.Generator
 
 
-class Randomize(Animation[RandomizeState]):
+class Randomize(Animation[RandomizeState], frozen=True):
     seed: int | None = None
 
     def initial_state(self, device: Device) -> RandomizeState:
@@ -63,7 +63,7 @@ class RainState(State):
     wait: float = 0
 
 
-class Rain(Animation[RainState]):
+class Rain(Animation[RainState], frozen=True):
     colors: tuple[RGB, ...] = ((70, 70, 70), (35, 35, 35), (80, 20, 20), (20, 80, 20))
     rate: float = 10
     seed: int | None = None
@@ -97,7 +97,7 @@ class GreyCodeState(State):
     elapsed: FloatRGB = (0, 0, 0)
 
 
-class GreyCode(Animation[GreyCodeState]):
+class GreyCode(Animation[GreyCodeState], frozen=True):
     offsets: FloatRGB = (0, 100, 200)
     speeds: FloatRGB = (-0.01, 0.023, 0.014)
 

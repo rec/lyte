@@ -81,7 +81,7 @@ class HamiltonianState(State):
     total_pixels: float = 0
 
 
-class Hamiltonian(Animation[HamiltonianState]):
+class Hamiltonian(Animation[HamiltonianState], frozen=True):
     speed: float = 25
     n: int = 8
     order: str | int = 'rgb'

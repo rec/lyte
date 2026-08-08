@@ -13,7 +13,7 @@ class PartyModeState(State):
     position: int = 0
 
 
-class PartyMode(Animation[PartyModeState]):
+class PartyMode(Animation[PartyModeState], frozen=True):
     colors: tuple[RGB, ...] = DEFAULT_PATTERN
 
     @model_validator(mode='after')

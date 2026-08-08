@@ -9,9 +9,7 @@ import pydantic
 from numpy.typing import NDArray
 
 
-class Device(pydantic.BaseModel):
-    model_config = pydantic.ConfigDict(frozen=True)
-
+class Device(pydantic.BaseModel, frozen=True):
     led_count: int
 
     @pydantic.model_validator(mode='after')
@@ -22,8 +20,6 @@ class Device(pydantic.BaseModel):
 
 
 class State(pydantic.BaseModel):
-    model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
-
     frame: int = 0
     fps: float = 20.0
 
@@ -33,24 +29,24 @@ class State(pydantic.BaseModel):
             raise ValueError('fps must be greater than zero')
         return self
 
+    model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
+
 
 RGB = tuple[int, int, int]
 FloatRGB = tuple[float, float, float]
 
 
-class Animation[StateT: State](pydantic.BaseModel):
-    model_config = pydantic.ConfigDict(frozen=True, arbitrary_types_allowed=True)
-
+class Animation[StateT: State](pydantic.BaseModel, frozen=True):
     def initial_state(self, device: Device) -> StateT:
         return cast(StateT, State())
 
     def render(self, device: Device, state: StateT) -> NDArray[np.float32]:
         raise NotImplementedError
 
+    model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
-class AnimationSegment(pydantic.BaseModel):
-    model_config = pydantic.ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
+class AnimationSegment(pydantic.BaseModel, frozen=True):
     animation: pydantic.SkipValidation[Animation]
     led_count: int
 
@@ -60,12 +56,14 @@ class AnimationSegment(pydantic.BaseModel):
             raise ValueError('segment led_count must be greater than zero')
         return self
 
+    model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
+
 
 class SegmentState(State):
     states: list[pydantic.SkipValidation[State]]
 
 
-class SegmentAnimation(Animation[SegmentState]):
+class SegmentAnimation(Animation[SegmentState], frozen=True):
     segments: list[AnimationSegment]
 
     @pydantic.model_validator(mode='after')

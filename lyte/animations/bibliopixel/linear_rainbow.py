@@ -15,7 +15,7 @@ class LinearRainbowState(State):
     position: int = 0
 
 
-class LinearRainbow(Animation[LinearRainbowState]):
+class LinearRainbow(Animation[LinearRainbowState], frozen=True):
     max_led: int | None = None
     individual_pixel: bool = False
     step: int = 1

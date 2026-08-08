@@ -15,7 +15,7 @@ class SaberBladeState(State):
     speed: int
 
 
-class SaberBlade(Animation[SaberBladeState]):
+class SaberBlade(Animation[SaberBladeState], frozen=True):
     colors: tuple[RGB, ...] = ((255, 0, 0),)
     speed: int = 1
 

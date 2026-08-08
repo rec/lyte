@@ -22,7 +22,7 @@ class TwinklyResponse(BaseModel, frozen=True):
     data: dict[str, object]
 
 
-class AuthToken(BaseModel):
+class AuthToken(BaseModel, frozen=True):
     value: str
     challenge_response: str
     expires_at: float | None

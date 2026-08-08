@@ -13,7 +13,7 @@ class ColorChaseState(State):
     position: int = 0
 
 
-class ColorChase(Animation[ColorChaseState]):
+class ColorChase(Animation[ColorChaseState], frozen=True):
     color: RGB = (255, 0, 0)
     width: int = 1
     start: int = 0

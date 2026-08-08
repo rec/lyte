@@ -24,7 +24,7 @@ class SearchlightsState(animation.State):
     tail: int = 1
 
 
-class Searchlights(animation.Animation[SearchlightsState]):
+class Searchlights(animation.Animation[SearchlightsState], frozen=True):
     colors: tuple[RGB, ...] = SEARCHLIGHT_COLORS
     tail: int = 5
     start: int = 0

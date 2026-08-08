@@ -21,7 +21,7 @@ class RandomWalkState(State):
     total_pixels: float = 0
 
 
-class RandomWalk(Animation[RandomWalkState]):
+class RandomWalk(Animation[RandomWalkState], frozen=True):
     speed: float = 10
     variance: float = 1
     bounds: tuple[float, float] = (0, 180)

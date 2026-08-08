@@ -19,7 +19,7 @@ class PulseState(State):
     tail: int = 1
 
 
-class Pulse(Animation[PulseState]):
+class Pulse(Animation[PulseState], frozen=True):
     colors: tuple[RGB, ...] = ((255, 0, 0),)
     tail: int = 2
     chance: int = 30

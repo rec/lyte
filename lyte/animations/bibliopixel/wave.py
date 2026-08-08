@@ -16,7 +16,7 @@ class WaveState(State):
     position: int = 0
 
 
-class Wave(Animation[WaveState]):
+class Wave(Animation[WaveState], frozen=True):
     color: RGB = (255, 0, 0)
     cycles: int = 2
     start: int = 0

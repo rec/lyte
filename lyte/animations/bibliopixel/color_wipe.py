@@ -14,7 +14,7 @@ class ColorWipeState(State):
     position: int = 0
 
 
-class ColorWipe(Animation[ColorWipeState]):
+class ColorWipe(Animation[ColorWipeState], frozen=True):
     color: RGB = (255, 0, 0)
     start: int = 0
     end: int | None = None

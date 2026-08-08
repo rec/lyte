@@ -13,7 +13,7 @@ class ColorPatternState(State):
     offset: int = 0
 
 
-class ColorPattern(Animation[ColorPatternState]):
+class ColorPattern(Animation[ColorPatternState], frozen=True):
     colors: tuple[RGB, ...] = DEFAULT_PATTERN
     width: int = 1
     reverse: bool = False

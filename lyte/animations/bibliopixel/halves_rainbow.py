@@ -17,7 +17,7 @@ class HalvesRainbowState(State):
     position: int = 0
 
 
-class HalvesRainbow(Animation[HalvesRainbowState]):
+class HalvesRainbow(Animation[HalvesRainbowState], frozen=True):
     max_led: int | None = None
     center_out: bool = True
     rainbow_inc: int = 4
