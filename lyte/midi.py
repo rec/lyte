@@ -69,6 +69,73 @@ class LightPatch[ConfigT: BaseModel, StateT: BaseModel](Patch[ConfigT, StateT], 
         pass
 
 
+class RegionAnimation(BaseModel, frozen=True):
+    animation: SkipValidation[animation.Animation]
+    start: int
+    led_count: int
+
+    @model_validator(mode='after')
+    def validate_region(self) -> RegionAnimation:
+        if self.start < 0:
+            raise ValueError('Region animation start must not be negative')
+        if self.led_count <= 0:
+            raise ValueError('Region animation led_count must be greater than zero')
+        return self
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class RegionLightPatchConfig(BaseModel, frozen=True):
+    regions: list[RegionAnimation]
+
+    @model_validator(mode='after')
+    def validate_regions(self) -> RegionLightPatchConfig:
+        if not self.regions:
+            raise ValueError('RegionLightPatch requires at least one region')
+        return self
+
+
+class RegionLightPatchState(BaseModel):
+    device_led_count: int | None = None
+    states: list[SkipValidation[animation.State]] = []
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class RegionLightPatch(LightPatch[RegionLightPatchConfig, RegionLightPatchState]):
+    def make_state(self, msg: mido.Message) -> RegionLightPatchState:
+        return RegionLightPatchState()
+
+    def render(self, device: animation.Device) -> NDArray[np.float32]:
+        if (state := self.state) is None:
+            return animation.validate_frame(
+                device, np.zeros((device.led_count, 3), dtype=np.float32)
+            )
+        self.ensure_states(device, state)
+        frame = np.zeros((device.led_count, 3), dtype=np.float32)
+        for region, child_state in zip(self.config.regions, state.states, strict=True):
+            child_device = animation.Device(led_count=region.led_count)
+            end = region.start + region.led_count
+            frame[region.start : end] = animation.validate_frame(
+                child_device, region.animation.render(child_device, child_state)
+            )
+        return animation.validate_frame(device, frame)
+
+    def ensure_states(
+        self, device: animation.Device, state: RegionLightPatchState
+    ) -> None:
+        if state.device_led_count == device.led_count:
+            return
+        for region in self.config.regions:
+            if region.start + region.led_count > device.led_count:
+                raise ValueError('Region animation must fit within device led_count')
+        state.states = [
+            region.animation.initial_state(animation.Device(led_count=region.led_count))
+            for region in self.config.regions
+        ]
+        state.device_led_count = device.led_count
+
+
 class BlendLightPatchConfig(BaseModel, frozen=True):
     pass
 

@@ -345,6 +345,59 @@ class MidiTests(unittest.TestCase):
         )
         self.assertIsNone(patch.state)
 
+    def test_region_light_patch_composes_stateful_animations(self) -> None:
+        patch = midi.RegionLightPatch(
+            config=midi.RegionLightPatchConfig(
+                regions=[
+                    midi.RegionAnimation(
+                        animation=bibliopixel.ColorFill(color=(255, 0, 0)),
+                        start=0,
+                        led_count=2,
+                    ),
+                    midi.RegionAnimation(
+                        animation=bibliopixel.ColorFill(color=(0, 0, 255)),
+                        start=2,
+                        led_count=3,
+                    ),
+                ]
+            )
+        )
+        device = animation.Device(led_count=5)
+
+        patch.receive(mido.Message('note_on', note=64, velocity=100))
+
+        npt.assert_array_equal(
+            patch.render(device),
+            np.array(
+                [
+                    [1.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                    [0.0, 0.0, 1.0],
+                    [0.0, 0.0, 1.0],
+                ],
+                dtype=np.float32,
+            ),
+        )
+
+    def test_region_light_patch_is_black_without_an_active_note(self) -> None:
+        patch = midi.RegionLightPatch(
+            config=midi.RegionLightPatchConfig(
+                regions=[
+                    midi.RegionAnimation(
+                        animation=bibliopixel.ColorFill(color=(255, 0, 0)),
+                        start=0,
+                        led_count=1,
+                    )
+                ]
+            )
+        )
+
+        npt.assert_array_equal(
+            patch.render(animation.Device(led_count=1)),
+            np.zeros((1, 3), dtype=np.float32),
+        )
+
     def test_blend_light_patch_adds_child_frames_by_default(self) -> None:
         class RedConfig(BaseModel, frozen=True):
             value: float = 0.4
