@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 import mido
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, ConfigDict, SkipValidation
+from pydantic import BaseModel, ConfigDict, SkipValidation, model_validator
 
 from . import animation
 
@@ -124,6 +124,83 @@ class UnionLightPatch(Patch[UnionLightPatchConfig, UnionLightPatchState]):
         for name, patch in self.patches.items():
             device = devices[name]
             frames[name] = animation.validate_frame(device, patch.render(device))
+        return frames
+
+
+class DeviceSegment(BaseModel, frozen=True):
+    device: animation.Device
+    start: int
+    led_count: int
+
+    @model_validator(mode='after')
+    def validate_segment(self) -> DeviceSegment:
+        if self.start < 0:
+            raise ValueError('Device segment start must not be negative')
+        if self.led_count <= 0:
+            raise ValueError('Device segment led_count must be greater than zero')
+        if self.start + self.led_count > self.device.led_count:
+            raise ValueError('Device segment must fit within device led_count')
+        return self
+
+
+class DeviceSegmentFrame(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    segment: DeviceSegment
+    frame: SkipValidation[NDArray[np.float32]]
+
+
+class ConcatLightPatchConfig(BaseModel, frozen=True):
+    pass
+
+
+class ConcatLightPatchState(BaseModel):
+    pass
+
+
+class ConcatLightPatch(Patch[ConcatLightPatchConfig, ConcatLightPatchState]):
+    devices: list[animation.Device | DeviceSegment]
+    patch: SkipValidation[LightPatch]
+
+    @model_validator(mode='after')
+    def validate_devices(self) -> ConcatLightPatch:
+        if not self.devices:
+            raise ValueError('ConcatLightPatch requires at least one device')
+        return self
+
+    def make_state(self, msg: mido.Message) -> ConcatLightPatchState:
+        return ConcatLightPatchState()
+
+    def receive(self, msg: mido.Message) -> None:
+        self.patch.receive(msg)
+
+    def render(self) -> list[DeviceSegmentFrame]:
+        segments = [
+            device
+            if isinstance(device, DeviceSegment)
+            else DeviceSegment(device=device, start=0, led_count=device.led_count)
+            for device in self.devices
+        ]
+        virtual_device = animation.Device(
+            led_count=sum(segment.led_count for segment in segments)
+        )
+        virtual_frame = animation.validate_frame(
+            virtual_device, self.patch.render(virtual_device)
+        )
+        frames = []
+        start = 0
+        for segment in segments:
+            end = start + segment.led_count
+            frames.append(
+                DeviceSegmentFrame(
+                    segment=segment,
+                    frame=animation.validate_frame(
+                        animation.Device(led_count=segment.led_count),
+                        np.ascontiguousarray(virtual_frame[start:end]),
+                    ),
+                )
+            )
+            start = end
         return frames
 
 

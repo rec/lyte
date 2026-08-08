@@ -475,6 +475,55 @@ class MidiTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'must match'):
             patch.render({'tree': animation.Device(led_count=2)})
 
+    def test_concat_light_patch_splits_virtual_frame_across_devices(self) -> None:
+        class Config(BaseModel, frozen=True):
+            pass
+
+        class State(BaseModel):
+            pass
+
+        class IndexPatch(midi.LightPatch[Config, State]):
+            def make_state(self, msg: mido.Message) -> State:
+                return State()
+
+            def render(self, device: animation.Device) -> NDArray[np.float32]:
+                frame = np.zeros((device.led_count, 3), dtype=np.float32)
+                frame[:, 0] = np.arange(device.led_count, dtype=np.float32)
+                return animation.validate_frame(device, frame)
+
+        patch = midi.ConcatLightPatch(
+            config=midi.ConcatLightPatchConfig(),
+            devices=[
+                animation.Device(led_count=2),
+                midi.DeviceSegment(
+                    device=animation.Device(led_count=6), start=2, led_count=3
+                ),
+            ],
+            patch=IndexPatch(config=Config()),
+        )
+
+        frames = patch.render()
+
+        npt.assert_array_equal(
+            frames[0].frame,
+            np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float32),
+        )
+        self.assertEqual(frames[0].segment.start, 0)
+        npt.assert_array_equal(
+            frames[1].frame,
+            np.array(
+                [[2.0, 0.0, 0.0], [3.0, 0.0, 0.0], [4.0, 0.0, 0.0]],
+                dtype=np.float32,
+            ),
+        )
+        self.assertEqual(frames[1].segment.start, 2)
+
+    def test_device_segment_must_fit_within_its_device(self) -> None:
+        with self.assertRaisesRegex(ValueError, 'must fit'):
+            midi.DeviceSegment(
+                device=animation.Device(led_count=3), start=1, led_count=3
+            )
+
 
 class DiscoveryTests(unittest.TestCase):
     def test_parse_discovery_response(self) -> None:
