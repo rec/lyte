@@ -1,0 +1,155 @@
+[wearable]
+led_count = 200
+
+[wearable.segments]
+left_leg = { start = 0, led_count = 32 }
+right_leg = { start = 32, led_count = 32 }
+left_arm = { start = 64, led_count = 44 }
+right_arm = { start = 108, led_count = 44 }
+chest = { start = 152, led_count = 48 }
+
+# The first sixteen patches use this fixed five-segment virtual wearable.
+
+[patches.prism_limbs]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["five_color_fill"]
+note_color = "note selects a five-color palette rotation"
+
+[patches.opposite_steps]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["alternating_steps"]
+note_color = "note selects the two opposing colors"
+
+[patches.chest_orbit]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["chest_spiral", "limb_fill"]
+note_color = "note sets the spiral hue"
+
+[patches.limb_rainbow]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["five_phase_rainbow"]
+note_color = "note sets the rainbow root hue"
+
+[patches.note_twinkle]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["dark_fill", "region_twinkle"]
+note_color = "note sets twinkle color"
+
+[patches.note_searchlight]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["five_searchlights"]
+note_color = "note sets searchlight color"
+
+[patches.note_chase]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["body_chase"]
+note_color = "note sets chase color"
+
+[patches.note_pulse]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["chest_pulse", "limb_afterglow"]
+note_color = "note sets pulse color"
+
+[patches.breath_walker]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["random_walk"]
+breath_speed = "CC 2 maps 0..127 to 2..90 pixels per second"
+
+[patches.breath_hamiltonian]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["hamiltonian_stream"]
+breath_speed = "CC 2 maps 0..127 to 1..120 pixels per second"
+
+[patches.breath_counter]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["binary_counter"]
+breath_speed = "CC 2 maps 0..127 to 0.2..30 cycles per second"
+
+[patches.breath_wave]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["five_phase_wave"]
+breath_speed = "CC 2 maps 0..127 to 0.1..16 cycles per second"
+
+[patches.breath_mix_walk_twinkle]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["random_walk", "region_twinkle"]
+breath_speed = "CC 2 maps 0..127 to 1..80 pixels per second"
+breath_mix = "CC 2 crossfades random walk into twinkle"
+
+[patches.breath_mix_chase_rain]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["body_chase", "rain"]
+breath_speed = "CC 2 maps 0..127 to 1..100 pixels per second"
+breath_mix = "CC 2 crossfades chase into rain"
+
+[patches.breath_mix_pulse_gradient]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["chest_pulse", "vertical_gradient"]
+breath_speed = "CC 2 maps 0..127 to 0.2..12 pulses per second"
+breath_mix = "CC 2 crossfades pulse into gradient"
+
+[patches.breath_mix_searchlights]
+segments = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
+layers = ["five_searchlights", "five_phase_rainbow"]
+breath_speed = "CC 2 maps 0..127 to 0.1..20 crossings per second"
+breath_mix = "CC 2 crossfades searchlights into rainbow"
+
+[patches.mix_mirror_split]
+layers = ["left_to_right_wipe", "right_to_left_wipe"]
+breath_mix = "CC 2 crossfades leftward and rightward wipes"
+
+[patches.mix_fire_ice]
+layers = ["warm_twinkle", "cool_twinkle"]
+breath_mix = "CC 2 crossfades fire into ice"
+
+[patches.mix_sparkle_solid]
+layers = ["white_twinkle", "low_saturation_fill"]
+breath_mix = "CC 2 crossfades sparkle into solid color"
+
+[patches.mix_rainbow_black]
+layers = ["rainbow_cycle", "black"]
+breath_mix = "CC 2 controls rainbow gain"
+
+[patches.pitch_turbo_chase]
+layers = ["body_chase"]
+pitch_speed = "pitch bend maps center..maximum to 1..300 pixels per second"
+
+[patches.pitch_turbo_walk]
+layers = ["random_walk"]
+pitch_speed = "pitch bend maps center..maximum to 2..240 pixels per second"
+
+[patches.pitch_turbo_hamiltonian]
+layers = ["hamiltonian_stream"]
+pitch_speed = "pitch bend maps center..maximum to 1..360 pixels per second"
+
+[patches.pitch_turbo_searchlights]
+layers = ["five_searchlights"]
+pitch_speed = "pitch bend maps center..maximum to 0.2..80 crossings per second"
+
+[patches.pitch_turbo_wave]
+layers = ["five_phase_wave"]
+pitch_speed = "pitch bend maps center..maximum to 0.1..64 cycles per second"
+
+[patches.pitch_turbo_twinkle]
+layers = ["region_twinkle"]
+pitch_speed = "pitch bend maps center..maximum to 1..100 twinkle steps per second"
+
+[patches.pitch_turbo_rain]
+layers = ["rain"]
+pitch_speed = "pitch bend maps center..maximum to 1..200 drops per second"
+
+[patches.pitch_turbo_counter]
+layers = ["binary_counter"]
+pitch_speed = "pitch bend maps center..maximum to 0.5..120 cycles per second"
+
+[patches.static_body_flag]
+layers = ["five_color_fill"]
+
+[patches.static_chest_beacon]
+layers = ["chest_spiral", "dark_limbs"]
+
+[patches.static_warm_gradient]
+layers = ["vertical_warm_gradient"]
+
+[patches.static_cool_gradient]
+layers = ["vertical_cool_gradient"]
