@@ -20,7 +20,7 @@ from numpy import testing as npt
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict
 
-from lyte import animation, cli, fps_test, midi, show
+from lyte import animation, cli, fps_test, midi, patches, show
 from lyte.animate import config, random_show
 from lyte.animations import bibliopixel
 from lyte.animations.christmas import hamiltonian
@@ -522,6 +522,55 @@ class MidiTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'must fit'):
             midi.DeviceSegment(
                 device=animation.Device(led_count=3), start=1, led_count=3
+            )
+
+
+class PatchLibraryTests(unittest.TestCase):
+    def test_load_wearable_library_and_map_logical_regions(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+
+        self.assertEqual(len(library.patches), 32)
+        self.assertEqual(library.wearable.physical_map_status, 'provisional')
+        self.assertEqual(
+            list(library.wearable.segments),
+            ['left_leg', 'right_leg', 'left_arm', 'right_arm', 'chest'],
+        )
+
+        logical_frame = np.zeros((200, 3), dtype=np.float32)
+        logical_frame[:, 0] = np.arange(200, dtype=np.float32)
+        physical_frame = patches.map_logical_frame(library.wearable, logical_frame)
+
+        npt.assert_array_equal(physical_frame[28:60], logical_frame[0:32])
+        npt.assert_array_equal(physical_frame[128:160], logical_frame[32:64])
+        npt.assert_array_equal(physical_frame[0:28], logical_frame[64:92])
+        npt.assert_array_equal(physical_frame[60:76], logical_frame[92:108])
+        npt.assert_array_equal(physical_frame[76:100], logical_frame[152:176])
+        npt.assert_array_equal(physical_frame[176:200], logical_frame[176:200])
+
+    def test_locator_frame_lights_only_the_selected_logical_region(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+
+        frame = patches.locator_frame(library.wearable, 'left_arm')
+
+        self.assertTrue(np.all(frame[0:28] == 1.0))
+        self.assertTrue(np.all(frame[60:76] == 1.0))
+        self.assertTrue(np.all(frame[28:60] == 0.0))
+        self.assertTrue(np.all(frame[76:200] == 0.0))
+
+    def test_patch_library_rejects_physical_map_gaps(self) -> None:
+        with self.assertRaisesRegex(ValueError, 'must contain 2 LEDs'):
+            patches.PatchLibrary.model_validate(
+                {
+                    'wearable': {
+                        'led_count': 2,
+                        'physical_map_status': 'provisional',
+                        'segments': {'body': {'start': 0, 'led_count': 2}},
+                        'physical_map': {
+                            'body': {'ranges': [{'start': 0, 'led_count': 1}]}
+                        },
+                    },
+                    'patches': {'black': {'layers': ['solid']}},
+                }
             )
 
 
