@@ -9,7 +9,7 @@ from ..colors import RGB
 from ..validators import validate_rgb
 
 
-class ColorFill(Animation[State]):
+class ColorFill(Animation[State], frozen=True):
     color: RGB = (255, 0, 0)
 
     @model_validator(mode='after')

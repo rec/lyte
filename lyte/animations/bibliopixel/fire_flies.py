@@ -15,7 +15,7 @@ class FireFliesState(State):
     random: random.Random
 
 
-class FireFlies(Animation[FireFliesState]):
+class FireFlies(Animation[FireFliesState], frozen=True):
     colors: tuple[RGB, ...] = ((255, 0, 0),)
     width: int = 1
     count: int = 1

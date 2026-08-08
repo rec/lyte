@@ -15,7 +15,7 @@ class LarsonScannerState(State):
     tail: int = 1
 
 
-class LarsonScanner(Animation[LarsonScannerState]):
+class LarsonScanner(Animation[LarsonScannerState], frozen=True):
     color: RGB = (255, 0, 0)
     tail: int = 2
     start: int = 0

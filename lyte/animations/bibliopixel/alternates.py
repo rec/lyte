@@ -13,7 +13,7 @@ class AlternatesState(State):
     positive: bool = True
 
 
-class Alternates(Animation[AlternatesState]):
+class Alternates(Animation[AlternatesState], frozen=True):
     color1: RGB = (255, 255, 255)
     color2: RGB = (0, 0, 0)
     max_led: int | None = None

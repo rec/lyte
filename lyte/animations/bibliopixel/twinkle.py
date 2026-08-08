@@ -22,7 +22,7 @@ class TwinkleState(State):
     random: random.Random
 
 
-class Twinkle(Animation[TwinkleState]):
+class Twinkle(Animation[TwinkleState], frozen=True):
     colors: tuple[RGB, ...] = DEFAULT_PATTERN
     density: int = 20
     speed: int = 2

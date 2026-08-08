@@ -143,11 +143,11 @@ class DeviceSegment(BaseModel, frozen=True):
         return self
 
 
-class DeviceSegmentFrame(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
+class DeviceSegmentFrame(BaseModel, frozen=True):
     segment: DeviceSegment
     frame: SkipValidation[NDArray[np.float32]]
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class ConcatLightPatchConfig(BaseModel, frozen=True):

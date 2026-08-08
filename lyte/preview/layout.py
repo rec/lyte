@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import math
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, model_validator
 
 
-class Layout(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
+class Layout(BaseModel, frozen=True):
     name: str = 'layout'
     coords: list[list[float]] | None = None
     dims: list[int] | None = None

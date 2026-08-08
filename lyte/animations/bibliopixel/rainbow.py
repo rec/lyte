@@ -13,7 +13,7 @@ class RainbowState(State):
     position: int = 0
 
 
-class Rainbow(Animation[RainbowState]):
+class Rainbow(Animation[RainbowState], frozen=True):
     start: int = 0
     end: int | None = None
     step: int = 1

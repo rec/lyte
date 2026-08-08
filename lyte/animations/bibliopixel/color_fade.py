@@ -14,7 +14,7 @@ class ColorFadeState(State):
     position: int = 0
 
 
-class ColorFade(Animation[ColorFadeState]):
+class ColorFade(Animation[ColorFadeState], frozen=True):
     colors: tuple[RGB, ...] = ((255, 0, 0),)
     level_step: int = 5
     start: int = 0

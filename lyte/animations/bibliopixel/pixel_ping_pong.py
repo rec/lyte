@@ -15,7 +15,7 @@ class PixelPingPongState(animation.State):
     positive: bool = True
 
 
-class PixelPingPong(animation.Animation[PixelPingPongState]):
+class PixelPingPong(animation.Animation[PixelPingPongState], frozen=True):
     color: RGB = (255, 255, 255)
     max_led: int | None = None
     total_pixels: int = 1

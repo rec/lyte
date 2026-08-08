@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 from ...animation import Animation, Device, FloatRGB, State
 
 
-class LinearGradient(Animation[State]):
+class LinearGradient(Animation[State], frozen=True):
     start: float = 1
     end: float = 0
     mask: FloatRGB = (1, 1, 1)
@@ -19,7 +19,7 @@ class LinearGradient(Animation[State]):
         return np.ascontiguousarray(np.outer(values, self.mask), dtype=np.float32)
 
 
-class LogGradient(Animation[State]):
+class LogGradient(Animation[State], frozen=True):
     start: float = 1
     end: float = 0
     base: float = 10
