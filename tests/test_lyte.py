@@ -525,6 +525,28 @@ class MidiTests(unittest.TestCase):
             )
 
 
+class ChristmasAnimationTests(unittest.TestCase):
+    def test_ported_animations_render_float_frames(self) -> None:
+        from lyte.animations.christmas import effects, gradients
+
+        device = animation.Device(led_count=4)
+        sources = [
+            effects.ExponentialFade(),
+            effects.GreyCode(),
+            effects.Rain(seed=1),
+            effects.Randomize(seed=1),
+            gradients.LinearGradient(),
+            gradients.LogGradient(),
+        ]
+
+        for source in sources:
+            state = source.initial_state(device)
+            frame = source.render(device, state)
+            self.assertEqual(frame.shape, (4, 3))
+            self.assertEqual(frame.dtype, np.float32)
+            self.assertTrue(frame.flags.c_contiguous)
+
+
 class DiscoveryTests(unittest.TestCase):
     def test_parse_discovery_response(self) -> None:
         device = parse_discovery_response(b'\xab\x01\xa8\xc0OKTwinkly_A1234B\x00')

@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 from ..animation import Animation
 from ..animations import bibliopixel
+from ..animations.christmas import effects, gradients
 from ..animations.christmas.hamiltonian import Hamiltonian
 from ..animations.christmas.random_walk import RandomWalk
 from .config import AnimateConfig
@@ -43,6 +44,21 @@ def build_animation(args: AnimateConfig) -> Animation:
             level_step=args.level_step,
             start=args.start,
             end=args.end,
+        )
+    if args.animation == 'linear_gradient':
+        return gradients.LinearGradient()
+    if args.animation == 'log_gradient':
+        return gradients.LogGradient()
+    if args.animation == 'grey_code':
+        return effects.GreyCode()
+    if args.animation == 'exponential_fade':
+        return effects.ExponentialFade(color=rgb_arg(args.color, (255, 0, 0)))
+    if args.animation == 'randomize':
+        return effects.Randomize(seed=args.seed)
+    if args.animation == 'rain':
+        return effects.Rain(
+            colors=colors_arg(args.colors, effects.Rain.model_fields['colors'].default),
+            seed=args.seed,
         )
     if args.animation == 'alternates':
         return bibliopixel.Alternates(
