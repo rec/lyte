@@ -8,7 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import model_validator
 
-from ..animation import Animation, Device, State
+from ...animation import Animation, Device, State
 from .hamiltonian import FloatRGB, frame_array, interpolate
 
 
