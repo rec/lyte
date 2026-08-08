@@ -476,6 +476,43 @@ class MidiTests(unittest.TestCase):
             np.array([[1.0, 0.0, 0.0]], dtype=np.float32),
         )
 
+    def test_weighted_blend_light_patch_uses_mutable_note_state_weights(self) -> None:
+        class Config(BaseModel, frozen=True):
+            color: tuple[float, float, float]
+
+        class State(BaseModel):
+            pass
+
+        class ConstantPatch(midi.LightPatch[Config, State]):
+            def make_state(self, msg: mido.Message) -> State:
+                return State()
+
+            def render(self, device: animation.Device) -> NDArray[np.float32]:
+                frame = np.empty((device.led_count, 3), dtype=np.float32)
+                frame[:] = self.config.color
+                return animation.validate_frame(device, frame)
+
+        patch = midi.WeightedBlendLightPatch(
+            config=midi.WeightedBlendLightPatchConfig(weights=[1.0, 0.0]),
+            patches=[
+                ConstantPatch(config=Config(color=(1.0, 0.0, 0.0))),
+                ConstantPatch(config=Config(color=(0.0, 0.0, 1.0))),
+            ],
+        )
+        device = animation.Device(led_count=1)
+        patch.receive(mido.Message('note_on', note=64, velocity=100))
+
+        npt.assert_array_equal(
+            patch.render(device), np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
+        )
+
+        patch.set_weight(0, 0.25)
+        patch.set_weight(1, 0.75)
+
+        npt.assert_array_equal(
+            patch.render(device), np.array([[0.25, 0.0, 0.75]], dtype=np.float32)
+        )
+
     def test_union_light_patch_renders_for_each_named_device(self) -> None:
         class Config(BaseModel, frozen=True):
             channel: int
