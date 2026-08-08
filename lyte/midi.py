@@ -164,6 +164,65 @@ class BlendLightPatch(LightPatch[BlendLightPatchConfig, BlendLightPatchState]):
         return add_light_frames(device, frames)
 
 
+class WeightedBlendLightPatchConfig(BaseModel, frozen=True):
+    weights: list[float]
+
+    @model_validator(mode='after')
+    def validate_weights(self) -> WeightedBlendLightPatchConfig:
+        if not self.weights:
+            raise ValueError('WeightedBlendLightPatch requires at least one weight')
+        if any(weight < 0 for weight in self.weights):
+            raise ValueError('Blend weights must not be negative')
+        return self
+
+
+class WeightedBlendLightPatchState(BaseModel):
+    weights: list[float]
+
+
+class WeightedBlendLightPatch(
+    LightPatch[WeightedBlendLightPatchConfig, WeightedBlendLightPatchState]
+):
+    patches: list[SkipValidation[LightPatch]]
+
+    @model_validator(mode='after')
+    def validate_patches(self) -> WeightedBlendLightPatch:
+        if len(self.patches) != len(self.config.weights):
+            raise ValueError('Blend weights must match the number of patches')
+        return self
+
+    def make_state(self, msg: mido.Message) -> WeightedBlendLightPatchState:
+        return WeightedBlendLightPatchState(weights=list(self.config.weights))
+
+    def receive(self, msg: mido.Message) -> None:
+        super().receive(msg)
+        for patch in self.patches:
+            patch.receive(msg)
+
+    def render(self, device: animation.Device) -> NDArray[np.float32]:
+        if (state := self.state) is None:
+            return animation.validate_frame(
+                device, np.zeros((device.led_count, 3), dtype=np.float32)
+            )
+        if len(state.weights) != len(self.patches):
+            raise ValueError('Blend state weights must match the number of patches')
+        frames = [
+            animation.validate_frame(device, patch.render(device))
+            for patch in self.patches
+        ]
+        total = np.zeros((device.led_count, 3), dtype=np.float32)
+        for frame, weight in zip(frames, state.weights, strict=True):
+            total += frame * weight
+        return animation.validate_frame(device, np.clip(total, 0.0, 1.0))
+
+    def set_weight(self, index: int, value: float) -> None:
+        if value < 0:
+            raise ValueError('Blend weight must not be negative')
+        if (state := self.state) is None:
+            raise ValueError('Cannot change a blend weight without an active note')
+        state.weights[index] = value
+
+
 class UnionLightPatchConfig(BaseModel, frozen=True):
     pass
 
