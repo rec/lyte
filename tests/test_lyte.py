@@ -620,6 +620,7 @@ class PatchLibraryTests(unittest.TestCase):
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
 
         self.assertEqual(len(library.patches), 32)
+        self.assertIn('random_walk', library.layers)
         self.assertEqual(library.wearable.physical_map_status, 'provisional')
         self.assertEqual(
             list(library.wearable.segments),
@@ -646,6 +647,24 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertTrue(np.all(frame[60:76] == 1.0))
         self.assertTrue(np.all(frame[28:60] == 0.0))
         self.assertTrue(np.all(frame[76:200] == 0.0))
+
+    def test_build_light_patch_composes_named_layers(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        patch = patches.build_light_patch(library, 'breath_mix_walk_twinkle')
+        device = animation.Device(led_count=200)
+
+        patch.receive(mido.Message('note_on', note=64, velocity=100))
+
+        frame = patch.render(device)
+        self.assertEqual(frame.shape, (200, 3))
+        self.assertEqual(frame.dtype, np.float32)
+        self.assertTrue(frame.flags.c_contiguous)
+
+    def test_build_light_patch_rejects_unknown_patch(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+
+        with self.assertRaisesRegex(ValueError, 'unknown patch'):
+            patches.build_light_patch(library, 'missing')
 
     def test_patch_command_lists_library_without_connecting(self) -> None:
         output = io.StringIO()

@@ -12,7 +12,9 @@ import tyro
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from . import animation
+from . import animation, midi
+from .animations import bibliopixel
+from .animations.christmas.random_walk import RandomWalk
 from .logging import log, log_status
 from .retry import RetryConfig
 from .twinkly import realtime
@@ -115,6 +117,22 @@ class WearableSpec(BaseModel, frozen=True):
     model_config = ConfigDict(extra='forbid')
 
 
+class LayerSpec(BaseModel, frozen=True):
+    kind: Literal['solid', 'random_walk', 'twinkle', 'chase', 'rainbow']
+    color: list[float] = [1.0, 1.0, 1.0]
+    speed: float = 10.0
+
+    @model_validator(mode='after')
+    def validate_layer(self) -> LayerSpec:
+        if len(self.color) != 3 or any(value < 0 or value > 1 for value in self.color):
+            raise ValueError('layer color must contain three values between 0 and 1')
+        if self.speed < 0:
+            raise ValueError('layer speed must not be negative')
+        return self
+
+    model_config = ConfigDict(extra='forbid')
+
+
 class PatchSpec(BaseModel, frozen=True):
     layers: list[str]
     regions: list[str] = []
@@ -134,6 +152,7 @@ class PatchSpec(BaseModel, frozen=True):
 
 class PatchLibrary(BaseModel, frozen=True):
     wearable: WearableSpec
+    layers: dict[str, LayerSpec]
     patches: dict[str, PatchSpec]
 
     @model_validator(mode='after')
@@ -141,6 +160,10 @@ class PatchLibrary(BaseModel, frozen=True):
         if not self.patches:
             raise ValueError('patch library must contain at least one patch')
         for name, patch in self.patches.items():
+            unknown_layers = set(patch.layers).difference(self.layers)
+            if unknown_layers:
+                unknown = ', '.join(sorted(unknown_layers))
+                raise ValueError(f'patch {name} names unknown layers: {unknown}')
             unknown_regions = set(patch.regions).difference(self.wearable.segments)
             if unknown_regions:
                 unknown = ', '.join(sorted(unknown_regions))
@@ -291,3 +314,49 @@ def validate_locator_config(config: PatchCommandConfig) -> None:
         sys.exit('--retry-delay must not be negative')
     if config.retry_backoff < 1:
         sys.exit('--retry-backoff must be at least 1')
+
+
+def build_light_patch(library: PatchLibrary, name: str) -> midi.LightPatch:
+    if (patch := library.patches.get(name)) is None:
+        raise ValueError(f'unknown patch: {name}')
+    regions = patch.regions or list(library.wearable.segments)
+    children = []
+    for layer_name in patch.layers:
+        layer = library.layers[layer_name]
+        children.append(
+            midi.RegionLightPatch(
+                config=midi.RegionLightPatchConfig(
+                    regions=[
+                        midi.RegionAnimation(
+                            animation=build_layer_animation(layer),
+                            start=library.wearable.segments[region].start,
+                            led_count=library.wearable.segments[region].led_count,
+                        )
+                        for region in regions
+                    ]
+                )
+            )
+        )
+    if len(children) == 1:
+        return children[0]
+    return midi.BlendLightPatch(
+        config=midi.BlendLightPatchConfig(),
+        patches=children,
+    )
+
+
+def build_layer_animation(layer: LayerSpec) -> animation.Animation:
+    color = (layer.color[0], layer.color[1], layer.color[2])
+    rgb = animation.rgb_from_float_color(color)
+    if layer.kind == 'solid':
+        return bibliopixel.ColorFill(color=rgb)
+    if layer.kind == 'random_walk':
+        return RandomWalk(
+            speed=layer.speed,
+            color=(color[0] * 255, color[1] * 255, color[2] * 255),
+        )
+    if layer.kind == 'twinkle':
+        return bibliopixel.Twinkle(colors=(rgb,), speed=round(layer.speed))
+    if layer.kind == 'chase':
+        return bibliopixel.ColorChase(color=rgb, step=max(1, round(layer.speed)))
+    return bibliopixel.Rainbow(step=max(1, round(layer.speed)))
