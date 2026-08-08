@@ -97,6 +97,36 @@ class AdditiveLightPatch(LightPatch[AdditiveLightPatchConfig, AdditiveLightPatch
         )
 
 
+class UnionLightPatchConfig(BaseModel, frozen=True):
+    pass
+
+
+class UnionLightPatchState(BaseModel):
+    pass
+
+
+class UnionLightPatch(Patch[UnionLightPatchConfig, UnionLightPatchState]):
+    patches: dict[str, SkipValidation[LightPatch]]
+
+    def make_state(self, msg: mido.Message) -> UnionLightPatchState:
+        return UnionLightPatchState()
+
+    def receive(self, msg: mido.Message) -> None:
+        for patch in self.patches.values():
+            patch.receive(msg)
+
+    def render(
+        self, devices: dict[str, animation.Device]
+    ) -> dict[str, NDArray[np.float32]]:
+        if self.patches.keys() != devices.keys():
+            raise ValueError('Union patch names must match device names')
+        frames = {}
+        for name, patch in self.patches.items():
+            device = devices[name]
+            frames[name] = animation.validate_frame(device, patch.render(device))
+        return frames
+
+
 def add_light_frames(
     device: animation.Device, frames: list[NDArray[np.float32]]
 ) -> NDArray[np.float32]:
