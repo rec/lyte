@@ -69,32 +69,32 @@ class LightPatch[ConfigT: BaseModel, StateT: BaseModel](Patch[ConfigT, StateT], 
         pass
 
 
-class AdditiveLightPatchConfig(BaseModel, frozen=True):
+class BlendLightPatchConfig(BaseModel, frozen=True):
     pass
 
 
-class AdditiveLightPatchState(BaseModel):
+class BlendLightPatchState(BaseModel):
     pass
 
 
-class AdditiveLightPatch(LightPatch[AdditiveLightPatchConfig, AdditiveLightPatchState]):
+class BlendLightPatch(LightPatch[BlendLightPatchConfig, BlendLightPatchState]):
     patches: list[SkipValidation[LightPatch]]
 
-    def make_state(self, msg: mido.Message) -> AdditiveLightPatchState:
-        return AdditiveLightPatchState()
+    def make_state(self, msg: mido.Message) -> BlendLightPatchState:
+        return BlendLightPatchState()
 
     def receive(self, msg: mido.Message) -> None:
+        super().receive(msg)
         for patch in self.patches:
             patch.receive(msg)
 
     def render(self, device: animation.Device) -> NDArray[np.float32]:
-        if not self.patches:
-            return animation.validate_frame(
-                device, np.zeros((device.led_count, 3), dtype=np.float32)
-            )
-        return add_light_frames(
-            device, [patch.render(device) for patch in self.patches]
-        )
+        return self.blend(device, [patch.render(device) for patch in self.patches])
+
+    def blend(
+        self, device: animation.Device, frames: list[NDArray[np.float32]]
+    ) -> NDArray[np.float32]:
+        return add_light_frames(device, frames)
 
 
 class UnionLightPatchConfig(BaseModel, frozen=True):

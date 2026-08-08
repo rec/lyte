@@ -345,7 +345,7 @@ class MidiTests(unittest.TestCase):
         )
         self.assertIsNone(patch.state)
 
-    def test_additive_light_patch_adds_child_frames(self) -> None:
+    def test_blend_light_patch_adds_child_frames_by_default(self) -> None:
         class RedConfig(BaseModel, frozen=True):
             value: float = 0.4
 
@@ -378,8 +378,8 @@ class MidiTests(unittest.TestCase):
                     frame[:, 1] = self.config.value
                 return animation.validate_frame(device, frame)
 
-        patch = midi.AdditiveLightPatch(
-            config=midi.AdditiveLightPatchConfig(),
+        patch = midi.BlendLightPatch(
+            config=midi.BlendLightPatchConfig(),
             patches=[
                 RedPatch(config=RedConfig()),
                 GreenPatch(config=GreenConfig()),
@@ -394,7 +394,7 @@ class MidiTests(unittest.TestCase):
             np.array([[0.4, 0.75, 0.0], [0.4, 0.75, 0.0]], dtype=np.float32),
         )
 
-    def test_additive_light_patch_clips_added_frames(self) -> None:
+    def test_blend_light_patch_clips_added_frames_by_default(self) -> None:
         class Config(BaseModel, frozen=True):
             channel: int
 
@@ -410,8 +410,8 @@ class MidiTests(unittest.TestCase):
                 frame[:, self.config.channel] = 0.75
                 return animation.validate_frame(device, frame)
 
-        patch = midi.AdditiveLightPatch(
-            config=midi.AdditiveLightPatchConfig(),
+        patch = midi.BlendLightPatch(
+            config=midi.BlendLightPatchConfig(),
             patches=[
                 ConstantPatch(config=Config(channel=0)),
                 ConstantPatch(config=Config(channel=0)),
