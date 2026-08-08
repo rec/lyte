@@ -22,10 +22,10 @@ from pydantic import BaseModel, ConfigDict
 
 from lyte import animation, cli, fps_test, midi, show
 from lyte.animate import config, random_show
-from lyte.animations import hamiltonian
 from lyte.animations import bibliopixel
+from lyte.animations.christmas import hamiltonian
+from lyte.animations.christmas.random_walk import RandomWalk, perturb
 from lyte.animations.colors import solid_rgb_frame
-from lyte.animations.random_walk import RandomWalk, perturb
 from lyte.errors import DiscoveryError, ProtocolError, UnsupportedEndpointError
 from lyte.logging import LOGGING, log, log_error, log_status
 from lyte.preview import document

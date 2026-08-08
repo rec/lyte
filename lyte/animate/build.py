@@ -4,8 +4,8 @@ from collections.abc import Sequence
 
 from ..animation import Animation
 from ..animations import bibliopixel
-from ..animations.hamiltonian import Hamiltonian
-from ..animations.random_walk import RandomWalk
+from ..animations.christmas.hamiltonian import Hamiltonian
+from ..animations.christmas.random_walk import RandomWalk
 from .config import AnimateConfig
 
 

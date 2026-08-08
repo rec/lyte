@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from lyte.animations.hamiltonian import RGB, hamiltonian_colors
+from lyte.animations.christmas.hamiltonian import RGB, hamiltonian_colors
 
 RUN_HAMILTONIAN_CHECK = 'LYTE_RUN_HAMILTONIAN_CHECK'
 
