@@ -1,14 +1,22 @@
 from __future__ import annotations
 
+import sys
+import time
 import tomllib
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 import numpy as np
+import tyro
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from . import animation
+from .logging import log, log_status
+from .retry import RetryConfig
+from .twinkly import realtime
+from .twinkly.client import TwinklyClient
 
 
 class PatchLibraryError(ValueError):
@@ -184,3 +192,102 @@ def locator_frame(
     segment = wearable.segments[region]
     logical_frame[segment.start : segment.start + segment.led_count] = color
     return map_logical_frame(wearable, logical_frame)
+
+
+@dataclass(frozen=True)
+class PatchCommandConfig:
+    action: Annotated[Literal['list', 'locator'], tyro.conf.Positional] = 'list'
+    library: Path = Path('patches/wearable-breath.toml')
+    region_duration: float = 3.0
+    fps: float = 20.0
+    host: str | None = None
+    timeout: float = 5.0
+    discovery_timeout: float | None = None
+    attempts: int = 10
+    retry_delay: float = 0.5
+    retry_backoff: float = 2.0
+
+
+def run_patch_command(config: PatchCommandConfig) -> int:
+    library = load_patch_library(config.library)
+    if config.action == 'list':
+        list_patch_library(library)
+        return 0
+    return run_locator(config, library)
+
+
+def list_patch_library(library: PatchLibrary) -> None:
+    print(
+        f'Wearable: {library.wearable.led_count} LEDs '
+        f'({library.wearable.physical_map_status} physical map)'
+    )
+    for name, patch in library.patches.items():
+        regions = patch.regions or list(library.wearable.segments)
+        controls = []
+        if patch.note_color is not None:
+            controls.append('note color')
+        if patch.breath_speed is not None:
+            controls.append('breath speed')
+        if patch.breath_mix is not None:
+            controls.append('breath mix')
+        if patch.pitch_speed is not None:
+            controls.append('pitch speed')
+        control_text = ', '.join(controls) if controls else 'none'
+        print(
+            f'{name}: regions={", ".join(regions)}; '
+            f'layers={", ".join(patch.layers)}; controls={control_text}'
+        )
+
+
+def run_locator(config: PatchCommandConfig, library: PatchLibrary) -> int:
+    validate_locator_config(config)
+    host = config.host or realtime.discover_host(config.discovery_timeout)
+    if host is None:
+        return 1
+
+    retry = RetryConfig(
+        attempts=config.attempts,
+        delay=config.retry_delay,
+        backoff=config.retry_backoff,
+    )
+    client = TwinklyClient(host=host, timeout=config.timeout)
+    led_count = realtime.read_led_count(client, retry, None, host)
+    if led_count is None:
+        return 1
+    if led_count != library.wearable.led_count:
+        sys.exit(
+            f'Patch library needs {library.wearable.led_count} LEDs; '
+            f'{host} has {led_count}.'
+        )
+    if not realtime.prepare_device(client, retry, host):
+        return 1
+
+    try:
+        for region in library.wearable.segments:
+            log_status(f'[locator] {region}')
+            frame = animation.byte_light_frame_from_float(
+                locator_frame(library.wearable, region)
+            )
+            stop_at = time.monotonic() + config.region_duration
+            while time.monotonic() < stop_at:
+                realtime.send_realtime_frame(client, retry, host, frame)
+                time.sleep(1 / config.fps)
+    except KeyboardInterrupt:
+        log()
+        log('[ok] Stopped')
+    finally:
+        realtime.turn_off_streaming_device(client, retry, host)
+    return 0
+
+
+def validate_locator_config(config: PatchCommandConfig) -> None:
+    if config.region_duration <= 0:
+        sys.exit('--region-duration must be greater than zero')
+    if config.fps <= 0:
+        sys.exit('--fps must be greater than zero')
+    if config.attempts < 1:
+        sys.exit('--attempts must be at least 1')
+    if config.retry_delay < 0:
+        sys.exit('--retry-delay must not be negative')
+    if config.retry_backoff < 1:
+        sys.exit('--retry-backoff must be at least 1')

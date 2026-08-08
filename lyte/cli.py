@@ -10,6 +10,7 @@ from typing import Annotated
 import tyro
 
 from . import fps_test
+from . import patches
 from . import show
 from .animate.config import AnimateConfig
 from .animate.playback import run_animate
@@ -143,6 +144,7 @@ def main(args: Sequence[str] | None = None) -> int:
             'mqtt': MqttConfig,
             'music': MusicConfig,
             'network': NetworkConfig,
+            'patch': patches.PatchCommandConfig,
             'playlist': PlaylistConfig,
             'preview': PreviewConfig,
             'saturation': SaturationConfig,
@@ -207,6 +209,8 @@ def run_command(config: object) -> int:
         return networking.run_network_control(config.diagnostic_config(), config.action)
     if isinstance(config, PlaylistConfig):
         return media.run_playlist_control(config.diagnostic_config(), config.action)
+    if isinstance(config, patches.PatchCommandConfig):
+        return patches.run_patch_command(config)
     if isinstance(config, PreviewConfig):
         return run_preview(config)
     if isinstance(config, show.ShowConfig):
