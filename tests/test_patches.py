@@ -82,6 +82,16 @@ class PatchLibraryTests(unittest.TestCase):
                 }
             )
 
+    def test_wearable_encoder_maps_logical_values_before_byte_encoding(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        logical_frame = np.zeros((200, 3), dtype=np.float32)
+        logical_frame[0:32, 1] = 1.0
+
+        encoded = patches.encode_wearable_frame(library.wearable, logical_frame)
+
+        self.assertTrue(np.all(encoded[28:60, 1] == 255))
+        self.assertTrue(np.all(encoded[0:28, 1] == 0))
+
     def test_locator_frame_lights_only_the_selected_logical_region(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
 

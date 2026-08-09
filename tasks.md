@@ -50,7 +50,7 @@
 - [x] Allow each declared layer to select its own logical regions so a patch can
   express chest-only and limb-only layers without creating artificial layer
   names.
-- [ ] Apply `WearableSpec.physical_map` between logical patch rendering and
+- [x] Apply `WearableSpec.physical_map` between logical patch rendering and
   Twinkly encoding in patch playback.
 - [ ] Permit the locator command to use a provisional map, but reject
   performance patch playback until the physical map is marked `measured`.

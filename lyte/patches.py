@@ -368,6 +368,14 @@ def map_logical_frame(
     return animation.validate_frame(device, physical_frame)
 
 
+def encode_wearable_frame(
+    wearable: WearableSpec, logical_frame: NDArray[np.float32]
+) -> NDArray[np.uint8]:
+    return animation.byte_light_frame_from_float(
+        map_logical_frame(wearable, logical_frame)
+    )
+
+
 def locator_frame(
     wearable: WearableSpec,
     region: str,
@@ -512,12 +520,11 @@ def stream_patch_frames(
     while stop_at is None or time.monotonic() < stop_at:
         for message in midi.input_messages(port, config.midi_input):
             patch.receive(message)
-        physical_frame = map_logical_frame(library.wearable, patch.render(device))
         result = realtime.send_realtime_frame(
             client,
             retry,
             host,
-            animation.byte_light_frame_from_float(physical_frame),
+            encode_wearable_frame(library.wearable, patch.render(device)),
         )
         if result.status is not realtime.FrameSendStatus.SENT:
             log_error(f'[failed] Could not stream patch frame to {host}.')
