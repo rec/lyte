@@ -42,7 +42,7 @@
 
 - [x] Replace `note_color`, `breath_speed`, `breath_mix`, and `pitch_speed`
   prose fields in `patches/wearable-breath.toml` with validated binding tables.
-- [ ] Implement pitch-class palette selection and the declared note, breath,
+- [x] Implement pitch-class palette selection and the declared note, breath,
   mix, and positive pitch-bend mappings against mutable per-note patch state.
 - [ ] Compile a patch's declared blend policy into `BlendLightPatch` or
   `WeightedBlendLightPatch` rather than treating all multi-layer patches as an
