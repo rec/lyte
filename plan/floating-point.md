@@ -33,6 +33,18 @@ outputs with different output depth or different light-channel layouts.
 - Do not change DMX or multi-protocol architecture in this migration. DMX is
   deliberately put aside until the Twinkly float migration is stable.
 
+## Deferred Color Conversion
+
+RGB-to-other-light-channel conversion is explicitly deferred. Lyte does not yet
+have a specified BiblioPixel-derived color model for RGBW, warm/cool white, or
+other channel layouts, so it must not infer one from generic channel names.
+
+Until that model is specified, current runtime code remains RGB-only and no
+RGBW extraction, RGB-to-luminance, white-balance, or generic device-profile
+conversion policy should be added. References below to future channel layouts
+are planning constraints, not an approved encoder design.
+
+
 ## Target Frame Model
 
 Internal pixel frames should eventually have this contract:
@@ -124,11 +136,9 @@ slightly overshoot. Animation render methods should still try to stay in range.
 Twinkly realtime sending should receive byte frames exactly as it does today,
 but the runner should convert float frames immediately before sending.
 
-For RGBW or non-RGB Twinkly devices, output encoding may require a
-color-conversion step before byte quantization. For example, an RGB animation
-rendered for an RGBW device may need an RGB-to-RGBW extraction policy. A
-white-only device may need RGB-to-luminance conversion. Those conversions are
-device/profile output decisions, not core animation math.
+RGBW and non-RGB output conversion is deferred until the intended
+BiblioPixel-derived color model is specified. This plan intentionally does not
+choose an extraction, luminance, white-balance, or profile conversion policy.
 
 ## Animation API Changes
 

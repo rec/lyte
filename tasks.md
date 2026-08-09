@@ -68,7 +68,7 @@
 - [x] Update `README.md` to describe Lyte as a dependency-using personal
   Twinkly player with experimental patch support, not a dependency-free proof
   of concept.
-- [ ] Keep RGB-to-other-light-channel conversion deferred until the intended
+- [x] Keep RGB-to-other-light-channel conversion deferred until the intended
   BiblioPixel-derived color model is specified. Do not add a generic RGBW or
   non-RGB conversion policy before that decision is complete.
 
