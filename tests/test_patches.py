@@ -104,6 +104,36 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertEqual(frame.dtype, np.float32)
         self.assertTrue(frame.flags.c_contiguous)
 
+    def test_declarative_patch_applies_note_breath_mix_and_pitch_bindings(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        patch = patches.build_light_patch(library, 'breath_mix_walk_twinkle')
+        if not isinstance(patch, patches.DeclarativeLightPatch):
+            self.fail('patch did not compile to DeclarativeLightPatch')
+
+        patch.receive(mido.Message('note_on', note=61, velocity=100))
+        patch.receive(mido.Message('control_change', control=2, value=127))
+        state = patch.state
+        if state is None:
+            self.fail('patch state was not created')
+
+        self.assertEqual(state.weights['region_twinkle'], 1.0)
+        self.assertEqual(state.weights['random_walk'], 0.0)
+        patch.receive(mido.Message('note_off', note=61))
+        self.assertIsNone(patch.state)
+
+    def test_pitch_bend_maps_only_the_positive_half(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        patch = patches.build_light_patch(library, 'pitch_turbo_walk')
+        if not isinstance(patch, patches.DeclarativeLightPatch):
+            self.fail('patch did not compile to DeclarativeLightPatch')
+
+        patch.receive(mido.Message('note_on', note=60, velocity=100))
+        layer = patch.layers['random_walk']
+        patch.receive(mido.Message('pitchwheel', pitch=-4096))
+        self.assertEqual(layer.config.regions[0].animation.speed, 1.0)
+        patch.receive(mido.Message('pitchwheel', pitch=8191))
+        self.assertEqual(layer.config.regions[0].animation.speed, 300.0)
+
     def test_build_light_patch_rejects_unknown_patch(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
 

@@ -7,10 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Literal
 
+import mido
 import numpy as np
 import tyro
 from numpy.typing import NDArray
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SkipValidation, model_validator
 
 from . import animation, midi
 from .animations import bibliopixel
@@ -221,6 +222,105 @@ class PatchLibrary(BaseModel, frozen=True):
     model_config = ConfigDict(extra='forbid')
 
 
+class DeclarativePatchState(BaseModel):
+    colors: dict[str, list[float]] = {}
+    gains: dict[str, float] = {}
+    weights: dict[str, float] = {}
+
+
+class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
+    layers: dict[str, SkipValidation[midi.LightPatch]]
+
+    def make_state(self, msg: mido.Message) -> DeclarativePatchState:
+        return DeclarativePatchState(
+            gains={name: 1.0 for name in self.layers},
+            weights={name: 1.0 for name in self.layers},
+        )
+
+    def receive(self, msg: mido.Message) -> None:
+        super().receive(msg)
+        for layer in self.layers.values():
+            layer.receive(msg)
+
+    def breath_control(self, msg: mido.Message) -> None:
+        self.apply_bindings('breath', msg.value)
+
+    def pitch_bend(self, msg: mido.Message) -> None:
+        self.apply_bindings('pitch_bend', int(msg.__getattribute__('pitch')))
+
+    def note_on(self, msg: mido.Message) -> None:
+        self.apply_bindings('note', msg.note)
+
+    def apply_bindings(self, source: str, value: int) -> None:
+        if self.state is None:
+            return
+        for binding in self.config.bindings:
+            if binding.source != source:
+                continue
+            target_name, _, parameter = binding.target.partition('.')
+            if binding.mapping == 'pitch_class_palette':
+                color = self.config.note_palette[value % 12]
+                self.state.colors[target_name] = color
+                continue
+            mapped_value = map_binding_value(binding.mapping, value)
+            if target_name == 'mix':
+                self.state.weights[parameter] = mapped_value
+                if len(self.layers) == 2:
+                    other = next(name for name in self.layers if name != parameter)
+                    self.state.weights[other] = 1.0 - mapped_value
+            elif parameter == 'gain':
+                self.state.gains[target_name] = mapped_value
+            elif parameter == 'speed':
+                set_layer_speed(self.layers[target_name], mapped_value)
+
+    def render(self, device: animation.Device) -> NDArray[np.float32]:
+        if self.state is None:
+            return animation.validate_frame(
+                device, np.zeros((device.led_count, 3), dtype=np.float32)
+            )
+        frames = []
+        for name, layer in self.layers.items():
+            frame = animation.validate_frame(device, layer.render(device))
+            if (color := self.state.colors.get(name)) is not None:
+                intensity = np.max(frame, axis=1, keepdims=True)
+                frame = intensity * np.array(color, dtype=np.float32)
+            frame *= self.state.gains[name] * self.state.weights[name]
+            frames.append(frame)
+        return midi.add_light_frames(device, frames)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+def map_binding_value(mapping: LinearMapSpec, value: int) -> float:
+    if mapping.kind == 'positive_linear' and value <= 0:
+        return mapping.output[0]
+    start, end = mapping.input
+    progress = max(0.0, min(1.0, (value - start) / (end - start)))
+    return mapping.output[0] + progress * (mapping.output[1] - mapping.output[0])
+
+
+def set_layer_speed(layer: midi.LightPatch, speed: float) -> None:
+    if not isinstance(layer, midi.RegionLightPatch):
+        raise ValueError('Layer speed control requires a region light patch')
+    regions = []
+    for region in layer.config.regions:
+        source = region.animation
+        if isinstance(source, RandomWalk):
+            source = source.model_copy(update={'speed': speed})
+        elif isinstance(source, bibliopixel.Twinkle):
+            source = source.model_copy(update={'speed': round(speed)})
+        elif isinstance(source, bibliopixel.ColorChase | bibliopixel.Rainbow):
+            source = source.model_copy(update={'step': max(1, round(speed))})
+        regions.append(
+            midi.RegionAnimation(
+                animation=source,
+                start=region.start,
+                led_count=region.led_count,
+            )
+        )
+    layer.config = midi.RegionLightPatchConfig(regions=regions)
+
+
 def load_patch_library(path: Path) -> PatchLibrary:
     try:
         with path.open('rb') as source:
@@ -429,30 +529,23 @@ def validate_locator_config(config: PatchCommandConfig) -> None:
 def build_light_patch(library: PatchLibrary, name: str) -> midi.LightPatch:
     if (patch := library.patches.get(name)) is None:
         raise ValueError(f'unknown patch: {name}')
-    regions = patch.regions or list(library.wearable.segments)
-    children = []
+    default_regions = patch.regions or list(library.wearable.segments)
+    layers = {}
     for layer_name in patch.layers:
         layer = library.layers[layer_name]
-        children.append(
-            midi.RegionLightPatch(
-                config=midi.RegionLightPatchConfig(
-                    regions=[
-                        midi.RegionAnimation(
-                            animation=build_layer_animation(layer),
-                            start=library.wearable.segments[region].start,
-                            led_count=library.wearable.segments[region].led_count,
-                        )
-                        for region in regions
-                    ]
-                )
+        layers[layer_name] = midi.RegionLightPatch(
+            config=midi.RegionLightPatchConfig(
+                regions=[
+                    midi.RegionAnimation(
+                        animation=build_layer_animation(layer),
+                        start=library.wearable.segments[region].start,
+                        led_count=library.wearable.segments[region].led_count,
+                    )
+                    for region in default_regions
+                ]
             )
         )
-    if len(children) == 1:
-        return children[0]
-    return midi.BlendLightPatch(
-        config=midi.BlendLightPatchConfig(),
-        patches=children,
-    )
+    return DeclarativeLightPatch(config=patch, layers=layers)
 
 
 def build_layer_animation(layer: LayerSpec) -> animation.Animation:
