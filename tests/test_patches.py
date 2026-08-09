@@ -114,6 +114,30 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertEqual(frame.dtype, np.float32)
         self.assertTrue(frame.flags.c_contiguous)
 
+    def test_note_and_breath_bindings_change_the_declared_layer_state(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        note_patch = patches.build_light_patch(library, 'prism_limbs')
+        breath_patch = patches.build_light_patch(library, 'breath_walker')
+        if not isinstance(note_patch, patches.DeclarativeLightPatch):
+            self.fail('note patch did not compile')
+        if not isinstance(breath_patch, patches.DeclarativeLightPatch):
+            self.fail('breath patch did not compile')
+
+        note_patch.receive(mido.Message('note_on', note=61, velocity=100))
+        breath_patch.receive(mido.Message('note_on', note=60, velocity=100))
+        breath_patch.receive(mido.Message('control_change', control=2, value=127))
+        if note_patch.state is None:
+            self.fail('note patch state was not created')
+
+        self.assertEqual(
+            note_patch.state.colors['five_color_fill'],
+            note_patch.config.note_palette[1],
+        )
+        self.assertEqual(
+            breath_patch.layers['random_walk'].config.regions[0].animation.speed,
+            100.0,
+        )
+
     def test_declarative_patch_applies_note_breath_mix_and_pitch_bindings(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
         patch = patches.build_light_patch(library, 'breath_mix_walk_twinkle')

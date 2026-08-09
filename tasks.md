@@ -57,7 +57,7 @@
 - [x] Mark the existing thirty-two entries as experimental in list output until
   their declared controls and visual behavior are executable. Do not treat
   their current names as stable visual commitments.
-- [ ] Add tests that each executable binding changes the intended target and
+- [x] Add tests that each executable binding changes the intended target and
   that compiled patch playback maps logical regions to physical indexes.
 
 ## Current Contracts and Documentation
