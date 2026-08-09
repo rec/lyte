@@ -26,10 +26,28 @@ class PlaybackConnectionState(enum.StrEnum):
 
 class PlaybackConnection(BaseModel):
     state: PlaybackConnectionState = PlaybackConnectionState.UNKNOWN
+    blackout_requested: bool = True
 
     def set_state(self, state: PlaybackConnectionState) -> None:
         self.state = state
         log_status(f'[connection] {state}')
+
+    def begin_recovery(self) -> None:
+        self.blackout_requested = True
+        self.set_state(PlaybackConnectionState.RECOVERING)
+
+    def resume_streaming(self) -> None:
+        self.blackout_requested = False
+        self.set_state(PlaybackConnectionState.STREAMING)
+
+    def finish_blackout(self, succeeded: bool) -> None:
+        self.blackout_requested = True
+        state = (
+            PlaybackConnectionState.BLACKED_OUT
+            if succeeded
+            else PlaybackConnectionState.UNKNOWN
+        )
+        self.set_state(state)
 
 
 class FrameSendStatus(enum.StrEnum):

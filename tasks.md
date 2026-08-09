@@ -11,7 +11,7 @@
   network, token, or device failure, stop producing visible output, attempt to
   re-discover and re-authenticate the device, restore realtime mode, and resume
   only after reconnection succeeds.
-- [ ] Apply the outage policy consistently: while a device is disconnected,
+- [x] Apply the outage policy consistently: while a device is disconnected,
   Lyte's intended state is blackout. Do not retain or deliberately resend a
   last visible frame during recovery.
 - [x] Make retry and transport functions return structured failure outcomes to
