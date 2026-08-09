@@ -65,7 +65,7 @@
 - [x] Update `doc/api-plan.md` and `plan/dmx.md` to state the current
   `float32` RGB frame contract, current Python version, and which parts remain
   proposals rather than runtime behavior.
-- [ ] Update `README.md` to describe Lyte as a dependency-using personal
+- [x] Update `README.md` to describe Lyte as a dependency-using personal
   Twinkly player with experimental patch support, not a dependency-free proof
   of concept.
 - [ ] Keep RGB-to-other-light-channel conversion deferred until the intended
