@@ -30,7 +30,7 @@
   resulting Twinkly frame, and use the normal blackout cleanup path.
 - [x] Make active-note identity explicit. A note-off must clear only the active
   note on the selected channel; a new note-on replaces that active note.
-- [ ] Implement the agreed CC 2 contract: values from the selected input and
+- [x] Implement the agreed CC 2 contract: values from the selected input and
   channel apply immediately to the active note's patch, persist until the next
   CC 2 or that note ends, and are processed in input arrival order.
 - [ ] Keep MIDI polling and patch rendering in the same playback loop initially
