@@ -33,7 +33,7 @@
 - [x] Implement the agreed CC 2 contract: values from the selected input and
   channel apply immediately to the active note's patch, persist until the next
   CC 2 or that note ends, and are processed in input arrival order.
-- [ ] Keep MIDI polling and patch rendering in the same playback loop initially
+- [x] Keep MIDI polling and patch rendering in the same playback loop initially
   so patch state cannot be mutated concurrently with rendering.
 - [ ] Add tests for channel filtering, note replacement, unrelated note-off,
   CC 2 persistence, CC 2 reset on note-off, and input-arrival ordering.

@@ -8,9 +8,12 @@ from unittest.mock import patch
 import mido
 import numpy as np
 from numpy import testing as npt
+from pydantic import BaseModel
 
-from lyte import animation, patches
+from lyte import animation, midi, patches
+from lyte.retry import RetryConfig
 from lyte.twinkly import realtime
+from lyte.twinkly.client import TwinklyClient
 
 
 class PatchLibraryTests(unittest.TestCase):
@@ -118,6 +121,62 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertTrue(port.closed)
         send.assert_called_once()
+
+    def test_patch_playback_applies_input_before_rendering_each_frame(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+
+        class Port:
+            messages = iter([mido.Message('note_on', note=60, velocity=100)])
+
+            def close(self) -> None:
+                pass
+
+            def poll(self) -> mido.Message | None:
+                return next(self.messages, None)
+
+        class Config(BaseModel, frozen=True):
+            pass
+
+        class State(BaseModel):
+            pass
+
+        class TestPatch(midi.LightPatch[Config, State]):
+            def make_state(self, msg: mido.Message) -> State:
+                return State()
+
+            def render(self, device: animation.Device) -> np.ndarray:
+                frame = np.zeros((device.led_count, 3), dtype=np.float32)
+                if self.state is not None:
+                    frame[:, 0] = 1.0
+                return animation.validate_frame(device, frame)
+
+        light_patch = TestPatch(config=Config())
+        sent = realtime.FrameSendResult(
+            status=realtime.FrameSendStatus.SENT,
+            byte_count=600,
+        )
+        frames = []
+
+        with (
+            patch(
+                'lyte.patches.realtime.send_realtime_frame',
+                side_effect=lambda *args: frames.append(args[-1]) or sent,
+            ),
+            patch('lyte.patches.time.monotonic', side_effect=[0.0, 0.0, 1.0]),
+            patch('lyte.patches.time.sleep'),
+        ):
+            patches.stream_patch_frames(
+                Port(),
+                patches.PatchCommandConfig(action='play', duration=0.1),
+                library,
+                light_patch,
+                TwinklyClient(host='192.168.1.23'),
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                '192.168.1.23',
+            )
+
+        self.assertEqual(len(frames), 1)
+        self.assertTrue(np.all(frames[0][:, 0] == 255))
 
     def test_patch_library_rejects_physical_map_gaps(self) -> None:
         with self.assertRaisesRegex(ValueError, 'must contain 2 LEDs'):

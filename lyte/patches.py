@@ -331,23 +331,7 @@ def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int
     try:
         if not realtime.prepare_device(client, retry, host):
             return 1
-        device = animation.Device(led_count=library.wearable.led_count)
-        stop_at = (
-            None if config.duration is None else time.monotonic() + config.duration
-        )
-        while stop_at is None or time.monotonic() < stop_at:
-            for message in midi.input_messages(port, config.midi_input):
-                patch.receive(message)
-            physical_frame = map_logical_frame(library.wearable, patch.render(device))
-            result = realtime.send_realtime_frame(
-                client,
-                retry,
-                host,
-                animation.byte_light_frame_from_float(physical_frame),
-            )
-            if result.status is not realtime.FrameSendStatus.SENT:
-                log_error(f'[failed] Could not stream patch frame to {host}.')
-            time.sleep(1 / config.fps)
+        stream_patch_frames(port, config, library, patch, client, retry, host)
     except KeyboardInterrupt:
         log()
         log('[ok] Stopped')
@@ -355,6 +339,32 @@ def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int
         port.close()
         realtime.turn_off_streaming_device(client, retry, host)
     return 0
+
+
+def stream_patch_frames(
+    port: midi.MidiInput,
+    config: PatchCommandConfig,
+    library: PatchLibrary,
+    patch: midi.LightPatch,
+    client: TwinklyClient,
+    retry: RetryConfig,
+    host: str,
+) -> None:
+    device = animation.Device(led_count=library.wearable.led_count)
+    stop_at = None if config.duration is None else time.monotonic() + config.duration
+    while stop_at is None or time.monotonic() < stop_at:
+        for message in midi.input_messages(port, config.midi_input):
+            patch.receive(message)
+        physical_frame = map_logical_frame(library.wearable, patch.render(device))
+        result = realtime.send_realtime_frame(
+            client,
+            retry,
+            host,
+            animation.byte_light_frame_from_float(physical_frame),
+        )
+        if result.status is not realtime.FrameSendStatus.SENT:
+            log_error(f'[failed] Could not stream patch frame to {host}.')
+        time.sleep(1 / config.fps)
 
 
 def validate_playback_config(config: PatchCommandConfig) -> None:
