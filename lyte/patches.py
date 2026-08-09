@@ -474,6 +474,9 @@ def run_locator(config: PatchCommandConfig, library: PatchLibrary) -> int:
 
 def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int:
     validate_playback_config(config)
+    if library.wearable.physical_map_status != 'measured':
+        log_error('[failed] Patch playback requires a measured physical map.')
+        return 1
     if config.patch_name is None:
         sys.exit('Patch playback requires a patch name')
     patch = build_light_patch(library, config.patch_name)

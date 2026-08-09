@@ -52,7 +52,7 @@
   names.
 - [x] Apply `WearableSpec.physical_map` between logical patch rendering and
   Twinkly encoding in patch playback.
-- [ ] Permit the locator command to use a provisional map, but reject
+- [x] Permit the locator command to use a provisional map, but reject
   performance patch playback until the physical map is marked `measured`.
 - [ ] Mark the existing thirty-two entries as experimental in list output until
   their declared controls and visual behavior are executable. Do not treat

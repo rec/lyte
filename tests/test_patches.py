@@ -188,8 +188,28 @@ class PatchLibraryTests(unittest.TestCase):
         )
         self.assertIn('prism_limbs:', output.getvalue())
 
+    def test_patch_playback_rejects_a_provisional_physical_map(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        errors = io.StringIO()
+
+        with patch('sys.stderr', errors):
+            result = patches.run_patch_playback(
+                patches.PatchCommandConfig(action='play', patch_name='breath_walker'),
+                library,
+            )
+
+        self.assertEqual(result, 1)
+        self.assertIn('measured physical map', errors.getvalue())
+
     def test_patch_playback_polls_midi_and_streams_mapped_frames(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = library.model_copy(
+            update={
+                'wearable': library.wearable.model_copy(
+                    update={'physical_map_status': 'measured'}
+                )
+            }
+        )
 
         class Port:
             messages = iter([mido.Message('note_on', note=60, velocity=100)])
