@@ -130,6 +130,55 @@ class AnimateTests(unittest.TestCase):
             np.array([[25, 125, 150]], dtype=np.uint8),
         )
 
+    def test_animation_recovers_before_sending_another_frame(self) -> None:
+        class ConstantAnimation(animation.Animation):
+            def render(
+                self, device: animation.Device, state: animation.State
+            ) -> NDArray[np.float32]:
+                return np.zeros((device.led_count, 3), dtype=np.float32)
+
+        args = config.AnimateConfig(animation='color_fill', fps=1, duration=0.5)
+        connection = self.script.realtime.PlaybackConnection()
+        failed = self.script.realtime.FrameSendResult(
+            status=self.script.realtime.FrameSendStatus.TRANSPORT_FAILED
+        )
+        sent = self.script.realtime.FrameSendResult(
+            status=self.script.realtime.FrameSendStatus.SENT, byte_count=3
+        )
+
+        with (
+            patch(
+                'lyte.animate.playback.realtime.send_realtime_frame',
+                side_effect=[failed, sent],
+            ),
+            patch(
+                'lyte.animate.playback.realtime.recover_streaming_device',
+                return_value='192.168.1.23',
+            ) as recover,
+            patch(
+                'lyte.animate.playback.time.monotonic',
+                side_effect=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+            ),
+            patch('lyte.animate.playback.time.sleep'),
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            self.script.run_animation_state(
+                ConstantAnimation(),
+                animation.State(),
+                args,
+                TwinklyClient(host='192.168.1.23'),
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                '192.168.1.23',
+                animation.Device(led_count=1),
+                args.duration,
+                connection,
+            )
+
+        recover.assert_called_once()
+        self.assertEqual(
+            connection.state, self.script.realtime.PlaybackConnectionState.STREAMING
+        )
+
     def test_crossfade_advances_both_streamers(self) -> None:
         class ConstantAnimation(animation.Animation):
             color: tuple[int, int, int]
@@ -158,7 +207,13 @@ class AnimateTests(unittest.TestCase):
             patch('lyte.animate.playback.time.sleep'),
             patch(
                 'lyte.animate.playback.realtime.send_realtime_frame',
-                lambda *a: sent_frames.append(a[-1]),
+                lambda *a: (
+                    sent_frames.append(a[-1])
+                    or self.script.realtime.FrameSendResult(
+                        status=self.script.realtime.FrameSendStatus.SENT,
+                        byte_count=a[-1].nbytes,
+                    )
+                ),
             ),
         ):
             self.script.run_crossfade(

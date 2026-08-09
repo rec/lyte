@@ -7,7 +7,7 @@
   treating a failed off request as a successful blackout.
 - [x] Refactor realtime playback setup so that any failure or interruption after
   switching to realtime mode still attempts to black out the device.
-- [ ] Replace terminal frame-send failure with a recovery loop: on a transient
+- [x] Replace terminal frame-send failure with a recovery loop: on a transient
   network, token, or device failure, stop producing visible output, attempt to
   re-discover and re-authenticate the device, restore realtime mode, and resume
   only after reconnection succeeds.
