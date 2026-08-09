@@ -257,19 +257,20 @@ class WeightedBlendLightPatch(
             patch.receive(msg)
 
     def render(self, device: animation.Device) -> NDArray[np.float32]:
+        return self.blend(device, [patch.render(device) for patch in self.patches])
+
+    def blend(
+        self, device: animation.Device, frames: list[NDArray[np.float32]]
+    ) -> NDArray[np.float32]:
         if (state := self.state) is None:
             return animation.validate_frame(
                 device, np.zeros((device.led_count, 3), dtype=np.float32)
             )
-        if len(state.weights) != len(self.patches):
-            raise ValueError('Blend state weights must match the number of patches')
-        frames = [
-            animation.validate_frame(device, patch.render(device))
-            for patch in self.patches
-        ]
+        if len(state.weights) != len(frames):
+            raise ValueError('Blend state weights must match the number of frames')
         total = np.zeros((device.led_count, 3), dtype=np.float32)
         for frame, weight in zip(frames, state.weights, strict=True):
-            total += frame * weight
+            total += animation.validate_frame(device, frame) * weight
         return animation.validate_frame(device, np.clip(total, 0.0, 1.0))
 
     def set_weight(self, index: int, value: float) -> None:
