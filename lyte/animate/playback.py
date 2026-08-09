@@ -49,9 +49,9 @@ def run_animate(args: AnimateConfig) -> int:
             return 1
         connection.set_state(realtime.PlaybackConnectionState.STREAMING)
         if args.animation == 'random':
-            run_random_animations(args, client, retry, host, device)
+            run_random_animations(args, client, retry, host, device, connection)
         else:
-            run_animation(args, client, retry, host, device, args.duration)
+            run_animation(args, client, retry, host, device, args.duration, connection)
     except KeyboardInterrupt:
         log()
         log('[ok] Stopped')
@@ -70,6 +70,7 @@ def run_random_animations(
     retry: RetryConfig,
     host: str,
     device: animation.Device,
+    connection: realtime.PlaybackConnection | None = None,
 ) -> None:
     generator = random.Random(args.seed)
     stop_at = None if args.duration is None else time.monotonic() + args.duration
@@ -97,6 +98,7 @@ def run_random_animations(
                 host,
                 device,
                 solo_duration,
+                connection,
             )
         if stop_at is not None and time.monotonic() >= stop_at:
             return
@@ -126,6 +128,7 @@ def run_random_animations(
                 host,
                 device,
                 clipped_overlap_duration,
+                connection,
             )
         current_args = next_args
         current_animation = next_animation
@@ -140,11 +143,14 @@ def run_animation(
     host: str,
     device: animation.Device,
     duration: float | None,
+    connection: realtime.PlaybackConnection | None = None,
 ) -> None:
     source = build_animation(args)
     state = source.initial_state(device)
     state.fps = args.fps
-    run_animation_state(source, state, args, client, retry, host, device, duration)
+    run_animation_state(
+        source, state, args, client, retry, host, device, duration, connection
+    )
 
 
 def run_animation_state(
@@ -156,6 +162,7 @@ def run_animation_state(
     host: str,
     device: animation.Device,
     duration: float | None,
+    connection: realtime.PlaybackConnection | None = None,
 ) -> None:
     frame_delay = 1 / args.fps
     stop_at = None if duration is None else time.monotonic() + duration
@@ -170,7 +177,20 @@ def run_animation_state(
         frame = animation.byte_light_frame_from_float(
             animation.validate_frame(device, source.render(device, state))
         )
-        realtime.send_realtime_frame(client, retry, host, frame)
+        result = realtime.send_realtime_frame(client, retry, host, frame)
+        if result.status is not realtime.FrameSendStatus.SENT:
+            if connection is not None:
+                connection.set_state(realtime.PlaybackConnectionState.RECOVERING)
+            host = realtime.recover_streaming_device(
+                client,
+                retry,
+                args.host,
+                args.discovery_timeout,
+                device.led_count,
+            )
+            if connection is not None:
+                connection.set_state(realtime.PlaybackConnectionState.STREAMING)
+            continue
         remaining = frame_delay - (time.monotonic() - started_at)
         if remaining > 0:
             time.sleep(remaining)
@@ -187,6 +207,7 @@ def run_crossfade(
     host: str,
     device: animation.Device,
     duration: float,
+    connection: realtime.PlaybackConnection | None = None,
 ) -> None:
     frame_delay = 1 / args.fps
     started_at = time.monotonic()
@@ -202,9 +223,22 @@ def run_crossfade(
             animation.validate_frame(device, next_animation.render(device, next_state)),
             progress,
         )
-        realtime.send_realtime_frame(
+        result = realtime.send_realtime_frame(
             client, retry, host, animation.byte_light_frame_from_float(frame)
         )
+        if result.status is not realtime.FrameSendStatus.SENT:
+            if connection is not None:
+                connection.set_state(realtime.PlaybackConnectionState.RECOVERING)
+            host = realtime.recover_streaming_device(
+                client,
+                retry,
+                args.host,
+                args.discovery_timeout,
+                device.led_count,
+            )
+            if connection is not None:
+                connection.set_state(realtime.PlaybackConnectionState.STREAMING)
+            continue
         remaining = frame_delay - (time.monotonic() - frame_started_at)
         if remaining > 0:
             time.sleep(remaining)

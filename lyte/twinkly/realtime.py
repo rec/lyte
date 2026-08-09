@@ -117,6 +117,27 @@ def prepare_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool
     return True
 
 
+def recover_streaming_device(
+    client: TwinklyClient,
+    retry: RetryConfig,
+    configured_host: str | None,
+    discovery_timeout: float | None,
+    expected_led_count: int,
+) -> str:
+    while True:
+        host = configured_host or discover_host(discovery_timeout)
+        if host is None:
+            time.sleep(retry.delay)
+            continue
+        client.host = host
+        client.mac = None
+        client.token = None
+        led_count = read_led_count(client, retry, expected_led_count, host)
+        if led_count == expected_led_count and prepare_device(client, retry, host):
+            return host
+        time.sleep(retry.delay)
+
+
 def turn_off_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool:
     log(f'[step] Reading device info from {host}')
     gestalt = session.read_gestalt(client, retry, f'HTTP device info read from {host}')

@@ -80,6 +80,26 @@ class PlaybackConnectionTests(unittest.TestCase):
 
 
 class RealtimeTransportTests(unittest.TestCase):
+    def test_recovery_rediscovers_and_restores_realtime_mode(self) -> None:
+        client = TwinklyClient(host='192.168.1.2', mac='old')
+
+        with (
+            patch('lyte.twinkly.realtime.discover_host', return_value='192.168.1.23'),
+            patch('lyte.twinkly.realtime.read_led_count', return_value=3),
+            patch('lyte.twinkly.realtime.prepare_device', return_value=True),
+        ):
+            host = realtime.recover_streaming_device(
+                client,
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                None,
+                None,
+                3,
+            )
+
+        self.assertEqual(host, '192.168.1.23')
+        self.assertEqual(client.host, '192.168.1.23')
+        self.assertIsNone(client.mac)
+
     def test_realtime_frame_reports_missing_token(self) -> None:
         result = realtime.send_realtime_frame(
             TwinklyClient(host='192.168.1.23'),
