@@ -5,7 +5,7 @@
 - [x] Add an explicit Twinkly playback connection state: connecting, streaming,
   recovering, blacked out, and unknown. Report the state in logs rather than
   treating a failed off request as a successful blackout.
-- [ ] Refactor realtime playback setup so that any failure or interruption after
+- [x] Refactor realtime playback setup so that any failure or interruption after
   switching to realtime mode still attempts to black out the device.
 - [ ] Replace terminal frame-send failure with a recovery loop: on a transient
   network, token, or device failure, stop producing visible output, attempt to

@@ -282,10 +282,9 @@ def run_locator(config: PatchCommandConfig, library: PatchLibrary) -> int:
             f'Patch library needs {library.wearable.led_count} LEDs; '
             f'{host} has {led_count}.'
         )
-    if not realtime.prepare_device(client, retry, host):
-        return 1
-
     try:
+        if not realtime.prepare_device(client, retry, host):
+            return 1
         for region in library.wearable.segments:
             log_status(f'[locator] {region}')
             frame = animation.byte_light_frame_from_float(
