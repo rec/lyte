@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
+from typing import Protocol, cast
 
 import mido
 import numpy as np
@@ -10,9 +12,46 @@ from pydantic import BaseModel, ConfigDict, SkipValidation, model_validator
 from . import animation
 
 
+class MidiInput(Protocol):
+    def poll(self) -> mido.Message | None: ...
+
+
 class MidiIn(BaseModel, frozen=True):
     channel: int | None = None
     device_name: str | list[str] | None = None
+
+    @model_validator(mode='after')
+    def validate_channel(self) -> MidiIn:
+        if self.channel is not None and not 0 <= self.channel <= 15:
+            raise ValueError('MIDI channel must be between 0 and 15')
+        if isinstance(self.device_name, list) and not self.device_name:
+            raise ValueError('MIDI device_name list must not be empty')
+        return self
+
+
+def open_input(config: MidiIn) -> MidiInput:
+    available_names = list(mido.get_input_names())
+    configured_names = (
+        [config.device_name]
+        if isinstance(config.device_name, str)
+        else config.device_name
+    )
+    if configured_names is None:
+        if len(available_names) != 1:
+            raise ValueError('Select one MIDI input device')
+        name = available_names[0]
+    else:
+        name = next((n for n in configured_names if n in available_names), None)
+        if name is None:
+            raise ValueError('Configured MIDI input device is unavailable')
+    return cast(MidiInput, mido.open_input(name))
+
+
+def input_messages(port: MidiInput, config: MidiIn) -> Iterator[mido.Message]:
+    poll = port.poll
+    while (msg := poll()) is not None:
+        if config.channel is None or getattr(msg, 'channel', None) == config.channel:
+            yield msg
 
 
 class Patch[ConfigT: BaseModel, StateT: BaseModel](BaseModel, ABC):
