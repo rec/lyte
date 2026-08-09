@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 import mido
 import numpy as np
@@ -10,6 +11,51 @@ from pydantic import BaseModel, ConfigDict
 
 from lyte import animation, midi
 from lyte.animations import bibliopixel
+
+
+class MidiInputTests(unittest.TestCase):
+    def test_open_input_selects_first_available_configured_name(self) -> None:
+        config = midi.MidiIn(device_name=['missing', 'WX7'])
+        port = object()
+
+        with (
+            mock.patch('lyte.midi.mido.get_input_names', return_value=['WX7']),
+            mock.patch('lyte.midi.mido.open_input', return_value=port) as open_input,
+        ):
+            result = midi.open_input(config)
+
+        self.assertIs(result, port)
+        open_input.assert_called_once_with('WX7')
+
+    def test_open_input_uses_the_only_available_device(self) -> None:
+        port = object()
+
+        with (
+            mock.patch('lyte.midi.mido.get_input_names', return_value=['WX7']),
+            mock.patch('lyte.midi.mido.open_input', return_value=port) as open_input,
+        ):
+            result = midi.open_input(midi.MidiIn())
+
+        self.assertIs(result, port)
+        open_input.assert_called_once_with('WX7')
+
+    def test_input_messages_filters_by_selected_channel_in_arrival_order(self) -> None:
+        class Port:
+            messages = iter(
+                [
+                    mido.Message('note_on', channel=2, note=60, velocity=100),
+                    mido.Message('control_change', channel=1, control=2, value=64),
+                    mido.Message('note_off', channel=2, note=60),
+                ]
+            )
+
+            def poll(self) -> mido.Message | None:
+                return next(self.messages, None)
+
+        messages = list(midi.input_messages(Port(), midi.MidiIn(channel=2)))
+
+        self.assertEqual([msg.type for msg in messages], ['note_on', 'note_off'])
+        self.assertEqual([msg.note for msg in messages], [60, 60])
 
 
 class MidiTests(unittest.TestCase):

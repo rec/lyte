@@ -23,7 +23,7 @@
 
 ## MIDI Input and Patch Playback
 
-- [ ] Implement selected Mido input-port and MIDI-channel filtering from
+- [x] Implement selected Mido input-port and MIDI-channel filtering from
   `MidiIn` configuration.
 - [ ] Add `lyte patch play` to poll the selected input in arrival order, render
   the selected patch at its configured FPS, apply the physical map, stream the
