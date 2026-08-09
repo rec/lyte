@@ -4,6 +4,8 @@ import io
 import unittest
 from unittest.mock import patch
 
+import numpy as np
+
 from lyte.animations.colors import solid_rgb_frame
 from lyte.retry import RetryConfig
 from lyte.twinkly import realtime, session
@@ -75,6 +77,35 @@ class PlaybackConnectionTests(unittest.TestCase):
             '[connection] blacked_out\n'
             '[connection] unknown\n',
         )
+
+
+class RealtimeTransportTests(unittest.TestCase):
+    def test_realtime_frame_reports_missing_token(self) -> None:
+        result = realtime.send_realtime_frame(
+            TwinklyClient(host='192.168.1.23'),
+            RetryConfig(attempts=1, delay=0, backoff=1),
+            '192.168.1.23',
+            np.zeros((1, 3), dtype=np.uint8),
+        )
+
+        self.assertEqual(result.status, realtime.FrameSendStatus.TOKEN_MISSING)
+        self.assertEqual(result.byte_count, 0)
+
+    def test_realtime_frame_reports_transport_failure(self) -> None:
+        client = TwinklyClient(host='192.168.1.23')
+        client.token = object()
+        with patch(
+            'lyte.twinkly.realtime.session.send_authenticated_frame', return_value=None
+        ):
+            result = realtime.send_realtime_frame(
+                client,
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                '192.168.1.23',
+                np.zeros((1, 3), dtype=np.uint8),
+            )
+
+        self.assertEqual(result.status, realtime.FrameSendStatus.TRANSPORT_FAILED)
+        self.assertEqual(result.byte_count, 0)
 
 
 class RuntimeTests(unittest.TestCase):
