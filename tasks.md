@@ -18,7 +18,7 @@
   playback code instead of calling `sys.exit` below the command boundary.
 - [x] Add frame deadline accounting to normal animation playback and report
   late frames, missed deadlines, and recovery periods.
-- [ ] Add unit tests for failure after realtime setup, token loss during frame
+- [x] Add unit tests for failure after realtime setup, token loss during frame
   streaming, a multi-second recovery interval, and failed blackout cleanup.
 
 ## MIDI Input and Patch Playback

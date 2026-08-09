@@ -135,16 +135,16 @@ class AnimateTests(unittest.TestCase):
 
         report.record_frame(0.15, 0.1)
         report.record_frame(0.31, 0.1)
-        report.record_recovery(1.5)
+        report.record_recovery(3.5)
 
         self.assertEqual(report.frame_count, 2)
         self.assertEqual(report.late_frames, 2)
         self.assertEqual(report.missed_deadlines, 4)
         self.assertEqual(report.worst_overrun_ms, 210)
         self.assertEqual(report.recovery_count, 1)
-        self.assertEqual(report.recovery_duration_ms, 1500)
+        self.assertEqual(report.recovery_duration_ms, 3500)
 
-    def test_animation_recovers_before_sending_another_frame(self) -> None:
+    def test_animation_recovers_after_streaming_token_loss(self) -> None:
         class ConstantAnimation(animation.Animation):
             def render(
                 self, device: animation.Device, state: animation.State
@@ -154,7 +154,7 @@ class AnimateTests(unittest.TestCase):
         args = config.AnimateConfig(animation='color_fill', fps=1, duration=0.5)
         connection = self.script.realtime.PlaybackConnection()
         failed = self.script.realtime.FrameSendResult(
-            status=self.script.realtime.FrameSendStatus.TRANSPORT_FAILED
+            status=self.script.realtime.FrameSendStatus.TOKEN_MISSING
         )
         sent = self.script.realtime.FrameSendResult(
             status=self.script.realtime.FrameSendStatus.SENT, byte_count=3
@@ -374,6 +374,24 @@ class AnimateTests(unittest.TestCase):
 
         self.assertEqual(result, 1)
         turn_off.assert_called_once()
+
+    def test_failed_animation_cleanup_is_reported_as_unknown(self) -> None:
+        args = config.AnimateConfig(animation='color_fill', host='192.168.1.23')
+        output = io.StringIO()
+
+        with (
+            patch('lyte.animate.playback.realtime.read_led_count', return_value=1),
+            patch('lyte.animate.playback.realtime.prepare_device', return_value=False),
+            patch(
+                'lyte.animate.playback.realtime.turn_off_streaming_device',
+                return_value=False,
+            ),
+            patch('sys.stdout', output),
+        ):
+            result = self.script.run_animate(args)
+
+        self.assertEqual(result, 1)
+        self.assertIn('[connection] unknown', output.getvalue())
 
     def test_animation_turns_off_device_after_exception(self) -> None:
         class BrokenAnimation(animation.Animation):
