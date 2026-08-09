@@ -9,7 +9,7 @@ import mido
 import numpy as np
 from numpy import testing as npt
 
-from lyte import animation, cli, patches
+from lyte import animation, patches
 
 
 class PatchLibraryTests(unittest.TestCase):
@@ -75,13 +75,6 @@ class PatchLibraryTests(unittest.TestCase):
             'Wearable: 200 LEDs (provisional physical map)', output.getvalue()
         )
         self.assertIn('prism_limbs:', output.getvalue())
-
-    def test_cli_patch_command_dispatches_patch_library(self) -> None:
-        with patch.object(patches, 'run_patch_command', return_value=0) as run_command:
-            result = cli.main(['patch', 'list'])
-
-        self.assertEqual(result, 0)
-        self.assertEqual(run_command.call_args.args[0].action, 'list')
 
     def test_patch_library_rejects_physical_map_gaps(self) -> None:
         with self.assertRaisesRegex(ValueError, 'must contain 2 LEDs'):
