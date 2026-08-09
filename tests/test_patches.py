@@ -39,6 +39,49 @@ class PatchLibraryTests(unittest.TestCase):
         npt.assert_array_equal(physical_frame[76:100], logical_frame[152:176])
         npt.assert_array_equal(physical_frame[176:200], logical_frame[176:200])
 
+    def test_library_uses_validated_control_bindings(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        patch = library.patches['breath_mix_walk_twinkle']
+
+        self.assertEqual(patch.activation, 'note')
+        self.assertEqual(
+            [(binding.source, binding.target) for binding in patch.bindings],
+            [('breath', 'random_walk.speed'), ('breath', 'mix.region_twinkle')],
+        )
+        self.assertEqual(patch.blend, 'weighted')
+
+    def test_library_rejects_unknown_binding_target(self) -> None:
+        with self.assertRaisesRegex(ValueError, 'invalid binding target'):
+            patches.PatchLibrary.model_validate(
+                {
+                    'wearable': {
+                        'led_count': 1,
+                        'physical_map_status': 'measured',
+                        'segments': {'body': {'start': 0, 'led_count': 1}},
+                        'physical_map': {
+                            'body': {'ranges': [{'start': 0, 'led_count': 1}]}
+                        },
+                    },
+                    'layers': {'solid': {'kind': 'solid'}},
+                    'patches': {
+                        'test': {
+                            'activation': 'note',
+                            'layers': ['solid'],
+                            'bindings': [
+                                {
+                                    'source': 'breath',
+                                    'target': 'missing.speed',
+                                    'map': {
+                                        'kind': 'linear',
+                                        'output': [0.0, 1.0],
+                                    },
+                                }
+                            ],
+                        }
+                    },
+                }
+            )
+
     def test_locator_frame_lights_only_the_selected_logical_region(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
 
