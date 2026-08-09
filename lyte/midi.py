@@ -60,6 +60,7 @@ class Patch[ConfigT: BaseModel, StateT: BaseModel](BaseModel, ABC):
     config: ConfigT
     state: StateT | None = None
     active_note: int | None = None
+    breath_control_value: int | None = None
 
     """
     When playing a note, the WX7 sends
@@ -82,6 +83,7 @@ class Patch[ConfigT: BaseModel, StateT: BaseModel](BaseModel, ABC):
             case 'note_on' | 'note_off':
                 self.end_note(msg.note)
             case 'control_change' if self.state is not None and msg.control == 2:
+                self.breath_control_value = msg.value
                 self.breath_control(msg)
             case 'pitchwheel' if self.state is not None:
                 self.pitch_bend(msg)
@@ -91,6 +93,7 @@ class Patch[ConfigT: BaseModel, StateT: BaseModel](BaseModel, ABC):
             self.note_off()
         self.state = self.make_state(msg)
         self.active_note = msg.note
+        self.breath_control_value = None
         self.note_on(msg)
 
     def end_note(self, note: int) -> None:
@@ -99,6 +102,7 @@ class Patch[ConfigT: BaseModel, StateT: BaseModel](BaseModel, ABC):
         self.note_off()
         self.state = None
         self.active_note = None
+        self.breath_control_value = None
 
     # Classes optionally override the below.
     def note_on(self, msg: mido.Message) -> None:

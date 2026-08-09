@@ -139,6 +139,35 @@ class MidiTests(unittest.TestCase):
             self.fail('state was not created')
         self.assertEqual(patch.state.note, 64)
 
+    def test_breath_control_persists_for_the_active_note_only(self) -> None:
+        class Config(BaseModel, frozen=True):
+            pass
+
+        class State(BaseModel):
+            values: list[int] = []
+
+        class TestPatch(midi.Patch[Config, State]):
+            def make_state(self, msg: mido.Message) -> State:
+                return State()
+
+            def breath_control(self, msg: mido.Message) -> None:
+                if self.state is None or self.breath_control_value is None:
+                    raise AssertionError('breath value was not set')
+                self.state.values.append(self.breath_control_value)
+
+        patch = TestPatch(config=Config())
+        patch.receive(mido.Message('note_on', note=60, velocity=100))
+        patch.receive(mido.Message('control_change', control=2, value=32))
+        patch.receive(mido.Message('control_change', control=2, value=96))
+        if patch.state is None:
+            self.fail('state was not created')
+        state = patch.state
+
+        self.assertEqual(state.values, [32, 96])
+        self.assertEqual(patch.breath_control_value, 96)
+        patch.receive(mido.Message('note_off', note=60))
+        self.assertIsNone(patch.breath_control_value)
+
     def test_patch_routes_wx7_messages_to_state_callbacks(self) -> None:
         class Config(BaseModel, frozen=True):
             name: str = 'wx7'
