@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Annotated, cast
 
 import tyro
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SkipValidation
+
+from . import animation
 
 
 class ShowConfig(BaseModel, frozen=True):
@@ -47,6 +49,14 @@ class ShowFile(BaseModel, frozen=True):
     devices: dict[str, DeviceSpec] = Field(default_factory=dict)
 
 
+class ShowGraph(BaseModel, frozen=True):
+    sources: dict[str, SkipValidation[animation.Animation]] = Field(
+        default_factory=dict
+    )
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
 class ResolvedShowFile(BaseModel, frozen=True):
     animations: dict[str, object] = Field(default_factory=dict)
     mixers: dict[str, object] = Field(default_factory=dict)
@@ -56,7 +66,7 @@ class ResolvedShowFile(BaseModel, frozen=True):
 
 def run_show(config: ShowConfig) -> int:
     show_file = load_show_files(config.files)
-    resolve_show_file(show_file)
+    build_show_graph(show_file)
     return 0
 
 
@@ -103,6 +113,37 @@ def merge_show_files(show_files: list[ShowFile]) -> ShowFile:
     )
     validate_graph(merged)
     return merged
+
+
+def build_show_graph(show_file: ShowFile) -> ShowGraph:
+    validate_graph(show_file)
+    sources = {}
+
+    def build_source(name: str) -> animation.Animation:
+        if name in sources:
+            return sources[name]
+        spec = show_file.animations.get(name) or show_file.mixers.get(name)
+        if spec is None:
+            raise ShowFileError(f'unknown source {name!r}')
+        children = [build_source(source) for source in spec.sources]
+        factory = resolve_python_path(spec.impl)
+        params = dict(spec.params)
+        if children:
+            params['sources'] = children
+        try:
+            value = factory(**params)
+        except TypeError as error:
+            raise ShowFileError(
+                f'could not construct source {name!r}: {error}'
+            ) from error
+        if not isinstance(value, animation.Animation):
+            raise ShowFileError(f'source {name!r} did not construct an Animation')
+        sources[name] = value
+        return value
+
+    for name in show_file.animations | show_file.mixers:
+        build_source(name)
+    return ShowGraph(sources=sources)
 
 
 def resolve_show_file(show_file: ShowFile) -> ResolvedShowFile:

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lyte import show
+from lyte import animation, show
 
 
 class ShowFileTests(unittest.TestCase):
@@ -189,6 +189,39 @@ class ShowFileTests(unittest.TestCase):
                     }
                 )
             )
+
+    def test_build_show_graph_constructs_trusted_animation_paths(self) -> None:
+        show_file = show.parse_show_file(
+            {
+                'animations': {
+                    'rainbow': {
+                        'impl': 'lyte.animations.bibliopixel.rainbow.Rainbow',
+                        'step': 2,
+                    }
+                }
+            },
+            'show.toml',
+        )
+
+        graph = show.build_show_graph(show_file)
+
+        self.assertIsInstance(graph.sources['rainbow'], animation.Animation)
+
+    def test_build_show_graph_rejects_non_animation_results(self) -> None:
+        show_file = show.parse_show_file(
+            {
+                'animations': {
+                    'bad': {
+                        'impl': 'lyte.show.resolve_python_path',
+                        'path': 'lyte.show.resolve_python_path',
+                    }
+                }
+            },
+            'show.toml',
+        )
+
+        with self.assertRaisesRegex(show.ShowFileError, 'did not construct'):
+            show.build_show_graph(show_file)
 
     def test_resolve_python_path_finds_callables(self) -> None:
         value = show.resolve_python_path('lyte.animations.bibliopixel.rainbow.Rainbow')

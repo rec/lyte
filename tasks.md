@@ -91,7 +91,7 @@
 
 ## Show Files
 
-- [ ] Implement show-file graph construction and playback for trusted local
+- [x] Implement show-file graph construction and playback for trusted local
   Python implementation paths. Continue to treat show files as trusted machine
   configuration.
 - [ ] Create device-local playback state for each run target so one immutable
