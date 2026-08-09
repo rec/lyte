@@ -4,7 +4,7 @@ import importlib
 import tomllib
 from collections.abc import Callable
 from pathlib import Path
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
 
 import numpy as np
 import tyro
@@ -40,7 +40,7 @@ class MixerSpec(BaseModel, frozen=True):
 
 
 class DeviceSpec(BaseModel, frozen=True):
-    kind: str
+    kind: Literal['twinkly']
     params: dict[str, object] = Field(default_factory=dict)
 
 
@@ -338,9 +338,13 @@ def parse_mixer_specs(data: dict[str, object], source: str) -> dict[str, MixerSp
 def parse_device_specs(data: dict[str, object], source: str) -> dict[str, DeviceSpec]:
     specs = {}
     for name, value in data.items():
-        table = named_table(value, f'{source}: devices.{name}')
+        label = f'{source}: devices.{name}'
+        table = named_table(value, label)
+        kind = required_string(table, 'kind', label)
+        if kind != 'twinkly':
+            raise ShowFileError(f'{label}.kind currently supports only twinkly')
         specs[name] = DeviceSpec(
-            kind=required_string(table, 'kind', f'{source}: devices.{name}'),
+            kind='twinkly',
             params=params_without(table, {'kind'}),
         )
     return specs

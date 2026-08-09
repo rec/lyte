@@ -96,7 +96,7 @@
   configuration.
 - [x] Create device-local playback state for each run target so one immutable
   animation description can run independently on multiple outputs.
-- [ ] Defer non-RGB and multi-protocol show-file device kinds until their
+- [x] Defer non-RGB and multi-protocol show-file device kinds until their
   drivers and track lifecycle exist.
 
 ## Additional work beyond the prompt
