@@ -25,7 +25,7 @@
 
 - [x] Implement selected Mido input-port and MIDI-channel filtering from
   `MidiIn` configuration.
-- [ ] Add `lyte patch play` to poll the selected input in arrival order, render
+- [x] Add `lyte patch play` to poll the selected input in arrival order, render
   the selected patch at its configured FPS, apply the physical map, stream the
   resulting Twinkly frame, and use the normal blackout cleanup path.
 - [ ] Make active-note identity explicit. A note-off must clear only the active

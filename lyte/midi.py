@@ -13,6 +13,8 @@ from . import animation
 
 
 class MidiInput(Protocol):
+    def close(self) -> None: ...
+
     def poll(self) -> mido.Message | None: ...
 
 

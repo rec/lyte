@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from . import animation, midi
 from .animations import bibliopixel
 from .animations.christmas.random_walk import RandomWalk
-from .logging import log, log_status
+from .logging import log, log_error, log_status
 from .retry import RetryConfig
 from .twinkly import realtime
 from .twinkly.client import TwinklyClient
@@ -219,10 +219,13 @@ def locator_frame(
 
 @dataclass(frozen=True)
 class PatchCommandConfig:
-    action: Annotated[Literal['list', 'locator'], tyro.conf.Positional] = 'list'
+    action: Annotated[Literal['list', 'locator', 'play'], tyro.conf.Positional] = 'list'
+    patch_name: Annotated[str | None, tyro.conf.Positional] = None
     library: Path = Path('patches/wearable-breath.toml')
     region_duration: float = 3.0
     fps: float = 20.0
+    duration: float | None = None
+    midi_input: midi.MidiIn = midi.MidiIn()
     host: str | None = None
     timeout: float = 5.0
     discovery_timeout: float | None = None
@@ -236,7 +239,9 @@ def run_patch_command(config: PatchCommandConfig) -> int:
     if config.action == 'list':
         list_patch_library(library)
         return 0
-    return run_locator(config, library)
+    if config.action == 'locator':
+        return run_locator(config, library)
+    return run_patch_playback(config, library)
 
 
 def list_patch_library(library: PatchLibrary) -> None:
@@ -300,6 +305,62 @@ def run_locator(config: PatchCommandConfig, library: PatchLibrary) -> int:
     finally:
         realtime.turn_off_streaming_device(client, retry, host)
     return 0
+
+
+def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int:
+    validate_playback_config(config)
+    if config.patch_name is None:
+        sys.exit('Patch playback requires a patch name')
+    patch = build_light_patch(library, config.patch_name)
+    host = config.host or realtime.discover_host(config.discovery_timeout)
+    if host is None:
+        return 1
+
+    retry = RetryConfig(
+        attempts=config.attempts,
+        delay=config.retry_delay,
+        backoff=config.retry_backoff,
+    )
+    client = TwinklyClient(host=host, timeout=config.timeout)
+    led_count = realtime.read_led_count(client, retry, library.wearable.led_count, host)
+    if led_count != library.wearable.led_count:
+        log_error(f'[failed] {host} does not match the patch library LED count.')
+        return 1
+
+    port = midi.open_input(config.midi_input)
+    try:
+        if not realtime.prepare_device(client, retry, host):
+            return 1
+        device = animation.Device(led_count=library.wearable.led_count)
+        stop_at = (
+            None if config.duration is None else time.monotonic() + config.duration
+        )
+        while stop_at is None or time.monotonic() < stop_at:
+            for message in midi.input_messages(port, config.midi_input):
+                patch.receive(message)
+            physical_frame = map_logical_frame(library.wearable, patch.render(device))
+            result = realtime.send_realtime_frame(
+                client,
+                retry,
+                host,
+                animation.byte_light_frame_from_float(physical_frame),
+            )
+            if result.status is not realtime.FrameSendStatus.SENT:
+                log_error(f'[failed] Could not stream patch frame to {host}.')
+            time.sleep(1 / config.fps)
+    except KeyboardInterrupt:
+        log()
+        log('[ok] Stopped')
+    finally:
+        port.close()
+        realtime.turn_off_streaming_device(client, retry, host)
+    return 0
+
+
+def validate_playback_config(config: PatchCommandConfig) -> None:
+    validate_locator_config(config)
+    if config.duration is not None and config.duration <= 0:
+        sys.exit('--duration must be greater than zero')
 
 
 def validate_locator_config(config: PatchCommandConfig) -> None:

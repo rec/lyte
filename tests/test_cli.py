@@ -372,6 +372,15 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(config.host)
         self.assertEqual(action, 'current-driver-set')
 
+    def test_patch_play_command_parses_selected_patch_name(self) -> None:
+        with patch.object(patches, 'run_patch_command', return_value=0) as run_command:
+            result = cli.main(['patch', 'play', 'breath_walker'])
+
+        self.assertEqual(result, 0)
+        config = run_command.call_args.args[0]
+        self.assertEqual(config.action, 'play')
+        self.assertEqual(config.patch_name, 'breath_walker')
+
     def test_cli_patch_command_dispatches_patch_library(self) -> None:
         with patch.object(patches, 'run_patch_command', return_value=0) as run_command:
             result = cli.main(['patch', 'list'])

@@ -10,6 +10,7 @@ import numpy as np
 from numpy import testing as npt
 
 from lyte import animation, patches
+from lyte.twinkly import realtime
 
 
 class PatchLibraryTests(unittest.TestCase):
@@ -75,6 +76,48 @@ class PatchLibraryTests(unittest.TestCase):
             'Wearable: 200 LEDs (provisional physical map)', output.getvalue()
         )
         self.assertIn('prism_limbs:', output.getvalue())
+
+    def test_patch_playback_polls_midi_and_streams_mapped_frames(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+
+        class Port:
+            messages = iter([mido.Message('note_on', note=60, velocity=100)])
+            closed = False
+
+            def close(self) -> None:
+                self.closed = True
+
+            def poll(self) -> mido.Message | None:
+                return next(self.messages, None)
+
+        port = Port()
+        config = patches.PatchCommandConfig(
+            action='play',
+            patch_name='breath_walker',
+            duration=0.1,
+        )
+        sent = realtime.FrameSendResult(
+            status=realtime.FrameSendStatus.SENT,
+            byte_count=600,
+        )
+
+        with (
+            patch('lyte.patches.realtime.discover_host', return_value='192.168.1.23'),
+            patch('lyte.patches.realtime.read_led_count', return_value=200),
+            patch('lyte.patches.realtime.prepare_device', return_value=True),
+            patch(
+                'lyte.patches.realtime.send_realtime_frame', return_value=sent
+            ) as send,
+            patch('lyte.patches.realtime.turn_off_streaming_device', return_value=True),
+            patch('lyte.patches.midi.open_input', return_value=port),
+            patch('lyte.patches.time.monotonic', side_effect=[0.0, 0.0, 1.0]),
+            patch('lyte.patches.time.sleep'),
+        ):
+            result = patches.run_patch_playback(config, library)
+
+        self.assertEqual(result, 0)
+        self.assertTrue(port.closed)
+        send.assert_called_once()
 
     def test_patch_library_rejects_physical_map_gaps(self) -> None:
         with self.assertRaisesRegex(ValueError, 'must contain 2 LEDs'):
