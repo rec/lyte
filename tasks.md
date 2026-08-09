@@ -54,7 +54,7 @@
   Twinkly encoding in patch playback.
 - [x] Permit the locator command to use a provisional map, but reject
   performance patch playback until the physical map is marked `measured`.
-- [ ] Mark the existing thirty-two entries as experimental in list output until
+- [x] Mark the existing thirty-two entries as experimental in list output until
   their declared controls and visual behavior are executable. Do not treat
   their current names as stable visual commitments.
 - [ ] Add tests that each executable binding changes the intended target and
