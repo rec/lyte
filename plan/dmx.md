@@ -1,5 +1,16 @@
 # Multi-Protocol Lighting Plan
 
+## Runtime Status
+
+Lyte currently requires Python 3.13 and implements only the Twinkly pixel
+runtime. Its logical animation output is a C-contiguous
+`NDArray[np.float32]` with shape `(led_count, 3)` and RGB channels. Values are
+encoded to Twinkly `uint8` bytes only at the transport boundary.
+
+All DMX, Art-Net, OSC, sACN, and shared-show-runner content below is a
+proposal. None of those protocols or a generic non-RGB color conversion are
+currently implemented.
+
 Lyte should become a lighting-control toolkit that can play different lighting
 systems at the same time without forcing them into one shared low-level data
 model. Twinkly pixels, DMX fixtures, Open Sound Control endpoints, and Art-Net
@@ -46,7 +57,8 @@ The existing Twinkly API is already a good model for addressable RGB devices:
 - `Animation`: immutable animation description
 - `Device`: immutable hardware description
 - `State`: mutable playback state
-- rendered frame: `NDArray[np.uint8]` shaped `(led_count, 3)` in RGB order
+- logical rendered frame: `NDArray[np.float32]` shaped `(led_count, 3)` in RGB order
+- Twinkly byte encoding: an output-boundary conversion from the logical frame
 
 That should remain the pixel-device API. It is simple, previewable, and maps
 cleanly to Twinkly realtime UDP frames.
