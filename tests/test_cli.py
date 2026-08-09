@@ -1,21 +1,14 @@
 from __future__ import annotations
 
-# ruff: noqa: I001
-
 import io
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-
-from lyte import cli
-
-COMMAND = 'lyte.twinkly.command'
-OUTPUT = 'lyte.twinkly.output'
-DIAGNOSTIC = 'lyte.twinkly.diagnostic'
+from lyte import cli, patches
 
 
-class FpsTestTests(unittest.TestCase):
+class CliTests(unittest.TestCase):
     def test_cli_animate_command_dispatches_animation(self) -> None:
         with patch.object(cli, 'run_animate', return_value=0) as run_animate:
             result = cli.main(
@@ -379,6 +372,9 @@ class FpsTestTests(unittest.TestCase):
         self.assertIsNone(config.host)
         self.assertEqual(action, 'current-driver-set')
 
+    def test_cli_patch_command_dispatches_patch_library(self) -> None:
+        with patch.object(patches, 'run_patch_command', return_value=0) as run_command:
+            result = cli.main(['patch', 'list'])
 
-if __name__ == '__main__':
-    unittest.main()
+        self.assertEqual(result, 0)
+        self.assertEqual(run_command.call_args.args[0].action, 'list')
