@@ -2,7 +2,7 @@
 
 ## Personal Twinkly Reliability
 
-- [ ] Add an explicit Twinkly playback connection state: connecting, streaming,
+- [x] Add an explicit Twinkly playback connection state: connecting, streaming,
   recovering, blacked out, and unknown. Report the state in logs rather than
   treating a failed off request as a successful blackout.
 - [ ] Refactor realtime playback setup so that any failure or interruption after

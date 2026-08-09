@@ -25,6 +25,8 @@ def main() -> int:
 
 def run_animate(args: AnimateConfig) -> int:
     validate_args(args)
+    connection = realtime.PlaybackConnection()
+    connection.set_state(realtime.PlaybackConnectionState.CONNECTING)
     host = args.host or realtime.discover_host(args.discovery_timeout)
     if host is None:
         return 1
@@ -44,6 +46,7 @@ def run_animate(args: AnimateConfig) -> int:
     device = animation.Device(led_count=led_count)
     if not realtime.prepare_device(client, retry, host):
         return 1
+    connection.set_state(realtime.PlaybackConnectionState.STREAMING)
 
     try:
         if args.animation == 'random':
