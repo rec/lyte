@@ -6,7 +6,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, cast
 
+import numpy as np
 import tyro
+from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, SkipValidation
 
 from . import animation
@@ -57,6 +59,21 @@ class ShowGraph(BaseModel, frozen=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
+class ShowTarget(BaseModel):
+    name: str
+    animation: SkipValidation[animation.Animation]
+    device: animation.Device
+    state: SkipValidation[animation.State]
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class ShowPlayback(BaseModel):
+    targets: list[ShowTarget] = Field(default_factory=list)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
 class ResolvedShowFile(BaseModel, frozen=True):
     animations: dict[str, object] = Field(default_factory=dict)
     mixers: dict[str, object] = Field(default_factory=dict)
@@ -66,7 +83,8 @@ class ResolvedShowFile(BaseModel, frozen=True):
 
 def run_show(config: ShowConfig) -> int:
     show_file = load_show_files(config.files)
-    build_show_graph(show_file)
+    graph = build_show_graph(show_file)
+    create_show_playback(show_file, graph)
     return 0
 
 
@@ -144,6 +162,34 @@ def build_show_graph(show_file: ShowFile) -> ShowGraph:
     for name in show_file.animations | show_file.mixers:
         build_source(name)
     return ShowGraph(sources=sources)
+
+
+def create_show_playback(show_file: ShowFile, graph: ShowGraph) -> ShowPlayback:
+    if show_file.run is None:
+        raise ShowFileError('show file has no run section')
+    targets = []
+    for name, target_spec in show_file.run.items():
+        device_spec = show_file.devices[name]
+        led_count = required_positive_integer(
+            device_spec.params, 'led_count', f'device {name!r}'
+        )
+        device = animation.Device(led_count=led_count)
+        source = graph.sources[target_spec.source]
+        targets.append(
+            ShowTarget(
+                name=name,
+                animation=source,
+                device=device,
+                state=source.initial_state(device),
+            )
+        )
+    return ShowPlayback(targets=targets)
+
+
+def render_show_target(target: ShowTarget) -> NDArray[np.float32]:
+    return animation.validate_frame(
+        target.device, target.animation.render(target.device, target.state)
+    )
 
 
 def resolve_show_file(show_file: ShowFile) -> ResolvedShowFile:
@@ -316,6 +362,13 @@ def required_string(data: dict[str, object], name: str, label: str) -> str:
     value = data.get(name)
     if not isinstance(value, str) or not value:
         raise ShowFileError(f'{label}.{name} must be a non-empty string')
+    return value
+
+
+def required_positive_integer(data: dict[str, object], name: str, label: str) -> int:
+    value = data.get(name)
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise ShowFileError(f'{label}.{name} must be a positive integer')
     return value
 
 

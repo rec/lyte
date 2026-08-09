@@ -207,6 +207,46 @@ class ShowFileTests(unittest.TestCase):
 
         self.assertIsInstance(graph.sources['rainbow'], animation.Animation)
 
+    def test_show_playback_gives_each_target_independent_state(self) -> None:
+        show_file = show.parse_show_file(
+            {
+                'run': {'left': 'rainbow', 'right': 'rainbow'},
+                'animations': {
+                    'rainbow': {'impl': 'lyte.animations.bibliopixel.rainbow.Rainbow'}
+                },
+                'devices': {
+                    'left': {'kind': 'twinkly', 'led_count': 3},
+                    'right': {'kind': 'twinkly', 'led_count': 3},
+                },
+            },
+            'show.toml',
+        )
+
+        graph = show.build_show_graph(show_file)
+        playback = show.create_show_playback(show_file, graph)
+        left, right = playback.targets
+
+        self.assertIs(left.animation, right.animation)
+        self.assertIsNot(left.state, right.state)
+        self.assertEqual(show.render_show_target(left).shape, (3, 3))
+        self.assertEqual(left.state.frame, 1)
+        self.assertEqual(right.state.frame, 0)
+
+    def test_show_playback_requires_device_led_count(self) -> None:
+        show_file = show.parse_show_file(
+            {
+                'run': {'tree': 'rainbow'},
+                'animations': {
+                    'rainbow': {'impl': 'lyte.animations.bibliopixel.rainbow.Rainbow'}
+                },
+                'devices': {'tree': {'kind': 'twinkly'}},
+            },
+            'show.toml',
+        )
+
+        with self.assertRaisesRegex(show.ShowFileError, 'led_count'):
+            show.create_show_playback(show_file, show.build_show_graph(show_file))
+
     def test_build_show_graph_rejects_non_animation_results(self) -> None:
         show_file = show.parse_show_file(
             {
@@ -243,6 +283,7 @@ class ShowFileTests(unittest.TestCase):
                 'impl = "lyte.animations.bibliopixel.rainbow.Rainbow"\n'
                 '[devices.tree]\n'
                 'kind = "twinkly"\n'
+                'led_count = 3\n'
             )
 
             result = show.run_show(show.ShowConfig(files=[show_file]))
