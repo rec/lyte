@@ -59,6 +59,7 @@ def input_messages(port: MidiInput, config: MidiIn) -> Iterator[mido.Message]:
 class Patch[ConfigT: BaseModel, StateT: BaseModel](BaseModel, ABC):
     config: ConfigT
     state: StateT | None = None
+    active_note: int | None = None
 
     """
     When playing a note, the WX7 sends
@@ -75,18 +76,29 @@ class Patch[ConfigT: BaseModel, StateT: BaseModel](BaseModel, ABC):
         pass
 
     def receive(self, msg: mido.Message) -> None:
-        if msg.type in ('note_on', 'note_off'):
-            if self.state:
-                self.note_off()
-                self.state = None
-            if msg.velocity and msg.type == 'note_on':
-                self.state = self.make_state(msg)
-            return
-        if self.state:
-            if msg.type == 'control_change' and msg.control == 2:
+        match msg.type:
+            case 'note_on' if msg.velocity:
+                self.start_note(msg)
+            case 'note_on' | 'note_off':
+                self.end_note(msg.note)
+            case 'control_change' if self.state is not None and msg.control == 2:
                 self.breath_control(msg)
-            elif msg.type == 'pitchwheel':
+            case 'pitchwheel' if self.state is not None:
                 self.pitch_bend(msg)
+
+    def start_note(self, msg: mido.Message) -> None:
+        if self.state is not None:
+            self.note_off()
+        self.state = self.make_state(msg)
+        self.active_note = msg.note
+        self.note_on(msg)
+
+    def end_note(self, note: int) -> None:
+        if self.state is None or self.active_note != note:
+            return
+        self.note_off()
+        self.state = None
+        self.active_note = None
 
     # Classes optionally override the below.
     def note_on(self, msg: mido.Message) -> None:

@@ -83,6 +83,62 @@ class MidiTests(unittest.TestCase):
             self.fail('state was not created')
         self.assertEqual(patch.state.initial_note_on, msg)
 
+    def test_note_off_only_ends_the_matching_active_note(self) -> None:
+        class Config(BaseModel, frozen=True):
+            pass
+
+        class State(BaseModel):
+            note: int
+            note_off_count: int = 0
+
+        class TestPatch(midi.Patch[Config, State]):
+            def make_state(self, msg: mido.Message) -> State:
+                return State(note=msg.note)
+
+            def note_off(self) -> None:
+                if self.state is None:
+                    raise AssertionError('state was not set')
+                self.state.note_off_count += 1
+
+        patch = TestPatch(config=Config())
+        patch.receive(mido.Message('note_on', note=60, velocity=100))
+        patch.receive(mido.Message('note_off', note=61))
+
+        self.assertIsNotNone(patch.state)
+        self.assertEqual(patch.active_note, 60)
+        patch.receive(mido.Message('note_off', note=60))
+        self.assertIsNone(patch.state)
+        self.assertIsNone(patch.active_note)
+
+    def test_note_on_replaces_the_active_note(self) -> None:
+        class Config(BaseModel, frozen=True):
+            pass
+
+        class State(BaseModel):
+            note: int
+
+        class TestPatch(midi.Patch[Config, State]):
+            ended_notes: list[int] = []
+
+            def make_state(self, msg: mido.Message) -> State:
+                return State(note=msg.note)
+
+            def note_off(self) -> None:
+                if self.active_note is None:
+                    raise AssertionError('active note was not set')
+                self.ended_notes.append(self.active_note)
+
+        patch = TestPatch(config=Config())
+        patch.receive(mido.Message('note_on', note=60, velocity=100))
+        patch.receive(mido.Message('note_on', note=64, velocity=100))
+
+        self.assertEqual(patch.ended_notes, [60])
+        self.assertEqual(patch.active_note, 64)
+        self.assertIsNotNone(patch.state)
+        if patch.state is None:
+            self.fail('state was not created')
+        self.assertEqual(patch.state.note, 64)
+
     def test_patch_routes_wx7_messages_to_state_callbacks(self) -> None:
         class Config(BaseModel, frozen=True):
             name: str = 'wx7'
