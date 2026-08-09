@@ -242,15 +242,37 @@ more visible without requiring more total tests.
 
 1. Is Lyte first a reliable personal Twinkly player, or is the next priority a
    generic show runner? Both are valid, but recovery and abstractions differ.
+
+Answer: The first step is to concentrate on making a personal Twinkly played, but
+I have many DMX lights that I want to use within the year.
+
 2. What output state should each device hold during an outage: last frame,
    blackout, protocol default, or a device-specific policy?
+
+Answer: blackout
+
 3. What is the exact contract for a control event: timestamp, source identity,
    ordering, lifetime, and mapping to active notes or tracks?
+
+CC 2 from the selected MIDI input and channel applies immediately to the currently
+active note’s patch; it persists until the next CC 2 or that note ends; events are
+processed in input arrival order.
+
+
 4. Which existing patch names are commitments to a visual behavior, and which
    are placeholders for later design work?
+
+All are experimental placeholders for later work
+
 5. At what boundary should RGB be converted into a device's actual light
    channels and color calibration model?
+
+As later as possible. My plan is to port BiblioPixel's ideas, which include
+
 6. Which components are trusted to execute Python paths from a show file?
+
+Everything is trusted. This is all intended to run on a small, disposable machine.
+
 
 ## Additional work beyond the prompt
 
