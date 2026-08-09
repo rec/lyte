@@ -121,6 +121,18 @@ class PatchLibraryTests(unittest.TestCase):
         patch.receive(mido.Message('note_off', note=61))
         self.assertIsNone(patch.state)
 
+    def test_declarative_patch_compiles_declared_blend_policy(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        additive = patches.build_light_patch(library, 'prism_limbs')
+        weighted = patches.build_light_patch(library, 'breath_mix_walk_twinkle')
+
+        if not isinstance(additive, patches.DeclarativeLightPatch):
+            self.fail('additive patch did not compile')
+        if not isinstance(weighted, patches.DeclarativeLightPatch):
+            self.fail('weighted patch did not compile')
+        self.assertIsInstance(additive.mixer, midi.BlendLightPatch)
+        self.assertIsInstance(weighted.mixer, midi.WeightedBlendLightPatch)
+
     def test_pitch_bend_maps_only_the_positive_half(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
         patch = patches.build_light_patch(library, 'pitch_turbo_walk')

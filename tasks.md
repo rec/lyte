@@ -44,7 +44,7 @@
   prose fields in `patches/wearable-breath.toml` with validated binding tables.
 - [x] Implement pitch-class palette selection and the declared note, breath,
   mix, and positive pitch-bend mappings against mutable per-note patch state.
-- [ ] Compile a patch's declared blend policy into `BlendLightPatch` or
+- [x] Compile a patch's declared blend policy into `BlendLightPatch` or
   `WeightedBlendLightPatch` rather than treating all multi-layer patches as an
   additive blend.
 - [ ] Allow each declared layer to select its own logical regions so a patch can

@@ -230,6 +230,7 @@ class DeclarativePatchState(BaseModel):
 
 class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
     layers: dict[str, SkipValidation[midi.LightPatch]]
+    mixer: SkipValidation[midi.BlendLightPatch | midi.WeightedBlendLightPatch]
 
     def make_state(self, msg: mido.Message) -> DeclarativePatchState:
         return DeclarativePatchState(
@@ -249,7 +250,14 @@ class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
         self.apply_bindings('pitch_bend', int(msg.__getattribute__('pitch')))
 
     def note_on(self, msg: mido.Message) -> None:
+        if isinstance(self.mixer, midi.WeightedBlendLightPatch):
+            self.mixer.state = self.mixer.make_state(msg)
+        else:
+            self.mixer.state = self.mixer.make_state(msg)
         self.apply_bindings('note', msg.note)
+
+    def note_off(self) -> None:
+        self.mixer.state = None
 
     def apply_bindings(self, source: str, value: int) -> None:
         if self.state is None:
@@ -268,6 +276,9 @@ class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
                 if len(self.layers) == 2:
                     other = next(name for name in self.layers if name != parameter)
                     self.state.weights[other] = 1.0 - mapped_value
+                if isinstance(self.mixer, midi.WeightedBlendLightPatch):
+                    for index, name in enumerate(self.layers):
+                        self.mixer.set_weight(index, self.state.weights[name])
             elif parameter == 'gain':
                 self.state.gains[target_name] = mapped_value
             elif parameter == 'speed':
@@ -284,9 +295,9 @@ class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
             if (color := self.state.colors.get(name)) is not None:
                 intensity = np.max(frame, axis=1, keepdims=True)
                 frame = intensity * np.array(color, dtype=np.float32)
-            frame *= self.state.gains[name] * self.state.weights[name]
+            frame *= self.state.gains[name]
             frames.append(frame)
-        return midi.add_light_frames(device, frames)
+        return self.mixer.blend(device, frames)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -545,7 +556,19 @@ def build_light_patch(library: PatchLibrary, name: str) -> midi.LightPatch:
                 ]
             )
         )
-    return DeclarativeLightPatch(config=patch, layers=layers)
+    children = list(layers.values())
+    if patch.blend == 'weighted':
+        mixer = midi.WeightedBlendLightPatch(
+            config=midi.WeightedBlendLightPatchConfig(
+                weights=[1.0] + [0.0] * (len(children) - 1)
+            ),
+            patches=children,
+        )
+    else:
+        mixer = midi.BlendLightPatch(
+            config=midi.BlendLightPatchConfig(), patches=children
+        )
+    return DeclarativeLightPatch(config=patch, layers=layers, mixer=mixer)
 
 
 def build_layer_animation(layer: LayerSpec) -> animation.Animation:
