@@ -44,11 +44,10 @@ def run_animate(args: AnimateConfig) -> int:
     if led_count is None:
         return 1
     device = animation.Device(led_count=led_count)
-    if not realtime.prepare_device(client, retry, host):
-        return 1
-    connection.set_state(realtime.PlaybackConnectionState.STREAMING)
-
     try:
+        if not realtime.prepare_device(client, retry, host):
+            return 1
+        connection.set_state(realtime.PlaybackConnectionState.STREAMING)
         if args.animation == 'random':
             run_random_animations(args, client, retry, host, device)
         else:

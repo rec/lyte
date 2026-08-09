@@ -289,6 +289,23 @@ class AnimateTests(unittest.TestCase):
         self.assertEqual(led_count, 250)
         self.assertEqual(output.getvalue(), '[connected] 192.168.1.23: 250 LEDs\n')
 
+    def test_animation_attempts_blackout_after_realtime_setup_fails(self) -> None:
+        args = config.AnimateConfig(animation='color_fill', host='192.168.1.23')
+
+        with (
+            patch('lyte.animate.playback.realtime.read_led_count', return_value=1),
+            patch('lyte.animate.playback.realtime.prepare_device', return_value=False),
+            patch(
+                'lyte.animate.playback.realtime.turn_off_streaming_device',
+                return_value=True,
+            ) as turn_off,
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            result = self.script.run_animate(args)
+
+        self.assertEqual(result, 1)
+        turn_off.assert_called_once()
+
     def test_animation_turns_off_device_after_exception(self) -> None:
         class BrokenAnimation(animation.Animation):
             def render(
