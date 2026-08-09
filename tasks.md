@@ -14,7 +14,7 @@
 - [ ] Apply the outage policy consistently: while a device is disconnected,
   Lyte's intended state is blackout. Do not retain or deliberately resend a
   last visible frame during recovery.
-- [ ] Make retry and transport functions return structured failure outcomes to
+- [x] Make retry and transport functions return structured failure outcomes to
   playback code instead of calling `sys.exit` below the command boundary.
 - [ ] Add frame deadline accounting to normal animation playback and report
   late frames, missed deadlines, and recovery periods.

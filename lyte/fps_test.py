@@ -512,12 +512,12 @@ def stream_demo_until_vote(
         last_frame = validate_byte_rgb_frame(
             device, demo.frame_at(device, index, frame_count)
         )
-        sent = realtime.send_realtime_frame(client, retry, host, last_frame)
-        if sent < last_frame.nbytes:
+        result = realtime.send_realtime_frame(client, retry, host, last_frame)
+        if result.byte_count < last_frame.nbytes:
             log_error(
                 '[unexpected] '
-                f'{demo.name} sent {sent} bytes for {last_frame.nbytes} bytes '
-                'of RGB data.'
+                f'{demo.name} sent {result.byte_count} bytes for '
+                f'{last_frame.nbytes} bytes of RGB data.'
             )
         if (answer := verify_answer(read_key())) is not None:
             return answer, last_frame
@@ -688,11 +688,11 @@ def send_black_floor_level(
     frame = solid_rgb_level_frame(device, level)
     red, green, blue = level
     log_status(f'[black-floor] RGB {red} {green} {blue}')
-    sent = realtime.send_realtime_frame(client, retry, host, frame)
-    if sent < frame.nbytes:
+    result = realtime.send_realtime_frame(client, retry, host, frame)
+    if result.byte_count < frame.nbytes:
         log_error(
             '[unexpected] '
-            f'black floor RGB {red} {green} {blue} sent {sent} bytes for '
+            f'black floor RGB {red} {green} {blue} sent {result.byte_count} bytes for '
             f'{frame.nbytes} bytes of RGB data.'
         )
 
@@ -909,13 +909,13 @@ def stream_frames(
         frame_started_at = time.monotonic()
         frame = validate_byte_rgb_frame(device, frame_at(index, frame_count))
         unique_frames.add(frame.tobytes())
-        sent = realtime.send_realtime_frame(client, retry, host, frame)
-        if sent < frame.nbytes:
+        result = realtime.send_realtime_frame(client, retry, host, frame)
+        if result.byte_count < frame.nbytes:
             short_sends += 1
             log_error(
                 '[unexpected] '
                 f'{phase} at {fps:g} FPS frame {index + 1}/{frame_count} '
-                f'sent {sent} bytes for {frame.nbytes} bytes of RGB data.'
+                f'sent {result.byte_count} bytes for {frame.nbytes} bytes of RGB data.'
             )
         remaining = frame_delay - (time.monotonic() - frame_started_at)
         if remaining > 0:

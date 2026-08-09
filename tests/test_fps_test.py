@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 
 from lyte import animation, fps_test
 from lyte.retry import RetryConfig
+from lyte.twinkly import realtime
 from lyte.twinkly.client import TwinklyClient
 from lyte.twinkly.discovery import DiscoveredDevice
 
@@ -171,9 +172,12 @@ class FpsTestTests(unittest.TestCase):
             retry: RetryConfig,
             host: str,
             frame: NDArray[np.uint8],
-        ) -> int:
+        ) -> realtime.FrameSendResult:
             sent_frames.append(frame.copy())
-            return frame.nbytes
+            return realtime.FrameSendResult(
+                status=realtime.FrameSendStatus.SENT,
+                byte_count=frame.nbytes,
+            )
 
         def read_key() -> str:
             try:
@@ -425,7 +429,12 @@ class FpsTestTests(unittest.TestCase):
         device = animation.Device(led_count=1)
 
         with (
-            patch('lyte.fps_test.realtime.send_realtime_frame', return_value=3),
+            patch(
+                'lyte.fps_test.realtime.send_realtime_frame',
+                return_value=realtime.FrameSendResult(
+                    status=realtime.FrameSendStatus.SENT, byte_count=3
+                ),
+            ),
             patch('lyte.fps_test.time.sleep'),
         ):
             report = fps_test.stream_fade(

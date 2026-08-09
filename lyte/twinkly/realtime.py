@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import enum
-import sys
 import time
 
 import numpy as np
@@ -33,14 +32,25 @@ class PlaybackConnection(BaseModel):
         log_status(f'[connection] {state}')
 
 
+class FrameSendStatus(enum.StrEnum):
+    SENT = enum.auto()
+    TOKEN_MISSING = enum.auto()
+    TRANSPORT_FAILED = enum.auto()
+
+
+class FrameSendResult(BaseModel, frozen=True):
+    status: FrameSendStatus
+    byte_count: int = 0
+
+
 def send_realtime_frame(
     client: TwinklyClient,
     retry: RetryConfig,
     host: str,
     frame: NDArray[np.uint8],
-) -> int:
+) -> FrameSendResult:
     if client.token is None:
-        sys.exit('Authentication token disappeared before frame send.')
+        return FrameSendResult(status=FrameSendStatus.TOKEN_MISSING)
     sent = session.send_authenticated_frame(
         client,
         host,
@@ -49,8 +59,8 @@ def send_realtime_frame(
         f'UDP realtime frame send to {host}',
     )
     if sent is None:
-        sys.exit(f'Could not send realtime frame to {host}.')
-    return sent
+        return FrameSendResult(status=FrameSendStatus.TRANSPORT_FAILED)
+    return FrameSendResult(status=FrameSendStatus.SENT, byte_count=sent)
 
 
 def read_led_count(
@@ -67,12 +77,14 @@ def read_led_count(
         f'HTTP device info read from {host}',
     )
     if gestalt is None:
-        sys.exit(f'Could not read device info from {host}.')
+        log_error(f'[failed] Could not read device info from {host}.')
+        return None
     if configured_led_count is not None:
         log_status(f'[connected] {host}: using {configured_led_count} LEDs')
         return configured_led_count
     if led_count is None:
-        sys.exit('Device did not report number_of_led; pass --led-count.')
+        log_error('[failed] Device did not report number_of_led.')
+        return None
     log_status(f'[connected] {host}: {led_count} LEDs')
     return led_count
 
@@ -85,9 +97,11 @@ def prepare_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool
         f'login and verify with {host}',
     )
     if token is None:
-        sys.exit(f'Could not authenticate with {host}.')
+        log_error(f'[failed] Could not authenticate with {host}.')
+        return False
     if client.token is None:
-        sys.exit('Authentication succeeded without producing a token.')
+        log_error('[failed] Authentication succeeded without producing a token.')
+        return False
     log_status(f'[connected] Authenticated with {host}')
 
     log('[step] Switching to realtime mode')
@@ -97,7 +111,8 @@ def prepare_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool
         f'switch {host} to realtime mode',
     )
     if response is None:
-        sys.exit(f'Could not switch {host} to realtime mode.')
+        log_error(f'[failed] Could not switch {host} to realtime mode.')
+        return False
     log_status(f'[connected] {host} is in realtime mode')
     return True
 
@@ -106,7 +121,8 @@ def turn_off_device(client: TwinklyClient, retry: RetryConfig, host: str) -> boo
     log(f'[step] Reading device info from {host}')
     gestalt = session.read_gestalt(client, retry, f'HTTP device info read from {host}')
     if gestalt is None:
-        sys.exit(f'Could not read device info from {host}.')
+        log_error(f'[failed] Could not read device info from {host}.')
+        return False
     session.set_mac_from_gestalt(client, gestalt)
 
     log('[step] Authenticating')
@@ -116,7 +132,8 @@ def turn_off_device(client: TwinklyClient, retry: RetryConfig, host: str) -> boo
         f'login and verify with {host}',
     )
     if token is None:
-        sys.exit(f'Could not authenticate with {host}.')
+        log_error(f'[failed] Could not authenticate with {host}.')
+        return False
     log_status(f'[connected] Authenticated with {host}')
 
     log('[step] Switching device to off mode')
@@ -126,7 +143,8 @@ def turn_off_device(client: TwinklyClient, retry: RetryConfig, host: str) -> boo
         f'switch {host} to off mode',
     )
     if response is None:
-        sys.exit(f'Could not switch {host} to off mode.')
+        log_error(f'[failed] Could not switch {host} to off mode.')
+        return False
     log(f'[ok] {host} is off')
     return True
 
@@ -157,7 +175,6 @@ def discover_host(timeout: float | None) -> str | None:
         )
         if remaining is not None and remaining <= 0:
             log_error('[failed] No Twinkly discovery replies received.')
-            log_error('Pass --host with the device IP address.')
             return None
         attempt_timeout = DISCOVERY_ATTEMPT_TIMEOUT
         if remaining is not None:
