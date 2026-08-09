@@ -28,7 +28,7 @@
 - [x] Add `lyte patch play` to poll the selected input in arrival order, render
   the selected patch at its configured FPS, apply the physical map, stream the
   resulting Twinkly frame, and use the normal blackout cleanup path.
-- [ ] Make active-note identity explicit. A note-off must clear only the active
+- [x] Make active-note identity explicit. A note-off must clear only the active
   note on the selected channel; a new note-on replaces that active note.
 - [ ] Implement the agreed CC 2 contract: values from the selected input and
   channel apply immediately to the active note's patch, persist until the next
