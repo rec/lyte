@@ -146,6 +146,7 @@ class LayerSpec(BaseModel, frozen=True):
     kind: Literal['solid', 'random_walk', 'twinkle', 'chase', 'rainbow']
     color: list[float] = [1.0, 1.0, 1.0]
     speed: float = 10.0
+    regions: list[str] = []
 
     @model_validator(mode='after')
     def validate_layer(self) -> LayerSpec:
@@ -197,6 +198,11 @@ class PatchLibrary(BaseModel, frozen=True):
     def validate_patches(self) -> PatchLibrary:
         if not self.patches:
             raise ValueError('patch library must contain at least one patch')
+        for layer_name, layer in self.layers.items():
+            unknown_regions = set(layer.regions).difference(self.wearable.segments)
+            if unknown_regions:
+                unknown = ', '.join(sorted(unknown_regions))
+                raise ValueError(f'layer {layer_name} names unknown regions: {unknown}')
         for name, patch in self.patches.items():
             unknown_layers = set(patch.layers).difference(self.layers)
             if unknown_layers:
@@ -544,6 +550,7 @@ def build_light_patch(library: PatchLibrary, name: str) -> midi.LightPatch:
     layers = {}
     for layer_name in patch.layers:
         layer = library.layers[layer_name]
+        layer_regions = layer.regions or default_regions
         layers[layer_name] = midi.RegionLightPatch(
             config=midi.RegionLightPatchConfig(
                 regions=[
@@ -552,7 +559,7 @@ def build_light_patch(library: PatchLibrary, name: str) -> midi.LightPatch:
                         start=library.wearable.segments[region].start,
                         led_count=library.wearable.segments[region].led_count,
                     )
-                    for region in default_regions
+                    for region in layer_regions
                 ]
             )
         )

@@ -355,10 +355,12 @@ color = [0.2, 0.8, 1.0]
 speed = 2
 
 [layers.chest_spiral]
+regions = ["chest"]
 kind = "rainbow"
 speed = 1
 
 [layers.limb_fill]
+regions = ["left_leg", "right_leg", "left_arm", "right_arm"]
 kind = "solid"
 color = [0.1, 0.2, 0.8]
 
@@ -386,11 +388,13 @@ color = [1.0, 0.1, 0.1]
 speed = 4
 
 [layers.chest_pulse]
+regions = ["chest"]
 kind = "twinkle"
 color = [1.0, 0.0, 0.5]
 speed = 6
 
 [layers.limb_afterglow]
+regions = ["left_leg", "right_leg", "left_arm", "right_arm"]
 kind = "twinkle"
 color = [0.1, 0.2, 1.0]
 speed = 2
@@ -460,6 +464,7 @@ kind = "solid"
 color = [0.0, 0.0, 0.0]
 
 [layers.dark_limbs]
+regions = ["left_leg", "right_leg", "left_arm", "right_arm"]
 kind = "solid"
 color = [0.02, 0.02, 0.02]
 
