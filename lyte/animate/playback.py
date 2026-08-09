@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import random
 import time
 from collections.abc import Sequence
@@ -7,15 +8,47 @@ from collections.abc import Sequence
 import numpy as np
 import tyro
 from numpy.typing import NDArray
+from pydantic import BaseModel
 
 from .. import animation
-from ..logging import log
+from ..logging import log, log_status
 from ..retry import RetryConfig
 from ..twinkly import realtime
 from ..twinkly.client import TwinklyClient
 from . import random_show
 from .build import build_animation
 from .config import AnimateConfig, validate_args
+
+
+class FrameDeadlineReport(BaseModel):
+    frame_count: int = 0
+    late_frames: int = 0
+    missed_deadlines: int = 0
+    worst_overrun_ms: float = 0
+    recovery_count: int = 0
+    recovery_duration_ms: float = 0
+
+    def record_frame(self, elapsed: float, deadline: float) -> None:
+        self.frame_count += 1
+        overrun = elapsed - deadline
+        if overrun <= 0:
+            return
+        self.late_frames += 1
+        self.missed_deadlines += max(1, math.floor(elapsed / deadline))
+        self.worst_overrun_ms = max(self.worst_overrun_ms, overrun * 1000)
+
+    def record_recovery(self, duration: float) -> None:
+        self.recovery_count += 1
+        self.recovery_duration_ms += duration * 1000
+
+    def log_report(self, name: str, fps: float) -> None:
+        log_status(
+            f'[report] {name} {fps:g} FPS: {self.frame_count} frames, '
+            f'{self.late_frames} late frames, {self.missed_deadlines} missed '
+            f'deadlines, worst overrun {self.worst_overrun_ms:.2f} ms, '
+            f'{self.recovery_count} recoveries over '
+            f'{self.recovery_duration_ms:.2f} ms.'
+        )
 
 
 def main() -> int:
@@ -168,34 +201,42 @@ def run_animation_state(
 ) -> None:
     frame_delay = 1 / args.fps
     stop_at = None if duration is None else time.monotonic() + duration
+    report = FrameDeadlineReport()
     log(
         '[ok] Streaming '
         f'{args.animation} frames to {host} for {device.led_count} LEDs '
         f'at {args.fps} FPS'
     )
 
-    while stop_at is None or time.monotonic() < stop_at:
-        started_at = time.monotonic()
-        frame = animation.byte_light_frame_from_float(
-            animation.validate_frame(device, source.render(device, state))
-        )
-        result = realtime.send_realtime_frame(client, retry, host, frame)
-        if result.status is not realtime.FrameSendStatus.SENT:
-            if connection is not None:
-                connection.begin_recovery()
-            host = realtime.recover_streaming_device(
-                client,
-                retry,
-                args.host,
-                args.discovery_timeout,
-                device.led_count,
+    try:
+        while stop_at is None or time.monotonic() < stop_at:
+            started_at = time.monotonic()
+            frame = animation.byte_light_frame_from_float(
+                animation.validate_frame(device, source.render(device, state))
             )
-            if connection is not None:
-                connection.resume_streaming()
-            continue
-        remaining = frame_delay - (time.monotonic() - started_at)
-        if remaining > 0:
-            time.sleep(remaining)
+            result = realtime.send_realtime_frame(client, retry, host, frame)
+            elapsed = time.monotonic() - started_at
+            report.record_frame(elapsed, frame_delay)
+            if result.status is not realtime.FrameSendStatus.SENT:
+                if connection is not None:
+                    connection.begin_recovery()
+                recovery_started_at = time.monotonic()
+                host = realtime.recover_streaming_device(
+                    client,
+                    retry,
+                    args.host,
+                    args.discovery_timeout,
+                    device.led_count,
+                )
+                report.record_recovery(time.monotonic() - recovery_started_at)
+                if connection is not None:
+                    connection.resume_streaming()
+                continue
+            remaining = frame_delay - elapsed
+            if remaining > 0:
+                time.sleep(remaining)
+    finally:
+        report.log_report(args.animation, args.fps)
 
 
 def run_crossfade(
@@ -214,36 +255,46 @@ def run_crossfade(
     frame_delay = 1 / args.fps
     started_at = time.monotonic()
     stop_at = started_at + duration
+    report = FrameDeadlineReport()
 
-    while time.monotonic() < stop_at:
-        frame_started_at = time.monotonic()
-        progress = (frame_started_at - started_at) / duration
-        frame = blend_frames(
-            animation.validate_frame(
-                device, current_animation.render(device, current_state)
-            ),
-            animation.validate_frame(device, next_animation.render(device, next_state)),
-            progress,
-        )
-        result = realtime.send_realtime_frame(
-            client, retry, host, animation.byte_light_frame_from_float(frame)
-        )
-        if result.status is not realtime.FrameSendStatus.SENT:
-            if connection is not None:
-                connection.begin_recovery()
-            host = realtime.recover_streaming_device(
-                client,
-                retry,
-                args.host,
-                args.discovery_timeout,
-                device.led_count,
+    try:
+        while time.monotonic() < stop_at:
+            frame_started_at = time.monotonic()
+            progress = (frame_started_at - started_at) / duration
+            frame = blend_frames(
+                animation.validate_frame(
+                    device, current_animation.render(device, current_state)
+                ),
+                animation.validate_frame(
+                    device, next_animation.render(device, next_state)
+                ),
+                progress,
             )
-            if connection is not None:
-                connection.resume_streaming()
-            continue
-        remaining = frame_delay - (time.monotonic() - frame_started_at)
-        if remaining > 0:
-            time.sleep(remaining)
+            result = realtime.send_realtime_frame(
+                client, retry, host, animation.byte_light_frame_from_float(frame)
+            )
+            elapsed = time.monotonic() - frame_started_at
+            report.record_frame(elapsed, frame_delay)
+            if result.status is not realtime.FrameSendStatus.SENT:
+                if connection is not None:
+                    connection.begin_recovery()
+                recovery_started_at = time.monotonic()
+                host = realtime.recover_streaming_device(
+                    client,
+                    retry,
+                    args.host,
+                    args.discovery_timeout,
+                    device.led_count,
+                )
+                report.record_recovery(time.monotonic() - recovery_started_at)
+                if connection is not None:
+                    connection.resume_streaming()
+                continue
+            remaining = frame_delay - elapsed
+            if remaining > 0:
+                time.sleep(remaining)
+    finally:
+        report.log_report('crossfade', args.fps)
 
 
 def blend_frames(

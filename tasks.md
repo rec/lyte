@@ -16,7 +16,7 @@
   last visible frame during recovery.
 - [x] Make retry and transport functions return structured failure outcomes to
   playback code instead of calling `sys.exit` below the command boundary.
-- [ ] Add frame deadline accounting to normal animation playback and report
+- [x] Add frame deadline accounting to normal animation playback and report
   late frames, missed deadlines, and recovery periods.
 - [ ] Add unit tests for failure after realtime setup, token loss during frame
   streaming, a multi-second recovery interval, and failed blackout cleanup.

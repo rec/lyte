@@ -130,6 +130,20 @@ class AnimateTests(unittest.TestCase):
             np.array([[25, 125, 150]], dtype=np.uint8),
         )
 
+    def test_frame_deadline_report_counts_late_frames_and_recovery(self) -> None:
+        report = self.script.FrameDeadlineReport()
+
+        report.record_frame(0.15, 0.1)
+        report.record_frame(0.31, 0.1)
+        report.record_recovery(1.5)
+
+        self.assertEqual(report.frame_count, 2)
+        self.assertEqual(report.late_frames, 2)
+        self.assertEqual(report.missed_deadlines, 4)
+        self.assertEqual(report.worst_overrun_ms, 210)
+        self.assertEqual(report.recovery_count, 1)
+        self.assertEqual(report.recovery_duration_ms, 1500)
+
     def test_animation_recovers_before_sending_another_frame(self) -> None:
         class ConstantAnimation(animation.Animation):
             def render(
