@@ -57,6 +57,25 @@ class SessionTests(unittest.TestCase):
 
 
 class PlaybackConnectionTests(unittest.TestCase):
+    def test_recovery_requests_blackout_until_streaming_resumes(self) -> None:
+        connection = realtime.PlaybackConnection()
+
+        connection.begin_recovery()
+
+        self.assertTrue(connection.blackout_requested)
+        self.assertEqual(connection.state, realtime.PlaybackConnectionState.RECOVERING)
+        connection.resume_streaming()
+        self.assertFalse(connection.blackout_requested)
+        self.assertEqual(connection.state, realtime.PlaybackConnectionState.STREAMING)
+
+    def test_failed_blackout_is_reported_as_unknown(self) -> None:
+        connection = realtime.PlaybackConnection()
+
+        connection.finish_blackout(False)
+
+        self.assertTrue(connection.blackout_requested)
+        self.assertEqual(connection.state, realtime.PlaybackConnectionState.UNKNOWN)
+
     def test_connection_state_is_reported(self) -> None:
         output = io.StringIO()
         connection = realtime.PlaybackConnection()
