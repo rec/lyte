@@ -35,7 +35,7 @@
   CC 2 or that note ends, and are processed in input arrival order.
 - [x] Keep MIDI polling and patch rendering in the same playback loop initially
   so patch state cannot be mutated concurrently with rendering.
-- [ ] Add tests for channel filtering, note replacement, unrelated note-off,
+- [x] Add tests for channel filtering, note replacement, unrelated note-off,
   CC 2 persistence, CC 2 reset on note-off, and input-arrival ordering.
 
 ## Executable Wearable Patches

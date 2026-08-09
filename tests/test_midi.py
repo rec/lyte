@@ -39,6 +39,26 @@ class MidiInputTests(unittest.TestCase):
         self.assertIs(result, port)
         open_input.assert_called_once_with('WX7')
 
+    def test_input_messages_preserves_arrival_order(self) -> None:
+        class Port:
+            messages = iter(
+                [
+                    mido.Message('control_change', channel=2, control=2, value=32),
+                    mido.Message('note_on', channel=2, note=60, velocity=100),
+                    mido.Message('pitchwheel', channel=2, pitch=1024),
+                ]
+            )
+
+            def poll(self) -> mido.Message | None:
+                return next(self.messages, None)
+
+        messages = list(midi.input_messages(Port(), midi.MidiIn(channel=2)))
+
+        self.assertEqual(
+            [message.type for message in messages],
+            ['control_change', 'note_on', 'pitchwheel'],
+        )
+
     def test_input_messages_filters_by_selected_channel_in_arrival_order(self) -> None:
         class Port:
             messages = iter(
