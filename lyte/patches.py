@@ -427,7 +427,7 @@ def list_patch_library(library: PatchLibrary) -> None:
         controls = [binding.source for binding in patch.bindings]
         control_text = ', '.join(controls) if controls else 'none'
         print(
-            f'{name}: regions={", ".join(regions)}; '
+            f'[experimental] {name}: regions={", ".join(regions)}; '
             f'layers={", ".join(patch.layers)}; controls={control_text}'
         )
 
