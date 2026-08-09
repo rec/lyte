@@ -47,7 +47,7 @@
 - [x] Compile a patch's declared blend policy into `BlendLightPatch` or
   `WeightedBlendLightPatch` rather than treating all multi-layer patches as an
   additive blend.
-- [ ] Allow each declared layer to select its own logical regions so a patch can
+- [x] Allow each declared layer to select its own logical regions so a patch can
   express chest-only and limb-only layers without creating artificial layer
   names.
 - [ ] Apply `WearableSpec.physical_map` between logical patch rendering and

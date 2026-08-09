@@ -121,6 +121,19 @@ class PatchLibraryTests(unittest.TestCase):
         patch.receive(mido.Message('note_off', note=61))
         self.assertIsNone(patch.state)
 
+    def test_layer_regions_override_the_patch_default_regions(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        patch = patches.build_light_patch(library, 'chest_orbit')
+        if not isinstance(patch, patches.DeclarativeLightPatch):
+            self.fail('patch did not compile')
+
+        chest = patch.layers['chest_spiral']
+        limbs = patch.layers['limb_fill']
+        self.assertEqual(len(chest.config.regions), 1)
+        self.assertEqual(chest.config.regions[0].start, 152)
+        self.assertEqual(len(limbs.config.regions), 4)
+        self.assertNotIn(152, [region.start for region in limbs.config.regions])
+
     def test_declarative_patch_compiles_declared_blend_policy(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
         additive = patches.build_light_patch(library, 'prism_limbs')
