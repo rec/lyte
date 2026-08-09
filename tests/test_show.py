@@ -67,6 +67,13 @@ class ShowFileTests(unittest.TestCase):
         self.assertEqual(show_file.run['tree'].source, 'rainbow')
         self.assertEqual(show_file.run['tree'].params, {'brightness': 0.8})
 
+    def test_parse_show_file_rejects_unsupported_device_kinds(self) -> None:
+        with self.assertRaisesRegex(show.ShowFileError, 'only twinkly'):
+            show.parse_show_file(
+                {'devices': {'stage': {'kind': 'artnet', 'led_count': 170}}},
+                'show.toml',
+            )
+
     def test_parse_show_file_rejects_routes_section(self) -> None:
         with self.assertRaisesRegex(show.ShowFileError, 'unknown top-level'):
             show.parse_show_file({'routes': {}}, 'show.toml')
