@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import io
 import unittest
 from unittest.mock import patch
 
 from lyte.animations.colors import solid_rgb_frame
 from lyte.retry import RetryConfig
-from lyte.twinkly import session
+from lyte.twinkly import realtime, session
 from lyte.twinkly.client import TWINKLY_API_PREFIX, TwinklyClient, TwinklyResponse
 
 
@@ -50,6 +51,29 @@ class SessionTests(unittest.TestCase):
         self.assertTrue(result)
         self.assertEqual(
             labels, [f'POST {TWINKLY_API_PREFIX}/led/mode on 192.168.1.23']
+        )
+
+
+class PlaybackConnectionTests(unittest.TestCase):
+    def test_connection_state_is_reported(self) -> None:
+        output = io.StringIO()
+        connection = realtime.PlaybackConnection()
+
+        with patch('sys.stdout', output):
+            connection.set_state(realtime.PlaybackConnectionState.CONNECTING)
+            connection.set_state(realtime.PlaybackConnectionState.STREAMING)
+            connection.set_state(realtime.PlaybackConnectionState.RECOVERING)
+            connection.set_state(realtime.PlaybackConnectionState.BLACKED_OUT)
+            connection.set_state(realtime.PlaybackConnectionState.UNKNOWN)
+
+        self.assertEqual(connection.state, realtime.PlaybackConnectionState.UNKNOWN)
+        self.assertEqual(
+            output.getvalue(),
+            '[connection] connecting\n'
+            '[connection] streaming\n'
+            '[connection] recovering\n'
+            '[connection] blacked_out\n'
+            '[connection] unknown\n',
         )
 
 

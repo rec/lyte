@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import enum
 import sys
 import time
 
 import numpy as np
 from numpy.typing import NDArray
+from pydantic import BaseModel
 
 from ..logging import log, log_error, log_status
 from ..retry import RetryConfig
@@ -13,6 +15,22 @@ from .client import TwinklyClient
 from .discovery import discover
 
 DISCOVERY_ATTEMPT_TIMEOUT = 5.0
+
+
+class PlaybackConnectionState(enum.StrEnum):
+    CONNECTING = enum.auto()
+    STREAMING = enum.auto()
+    RECOVERING = enum.auto()
+    BLACKED_OUT = enum.auto()
+    UNKNOWN = enum.auto()
+
+
+class PlaybackConnection(BaseModel):
+    state: PlaybackConnectionState = PlaybackConnectionState.UNKNOWN
+
+    def set_state(self, state: PlaybackConnectionState) -> None:
+        self.state = state
+        log_status(f'[connection] {state}')
 
 
 def send_realtime_frame(
