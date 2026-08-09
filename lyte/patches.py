@@ -10,7 +10,7 @@ from typing import Annotated, Literal
 import numpy as np
 import tyro
 from numpy.typing import NDArray
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from . import animation, midi
 from .animations import bibliopixel
@@ -117,6 +117,30 @@ class WearableSpec(BaseModel, frozen=True):
     model_config = ConfigDict(extra='forbid')
 
 
+class LinearMapSpec(BaseModel, frozen=True):
+    kind: Literal['linear', 'positive_linear']
+    input: list[float] = [0.0, 127.0]
+    output: list[float]
+
+    @model_validator(mode='after')
+    def validate_ranges(self) -> LinearMapSpec:
+        if len(self.input) != 2 or len(self.output) != 2:
+            raise ValueError('linear maps require two input and output values')
+        if self.input[0] >= self.input[1] or self.output[0] > self.output[1]:
+            raise ValueError('linear map ranges must be ordered')
+        return self
+
+    model_config = ConfigDict(extra='forbid')
+
+
+class BindingSpec(BaseModel, frozen=True):
+    source: Literal['note', 'breath', 'pitch_bend']
+    target: str
+    mapping: Literal['pitch_class_palette'] | LinearMapSpec = Field(alias='map')
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+
+
 class LayerSpec(BaseModel, frozen=True):
     kind: Literal['solid', 'random_walk', 'twinkle', 'chase', 'rainbow']
     color: list[float] = [1.0, 1.0, 1.0]
@@ -134,17 +158,30 @@ class LayerSpec(BaseModel, frozen=True):
 
 
 class PatchSpec(BaseModel, frozen=True):
+    activation: Literal['note']
     layers: list[str]
     regions: list[str] = []
-    note_color: str | None = None
-    breath_speed: str | None = None
-    breath_mix: str | None = None
-    pitch_speed: str | None = None
+    note_palette: list[list[float]] = []
+    bindings: list[BindingSpec] = []
+    blend: Literal['add', 'weighted'] = 'add'
 
     @model_validator(mode='after')
     def validate_patch(self) -> PatchSpec:
         if not self.layers:
             raise ValueError('patch must contain at least one layer')
+        if self.note_palette and (
+            len(self.note_palette) != 12
+            or any(
+                len(color) != 3 or any(value < 0 or value > 1 for value in color)
+                for color in self.note_palette
+            )
+        ):
+            raise ValueError('note_palette must contain twelve RGB colors')
+        for binding in self.bindings:
+            if binding.source == 'note' and binding.mapping != 'pitch_class_palette':
+                raise ValueError('note bindings require pitch_class_palette mapping')
+            if binding.source == 'note' and not self.note_palette:
+                raise ValueError('note bindings require note_palette')
         return self
 
     model_config = ConfigDict(extra='forbid')
@@ -168,6 +205,17 @@ class PatchLibrary(BaseModel, frozen=True):
             if unknown_regions:
                 unknown = ', '.join(sorted(unknown_regions))
                 raise ValueError(f'patch {name} names unknown regions: {unknown}')
+            for binding in patch.bindings:
+                target_name, _, parameter = binding.target.partition('.')
+                if target_name == 'mix':
+                    if parameter not in patch.layers:
+                        raise ValueError(f'patch {name} names unknown mix target')
+                elif target_name not in patch.layers or parameter not in {
+                    'color',
+                    'gain',
+                    'speed',
+                }:
+                    raise ValueError(f'patch {name} names invalid binding target')
         return self
 
     model_config = ConfigDict(extra='forbid')
@@ -251,15 +299,7 @@ def list_patch_library(library: PatchLibrary) -> None:
     )
     for name, patch in library.patches.items():
         regions = patch.regions or list(library.wearable.segments)
-        controls = []
-        if patch.note_color is not None:
-            controls.append('note color')
-        if patch.breath_speed is not None:
-            controls.append('breath speed')
-        if patch.breath_mix is not None:
-            controls.append('breath mix')
-        if patch.pitch_speed is not None:
-            controls.append('pitch speed')
+        controls = [binding.source for binding in patch.bindings]
         control_text = ', '.join(controls) if controls else 'none'
         print(
             f'{name}: regions={", ".join(regions)}; '

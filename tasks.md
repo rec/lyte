@@ -40,7 +40,7 @@
 
 ## Executable Wearable Patches
 
-- [ ] Replace `note_color`, `breath_speed`, `breath_mix`, and `pitch_speed`
+- [x] Replace `note_color`, `breath_speed`, `breath_mix`, and `pitch_speed`
   prose fields in `patches/wearable-breath.toml` with validated binding tables.
 - [ ] Implement pitch-class palette selection and the declared note, breath,
   mix, and positive pitch-bend mappings against mutable per-note patch state.

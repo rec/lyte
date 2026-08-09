@@ -29,147 +29,319 @@ ranges = [{ start = 76, led_count = 24 }, { start = 176, led_count = 24 }]
 # The first sixteen patches use this fixed five-segment virtual wearable.
 
 [patches.prism_limbs]
+activation = "note"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["five_color_fill"]
-note_color = "note selects a five-color palette rotation"
+
+note_palette = [[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0], [0.5, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.5], [0.0, 1.0, 1.0], [0.0, 0.5, 1.0], [0.0, 0.0, 1.0], [0.5, 0.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.5]]
+[[patches.prism_limbs.bindings]]
+source = "note"
+target = "five_color_fill.color"
+map = "pitch_class_palette"
 
 [patches.opposite_steps]
+activation = "note"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["alternating_steps"]
-note_color = "note selects the two opposing colors"
+
+note_palette = [[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0], [0.5, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.5], [0.0, 1.0, 1.0], [0.0, 0.5, 1.0], [0.0, 0.0, 1.0], [0.5, 0.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.5]]
+[[patches.opposite_steps.bindings]]
+source = "note"
+target = "alternating_steps.color"
+map = "pitch_class_palette"
 
 [patches.chest_orbit]
+activation = "note"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["chest_spiral", "limb_fill"]
-note_color = "note sets the spiral hue"
+
+note_palette = [[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0], [0.5, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.5], [0.0, 1.0, 1.0], [0.0, 0.5, 1.0], [0.0, 0.0, 1.0], [0.5, 0.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.5]]
+[[patches.chest_orbit.bindings]]
+source = "note"
+target = "chest_spiral.color"
+map = "pitch_class_palette"
 
 [patches.limb_rainbow]
+activation = "note"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["five_phase_rainbow"]
-note_color = "note sets the rainbow root hue"
+
+note_palette = [[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0], [0.5, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.5], [0.0, 1.0, 1.0], [0.0, 0.5, 1.0], [0.0, 0.0, 1.0], [0.5, 0.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.5]]
+[[patches.limb_rainbow.bindings]]
+source = "note"
+target = "five_phase_rainbow.color"
+map = "pitch_class_palette"
 
 [patches.note_twinkle]
+activation = "note"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["dark_fill", "region_twinkle"]
-note_color = "note sets twinkle color"
+
+note_palette = [[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0], [0.5, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.5], [0.0, 1.0, 1.0], [0.0, 0.5, 1.0], [0.0, 0.0, 1.0], [0.5, 0.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.5]]
+[[patches.note_twinkle.bindings]]
+source = "note"
+target = "dark_fill.color"
+map = "pitch_class_palette"
 
 [patches.note_searchlight]
+activation = "note"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["five_searchlights"]
-note_color = "note sets searchlight color"
+
+note_palette = [[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0], [0.5, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.5], [0.0, 1.0, 1.0], [0.0, 0.5, 1.0], [0.0, 0.0, 1.0], [0.5, 0.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.5]]
+[[patches.note_searchlight.bindings]]
+source = "note"
+target = "five_searchlights.color"
+map = "pitch_class_palette"
 
 [patches.note_chase]
+activation = "note"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["body_chase"]
-note_color = "note sets chase color"
+
+note_palette = [[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0], [0.5, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.5], [0.0, 1.0, 1.0], [0.0, 0.5, 1.0], [0.0, 0.0, 1.0], [0.5, 0.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.5]]
+[[patches.note_chase.bindings]]
+source = "note"
+target = "body_chase.color"
+map = "pitch_class_palette"
 
 [patches.note_pulse]
+activation = "note"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["chest_pulse", "limb_afterglow"]
-note_color = "note sets pulse color"
+
+note_palette = [[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0], [0.5, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.5], [0.0, 1.0, 1.0], [0.0, 0.5, 1.0], [0.0, 0.0, 1.0], [0.5, 0.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.5]]
+[[patches.note_pulse.bindings]]
+source = "note"
+target = "chest_pulse.color"
+map = "pitch_class_palette"
 
 [patches.breath_walker]
+activation = "note"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["random_walk"]
-breath_speed = "CC 2 maps 0..127 to 2..90 pixels per second"
+
+[[patches.breath_walker.bindings]]
+source = "breath"
+target = "random_walk.speed"
+map = { kind = "linear", input = [0, 127], output = [1.0, 100.0] }
 
 [patches.breath_hamiltonian]
+activation = "note"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["hamiltonian_stream"]
-breath_speed = "CC 2 maps 0..127 to 1..120 pixels per second"
+
+[[patches.breath_hamiltonian.bindings]]
+source = "breath"
+target = "hamiltonian_stream.speed"
+map = { kind = "linear", input = [0, 127], output = [1.0, 100.0] }
 
 [patches.breath_counter]
+activation = "note"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["binary_counter"]
-breath_speed = "CC 2 maps 0..127 to 0.2..30 cycles per second"
+
+[[patches.breath_counter.bindings]]
+source = "breath"
+target = "binary_counter.speed"
+map = { kind = "linear", input = [0, 127], output = [1.0, 100.0] }
 
 [patches.breath_wave]
+activation = "note"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["five_phase_wave"]
-breath_speed = "CC 2 maps 0..127 to 0.1..16 cycles per second"
+
+[[patches.breath_wave.bindings]]
+source = "breath"
+target = "five_phase_wave.speed"
+map = { kind = "linear", input = [0, 127], output = [1.0, 100.0] }
 
 [patches.breath_mix_walk_twinkle]
+activation = "note"
+blend = "weighted"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["random_walk", "region_twinkle"]
-breath_speed = "CC 2 maps 0..127 to 1..80 pixels per second"
-breath_mix = "CC 2 crossfades random walk into twinkle"
+
+[[patches.breath_mix_walk_twinkle.bindings]]
+source = "breath"
+target = "random_walk.speed"
+map = { kind = "linear", input = [0, 127], output = [1.0, 100.0] }
+[[patches.breath_mix_walk_twinkle.bindings]]
+source = "breath"
+target = "mix.region_twinkle"
+map = { kind = "linear", input = [0, 127], output = [0.0, 1.0] }
 
 [patches.breath_mix_chase_rain]
+activation = "note"
+blend = "weighted"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["body_chase", "rain"]
-breath_speed = "CC 2 maps 0..127 to 1..100 pixels per second"
-breath_mix = "CC 2 crossfades chase into rain"
+
+[[patches.breath_mix_chase_rain.bindings]]
+source = "breath"
+target = "body_chase.speed"
+map = { kind = "linear", input = [0, 127], output = [1.0, 100.0] }
+[[patches.breath_mix_chase_rain.bindings]]
+source = "breath"
+target = "mix.rain"
+map = { kind = "linear", input = [0, 127], output = [0.0, 1.0] }
 
 [patches.breath_mix_pulse_gradient]
+activation = "note"
+blend = "weighted"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["chest_pulse", "vertical_gradient"]
-breath_speed = "CC 2 maps 0..127 to 0.2..12 pulses per second"
-breath_mix = "CC 2 crossfades pulse into gradient"
+
+[[patches.breath_mix_pulse_gradient.bindings]]
+source = "breath"
+target = "chest_pulse.speed"
+map = { kind = "linear", input = [0, 127], output = [1.0, 100.0] }
+[[patches.breath_mix_pulse_gradient.bindings]]
+source = "breath"
+target = "mix.vertical_gradient"
+map = { kind = "linear", input = [0, 127], output = [0.0, 1.0] }
 
 [patches.breath_mix_searchlights]
+activation = "note"
+blend = "weighted"
 regions = ["left_leg", "right_leg", "left_arm", "right_arm", "chest"]
 layers = ["five_searchlights", "five_phase_rainbow"]
-breath_speed = "CC 2 maps 0..127 to 0.1..20 crossings per second"
-breath_mix = "CC 2 crossfades searchlights into rainbow"
+
+[[patches.breath_mix_searchlights.bindings]]
+source = "breath"
+target = "five_searchlights.speed"
+map = { kind = "linear", input = [0, 127], output = [1.0, 100.0] }
+[[patches.breath_mix_searchlights.bindings]]
+source = "breath"
+target = "mix.five_phase_rainbow"
+map = { kind = "linear", input = [0, 127], output = [0.0, 1.0] }
 
 [patches.mix_mirror_split]
+activation = "note"
+blend = "weighted"
 layers = ["left_to_right_wipe", "right_to_left_wipe"]
-breath_mix = "CC 2 crossfades leftward and rightward wipes"
+
+[[patches.mix_mirror_split.bindings]]
+source = "breath"
+target = "mix.right_to_left_wipe"
+map = { kind = "linear", input = [0, 127], output = [0.0, 1.0] }
 
 [patches.mix_fire_ice]
+activation = "note"
+blend = "weighted"
 layers = ["warm_twinkle", "cool_twinkle"]
-breath_mix = "CC 2 crossfades fire into ice"
+
+[[patches.mix_fire_ice.bindings]]
+source = "breath"
+target = "mix.cool_twinkle"
+map = { kind = "linear", input = [0, 127], output = [0.0, 1.0] }
 
 [patches.mix_sparkle_solid]
+activation = "note"
+blend = "weighted"
 layers = ["white_twinkle", "low_saturation_fill"]
-breath_mix = "CC 2 crossfades sparkle into solid color"
+
+[[patches.mix_sparkle_solid.bindings]]
+source = "breath"
+target = "mix.low_saturation_fill"
+map = { kind = "linear", input = [0, 127], output = [0.0, 1.0] }
 
 [patches.mix_rainbow_black]
+activation = "note"
+blend = "weighted"
 layers = ["rainbow_cycle", "black"]
-breath_mix = "CC 2 controls rainbow gain"
+
+[[patches.mix_rainbow_black.bindings]]
+source = "breath"
+target = "mix.black"
+map = { kind = "linear", input = [0, 127], output = [0.0, 1.0] }
 
 [patches.pitch_turbo_chase]
+activation = "note"
 layers = ["body_chase"]
-pitch_speed = "pitch bend maps center..maximum to 1..300 pixels per second"
+
+[[patches.pitch_turbo_chase.bindings]]
+source = "pitch_bend"
+target = "body_chase.speed"
+map = { kind = "positive_linear", input = [0, 8191], output = [1.0, 300.0] }
 
 [patches.pitch_turbo_walk]
+activation = "note"
 layers = ["random_walk"]
-pitch_speed = "pitch bend maps center..maximum to 2..240 pixels per second"
+
+[[patches.pitch_turbo_walk.bindings]]
+source = "pitch_bend"
+target = "random_walk.speed"
+map = { kind = "positive_linear", input = [0, 8191], output = [1.0, 300.0] }
 
 [patches.pitch_turbo_hamiltonian]
+activation = "note"
 layers = ["hamiltonian_stream"]
-pitch_speed = "pitch bend maps center..maximum to 1..360 pixels per second"
+
+[[patches.pitch_turbo_hamiltonian.bindings]]
+source = "pitch_bend"
+target = "hamiltonian_stream.speed"
+map = { kind = "positive_linear", input = [0, 8191], output = [1.0, 300.0] }
 
 [patches.pitch_turbo_searchlights]
+activation = "note"
 layers = ["five_searchlights"]
-pitch_speed = "pitch bend maps center..maximum to 0.2..80 crossings per second"
+
+[[patches.pitch_turbo_searchlights.bindings]]
+source = "pitch_bend"
+target = "five_searchlights.speed"
+map = { kind = "positive_linear", input = [0, 8191], output = [1.0, 300.0] }
 
 [patches.pitch_turbo_wave]
+activation = "note"
 layers = ["five_phase_wave"]
-pitch_speed = "pitch bend maps center..maximum to 0.1..64 cycles per second"
+
+[[patches.pitch_turbo_wave.bindings]]
+source = "pitch_bend"
+target = "five_phase_wave.speed"
+map = { kind = "positive_linear", input = [0, 8191], output = [1.0, 300.0] }
 
 [patches.pitch_turbo_twinkle]
+activation = "note"
 layers = ["region_twinkle"]
-pitch_speed = "pitch bend maps center..maximum to 1..100 twinkle steps per second"
+
+[[patches.pitch_turbo_twinkle.bindings]]
+source = "pitch_bend"
+target = "region_twinkle.speed"
+map = { kind = "positive_linear", input = [0, 8191], output = [1.0, 300.0] }
 
 [patches.pitch_turbo_rain]
+activation = "note"
 layers = ["rain"]
-pitch_speed = "pitch bend maps center..maximum to 1..200 drops per second"
+
+[[patches.pitch_turbo_rain.bindings]]
+source = "pitch_bend"
+target = "rain.speed"
+map = { kind = "positive_linear", input = [0, 8191], output = [1.0, 300.0] }
 
 [patches.pitch_turbo_counter]
+activation = "note"
 layers = ["binary_counter"]
-pitch_speed = "pitch bend maps center..maximum to 0.5..120 cycles per second"
+
+[[patches.pitch_turbo_counter.bindings]]
+source = "pitch_bend"
+target = "binary_counter.speed"
+map = { kind = "positive_linear", input = [0, 8191], output = [1.0, 300.0] }
 
 [patches.static_body_flag]
+activation = "note"
 layers = ["five_color_fill"]
 
 [patches.static_chest_beacon]
+activation = "note"
 layers = ["chest_spiral", "dark_limbs"]
 
 [patches.static_warm_gradient]
+activation = "note"
 layers = ["vertical_warm_gradient"]
 
 [patches.static_cool_gradient]
+activation = "note"
 layers = ["vertical_cool_gradient"]
 
 
