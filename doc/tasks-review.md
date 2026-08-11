@@ -19,6 +19,21 @@ The changes are useful foundations, but several completed checklist items
 should be narrowed or followed by a corrective commit before they are treated
 as finished end-user features.
 
+## Follow-up Status
+
+- [x] Per-note derived layer controls are restored at note-off and before the
+  next note. Commit `d97ac52` adds the regression test.
+- [x] Show File documentation and the completed task now call `lyte show` an
+  offline preflight rather than playback. Commit `19212f6` updates the plan and
+  examples.
+- [x] `TwinklyTrack` owns Twinkly preparation, recovery, blackout cleanup, and
+  deadline reporting for animation and patch playback. Commit `45acca8` adds
+  patch recovery coverage.
+- [x] Wearable bindings are checked against supported layer controls. Commit
+  `d9abeb4` rejects unsupported speed and mix bindings.
+- [ ] The physical map remains provisional. Record the device identity, layout,
+  date, and successful locator observation only after physical verification.
+
 ## Findings Requiring Follow-up
 
 ### 1. `lyte show` does not play a show
