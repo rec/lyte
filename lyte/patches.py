@@ -18,7 +18,7 @@ from .animations import bibliopixel
 from .animations.christmas.random_walk import RandomWalk
 from .logging import log, log_error, log_status
 from .retry import RetryConfig
-from .twinkly import realtime
+from .twinkly import realtime, track
 from .twinkly.client import TwinklyClient
 
 
@@ -507,16 +507,24 @@ def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int
         return 1
 
     port = midi.open_input(config.midi_input)
+    twinkly_track = track.TwinklyTrack(
+        client=client,
+        retry=retry,
+        host=host,
+        configured_host=config.host,
+        discovery_timeout=config.discovery_timeout,
+        device=animation.Device(led_count=library.wearable.led_count),
+    )
     try:
-        if not realtime.prepare_device(client, retry, host):
+        if not twinkly_track.prepare():
             return 1
-        stream_patch_frames(port, config, library, patch, client, retry, host)
+        stream_patch_frames(port, config, library, patch, twinkly_track)
     except KeyboardInterrupt:
         log()
         log('[ok] Stopped')
     finally:
         port.close()
-        realtime.turn_off_streaming_device(client, retry, host)
+        twinkly_track.close()
     return 0
 
 
@@ -525,24 +533,21 @@ def stream_patch_frames(
     config: PatchCommandConfig,
     library: PatchLibrary,
     patch: midi.LightPatch,
-    client: TwinklyClient,
-    retry: RetryConfig,
-    host: str,
+    twinkly_track: track.TwinklyTrack,
 ) -> None:
-    device = animation.Device(led_count=library.wearable.led_count)
-    stop_at = None if config.duration is None else time.monotonic() + config.duration
-    while stop_at is None or time.monotonic() < stop_at:
+    def process_messages() -> None:
         for message in midi.input_messages(port, config.midi_input):
             patch.receive(message)
-        result = realtime.send_realtime_frame(
-            client,
-            retry,
-            host,
-            encode_wearable_frame(library.wearable, patch.render(device)),
-        )
-        if result.status is not realtime.FrameSendStatus.SENT:
-            log_error(f'[failed] Could not stream patch frame to {host}.')
-        time.sleep(1 / config.fps)
+
+    twinkly_track.stream_frames(
+        'patch',
+        config.fps,
+        config.duration,
+        lambda: encode_wearable_frame(
+            library.wearable, patch.render(twinkly_track.device)
+        ),
+        process_messages,
+    )
 
 
 def validate_playback_config(config: PatchCommandConfig) -> None:

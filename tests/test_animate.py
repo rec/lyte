@@ -16,6 +16,7 @@ from lyte.animations import bibliopixel
 from lyte.animations.christmas import hamiltonian
 from lyte.animations.christmas.random_walk import RandomWalk
 from lyte.retry import RetryConfig
+from lyte.twinkly import track
 from lyte.twinkly.client import TwinklyClient, TwinklyResponse
 
 
@@ -32,6 +33,17 @@ def initial_state(
 ) -> tuple[animation.Device, animation.State]:
     device = animation.Device(led_count=led_count)
     return device, source.initial_state(device)
+
+
+def make_track(led_count: int = 1) -> track.TwinklyTrack:
+    return track.TwinklyTrack(
+        client=TwinklyClient(host='192.168.1.23'),
+        retry=RetryConfig(attempts=1, delay=0, backoff=1),
+        host='192.168.1.23',
+        configured_host=None,
+        discovery_timeout=None,
+        device=animation.Device(led_count=led_count),
+    )
 
 
 class AnimateTests(unittest.TestCase):
@@ -104,13 +116,7 @@ class AnimateTests(unittest.TestCase):
             patch('lyte.animate.playback.time.monotonic', side_effect=[0, 0, 0, 2]),
             patch('sys.stdout', output),
         ):
-            self.script.run_random_animations(
-                args,
-                TwinklyClient(host='192.168.1.23'),
-                RetryConfig(attempts=1, delay=0, backoff=1),
-                '192.168.1.23',
-                animation.Device(led_count=3),
-            )
+            self.script.run_random_animations(args, make_track(3))
 
         self.assertIn('[pattern] hamiltonian', output.getvalue())
         run_animation_state.assert_called_once()
@@ -131,7 +137,7 @@ class AnimateTests(unittest.TestCase):
         )
 
     def test_frame_deadline_report_counts_late_frames_and_recovery(self) -> None:
-        report = self.script.FrameDeadlineReport()
+        report = track.FrameDeadlineReport()
 
         report.record_frame(0.15, 0.1)
         report.record_frame(0.31, 0.1)
@@ -160,32 +166,30 @@ class AnimateTests(unittest.TestCase):
             status=self.script.realtime.FrameSendStatus.SENT, byte_count=3
         )
 
+        twinkly_track = make_track()
+        twinkly_track.connection = connection
         with (
             patch(
-                'lyte.animate.playback.realtime.send_realtime_frame',
+                'lyte.twinkly.track.realtime.send_realtime_frame',
                 side_effect=[failed, sent],
             ),
             patch(
-                'lyte.animate.playback.realtime.recover_streaming_device',
+                'lyte.twinkly.track.realtime.recover_streaming_device',
                 return_value='192.168.1.23',
             ) as recover,
             patch(
-                'lyte.animate.playback.time.monotonic',
+                'lyte.twinkly.track.time.monotonic',
                 side_effect=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
             ),
-            patch('lyte.animate.playback.time.sleep'),
+            patch('lyte.twinkly.track.time.sleep'),
             patch('sys.stdout', new_callable=io.StringIO),
         ):
             self.script.run_animation_state(
                 ConstantAnimation(),
                 animation.State(),
                 args,
-                TwinklyClient(host='192.168.1.23'),
-                RetryConfig(attempts=1, delay=0, backoff=1),
-                '192.168.1.23',
-                animation.Device(led_count=1),
+                twinkly_track,
                 args.duration,
-                connection,
             )
 
         recover.assert_called_once()
@@ -215,12 +219,12 @@ class AnimateTests(unittest.TestCase):
 
         with (
             patch(
-                'lyte.animate.playback.time.monotonic',
-                side_effect=[0.0, 0.5, 0.5, 0.5, 2.0],
+                'lyte.twinkly.track.time.monotonic',
+                side_effect=[0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 2.0],
             ),
-            patch('lyte.animate.playback.time.sleep'),
+            patch('lyte.twinkly.track.time.sleep'),
             patch(
-                'lyte.animate.playback.realtime.send_realtime_frame',
+                'lyte.twinkly.track.realtime.send_realtime_frame',
                 lambda *a: (
                     sent_frames.append(a[-1])
                     or self.script.realtime.FrameSendResult(
@@ -236,10 +240,7 @@ class AnimateTests(unittest.TestCase):
                 next_animation,
                 next_state,
                 args,
-                TwinklyClient(host='192.168.1.23'),
-                RetryConfig(attempts=1, delay=0, backoff=1),
-                '192.168.1.23',
-                device,
+                make_track(device.led_count),
                 1.0,
             )
 

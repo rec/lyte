@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import random
 import time
 from collections.abc import Sequence
@@ -8,47 +7,15 @@ from collections.abc import Sequence
 import numpy as np
 import tyro
 from numpy.typing import NDArray
-from pydantic import BaseModel
 
 from .. import animation
-from ..logging import log, log_status
+from ..logging import log
 from ..retry import RetryConfig
-from ..twinkly import realtime
+from ..twinkly import realtime, track
 from ..twinkly.client import TwinklyClient
 from . import random_show
 from .build import build_animation
 from .config import AnimateConfig, validate_args
-
-
-class FrameDeadlineReport(BaseModel):
-    frame_count: int = 0
-    late_frames: int = 0
-    missed_deadlines: int = 0
-    worst_overrun_ms: float = 0
-    recovery_count: int = 0
-    recovery_duration_ms: float = 0
-
-    def record_frame(self, elapsed: float, deadline: float) -> None:
-        self.frame_count += 1
-        overrun = elapsed - deadline
-        if overrun <= 0:
-            return
-        self.late_frames += 1
-        self.missed_deadlines += max(1, math.floor(elapsed / deadline))
-        self.worst_overrun_ms = max(self.worst_overrun_ms, overrun * 1000)
-
-    def record_recovery(self, duration: float) -> None:
-        self.recovery_count += 1
-        self.recovery_duration_ms += duration * 1000
-
-    def log_report(self, name: str, fps: float) -> None:
-        log_status(
-            f'[report] {name} {fps:g} FPS: {self.frame_count} frames, '
-            f'{self.late_frames} late frames, {self.missed_deadlines} missed '
-            f'deadlines, worst overrun {self.worst_overrun_ms:.2f} ms, '
-            f'{self.recovery_count} recoveries over '
-            f'{self.recovery_duration_ms:.2f} ms.'
-        )
 
 
 def main() -> int:
@@ -58,8 +25,6 @@ def main() -> int:
 
 def run_animate(args: AnimateConfig) -> int:
     validate_args(args)
-    connection = realtime.PlaybackConnection()
-    connection.set_state(realtime.PlaybackConnectionState.CONNECTING)
     host = args.host or realtime.discover_host(args.discovery_timeout)
     if host is None:
         return 1
@@ -76,22 +41,26 @@ def run_animate(args: AnimateConfig) -> int:
     led_count = realtime.read_led_count(client, retry, args.led_count, host)
     if led_count is None:
         return 1
-    device = animation.Device(led_count=led_count)
+    twinkly_track = track.TwinklyTrack(
+        client=client,
+        retry=retry,
+        host=host,
+        configured_host=args.host,
+        discovery_timeout=args.discovery_timeout,
+        device=animation.Device(led_count=led_count),
+    )
     try:
-        if not realtime.prepare_device(client, retry, host):
+        if not twinkly_track.prepare():
             return 1
-        connection.resume_streaming()
         if args.animation == 'random':
-            run_random_animations(args, client, retry, host, device, connection)
+            run_random_animations(args, twinkly_track)
         else:
-            run_animation(args, client, retry, host, device, args.duration, connection)
+            run_animation(args, twinkly_track, args.duration)
     except KeyboardInterrupt:
         log()
         log('[ok] Stopped')
     finally:
-        connection.finish_blackout(
-            realtime.turn_off_streaming_device(client, retry, host)
-        )
+        twinkly_track.close()
     return 0
 
 
@@ -101,12 +70,9 @@ def parse_args(args: Sequence[str] | None = None) -> AnimateConfig:
 
 def run_random_animations(
     args: AnimateConfig,
-    client: TwinklyClient,
-    retry: RetryConfig,
-    host: str,
-    device: animation.Device,
-    connection: realtime.PlaybackConnection | None = None,
+    twinkly_track: track.TwinklyTrack,
 ) -> None:
+    device = twinkly_track.device
     generator = random.Random(args.seed)
     stop_at = None if args.duration is None else time.monotonic() + args.duration
     current_args = random_show.random_animation_args(args, generator, None)
@@ -128,12 +94,8 @@ def run_random_animations(
                 current_animation,
                 current_state,
                 current_args,
-                client,
-                retry,
-                host,
-                device,
+                twinkly_track,
                 solo_duration,
-                connection,
             )
         if stop_at is not None and time.monotonic() >= stop_at:
             return
@@ -158,12 +120,8 @@ def run_random_animations(
                 next_animation,
                 next_state,
                 next_args,
-                client,
-                retry,
-                host,
-                device,
+                twinkly_track,
                 clipped_overlap_duration,
-                connection,
             )
         current_args = next_args
         current_animation = next_animation
@@ -173,70 +131,36 @@ def run_random_animations(
 
 def run_animation(
     args: AnimateConfig,
-    client: TwinklyClient,
-    retry: RetryConfig,
-    host: str,
-    device: animation.Device,
+    twinkly_track: track.TwinklyTrack,
     duration: float | None,
-    connection: realtime.PlaybackConnection | None = None,
 ) -> None:
     source = build_animation(args)
-    state = source.initial_state(device)
+    state = source.initial_state(twinkly_track.device)
     state.fps = args.fps
-    run_animation_state(
-        source, state, args, client, retry, host, device, duration, connection
-    )
+    run_animation_state(source, state, args, twinkly_track, duration)
 
 
 def run_animation_state(
     source: animation.Animation,
     state: animation.State,
     args: AnimateConfig,
-    client: TwinklyClient,
-    retry: RetryConfig,
-    host: str,
-    device: animation.Device,
+    twinkly_track: track.TwinklyTrack,
     duration: float | None,
-    connection: realtime.PlaybackConnection | None = None,
 ) -> None:
-    frame_delay = 1 / args.fps
-    stop_at = None if duration is None else time.monotonic() + duration
-    report = FrameDeadlineReport()
+    device = twinkly_track.device
     log(
         '[ok] Streaming '
-        f'{args.animation} frames to {host} for {device.led_count} LEDs '
+        f'{args.animation} frames to {twinkly_track.host} for {device.led_count} LEDs '
         f'at {args.fps} FPS'
     )
-
-    try:
-        while stop_at is None or time.monotonic() < stop_at:
-            started_at = time.monotonic()
-            frame = animation.byte_light_frame_from_float(
-                animation.validate_frame(device, source.render(device, state))
-            )
-            result = realtime.send_realtime_frame(client, retry, host, frame)
-            elapsed = time.monotonic() - started_at
-            report.record_frame(elapsed, frame_delay)
-            if result.status is not realtime.FrameSendStatus.SENT:
-                if connection is not None:
-                    connection.begin_recovery()
-                recovery_started_at = time.monotonic()
-                host = realtime.recover_streaming_device(
-                    client,
-                    retry,
-                    args.host,
-                    args.discovery_timeout,
-                    device.led_count,
-                )
-                report.record_recovery(time.monotonic() - recovery_started_at)
-                if connection is not None:
-                    connection.resume_streaming()
-                continue
-            remaining = frame_delay - elapsed
-            if remaining > 0:
-                time.sleep(remaining)
-    finally:
-        report.log_report(args.animation, args.fps)
+    twinkly_track.stream_frames(
+        args.animation,
+        args.fps,
+        duration,
+        lambda: animation.byte_light_frame_from_float(
+            animation.validate_frame(device, source.render(device, state))
+        ),
+    )
 
 
 def run_crossfade(
@@ -245,56 +169,24 @@ def run_crossfade(
     next_animation: animation.Animation,
     next_state: animation.State,
     args: AnimateConfig,
-    client: TwinklyClient,
-    retry: RetryConfig,
-    host: str,
-    device: animation.Device,
+    twinkly_track: track.TwinklyTrack,
     duration: float,
-    connection: realtime.PlaybackConnection | None = None,
 ) -> None:
-    frame_delay = 1 / args.fps
+    device = twinkly_track.device
     started_at = time.monotonic()
-    stop_at = started_at + duration
-    report = FrameDeadlineReport()
 
-    try:
-        while time.monotonic() < stop_at:
-            frame_started_at = time.monotonic()
-            progress = (frame_started_at - started_at) / duration
-            frame = blend_frames(
-                animation.validate_frame(
-                    device, current_animation.render(device, current_state)
-                ),
-                animation.validate_frame(
-                    device, next_animation.render(device, next_state)
-                ),
-                progress,
-            )
-            result = realtime.send_realtime_frame(
-                client, retry, host, animation.byte_light_frame_from_float(frame)
-            )
-            elapsed = time.monotonic() - frame_started_at
-            report.record_frame(elapsed, frame_delay)
-            if result.status is not realtime.FrameSendStatus.SENT:
-                if connection is not None:
-                    connection.begin_recovery()
-                recovery_started_at = time.monotonic()
-                host = realtime.recover_streaming_device(
-                    client,
-                    retry,
-                    args.host,
-                    args.discovery_timeout,
-                    device.led_count,
-                )
-                report.record_recovery(time.monotonic() - recovery_started_at)
-                if connection is not None:
-                    connection.resume_streaming()
-                continue
-            remaining = frame_delay - elapsed
-            if remaining > 0:
-                time.sleep(remaining)
-    finally:
-        report.log_report('crossfade', args.fps)
+    def render_frame() -> NDArray[np.uint8]:
+        progress = (time.monotonic() - started_at) / duration
+        frame = blend_frames(
+            animation.validate_frame(
+                device, current_animation.render(device, current_state)
+            ),
+            animation.validate_frame(device, next_animation.render(device, next_state)),
+            progress,
+        )
+        return animation.byte_light_frame_from_float(frame)
+
+    twinkly_track.stream_frames('crossfade', args.fps, duration, render_frame)
 
 
 def blend_frames(
