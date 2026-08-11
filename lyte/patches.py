@@ -236,6 +236,7 @@ class DeclarativePatchState(BaseModel):
 
 class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
     layers: dict[str, SkipValidation[midi.LightPatch]]
+    base_layer_configs: dict[str, midi.RegionLightPatchConfig]
     mixer: SkipValidation[midi.BlendLightPatch | midi.WeightedBlendLightPatch]
 
     def make_state(self, msg: mido.Message) -> DeclarativePatchState:
@@ -256,6 +257,7 @@ class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
         self.apply_bindings('pitch_bend', int(msg.__getattribute__('pitch')))
 
     def note_on(self, msg: mido.Message) -> None:
+        self.restore_layer_configs()
         if isinstance(self.mixer, midi.WeightedBlendLightPatch):
             self.mixer.state = self.mixer.make_state(msg)
         else:
@@ -263,7 +265,16 @@ class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
         self.apply_bindings('note', msg.note)
 
     def note_off(self) -> None:
+        self.restore_layer_configs()
         self.mixer.state = None
+
+    def restore_layer_configs(self) -> None:
+        for name, layer in self.layers.items():
+            if not isinstance(layer, midi.RegionLightPatch):
+                raise ValueError(
+                    'Declarative patch layers must be region light patches'
+                )
+            layer.config = self.base_layer_configs[name]
 
     def apply_bindings(self, source: str, value: int) -> None:
         if self.state is None:
@@ -585,7 +596,16 @@ def build_light_patch(library: PatchLibrary, name: str) -> midi.LightPatch:
         mixer = midi.BlendLightPatch(
             config=midi.BlendLightPatchConfig(), patches=children
         )
-    return DeclarativeLightPatch(config=patch, layers=layers, mixer=mixer)
+    return DeclarativeLightPatch(
+        config=patch,
+        layers=layers,
+        base_layer_configs={
+            name: layer.config
+            for name, layer in layers.items()
+            if isinstance(layer, midi.RegionLightPatch)
+        },
+        mixer=mixer,
+    )
 
 
 def build_layer_animation(layer: LayerSpec) -> animation.Animation:
