@@ -12,8 +12,19 @@ from pydantic import BaseModel
 
 from lyte import animation, midi, patches
 from lyte.retry import RetryConfig
-from lyte.twinkly import realtime
+from lyte.twinkly import realtime, track
 from lyte.twinkly.client import TwinklyClient
+
+
+def make_track(led_count: int = 200) -> track.TwinklyTrack:
+    return track.TwinklyTrack(
+        client=TwinklyClient(host='192.168.1.23'),
+        retry=RetryConfig(attempts=1, delay=0, backoff=1),
+        host='192.168.1.23',
+        configured_host=None,
+        discovery_timeout=None,
+        device=animation.Device(led_count=led_count),
+    )
 
 
 class PatchLibraryTests(unittest.TestCase):
@@ -244,7 +255,7 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn('measured physical map', errors.getvalue())
 
-    def test_patch_playback_polls_midi_and_streams_mapped_frames(self) -> None:
+    def test_patch_playback_recovers_after_a_failed_frame_send(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
         library = library.model_copy(
             update={
@@ -270,28 +281,33 @@ class PatchLibraryTests(unittest.TestCase):
             patch_name='breath_walker',
             duration=0.1,
         )
-        sent = realtime.FrameSendResult(
-            status=realtime.FrameSendStatus.SENT,
-            byte_count=600,
-        )
+        failed = realtime.FrameSendResult(status=realtime.FrameSendStatus.TOKEN_MISSING)
 
         with (
             patch('lyte.patches.realtime.discover_host', return_value='192.168.1.23'),
             patch('lyte.patches.realtime.read_led_count', return_value=200),
             patch('lyte.patches.realtime.prepare_device', return_value=True),
             patch(
-                'lyte.patches.realtime.send_realtime_frame', return_value=sent
+                'lyte.patches.realtime.send_realtime_frame', return_value=failed
             ) as send,
+            patch(
+                'lyte.patches.realtime.recover_streaming_device',
+                return_value='192.168.1.23',
+            ) as recover,
             patch('lyte.patches.realtime.turn_off_streaming_device', return_value=True),
             patch('lyte.patches.midi.open_input', return_value=port),
-            patch('lyte.patches.time.monotonic', side_effect=[0.0, 0.0, 1.0]),
-            patch('lyte.patches.time.sleep'),
+            patch(
+                'lyte.twinkly.track.time.monotonic',
+                side_effect=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+            ),
+            patch('lyte.twinkly.track.time.sleep'),
         ):
             result = patches.run_patch_playback(config, library)
 
         self.assertEqual(result, 0)
         self.assertTrue(port.closed)
         send.assert_called_once()
+        recover.assert_called_once()
 
     def test_patch_playback_applies_input_before_rendering_each_frame(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
@@ -330,20 +346,21 @@ class PatchLibraryTests(unittest.TestCase):
 
         with (
             patch(
-                'lyte.patches.realtime.send_realtime_frame',
+                'lyte.twinkly.track.realtime.send_realtime_frame',
                 side_effect=lambda *args: frames.append(args[-1]) or sent,
             ),
-            patch('lyte.patches.time.monotonic', side_effect=[0.0, 0.0, 1.0]),
-            patch('lyte.patches.time.sleep'),
+            patch(
+                'lyte.twinkly.track.time.monotonic',
+                side_effect=[0.0, 0.0, 0.0, 0.0, 1.0],
+            ),
+            patch('lyte.twinkly.track.time.sleep'),
         ):
             patches.stream_patch_frames(
                 Port(),
                 patches.PatchCommandConfig(action='play', duration=0.1),
                 library,
                 light_patch,
-                TwinklyClient(host='192.168.1.23'),
-                RetryConfig(attempts=1, delay=0, backoff=1),
-                '192.168.1.23',
+                make_track(),
             )
 
         self.assertEqual(len(frames), 1)
