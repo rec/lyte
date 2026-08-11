@@ -10,6 +10,22 @@ classes or functions and be referenced by import path. Runtime loading should
 resolve those paths, validate the configured models, and build the animation or
 patch graph.
 
+## Current Implementation
+
+`lyte show` is currently an offline preflight command. It loads and merges TOML
+files, validates references, constructs trusted local Python animation graphs,
+and allocates a separate `Device` and mutable `State` for each `[run]` target.
+It does not render frames, open a Twinkly connection, send output, or perform
+blackout cleanup.
+
+The only supported device kind is `twinkly`. A current run target requires its
+device to declare `led_count`; the current preflight uses no other device or
+run-target settings. In particular, `host`, `brightness`, and `channel_map`
+are future track configuration, not working Show File options.
+
+The remaining sections describe the intended format and must not be read as a
+claim that a show runner, mixer implementations, or non-Twinkly output exists.
+
 ## Goals
 
 - Represent one named animation or a collection of named animations.
@@ -65,14 +81,14 @@ tree = "rainbow"
 
 [animations.rainbow]
 impl = "lyte.animations.bibliopixel.rainbow.Rainbow"
-fps = 60
 
 [devices.tree]
 kind = "twinkly"
+led_count = 250
 ```
 
-This should be equivalent to loading the `rainbow` animation and streaming it to
-the discovered Twinkly string named by the `tree` device.
+Today this validates the graph and creates device-local playback state for
+`tree`. A later Twinkly track will render and stream the result.
 
 ## Collection Example
 
@@ -89,9 +105,11 @@ density = 0.1
 
 [devices.tree]
 kind = "twinkly"
+led_count = 250
 
 [devices.window]
 kind = "twinkly"
+led_count = 250
 
 [run]
 tree = "base"
@@ -193,16 +211,9 @@ tree = "look"
 arch = "look"
 ```
 
-If a run target needs run-target-local parameters, use a table value:
-
-```toml
-[run.tree]
-source = "look"
-brightness = 0.8
-channel_map = ["red", "green", "blue"]
-```
-
-The `source` can name an animation or a mixer. Later, `run` can grow show-level
+The `source` can name an animation or a mixer. Run-target-local
+parameters such as brightness and channel mapping are future track work and are
+not accepted as active configuration yet. Later, `run` can grow show-level
 options by reserving top-level keys if that becomes necessary. Those options
 should not be inferred from all definitions in the file.
 

@@ -91,9 +91,9 @@
 
 ## Show Files
 
-- [x] Implement show-file graph construction and playback for trusted local
-  Python implementation paths. Continue to treat show files as trusted machine
-  configuration.
+- [x] Implement offline show-file graph construction and run-target state
+  allocation for trusted local Python implementation paths. Continue to treat
+  show files as trusted machine configuration.
 - [x] Create device-local playback state for each run target so one immutable
   animation description can run independently on multiple outputs.
 - [x] Defer non-RGB and multi-protocol show-file device kinds until their
