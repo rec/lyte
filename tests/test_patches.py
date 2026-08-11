@@ -93,6 +93,61 @@ class PatchLibraryTests(unittest.TestCase):
                 }
             )
 
+    def test_library_rejects_bindings_unsupported_by_layer_capabilities(self) -> None:
+        base = {
+            'wearable': {
+                'led_count': 1,
+                'physical_map_status': 'measured',
+                'segments': {'body': {'start': 0, 'led_count': 1}},
+                'physical_map': {'body': {'ranges': [{'start': 0, 'led_count': 1}]}},
+            },
+            'layers': {'solid': {'kind': 'solid'}},
+        }
+        with self.assertRaisesRegex(ValueError, 'does not support'):
+            patches.PatchLibrary.model_validate(
+                base
+                | {
+                    'patches': {
+                        'test': {
+                            'activation': 'note',
+                            'layers': ['solid'],
+                            'bindings': [
+                                {
+                                    'source': 'breath',
+                                    'target': 'solid.speed',
+                                    'map': {
+                                        'kind': 'linear',
+                                        'output': [0.0, 1.0],
+                                    },
+                                }
+                            ],
+                        }
+                    }
+                }
+            )
+        with self.assertRaisesRegex(ValueError, 'without a weighted blend'):
+            patches.PatchLibrary.model_validate(
+                base
+                | {
+                    'patches': {
+                        'test': {
+                            'activation': 'note',
+                            'layers': ['solid'],
+                            'bindings': [
+                                {
+                                    'source': 'breath',
+                                    'target': 'mix.solid',
+                                    'map': {
+                                        'kind': 'linear',
+                                        'output': [0.0, 1.0],
+                                    },
+                                }
+                            ],
+                        }
+                    }
+                }
+            )
+
     def test_wearable_encoder_maps_logical_values_before_byte_encoding(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
         logical_frame = np.zeros((200, 3), dtype=np.float32)
