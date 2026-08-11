@@ -215,14 +215,23 @@ class PatchLibrary(BaseModel, frozen=True):
             for binding in patch.bindings:
                 target_name, _, parameter = binding.target.partition('.')
                 if target_name == 'mix':
+                    if patch.blend != 'weighted':
+                        raise ValueError(
+                            f'patch {name} uses a mix binding without a weighted blend'
+                        )
                     if parameter not in patch.layers:
                         raise ValueError(f'patch {name} names unknown mix target')
-                elif target_name not in patch.layers or parameter not in {
-                    'color',
-                    'gain',
-                    'speed',
-                }:
+                    continue
+                if (layer := self.layers.get(target_name)) is None:
                     raise ValueError(f'patch {name} names invalid binding target')
+                if not layer_supports_parameter(layer, parameter):
+                    raise ValueError(
+                        f'layer {target_name} does not support {parameter!r} bindings'
+                    )
+                if binding.source == 'note' and parameter != 'color':
+                    raise ValueError('note bindings must target layer color')
+                if binding.source == 'pitch_bend' and parameter != 'speed':
+                    raise ValueError('pitch bend bindings must target layer speed')
         return self
 
     model_config = ConfigDict(extra='forbid')
@@ -317,6 +326,12 @@ class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
         return self.mixer.blend(device, frames)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+def layer_supports_parameter(layer: LayerSpec, parameter: str) -> bool:
+    if parameter in {'color', 'gain'}:
+        return True
+    return parameter == 'speed' and layer.kind != 'solid'
 
 
 def map_binding_value(mapping: LinearMapSpec, value: int) -> float:
