@@ -138,6 +138,25 @@ class PatchLibraryTests(unittest.TestCase):
             100.0,
         )
 
+    def test_note_end_restores_layer_speed_before_the_next_note(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        patch = patches.build_light_patch(library, 'breath_walker')
+        if not isinstance(patch, patches.DeclarativeLightPatch):
+            self.fail('patch did not compile to DeclarativeLightPatch')
+
+        layer = patch.layers['random_walk']
+        if not isinstance(layer, midi.RegionLightPatch):
+            self.fail('layer did not compile to a region light patch')
+        initial_speed = layer.config.regions[0].animation.speed
+        patch.receive(mido.Message('note_on', note=60, velocity=100))
+        patch.receive(mido.Message('control_change', control=2, value=127))
+        self.assertEqual(layer.config.regions[0].animation.speed, 100.0)
+
+        patch.receive(mido.Message('note_off', note=60))
+        self.assertEqual(layer.config.regions[0].animation.speed, initial_speed)
+        patch.receive(mido.Message('note_on', note=61, velocity=100))
+        self.assertEqual(layer.config.regions[0].animation.speed, initial_speed)
+
     def test_declarative_patch_applies_note_breath_mix_and_pitch_bindings(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
         patch = patches.build_light_patch(library, 'breath_mix_walk_twinkle')
