@@ -35,3 +35,15 @@ def test_daemon_config_rejects_duplicate_patch_names() -> None:
 
         with pytest.raises(daemon_config.DaemonConfigError, match='duplicates'):
             daemon_config.load_daemon_project(path)
+
+
+def test_daemon_config_rejects_a_provisional_physical_map() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        library = root / 'wearable.toml'
+        library.write_text(Path('patches/wearable-breath.toml').read_text())
+        config = root / 'daemon.toml'
+        write_config(config, '["breath_walker"]')
+
+        with pytest.raises(daemon_config.DaemonConfigError, match='measured'):
+            daemon_config.load_daemon_project(config)
