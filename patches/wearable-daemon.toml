@@ -1,0 +1,47 @@
+[daemon]
+patch_library = "wearable-breath.toml"
+patches = [
+    "prism_limbs",
+    "opposite_steps",
+    "chest_orbit",
+    "limb_rainbow",
+    "note_twinkle",
+    "note_searchlight",
+    "note_chase",
+    "note_pulse",
+    "breath_walker",
+    "breath_hamiltonian",
+    "breath_counter",
+    "breath_wave",
+    "breath_mix_walk_twinkle",
+    "breath_mix_chase_rain",
+    "breath_mix_pulse_gradient",
+    "breath_mix_searchlights",
+    "mix_mirror_split",
+    "mix_fire_ice",
+    "mix_sparkle_solid",
+    "mix_rainbow_black",
+    "pitch_turbo_chase",
+    "pitch_turbo_walk",
+    "pitch_turbo_hamiltonian",
+    "pitch_turbo_searchlights",
+    "pitch_turbo_wave",
+    "pitch_turbo_twinkle",
+    "pitch_turbo_rain",
+    "pitch_turbo_counter",
+    "static_body_flag",
+    "static_chest_beacon",
+    "static_warm_gradient",
+    "static_cool_gradient"
+]
+fps = 60.0
+
+[midi]
+channel = 0
+
+[twinkly]
+timeout = 5.0
+discovery_timeout = null
+attempts = 10
+retry_delay = 0.5
+retry_backoff = 2.0

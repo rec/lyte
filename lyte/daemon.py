@@ -28,7 +28,7 @@ class DaemonCommandConfig:
         Literal['run', 'install', 'uninstall', 'start', 'stop', 'restart', 'status'],
         tyro.conf.Positional,
     ] = 'run'
-    config: Path = Path('lyte-daemon.toml')
+    config: Path = Path('patches/wearable-daemon.toml')
 
 
 def run_daemon_command(config: DaemonCommandConfig) -> int:
