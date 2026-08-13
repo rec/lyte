@@ -280,7 +280,6 @@ class PackageDiagnosticTests(unittest.TestCase):
         )
 
     def test_run_diagnostic_reports_read_only_device_state(self) -> None:
-        output = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -314,15 +313,21 @@ class PackageDiagnosticTests(unittest.TestCase):
             patch(
                 f'{DIAGNOSTIC}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
-            patch('sys.stdout', output),
+            patch(f'{DIAGNOSTIC}.LOGGER.info') as log_info,
         ):
             result = diagnostic.run_diagnostic(diagnostic.DiagnosticConfig())
 
         self.assertEqual(result, 0)
         self.assertEqual(client.mac, 'AA')
         turn_off.assert_called_once()
-        self.assertIn('Device name: Tree', output.getvalue())
-        self.assertIn("firmware: {'version': '1.0'}", output.getvalue())
+        self.assertIn(
+            'Device name: Tree',
+            '\n'.join(call.args[0] for call in log_info.call_args_list),
+        )
+        self.assertIn(
+            "firmware: {'version': '1.0'}",
+            '\n'.join(call.args[0] for call in log_info.call_args_list),
+        )
 
     def test_diagnostic_command_runs_twinkly_diagnostic_by_default(self) -> None:
         with patch(f'{DIAGNOSTIC}.run_diagnostic', return_value=0) as run_diagnostic:

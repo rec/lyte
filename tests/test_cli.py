@@ -9,6 +9,16 @@ from lyte import cli, patches
 
 
 class CliTests(unittest.TestCase):
+    def test_cli_configures_reccy_logging(self) -> None:
+        with (
+            patch.object(cli.logging, 'configure') as configure,
+            patch.object(cli, 'run_animate', return_value=0),
+        ):
+            result = cli.main(['animate', 'rainbow'])
+
+        self.assertEqual(result, 0)
+        configure.assert_called_once_with()
+
     def test_cli_animate_command_dispatches_animation(self) -> None:
         with patch.object(cli, 'run_animate', return_value=0) as run_animate:
             result = cli.main(

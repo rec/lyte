@@ -6,9 +6,10 @@ import time
 from dataclasses import dataclass
 from typing import NoReturn
 
+from reccy import logging
+
 from ..animations.colors import solid_rgb_frame
 from ..errors import DiscoveryError, ProtocolError
-from ..logging import log, log_error
 from ..retry import RetryConfig, retry_call
 from . import discovery, session
 from .client import TwinklyClient
@@ -47,14 +48,17 @@ class RealtimeDiagnosticConfig:
         )
 
 
+LOGGER = logging.get_logger(__name__)
+
+
 def run_realtime_diagnostic(config: RealtimeDiagnosticConfig) -> int:
     validate_realtime_diagnostic_config(config)
-    log('Lyte diagnostic')
-    log('==============================')
-    log('This script uses only the Python standard library.')
-    log('It will discover a device, authenticate, switch to realtime mode,')
-    log('then send red, green, and blue UDP frames.')
-    log()
+    LOGGER.debug('Lyte diagnostic')
+    LOGGER.debug('==============================')
+    LOGGER.debug('This script uses only the Python standard library.')
+    LOGGER.debug('It will discover a device, authenticate, switch to realtime mode,')
+    LOGGER.debug('then send red, green, and blue UDP frames.')
+    LOGGER.debug('')
 
     host = config.host or discover_one(
         config.discovery_timeout,
@@ -78,8 +82,10 @@ def run_realtime_diagnostic(config: RealtimeDiagnosticConfig) -> int:
     if not send_visible_test(client, host, led_count, config.pause, config.retry):
         return 1
 
-    log()
-    log('Diagnostic completed. The lights should have flashed red, green, and blue.')
+    LOGGER.debug('')
+    LOGGER.debug(
+        'Diagnostic completed. The lights should have flashed red, green, and blue.'
+    )
     return 0
 
 
@@ -125,7 +131,7 @@ def discover_one(timeout: float, retry: RetryConfig) -> str | None:
 
             if attempt == retry.attempts:
                 break
-            log(
+            LOGGER.debug(
                 '[retry] Waiting '
                 f'{delay * 1000:.1f} ms before retrying UDP discovery broadcast.'
             )
@@ -133,10 +139,10 @@ def discover_one(timeout: float, retry: RetryConfig) -> str | None:
             if attempt >= retry.backoff_after:
                 delay *= retry.backoff
 
-    log('Check that the lights are powered on and joined to this network.')
-    log('Check that this computer is on the same IPv4 network as the lights.')
-    log('Some routers block broadcast traffic between WiFi clients.')
-    log('Try passing --host with the device IP address.')
+    LOGGER.debug('Check that the lights are powered on and joined to this network.')
+    LOGGER.debug('Check that this computer is on the same IPv4 network as the lights.')
+    LOGGER.debug('Some routers block broadcast traffic between WiFi clients.')
+    LOGGER.debug('Try passing --host with the device IP address.')
     return None
 
 
@@ -148,7 +154,7 @@ def discovery_attempt(
     destination: str = discovery.DEFAULT_BROADCAST,
     report_failure: bool = True,
 ) -> discovery.DiscoveredDevice | None:
-    log(f'[try] UDP discovery broadcast: attempt {attempt}/{attempts}')
+    LOGGER.debug(f'[try] UDP discovery broadcast: attempt {attempt}/{attempts}')
     started_at = time.monotonic()
     deadline = started_at + timeout
     sock.sendto(discovery.DISCOVERY_MESSAGE, (destination, discovery.DISCOVERY_PORT))
@@ -208,7 +214,9 @@ def get_unauthenticated_info(client: TwinklyClient, retry: RetryConfig) -> bool:
         (ProtocolError,),
     )
     if result is None:
-        log('The host may not be a Twinkly device, or HTTP port 80 may be blocked.')
+        LOGGER.debug(
+            'The host may not be a Twinkly device, or HTTP port 80 may be blocked.'
+        )
         return False
     status, firmware, gestalt = result
 
@@ -219,8 +227,10 @@ def get_unauthenticated_info(client: TwinklyClient, retry: RetryConfig) -> bool:
     print_success(f'LED count: {gestalt.get("number_of_led", "<missing>")}')
 
     if not session.set_mac_from_gestalt(client, gestalt):
-        log('Warning: gestalt did not include a MAC address.')
-        log('Authentication can continue, but challenge-response cannot be verified.')
+        LOGGER.debug('Warning: gestalt did not include a MAC address.')
+        LOGGER.debug(
+            'Authentication can continue, but challenge-response cannot be verified.'
+        )
     return True
 
 
@@ -233,9 +243,9 @@ def authenticate(client: TwinklyClient, retry: RetryConfig) -> bool:
         'login and verify',
     )
     if token is None:
-        log('Check that no other app is rapidly invalidating the token.')
-        log('Power-cycling the controller can clear stale auth state.')
-        log('The firmware may not match generation 2 REST behavior.')
+        LOGGER.debug('Check that no other app is rapidly invalidating the token.')
+        LOGGER.debug('Power-cycling the controller can clear stale auth state.')
+        LOGGER.debug('The firmware may not match generation 2 REST behavior.')
         return False
     print_success(f'Authenticated. Token expires at {token.expires_at!r}.')
     return True
@@ -251,7 +261,7 @@ def detect_led_count(client: TwinklyClient, retry: RetryConfig) -> int | None:
         'HTTP gestalt read for LED count',
     )
     if gestalt is None:
-        log('Pass --led-count if you know the number of LEDs.')
+        LOGGER.debug('Pass --led-count if you know the number of LEDs.')
         return None
 
     if led_count is not None:
@@ -259,7 +269,7 @@ def detect_led_count(client: TwinklyClient, retry: RetryConfig) -> int | None:
         return led_count
 
     print_failure(f'Invalid number_of_led value: {gestalt.get("number_of_led")!r}')
-    log('Pass --led-count with the exact LED count for your string.')
+    LOGGER.debug('Pass --led-count with the exact LED count for your string.')
     return None
 
 
@@ -272,7 +282,7 @@ def set_realtime_mode(client: TwinklyClient, retry: RetryConfig) -> bool:
         'HTTP switch to realtime mode',
     )
     if response is None:
-        log('Realtime mode requires a valid auth token.')
+        LOGGER.debug('Realtime mode requires a valid auth token.')
         return False
     print_success(f'Realtime mode response: {response.data}')
     return True
@@ -301,8 +311,10 @@ def send_visible_test(
             f'UDP realtime {name} frame send',
         )
         if bytes_sent is None:
-            log('Check that UDP port 7777 is reachable from this computer.')
-            log('Confirm this is generation 2 firmware new enough for v3 frames.')
+            LOGGER.debug('Check that UDP port 7777 is reachable from this computer.')
+            LOGGER.debug(
+                'Confirm this is generation 2 firmware new enough for v3 frames.'
+            )
             return False
         print_success(f'Sent {name} frame, {bytes_sent} bytes.')
         time.sleep(pause)
@@ -310,13 +322,13 @@ def send_visible_test(
 
 
 def print_step(message: str) -> None:
-    log()
-    log(f'[step] {message}')
+    LOGGER.debug('')
+    LOGGER.debug(f'[step] {message}')
 
 
 def print_success(message: str) -> None:
-    log(f'[ok] {message}')
+    LOGGER.debug(f'[ok] {message}')
 
 
 def print_failure(message: str) -> None:
-    log_error(f'[failed] {message}')
+    LOGGER.error(f'[failed] {message}')

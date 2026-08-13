@@ -102,8 +102,6 @@ class AnimateTests(unittest.TestCase):
         with patch('sys.argv', ['lyte', '--duration', '1']):
             args = self.script.parse_args()
 
-        output = io.StringIO()
-
         with (
             patch(
                 'lyte.animate.random_show.config.RANDOM_ANIMATIONS', ('hamiltonian',)
@@ -114,11 +112,11 @@ class AnimateTests(unittest.TestCase):
             ),
             patch('lyte.animate.playback.run_animation_state') as run_animation_state,
             patch('lyte.animate.playback.time.monotonic', side_effect=[0, 0, 0, 2]),
-            patch('sys.stdout', output),
+            patch('lyte.animate.random_show.LOGGER.info') as log_info,
         ):
             self.script.run_random_animations(args, make_track(3))
 
-        self.assertIn('[pattern] hamiltonian', output.getvalue())
+        self.assertIn('[pattern] hamiltonian', log_info.call_args.args[0])
         run_animation_state.assert_called_once()
 
     def test_random_overlap_is_half_the_pattern_duration(self) -> None:
@@ -340,14 +338,12 @@ class AnimateTests(unittest.TestCase):
         prepare_device.assert_not_called()
 
     def test_read_led_count_prints_device_info(self) -> None:
-        output = io.StringIO()
-
         with (
             patch(
                 'lyte.twinkly.realtime.session.read_device_led_count',
                 return_value=(250, {'mac': 'AA', 'number_of_led': 250}),
             ),
-            patch('sys.stdout', output),
+            patch('lyte.twinkly.realtime.LOGGER.info') as log_info,
         ):
             led_count = self.script.realtime.read_led_count(
                 TwinklyClient(host='192.168.1.23'),
@@ -357,7 +353,7 @@ class AnimateTests(unittest.TestCase):
             )
 
         self.assertEqual(led_count, 250)
-        self.assertEqual(output.getvalue(), '[connected] 192.168.1.23: 250 LEDs\n')
+        log_info.assert_called_once_with('[connected] 192.168.1.23: 250 LEDs')
 
     def test_animation_attempts_blackout_after_realtime_setup_fails(self) -> None:
         args = config.AnimateConfig(animation='color_fill', host='192.168.1.23')
@@ -378,8 +374,6 @@ class AnimateTests(unittest.TestCase):
 
     def test_failed_animation_cleanup_is_reported_as_unknown(self) -> None:
         args = config.AnimateConfig(animation='color_fill', host='192.168.1.23')
-        output = io.StringIO()
-
         with (
             patch('lyte.animate.playback.realtime.read_led_count', return_value=1),
             patch('lyte.animate.playback.realtime.prepare_device', return_value=False),
@@ -387,12 +381,12 @@ class AnimateTests(unittest.TestCase):
                 'lyte.animate.playback.realtime.turn_off_streaming_device',
                 return_value=False,
             ),
-            patch('sys.stdout', output),
+            patch('lyte.twinkly.realtime.LOGGER.info') as log_info,
         ):
             result = self.script.run_animate(args)
 
         self.assertEqual(result, 1)
-        self.assertIn('[connection] unknown', output.getvalue())
+        log_info.assert_any_call('[connection] unknown')
 
     def test_animation_turns_off_device_after_exception(self) -> None:
         class BrokenAnimation(animation.Animation):

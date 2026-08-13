@@ -6,8 +6,9 @@ import time
 from collections.abc import Callable
 
 from pydantic import BaseModel
+from reccy import logging
 
-from .logging import log, log_error
+LOGGER = logging.get_logger(__name__)
 
 
 class RetryConfig(BaseModel, frozen=True):
@@ -26,7 +27,7 @@ def retry_call[Result](
     delay = retry.delay
     last_failure = ''
     for attempt in range(1, retry.attempts + 1):
-        log(f'[try] {label}: attempt {attempt}/{retry.attempts}')
+        LOGGER.debug(f'[try] {label}: attempt {attempt}/{retry.attempts}')
         started_at = time.monotonic()
         try:
             result = operation()
@@ -37,9 +38,11 @@ def retry_call[Result](
                 f'after {elapsed:.1f} ms: {type(err).__name__}: {err}'
             )
             if attempt == retry.attempts:
-                log_error(last_failure)
+                LOGGER.error(last_failure)
                 return None
-            log(f'[retry] Waiting {delay * 1000:.1f} ms before retrying {label}.')
+            LOGGER.debug(
+                f'[retry] Waiting {delay * 1000:.1f} ms before retrying {label}.'
+            )
             time.sleep(delay)
             if attempt >= retry.backoff_after:
                 delay *= retry.backoff
@@ -47,8 +50,10 @@ def retry_call[Result](
 
         elapsed = (time.monotonic() - started_at) * 1000
         if attempt > 1:
-            log(f'[ok] {label} recovered on attempt {attempt} after {elapsed:.1f} ms.')
+            LOGGER.debug(
+                f'[ok] {label} recovered on attempt {attempt} after {elapsed:.1f} ms.'
+            )
         else:
-            log(f'[ok] {label} completed in {elapsed:.1f} ms.')
+            LOGGER.debug(f'[ok] {label} completed in {elapsed:.1f} ms.')
         return result
     return None

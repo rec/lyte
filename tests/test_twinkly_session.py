@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import unittest
 from unittest.mock import patch
 
@@ -77,10 +76,9 @@ class PlaybackConnectionTests(unittest.TestCase):
         self.assertEqual(connection.state, realtime.PlaybackConnectionState.UNKNOWN)
 
     def test_connection_state_is_reported(self) -> None:
-        output = io.StringIO()
         connection = realtime.PlaybackConnection()
 
-        with patch('sys.stdout', output):
+        with patch('lyte.twinkly.realtime.LOGGER.info') as log_info:
             connection.set_state(realtime.PlaybackConnectionState.CONNECTING)
             connection.set_state(realtime.PlaybackConnectionState.STREAMING)
             connection.set_state(realtime.PlaybackConnectionState.RECOVERING)
@@ -89,12 +87,14 @@ class PlaybackConnectionTests(unittest.TestCase):
 
         self.assertEqual(connection.state, realtime.PlaybackConnectionState.UNKNOWN)
         self.assertEqual(
-            output.getvalue(),
-            '[connection] connecting\n'
-            '[connection] streaming\n'
-            '[connection] recovering\n'
-            '[connection] blacked_out\n'
-            '[connection] unknown\n',
+            [call.args[0] for call in log_info.call_args_list],
+            [
+                '[connection] connecting',
+                '[connection] streaming',
+                '[connection] recovering',
+                '[connection] blacked_out',
+                '[connection] unknown',
+            ],
         )
 
 

@@ -4,8 +4,8 @@ import sys
 from typing import Literal
 
 from pydantic import BaseModel, field_validator
+from reccy import logging
 
-from ..logging import log_status
 from .client import TwinklyClient
 from .command import run_twinkly_command
 from .diagnostic import DiagnosticConfig
@@ -14,6 +14,9 @@ OutputControlKind = Literal['brightness', 'saturation']
 OutputControlAction = Literal['get', 'set']
 OutputControlMode = Literal['enabled', 'disabled']
 OutputControlType = Literal['A', 'R']
+
+
+LOGGER = logging.get_logger(__name__)
 
 
 class OutputControl(BaseModel, frozen=True):
@@ -61,7 +64,7 @@ def run_output_control(
     def run(client: TwinklyClient) -> None:
         if action == 'get':
             control = read_output_control(client, kind)
-            log_status(
+            LOGGER.info(
                 f'[{kind}] mode={control.mode} type={control.type} '
                 f'value={control.value}'
             )
@@ -69,7 +72,7 @@ def run_output_control(
             assert value is not None
             control = OutputControl(value=value)
             write_output_control(client, kind, control)
-            log_status(
+            LOGGER.info(
                 f'[{kind}] set mode={control.mode} type={control.type} '
                 f'value={control.value}'
             )

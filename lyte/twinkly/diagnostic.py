@@ -5,14 +5,16 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from pydantic import BaseModel
+from reccy import logging
 
 from ..errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
-from ..logging import log_error, log_status
 from ..retry import RetryConfig, retry_call
 from . import session
 from .client import TwinklyClient
 from .realtime import discover_host
 from .realtime_diagnostic import RealtimeDiagnosticConfig, run_realtime_diagnostic
+
+LOGGER = logging.get_logger(__name__)
 
 
 class TwinklyDeviceInfo(BaseModel, frozen=True):
@@ -130,7 +132,7 @@ def run_diagnostic(config: DiagnosticConfig) -> int:
         backoff=config.retry_backoff,
     )
     client = TwinklyClient(host=host, timeout=config.timeout)
-    log_status(f'[diagnostic] Host: {host}')
+    LOGGER.info(f'[diagnostic] Host: {host}')
 
     gestalt = read_endpoint(
         client,
@@ -181,7 +183,7 @@ def run_diagnostic(config: DiagnosticConfig) -> int:
         if not off_succeeded:
             return 1
     else:
-        log_error('[diagnostic] Authenticated endpoint probes skipped.')
+        LOGGER.error('[diagnostic] Authenticated endpoint probes skipped.')
         return 1
     return 0
 
@@ -454,26 +456,28 @@ def read_endpoint(
 
 
 def report_device_info(device: TwinklyDeviceInfo) -> None:
-    log_status(f'[diagnostic] Device name: {display(device.device_name)}')
-    log_status(f'[diagnostic] Product: {display(device.product_name)}')
-    log_status(f'[diagnostic] Product code: {display(device.product_code)}')
-    log_status(f'[diagnostic] Hardware ID: {display(device.hardware_id)}')
-    log_status(f'[diagnostic] Firmware family: {display(device.firmware_family)}')
-    log_status(f'[diagnostic] MAC: {display(device.mac)}')
-    log_status(f'[diagnostic] UUID: {display(device.uuid)}')
-    log_status(f'[diagnostic] LED profile: {display(device.led_profile)}')
-    log_status(f'[diagnostic] LED count: {display(device.led_count)}')
-    log_status(f'[diagnostic] Bytes per LED: {display(device.bytes_per_led)}')
-    log_status(f'[diagnostic] Frame rate: {display(device.frame_rate)}')
-    log_status(f'[diagnostic] Movie capacity: {display(device.movie_capacity)}')
-    log_status(f'[diagnostic] Max supported LED: {display(device.max_supported_led)}')
+    LOGGER.info(f'[diagnostic] Device name: {display(device.device_name)}')
+    LOGGER.info(f'[diagnostic] Product: {display(device.product_name)}')
+    LOGGER.info(f'[diagnostic] Product code: {display(device.product_code)}')
+    LOGGER.info(f'[diagnostic] Hardware ID: {display(device.hardware_id)}')
+    LOGGER.info(f'[diagnostic] Firmware family: {display(device.firmware_family)}')
+    LOGGER.info(f'[diagnostic] MAC: {display(device.mac)}')
+    LOGGER.info(f'[diagnostic] UUID: {display(device.uuid)}')
+    LOGGER.info(f'[diagnostic] LED profile: {display(device.led_profile)}')
+    LOGGER.info(f'[diagnostic] LED count: {display(device.led_count)}')
+    LOGGER.info(f'[diagnostic] Bytes per LED: {display(device.bytes_per_led)}')
+    LOGGER.info(f'[diagnostic] Frame rate: {display(device.frame_rate)}')
+    LOGGER.info(f'[diagnostic] Movie capacity: {display(device.movie_capacity)}')
+    LOGGER.info(f'[diagnostic] Max supported LED: {display(device.max_supported_led)}')
 
 
 def report_endpoint(report: TwinklyEndpointReport) -> None:
     if report.supported:
-        log_status(f'[diagnostic] {report.name}: {report.data}')
+        LOGGER.info(f'[diagnostic] {report.name}: {report.data}')
     else:
-        log_error(f'[diagnostic] {report.name}: unsupported or failed: {report.error}')
+        LOGGER.error(
+            f'[diagnostic] {report.name}: unsupported or failed: {report.error}'
+        )
 
 
 def optional_str(data: Mapping[str, object], key: str) -> str | None:

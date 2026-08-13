@@ -4,13 +4,16 @@ import sys
 from typing import Literal
 
 from pydantic import BaseModel, field_validator
+from reccy import logging
 
-from ..logging import log_status
 from .client import TwinklyClient
 from .command import run_twinkly_command
 from .diagnostic import DiagnosticConfig
 
 TimerAction = Literal['get', 'set']
+
+
+LOGGER = logging.get_logger(__name__)
 
 
 class TwinklyTimer(BaseModel, frozen=True):
@@ -52,7 +55,7 @@ def run_timer_control(
     def run(client: TwinklyClient) -> None:
         if action == 'get':
             timer = TwinklyTimer.from_response(client.get_timer().data)
-            log_status(
+            LOGGER.info(
                 '[timer] '
                 f'time_now={timer.time_now} '
                 f'time_on={timer.time_on} '
@@ -63,7 +66,7 @@ def run_timer_control(
             assert time_off is not None
             timer = TwinklyTimer(time_on=time_on, time_off=time_off, time_now=time_now)
             client.set_timer(timer.request_body())
-            log_status(
+            LOGGER.info(
                 '[timer] set '
                 f'time_now={timer.time_now} '
                 f'time_on={timer.time_on} '

@@ -3,7 +3,8 @@ from __future__ import annotations
 import sys
 from typing import Literal
 
-from ..logging import log_status
+from reccy import logging
+
 from .client import TwinklyClient
 from .command import run_twinkly_command
 from .diagnostic import DiagnosticConfig
@@ -12,6 +13,9 @@ LedMode = Literal['off', 'color', 'demo', 'effect', 'movie', 'playlist', 'rt']
 ModeAction = Literal['get', 'set']
 ColorAction = Literal['get', 'set']
 EffectAction = Literal['list', 'current', 'set-current']
+
+
+LOGGER = logging.get_logger(__name__)
 
 
 def run_mode_control(
@@ -23,11 +27,11 @@ def run_mode_control(
 
     def run(client: TwinklyClient) -> None:
         if action == 'get':
-            log_status(f'[mode] {client.get_led_mode().data}')
+            LOGGER.info(f'[mode] {client.get_led_mode().data}')
         else:
             assert mode is not None
             client.set_led_mode({'mode': mode})
-            log_status(f'[mode] set {mode}')
+            LOGGER.info(f'[mode] set {mode}')
 
     return run_twinkly_command(config, run)
 
@@ -43,7 +47,7 @@ def run_color_control(
 
     def run(client: TwinklyClient) -> None:
         if action == 'get':
-            log_status(f'[color] {client.get_led_color().data}')
+            LOGGER.info(f'[color] {client.get_led_color().data}')
         else:
             assert red is not None
             assert green is not None
@@ -55,7 +59,7 @@ def run_color_control(
                 'blue': blue,
             }
             client.set_led_color(body)
-            log_status(f'[color] set rgb {red} {green} {blue}')
+            LOGGER.info(f'[color] set rgb {red} {green} {blue}')
 
     return run_twinkly_command(config, run)
 
@@ -69,13 +73,13 @@ def run_effect_control(
 
     def run(client: TwinklyClient) -> None:
         if action == 'list':
-            log_status(f'[effects] {client.get_effects().data}')
+            LOGGER.info(f'[effects] {client.get_effects().data}')
         elif action == 'current':
-            log_status(f'[effects] current {client.get_current_effect().data}')
+            LOGGER.info(f'[effects] current {client.get_current_effect().data}')
         else:
             assert effect_id is not None
             client.set_current_effect({'effect_id': effect_id})
-            log_status(f'[effects] set current {effect_id}')
+            LOGGER.info(f'[effects] set current {effect_id}')
 
     return run_twinkly_command(config, run)
 

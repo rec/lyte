@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel
+from reccy import logging
 
-from ..logging import log_status
 from .client import TwinklyClient
 from .command import read_json_object, run_twinkly_command, write_json_file
 from .diagnostic import DiagnosticConfig
@@ -14,6 +14,9 @@ from .diagnostic import DiagnosticConfig
 LayoutAction = Literal['get', 'export', 'upload', 'delete']
 LayoutSource = Literal['linear', '2d', '3d']
 LedConfigAction = Literal['get', 'set']
+
+
+LOGGER = logging.get_logger(__name__)
 
 
 class LayoutCoordinate(BaseModel, frozen=True):
@@ -49,19 +52,19 @@ def run_layout_control(
 
     def run(client: TwinklyClient) -> None:
         if action == 'get':
-            log_status(f'[layout] {client.get_layout_full().data}')
+            LOGGER.info(f'[layout] {client.get_layout_full().data}')
         elif action == 'export':
             assert path is not None
             write_json_file(path, client.get_layout_full().data)
-            log_status(f'[layout] exported {path}')
+            LOGGER.info(f'[layout] exported {path}')
         elif action == 'upload':
             assert path is not None
             layout = TwinklyLayout.from_response(read_json_object(path))
             client.set_layout_full(layout.request_body())
-            log_status(f'[layout] uploaded {path}')
+            LOGGER.info(f'[layout] uploaded {path}')
         else:
             client.delete_layout_full()
-            log_status('[layout] deleted')
+            LOGGER.info('[layout] deleted')
 
     return run_twinkly_command(config, run)
 
@@ -75,11 +78,11 @@ def run_led_config_control(
 
     def run(client: TwinklyClient) -> None:
         if action == 'get':
-            log_status(f'[led-config] {client.get_led_config().data}')
+            LOGGER.info(f'[led-config] {client.get_led_config().data}')
         else:
             assert path is not None
             client.set_led_config(read_json_object(path))
-            log_status(f'[led-config] set {path}')
+            LOGGER.info(f'[led-config] set {path}')
 
     return run_twinkly_command(config, run)
 
