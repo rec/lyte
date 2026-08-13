@@ -7,8 +7,8 @@
   guessed or measured wearable map.
 - [x] The synchronous foreground daemon reopens unavailable MIDI input and
   uses `TwinklyTrack` for output, recovery, and blackout cleanup.
-- [x] `lyte daemon` exposes foreground and Reccy-backed service lifecycle
-  commands without creating a Lyte endpoint.
+- [x] `LyteMidiDaemon(Reccy)` owns foreground playback, service lifecycle,
+  local control, and persisted status.
 - [ ] Install the service and complete the physical MIDI, Twinkly, and locator
   verification procedure on the playback machine.
 
@@ -19,13 +19,13 @@ login or boot, opens the configured wind-instrument MIDI input, drives one
 Twinkly output through the existing `TwinklyTrack`, and selects patches from an
 ordered TOML list.
 
-This is a MIDI-input daemon only. It creates no HTTP, REST, OSC, MIDI-network,
-or local control endpoint. Service-manager status and the service logs are the
-only operational interfaces in the first version.
+This is a MIDI-input daemon. It exposes Reccy's local control endpoint for
+status, blackout, stop, and configured patch selection, but creates no HTTP,
+REST, OSC, or MIDI-network interface.
 
 ## Service Definition
 
-The repository now defines `lyte.daemon.LYTE_MIDI_SERVICE` with Reccy's
+The repository now defines `lyte.daemon_runtime.LYTE_MIDI_SERVICE` with Reccy's
 `ServiceSpec`:
 
 - name: `lyte-midi`
@@ -40,16 +40,11 @@ Reccy provides the per-user service definition and lifecycle mechanics:
 - Windows: Reccy can render a scheduled task, but Windows support is not part
   of this first daemon implementation.
 
-`ServiceSpec` currently requires a `windows_pipe` string. Lyte supplies that
-required metadata but will not create, bind, or listen on that pipe. It is not
-a control endpoint.
-
-The eventual `lyte daemon install`, `uninstall`, `start`, `stop`, `restart`,
-and `status` commands should use Reccy's `ServiceController`. They must not
-start an IPC listener or add an endpoint solely because Reccy's generic
-metadata names one. Installation should invoke the installed `lyte daemon run`
-command using the configured daemon TOML path and write normal stdout/stderr
-logs through the platform service definition.
+`LyteMidiDaemon(Reccy)` uses `ServiceSpec` for service definitions and Reccy's
+derived local paths for its control, event, and status files. Installation
+invokes the installed `lyte daemon run` command using the configured daemon TOML
+path and writes normal stdout/stderr logs through the platform service
+definition.
 
 ## Daemon Configuration
 
@@ -129,7 +124,8 @@ patch, owns patch-list advancement.
    controller.
 3. Resolve the Twinkly device and LED count, build a `TwinklyTrack`, and call
    `prepare()`.
-4. Construct the first configured patch and enter one synchronous frame loop.
+4. Construct the first configured patch, start `LyteMidiDaemon`, and enter one
+   synchronous frame loop.
 5. Before each frame, drain available filtered MIDI messages in arrival order,
    update the performance snapshot, and handle any program changes.
 6. Render the selected patch, map its logical wearable frame, and provide its
@@ -147,18 +143,18 @@ renders.
 
 ## Proposed Modules
 
-- `lyte/daemon.py`: keep `LYTE_MIDI_SERVICE`; add the Tyro daemon command
-  dataclasses and foreground `run` entry point.
+- `lyte/daemon.py`: define the Tyro daemon command dataclass and delegate
+  service lifecycle actions to `LyteMidiDaemon`.
 - `lyte/daemon_config.py`: immutable Pydantic models for daemon TOML and
   validation of patch list, MIDI input, and Twinkly settings.
-- `lyte/daemon_runtime.py`: the synchronous MIDI snapshot, program-change
-  advancement, port reopen policy, and frame callback given to `TwinklyTrack`.
+- `lyte/daemon_runtime.py`: `LyteMidiDaemon(Reccy)`, its persisted status and
+  local control handling, plus the synchronous MIDI frame callback.
 - `lyte/midi.py`: route `program_change` to the optional patch hook.
 - `lyte/cli.py`: add a `daemon` command with `run`, `install`, `uninstall`,
   `start`, `stop`, `restart`, and `status` actions.
 
-Do not add a web server, local socket listener, REST interface, or a generic
-control-event queue in this work.
+Do not add a web server, REST interface, or generic control-event queue. Use
+only Reccy's local control endpoint.
 
 ## Tests
 
@@ -176,8 +172,8 @@ Add focused unit tests for:
 - Twinkly recovery retaining patch selection and active control snapshot;
 - cleanup after startup, MIDI, render, and Twinkly failures;
 - Reccy-generated macOS and Linux service definitions containing the daemon
-  command, service label, logs, startup behavior, and restart behavior, but no
-  Lyte endpoint configuration.
+  command, service label, logs, startup behavior, restart behavior, and
+  Reccy-derived local control paths.
 
 Physical verification after implementation:
 
@@ -195,8 +191,8 @@ Physical verification after implementation:
 3. Implement the in-process synchronous daemon runtime with fake MIDI and
    Twinkly track tests.
 4. Add the Tyro `lyte daemon run` foreground command and verify cleanup.
-5. Add Reccy-backed install and lifecycle commands, generating per-user
-   service definitions without creating any endpoint.
+5. Move daemon lifecycle, local control, and status publication into
+   `LyteMidiDaemon(Reccy)`.
 6. Perform the physical service and MIDI verification procedure above.
 
 ## Additional Work Beyond the Prompt
