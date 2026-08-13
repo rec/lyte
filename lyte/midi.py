@@ -24,8 +24,8 @@ class MidiIn(BaseModel, frozen=True):
 
     @model_validator(mode='after')
     def validate_channel(self) -> MidiIn:
-        if self.channel is not None and not 0 <= self.channel <= 15:
-            raise ValueError('MIDI channel must be between 0 and 15')
+        if self.channel is not None and not 1 <= self.channel <= 16:
+            raise ValueError('MIDI channel must be between 1 and 16')
         if isinstance(self.device_name, list) and not self.device_name:
             raise ValueError('MIDI device_name list must not be empty')
         return self
@@ -52,7 +52,9 @@ def open_input(config: MidiIn) -> MidiInput:
 def input_messages(port: MidiInput, config: MidiIn) -> Iterator[mido.Message]:
     poll = port.poll
     while (msg := poll()) is not None:
-        if config.channel is None or getattr(msg, 'channel', None) == config.channel:
+        if config.channel is None or (
+            getattr(msg, 'channel', None) == config.channel - 1
+        ):
             yield msg
 
 

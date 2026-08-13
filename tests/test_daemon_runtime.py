@@ -110,7 +110,7 @@ def test_daemon_reopens_an_unavailable_midi_input() -> None:
         config=daemon_config.DaemonConfig(
             patch_library=Path('patches/wearable-breath.toml'),
             patches=['breath_walker'],
-            midi=midi.MidiIn(channel=0),
+            midi=midi.MidiIn(channel=1),
             twinkly=daemon_config.TwinklyDaemonConfig(host='192.168.1.23'),
         ),
         library=library,

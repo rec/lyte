@@ -52,7 +52,7 @@ class MidiInputTests(unittest.TestCase):
             def poll(self) -> mido.Message | None:
                 return next(self.messages, None)
 
-        messages = list(midi.input_messages(Port(), midi.MidiIn(channel=2)))
+        messages = list(midi.input_messages(Port(), midi.MidiIn(channel=3)))
 
         self.assertEqual(
             [message.type for message in messages],
@@ -72,7 +72,7 @@ class MidiInputTests(unittest.TestCase):
             def poll(self) -> mido.Message | None:
                 return next(self.messages, None)
 
-        messages = list(midi.input_messages(Port(), midi.MidiIn(channel=2)))
+        messages = list(midi.input_messages(Port(), midi.MidiIn(channel=3)))
 
         self.assertEqual([msg.type for msg in messages], ['note_on', 'note_off'])
         self.assertEqual([msg.note for msg in messages], [60, 60])
