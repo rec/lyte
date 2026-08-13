@@ -2,10 +2,87 @@
 
 from __future__ import annotations
 
+import time
+
 import mido
 from pydantic import BaseModel, ConfigDict, SkipValidation
 
-from . import midi, patches
+from . import animation, midi, patches
+from .daemon_config import DaemonProject
+from .logging import log, log_error, log_status
+from .retry import RetryConfig
+from .twinkly import realtime, track
+from .twinkly.client import TwinklyClient
+
+
+def run_daemon(project: DaemonProject) -> int:
+    config = project.config
+    selector = PatchSelector.create(project.library, config.patch_names)
+    host = config.twinkly.host or realtime.discover_host(
+        config.twinkly.discovery_timeout
+    )
+    if host is None:
+        return 1
+    retry = RetryConfig(
+        attempts=config.twinkly.attempts,
+        delay=config.twinkly.retry_delay,
+        backoff=config.twinkly.retry_backoff,
+    )
+    client = TwinklyClient(host=host, timeout=config.twinkly.timeout)
+    led_count = realtime.read_led_count(client, retry, None, host)
+    if led_count is None:
+        return 1
+    if led_count != project.library.wearable.led_count:
+        log_error(f'[failed] {host} does not match the patch library LED count.')
+        return 1
+    twinkly_track = track.TwinklyTrack(
+        client=client,
+        retry=retry,
+        host=host,
+        configured_host=config.twinkly.host,
+        discovery_timeout=config.twinkly.discovery_timeout,
+        device=animation.Device(led_count=led_count),
+    )
+    port: midi.MidiInput | None = None
+
+    def process_messages() -> None:
+        nonlocal port
+        while port is None:
+            try:
+                port = midi.open_input(config.midi)
+                log_status('[connected] MIDI input opened')
+            except (OSError, ValueError) as error:
+                log_error(f'[waiting] MIDI input unavailable: {error}')
+                time.sleep(1)
+        try:
+            for message in midi.input_messages(port, config.midi):
+                selector.receive(message)
+        except OSError as error:
+            log_error(f'[waiting] MIDI input disconnected: {error}')
+            port.close()
+            port = None
+
+    try:
+        if not twinkly_track.prepare():
+            return 1
+        log_status(f'[daemon] Selected patch: {selector.patch_name}')
+        twinkly_track.stream_frames(
+            'daemon',
+            config.fps,
+            None,
+            lambda: patches.encode_wearable_frame(
+                project.library.wearable, selector.patch.render(twinkly_track.device)
+            ),
+            process_messages,
+        )
+    except KeyboardInterrupt:
+        log()
+        log('[ok] Stopped')
+    finally:
+        if port is not None:
+            port.close()
+        twinkly_track.close()
+    return 0
 
 
 class MidiPerformance(BaseModel):
