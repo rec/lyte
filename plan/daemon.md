@@ -1,5 +1,17 @@
 # MIDI Patch Daemon Plan
 
+## Implementation Status
+
+- [x] Program changes reach optional patch hooks.
+- [x] The daemon TOML model validates ordered patch lists and requires a
+  measured wearable map.
+- [x] The synchronous foreground daemon reopens unavailable MIDI input and
+  uses `TwinklyTrack` for output, recovery, and blackout cleanup.
+- [x] `lyte daemon` exposes foreground and Reccy-backed service lifecycle
+  commands without creating a Lyte endpoint.
+- [ ] Install the service and complete the physical MIDI, Twinkly, and locator
+  verification procedure on the playback machine.
+
 ## Purpose
 
 Run Lyte as a per-user background service on the playback machine. It starts at
