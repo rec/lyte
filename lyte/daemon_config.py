@@ -45,6 +45,12 @@ class DaemonConfig(BaseModel, frozen=True):
     fps: float = 60.0
     midi: midi.MidiIn
     twinkly: TwinklyDaemonConfig
+    control_endpoint: Path = Field(
+        default_factory=lambda: Path.home() / '.local/state/lyte/control.sock'
+    )
+    event_endpoint: Path = Field(
+        default_factory=lambda: Path.home() / '.local/state/lyte/events.sock'
+    )
 
     @model_validator(mode='after')
     def validate_daemon(self) -> DaemonConfig:

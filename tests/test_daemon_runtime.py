@@ -6,8 +6,25 @@ from unittest.mock import patch
 
 import mido
 from pydantic import BaseModel
+from reccy import rpc
 
 from lyte import daemon_config, daemon_runtime, midi, patches
+
+
+def test_daemon_controller_handles_commands() -> None:
+    controller = daemon_runtime.DaemonController(['one', 'two'])
+
+    status = controller.handle(rpc.Request(id='1', command='status'))
+    select = controller.handle(
+        rpc.Request(id='2', command='select_patch', params={'name': 'two'})
+    )
+    blackout = controller.handle(rpc.Request(id='3', command='blackout'))
+
+    assert status.result['patch'] == 'one'
+    assert select.ok
+    assert controller.take_selected_patch() == 'two'
+    assert blackout.ok
+    assert controller.stop_requested
 
 
 class Config(BaseModel, frozen=True):
