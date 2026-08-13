@@ -7,15 +7,17 @@ from collections.abc import Sequence
 import numpy as np
 import tyro
 from numpy.typing import NDArray
+from reccy import logging
 
 from .. import animation
-from ..logging import log
 from ..retry import RetryConfig
 from ..twinkly import realtime, track
 from ..twinkly.client import TwinklyClient
 from . import random_show
 from .build import build_animation
 from .config import AnimateConfig, validate_args
+
+LOGGER = logging.get_logger(__name__)
 
 
 def main() -> int:
@@ -57,8 +59,8 @@ def run_animate(args: AnimateConfig) -> int:
         else:
             run_animation(args, twinkly_track, args.duration)
     except KeyboardInterrupt:
-        log()
-        log('[ok] Stopped')
+        LOGGER.debug('')
+        LOGGER.debug('[ok] Stopped')
     finally:
         twinkly_track.close()
     return 0
@@ -148,7 +150,7 @@ def run_animation_state(
     duration: float | None,
 ) -> None:
     device = twinkly_track.device
-    log(
+    LOGGER.debug(
         '[ok] Streaming '
         f'{args.animation} frames to {twinkly_track.host} for {device.led_count} LEDs '
         f'at {args.fps} FPS'

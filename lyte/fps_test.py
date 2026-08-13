@@ -14,10 +14,10 @@ from typing import Literal, TextIO
 
 import numpy as np
 from numpy.typing import NDArray
+from reccy import logging
 
 from .animation import Device, validate_byte_rgb_frame
 from .animations.colors import RGB
-from .logging import log, log_error, log_status
 from .retry import RetryConfig
 from .twinkly import realtime
 from .twinkly.client import TwinklyClient
@@ -110,6 +110,9 @@ class VerifyConfig:
     retry_backoff: float = 2.0
     led_count: int | None = None
     mode: Literal['fast', 'slow'] = 'fast'
+
+
+LOGGER = logging.get_logger(__name__)
 
 
 def run_fps_test(config: FpsTestConfig) -> int:
@@ -215,8 +218,8 @@ def run_realtime_command(
             return 1
         action(client, retry, host, device)
     except KeyboardInterrupt:
-        log()
-        log('[ok] Stopped')
+        LOGGER.debug('')
+        LOGGER.debug('[ok] Stopped')
     finally:
         realtime.turn_off_device(client, retry, host)
     return 0
@@ -358,7 +361,7 @@ def run_fades(
     first_frame = gradient_frame(device.led_count, *LOW_CONTRAST_BLEND)
     second_frame = gradient_frame(device.led_count, *HIGH_CONTRAST_BLEND)
     for fps in FPS_VALUES:
-        log_status(f'[test] Fading black -> blend -> blend -> black at {fps:g} FPS')
+        LOGGER.info(f'[test] Fading black -> blend -> blend -> black at {fps:g} FPS')
         reports = (
             stream_fade(
                 client,
@@ -408,7 +411,7 @@ def run_fast_verify(
     results = []
     black_frame = np.zeros((device.led_count, 3), dtype=np.uint8)
     for demo in VERIFY_DEMOS:
-        log_status(f'[verify] {demo.name}')
+        LOGGER.info(f'[verify] {demo.name}')
         reports = (
             stream_frames(
                 client,
@@ -456,10 +459,10 @@ def run_slow_verify(
 ) -> tuple[VerifyResult, ...]:
     results = []
     black_frame = np.zeros((device.led_count, 3), dtype=np.uint8)
-    log('[verify] Press y if the demo works, n if it does not.')
+    LOGGER.debug('[verify] Press y if the demo works, n if it does not.')
     with single_key_polling_input(sys.stdin) as read_key:
         for demo in VERIFY_DEMOS:
-            log_status(f'[verify] {demo.name}')
+            LOGGER.info(f'[verify] {demo.name}')
             first_frame = demo.frame_at(device, 0, 2)
             stream_fade(
                 client,
@@ -514,7 +517,7 @@ def stream_demo_until_vote(
         )
         result = realtime.send_realtime_frame(client, retry, host, last_frame)
         if result.byte_count < last_frame.nbytes:
-            log_error(
+            LOGGER.error(
                 '[unexpected] '
                 f'{demo.name} sent {result.byte_count} bytes for '
                 f'{last_frame.nbytes} bytes of RGB data.'
@@ -540,15 +543,15 @@ def report_verify_results(results: tuple[VerifyResult, ...]) -> None:
     failed = [i.name for i in results if i.worked is False]
     shown = [i.name for i in results if i.worked is None]
     if worked:
-        log_status('[verify] Worked: ' + ', '.join(worked))
+        LOGGER.info('[verify] Worked: ' + ', '.join(worked))
     if failed:
-        log_error('[verify] Did not work: ' + ', '.join(failed))
+        LOGGER.error('[verify] Did not work: ' + ', '.join(failed))
     if shown:
-        log_status('[verify] Shown without pass/fail: ' + ', '.join(shown))
+        LOGGER.info('[verify] Shown without pass/fail: ' + ', '.join(shown))
 
 
 def log_verify_demos() -> None:
-    log_status('[verify] Demos: ' + ', '.join(i.name for i in VERIFY_DEMOS))
+    LOGGER.info('[verify] Demos: ' + ', '.join(i.name for i in VERIFY_DEMOS))
 
 
 def verify_primary_channels_frame(
@@ -655,7 +658,7 @@ def run_interactive_black_floor(
     host: str,
     device: Device,
 ) -> None:
-    log(
+    LOGGER.debug(
         '[black-floor] r/g/b increase, R/G/B decrease, arrows adjust all, Ctrl-C stops.'
     )
     with single_key_input(sys.stdin) as read_key:
@@ -687,10 +690,10 @@ def send_black_floor_level(
 ) -> None:
     frame = solid_rgb_level_frame(device, level)
     red, green, blue = level
-    log_status(f'[black-floor] RGB {red} {green} {blue}')
+    LOGGER.info(f'[black-floor] RGB {red} {green} {blue}')
     result = realtime.send_realtime_frame(client, retry, host, frame)
     if result.byte_count < frame.nbytes:
-        log_error(
+        LOGGER.error(
             '[unexpected] '
             f'black floor RGB {red} {green} {blue} sent {result.byte_count} bytes for '
             f'{frame.nbytes} bytes of RGB data.'
@@ -742,7 +745,7 @@ def run_temporal_dither_comparison(
 ) -> None:
     black_frame = np.zeros((device.led_count, 3), dtype=np.uint8)
     white_frame = np.full((device.led_count, 3), 255, dtype=np.uint8)
-    log_status(
+    LOGGER.info(
         f'[test2] Linear fade at {TEST2_TRANSPORT_FPS:g} FPS for {duration:g} seconds'
     )
     report_fades(
@@ -781,7 +784,7 @@ def run_temporal_dither_comparison(
             ),
         )
     )
-    log_status(
+    LOGGER.info(
         f'[test2] {TEST2_ANIMATION_FPS:g} FPS animation with '
         f'{TEST2_TEMPORAL_FACTOR}x temporal dithering'
     )
@@ -912,7 +915,7 @@ def stream_frames(
         result = realtime.send_realtime_frame(client, retry, host, frame)
         if result.byte_count < frame.nbytes:
             short_sends += 1
-            log_error(
+            LOGGER.error(
                 '[unexpected] '
                 f'{phase} at {fps:g} FPS frame {index + 1}/{frame_count} '
                 f'sent {result.byte_count} bytes for {frame.nbytes} bytes of RGB data.'
@@ -937,21 +940,21 @@ def stream_frames(
 
 def report_fades(reports: tuple[FadeReport, ...]) -> None:
     for report in reports:
-        log_status(
+        LOGGER.info(
             '[report] '
             f'{report.phase} {report.fps:g} FPS: '
             f'{report.unique_frames}/{report.total_frames} unique frames, '
             f'{report.duplicate_frames} duplicate frames'
         )
         if report.late_frames:
-            log_error(
+            LOGGER.error(
                 '[unexpected] '
                 f'{report.phase} {report.fps:g} FPS missed frame timing '
                 f'{report.late_frames}/{report.total_frames} times; '
                 f'worst overrun {report.max_late_ms:.2f} ms.'
             )
         if report.short_sends:
-            log_error(
+            LOGGER.error(
                 '[unexpected] '
                 f'{report.phase} {report.fps:g} FPS had '
                 f'{report.short_sends} short UDP sends.'

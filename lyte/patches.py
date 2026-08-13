@@ -12,14 +12,16 @@ import numpy as np
 import tyro
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, SkipValidation, model_validator
+from reccy import logging
 
 from . import animation, midi
 from .animations import bibliopixel
 from .animations.christmas.random_walk import RandomWalk
-from .logging import log, log_error, log_status
 from .retry import RetryConfig
 from .twinkly import realtime, track
 from .twinkly.client import TwinklyClient
+
+LOGGER = logging.get_logger(__name__)
 
 
 class PatchLibraryError(ValueError):
@@ -482,7 +484,7 @@ def run_locator(config: PatchCommandConfig, library: PatchLibrary) -> int:
         if not realtime.prepare_device(client, retry, host):
             return 1
         for region in library.wearable.segments:
-            log_status(f'[locator] {region}')
+            LOGGER.info(f'[locator] {region}')
             frame = animation.byte_light_frame_from_float(
                 locator_frame(library.wearable, region)
             )
@@ -491,8 +493,8 @@ def run_locator(config: PatchCommandConfig, library: PatchLibrary) -> int:
                 realtime.send_realtime_frame(client, retry, host, frame)
                 time.sleep(1 / config.fps)
     except KeyboardInterrupt:
-        log()
-        log('[ok] Stopped')
+        LOGGER.debug('')
+        LOGGER.debug('[ok] Stopped')
     finally:
         realtime.turn_off_streaming_device(client, retry, host)
     return 0
@@ -501,12 +503,12 @@ def run_locator(config: PatchCommandConfig, library: PatchLibrary) -> int:
 def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int:
     validate_playback_config(config)
     if library.wearable.physical_map_status == 'provisional':
-        log_error(
+        LOGGER.error(
             '[failed] Patch playback requires a guessed or measured physical map.'
         )
         return 1
     if library.wearable.physical_map_status == 'guessed':
-        log_status('[warn] Patch playback is using a guessed physical map.')
+        LOGGER.info('[warn] Patch playback is using a guessed physical map.')
     if config.patch_name is None:
         sys.exit('Patch playback requires a patch name')
     patch = build_light_patch(library, config.patch_name)
@@ -522,7 +524,7 @@ def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int
     client = TwinklyClient(host=host, timeout=config.timeout)
     led_count = realtime.read_led_count(client, retry, library.wearable.led_count, host)
     if led_count != library.wearable.led_count:
-        log_error(f'[failed] {host} does not match the patch library LED count.')
+        LOGGER.error(f'[failed] {host} does not match the patch library LED count.')
         return 1
 
     port = midi.open_input(config.midi_input)
@@ -539,8 +541,8 @@ def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int
             return 1
         stream_patch_frames(port, config, library, patch, twinkly_track)
     except KeyboardInterrupt:
-        log()
-        log('[ok] Stopped')
+        LOGGER.debug('')
+        LOGGER.debug('[ok] Stopped')
     finally:
         port.close()
         twinkly_track.close()

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Annotated
 
 import tyro
+from reccy import logging
 
 from . import daemon, fps_test
 from . import patches
@@ -128,6 +129,7 @@ class MusicConfig(DeviceCommandConfig):
 
 
 def main(args: Sequence[str] | None = None) -> int:
+    logging.configure()
     config = tyro.extras.subcommand_cli_from_dict(
         {
             'animate': AnimateConfig,

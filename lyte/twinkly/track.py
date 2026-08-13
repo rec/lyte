@@ -9,12 +9,14 @@ from collections.abc import Callable
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field
+from reccy import logging
 
 from .. import animation
-from ..logging import log_status
 from ..retry import RetryConfig
 from . import realtime
 from .client import TwinklyClient
+
+LOGGER = logging.get_logger(__name__)
 
 
 class FrameDeadlineReport(BaseModel):
@@ -39,7 +41,7 @@ class FrameDeadlineReport(BaseModel):
         self.recovery_duration_ms += duration * 1000
 
     def log_report(self, name: str, fps: float) -> None:
-        log_status(
+        LOGGER.info(
             f'[report] {name} {fps:g} FPS: {self.frame_count} frames, '
             f'{self.late_frames} late frames, {self.missed_deadlines} missed '
             f'deadlines, worst overrun {self.worst_overrun_ms:.2f} ms, '

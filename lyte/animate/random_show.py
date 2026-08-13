@@ -5,8 +5,11 @@ import time
 from dataclasses import replace
 from typing import cast
 
-from ..logging import log_status
+from reccy import logging
+
 from . import config
+
+LOGGER = logging.get_logger(__name__)
 
 
 def random_pattern_duration(generator: random.Random) -> float:
@@ -24,7 +27,7 @@ def clipped_duration(duration: float, stop_at: float | None) -> float:
 
 
 def log_pattern_start(animation: str, duration: float) -> None:
-    log_status(f'[pattern] {animation} for {duration:.1f} seconds')
+    LOGGER.info(f'[pattern] {animation} for {duration:.1f} seconds')
 
 
 def random_animation_args(

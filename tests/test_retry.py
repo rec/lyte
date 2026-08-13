@@ -88,11 +88,8 @@ class RetryTests(unittest.TestCase):
             backoff=1,
             backoff_after=1,
         )
-        error_output = io.StringIO()
-
         with (
-            patch('sys.stdout', new_callable=io.StringIO),
-            patch('sys.stderr', error_output),
+            patch('lyte.retry.LOGGER.error') as log_error,
             patch('lyte.retry.time.sleep'),
         ):
             result = retry_call(
@@ -103,9 +100,8 @@ class RetryTests(unittest.TestCase):
             )
 
         self.assertIsNone(result)
-        self.assertNotIn('attempt 1/3', error_output.getvalue())
-        self.assertNotIn('attempt 2/3', error_output.getvalue())
-        self.assertIn('attempt 3/3', error_output.getvalue())
+        log_error.assert_called_once()
+        self.assertIn('attempt 3/3', log_error.call_args.args[0])
 
 
 class RetryableTestError(Exception):

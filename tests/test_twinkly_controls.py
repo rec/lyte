@@ -128,7 +128,6 @@ class TwinklyControlTests(unittest.TestCase):
         )
 
     def test_run_output_control_get_reports_current_value(self) -> None:
-        stream = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -142,7 +141,7 @@ class TwinklyControlTests(unittest.TestCase):
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
-            patch('sys.stdout', stream),
+            patch('lyte.twinkly.output.LOGGER.info') as log_info,
         ):
             result = output.run_output_control(
                 diagnostic.DiagnosticConfig(),
@@ -153,10 +152,11 @@ class TwinklyControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         turn_off.assert_called_once()
-        self.assertIn('[brightness] mode=enabled type=A value=75', stream.getvalue())
+        self.assertIn(
+            '[brightness] mode=enabled type=A value=75', log_info.call_args.args[0]
+        )
 
     def test_run_output_control_set_writes_value(self) -> None:
-        stream = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -167,7 +167,7 @@ class TwinklyControlTests(unittest.TestCase):
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
-            patch('sys.stdout', stream),
+            patch('lyte.twinkly.output.LOGGER.info') as log_info,
         ):
             result = output.run_output_control(
                 diagnostic.DiagnosticConfig(),
@@ -185,7 +185,7 @@ class TwinklyControlTests(unittest.TestCase):
         )
         self.assertIn(
             '[saturation] set mode=enabled type=A value=80',
-            stream.getvalue(),
+            log_info.call_args.args[0],
         )
 
     def test_run_mode_control_sets_mode_then_turns_off(self) -> None:
@@ -252,7 +252,6 @@ class TwinklyControlTests(unittest.TestCase):
         turn_off.assert_called_once()
 
     def test_run_layout_control_exports_layout_then_turns_off(self) -> None:
-        output = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with tempfile.TemporaryDirectory() as directory:
@@ -272,7 +271,7 @@ class TwinklyControlTests(unittest.TestCase):
                 patch(
                     f'{COMMAND}.session.turn_off_with_retry', return_value=True
                 ) as turn_off,
-                patch('sys.stdout', output),
+                patch('lyte.twinkly.layout.LOGGER.info') as log_info,
             ):
                 result = layout.run_layout_control(
                     diagnostic.DiagnosticConfig(), 'export', path
@@ -284,7 +283,7 @@ class TwinklyControlTests(unittest.TestCase):
                 {'coordinates': [], 'source': '3d'},
             )
             turn_off.assert_called_once()
-            self.assertIn('[layout] exported', output.getvalue())
+            self.assertIn('[layout] exported', log_info.call_args.args[0])
 
     def test_run_layout_control_uploads_layout_then_turns_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
@@ -353,7 +352,6 @@ class TwinklyControlTests(unittest.TestCase):
         turn_off.assert_called_once()
 
     def test_run_timer_control_reads_timer_then_turns_off(self) -> None:
-        output = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -371,7 +369,7 @@ class TwinklyControlTests(unittest.TestCase):
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
-            patch('sys.stdout', output),
+            patch('lyte.twinkly.timer.LOGGER.info') as log_info,
         ):
             result = timer.run_timer_control(
                 diagnostic.DiagnosticConfig(), 'get', None, None, None
@@ -380,7 +378,7 @@ class TwinklyControlTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertIn(
             '[timer] time_now=1800 time_on=-1 time_off=7200',
-            output.getvalue(),
+            log_info.call_args.args[0],
         )
         turn_off.assert_called_once()
 
@@ -408,7 +406,6 @@ class TwinklyControlTests(unittest.TestCase):
         turn_off.assert_called_once()
 
     def test_run_movie_control_reads_current_movie_then_turns_off(self) -> None:
-        output = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -423,17 +420,16 @@ class TwinklyControlTests(unittest.TestCase):
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
-            patch('sys.stdout', output),
+            patch('lyte.twinkly.media.LOGGER.info') as log_info,
         ):
             result = media.run_movie_control(diagnostic.DiagnosticConfig(), 'current')
 
         self.assertEqual(result, 0)
         get_current_movie.assert_called_once()
         turn_off.assert_called_once()
-        self.assertIn("[movie] current {'id': 0}", output.getvalue())
+        self.assertIn("[movie] current {'id': 0}", log_info.call_args.args[0])
 
     def test_run_playlist_control_reads_playlist_then_turns_off(self) -> None:
-        output = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -448,17 +444,16 @@ class TwinklyControlTests(unittest.TestCase):
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
-            patch('sys.stdout', output),
+            patch('lyte.twinkly.media.LOGGER.info') as log_info,
         ):
             result = media.run_playlist_control(diagnostic.DiagnosticConfig(), 'list')
 
         self.assertEqual(result, 0)
         get_playlist.assert_called_once()
         turn_off.assert_called_once()
-        self.assertIn("[playlist] list {'entries': []}", output.getvalue())
+        self.assertIn("[playlist] list {'entries': []}", log_info.call_args.args[0])
 
     def test_run_network_control_reads_status_then_turns_off(self) -> None:
-        output = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -473,7 +468,7 @@ class TwinklyControlTests(unittest.TestCase):
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
-            patch('sys.stdout', output),
+            patch('lyte.twinkly.networking.LOGGER.info') as log_info,
         ):
             result = networking.run_network_control(
                 diagnostic.DiagnosticConfig(), 'status'
@@ -482,10 +477,9 @@ class TwinklyControlTests(unittest.TestCase):
         self.assertEqual(result, 0)
         get_network_status.assert_called_once()
         turn_off.assert_called_once()
-        self.assertIn("[network] status {'mode': 1}", output.getvalue())
+        self.assertIn("[network] status {'mode': 1}", log_info.call_args.args[0])
 
     def test_run_mqtt_control_reads_config_then_turns_off(self) -> None:
-        output = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -500,17 +494,16 @@ class TwinklyControlTests(unittest.TestCase):
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
-            patch('sys.stdout', output),
+            patch('lyte.twinkly.inputs.LOGGER.info') as log_info,
         ):
             result = inputs.run_mqtt_control(diagnostic.DiagnosticConfig(), 'config')
 
         self.assertEqual(result, 0)
         get_mqtt_config.assert_called_once()
         turn_off.assert_called_once()
-        self.assertIn("[mqtt] config {'enabled': False}", output.getvalue())
+        self.assertIn("[mqtt] config {'enabled': False}", log_info.call_args.args[0])
 
     def test_run_mic_control_reads_sample_then_turns_off(self) -> None:
-        output = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -525,17 +518,16 @@ class TwinklyControlTests(unittest.TestCase):
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
-            patch('sys.stdout', output),
+            patch('lyte.twinkly.inputs.LOGGER.info') as log_info,
         ):
             result = inputs.run_mic_control(diagnostic.DiagnosticConfig(), 'sample')
 
         self.assertEqual(result, 0)
         get_mic_sample.assert_called_once()
         turn_off.assert_called_once()
-        self.assertIn("[mic] sample {'sample': 3}", output.getvalue())
+        self.assertIn("[mic] sample {'sample': 3}", log_info.call_args.args[0])
 
     def test_run_music_control_reads_current_driver_set_then_turns_off(self) -> None:
-        output = io.StringIO()
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -550,7 +542,7 @@ class TwinklyControlTests(unittest.TestCase):
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
-            patch('sys.stdout', output),
+            patch('lyte.twinkly.inputs.LOGGER.info') as log_info,
         ):
             result = inputs.run_music_control(
                 diagnostic.DiagnosticConfig(), 'current-driver-set'
@@ -559,4 +551,6 @@ class TwinklyControlTests(unittest.TestCase):
         self.assertEqual(result, 0)
         get_current_music_driver_set.assert_called_once()
         turn_off.assert_called_once()
-        self.assertIn("[music] current-driver-set {'id': 1}", output.getvalue())
+        self.assertIn(
+            "[music] current-driver-set {'id': 1}", log_info.call_args.args[0]
+        )

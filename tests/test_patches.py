@@ -304,16 +304,16 @@ class PatchLibraryTests(unittest.TestCase):
                 )
             }
         )
-        errors = io.StringIO()
-
-        with patch('sys.stderr', errors):
+        with patch('lyte.patches.LOGGER.error') as log_error:
             result = patches.run_patch_playback(
                 patches.PatchCommandConfig(action='play', patch_name='breath_walker'),
                 library,
             )
 
         self.assertEqual(result, 1)
-        self.assertIn('guessed or measured physical map', errors.getvalue())
+        log_error.assert_called_once_with(
+            '[failed] Patch playback requires a guessed or measured physical map.'
+        )
 
     def test_patch_playback_recovers_after_a_failed_frame_send(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))

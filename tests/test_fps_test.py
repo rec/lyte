@@ -61,15 +61,13 @@ class FpsTestTests(unittest.TestCase):
         self.assertIsNone(host)
 
     def test_verify_lists_demos_before_running_them(self) -> None:
-        output = io.StringIO()
-
         with (
             patch('lyte.fps_test.realtime.discover_host', return_value='192.168.1.23'),
             patch('lyte.fps_test.realtime.read_led_count', return_value=2),
             patch('lyte.fps_test.realtime.prepare_device', return_value=True),
             patch('lyte.fps_test.run_fast_verify', return_value=()),
             patch('lyte.fps_test.realtime.turn_off_device', return_value=True),
-            patch('sys.stdout', output),
+            patch('lyte.fps_test.LOGGER.info') as log_info,
         ):
             result = fps_test.run_verify_test(fps_test.VerifyConfig())
 
@@ -77,7 +75,7 @@ class FpsTestTests(unittest.TestCase):
         self.assertIn(
             '[verify] Demos: primary-channels, moving-gradient, crossfade, '
             'temporal-dither',
-            output.getvalue(),
+            log_info.call_args.args[0],
         )
 
     def test_realtime_command_turns_off_device_after_setup_interrupt(self) -> None:
@@ -357,12 +355,9 @@ class FpsTestTests(unittest.TestCase):
         )
 
     def test_report_verify_results_lists_status_groups(self) -> None:
-        output = io.StringIO()
-        errors = io.StringIO()
-
         with (
-            patch('sys.stdout', output),
-            patch('sys.stderr', errors),
+            patch('lyte.fps_test.LOGGER.info') as log_info,
+            patch('lyte.fps_test.LOGGER.error') as log_error,
         ):
             fps_test.report_verify_results(
                 (
@@ -372,9 +367,13 @@ class FpsTestTests(unittest.TestCase):
                 )
             )
 
-        self.assertIn('Worked: good', output.getvalue())
-        self.assertIn('Shown without pass/fail: shown', output.getvalue())
-        self.assertIn('Did not work: bad', errors.getvalue())
+        log_info.assert_has_calls(
+            [
+                unittest.mock.call('[verify] Worked: good'),
+                unittest.mock.call('[verify] Shown without pass/fail: shown'),
+            ]
+        )
+        log_error.assert_called_once_with('[verify] Did not work: bad')
 
     def test_run_fades_separates_each_test_with_black(self) -> None:
         device = animation.Device(led_count=2)
@@ -455,12 +454,9 @@ class FpsTestTests(unittest.TestCase):
         self.assertEqual(report.short_sends, 0)
 
     def test_report_fades_reports_unexpected_events(self) -> None:
-        output = io.StringIO()
-        errors = io.StringIO()
-
         with (
-            patch('sys.stdout', output),
-            patch('sys.stderr', errors),
+            patch('lyte.fps_test.LOGGER.info') as log_info,
+            patch('lyte.fps_test.LOGGER.error') as log_error,
         ):
             fps_test.report_fades(
                 (
@@ -477,6 +473,6 @@ class FpsTestTests(unittest.TestCase):
                 )
             )
 
-        self.assertIn('4/10 unique frames', output.getvalue())
-        self.assertIn('2/10 times', errors.getvalue())
-        self.assertIn('1 short UDP sends', errors.getvalue())
+        self.assertIn('4/10 unique frames', log_info.call_args.args[0])
+        self.assertIn('2/10 times', log_error.call_args_list[0].args[0])
+        self.assertIn('1 short UDP sends', log_error.call_args_list[1].args[0])
