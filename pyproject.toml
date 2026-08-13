@@ -12,6 +12,7 @@ dependencies = [
     "mido>=1.3.3",
     "numpy>=2.4.6",
     "pydantic",
+    "reccy",
     "tyro>=1.0.15",
 ]
 
@@ -35,3 +36,6 @@ dev = [
 [tool.ty.environment]
 root = ["."]
 extra-paths = ["type_stubs"]
+
+[tool.uv.sources]
+reccy = { path = "../reccy", editable = true }
