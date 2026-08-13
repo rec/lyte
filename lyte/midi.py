@@ -87,6 +87,8 @@ class Patch[ConfigT: BaseModel, StateT: BaseModel](BaseModel, ABC):
                 self.breath_control(msg)
             case 'pitchwheel' if self.state is not None:
                 self.pitch_bend(msg)
+            case 'program_change':
+                self.program_change(msg)
 
     def start_note(self, msg: mido.Message) -> None:
         if self.state is not None:
@@ -115,6 +117,9 @@ class Patch[ConfigT: BaseModel, StateT: BaseModel](BaseModel, ABC):
         pass
 
     def pitch_bend(self, msg: mido.Message) -> None:
+        pass
+
+    def program_change(self, msg: mido.Message) -> None:
         pass
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

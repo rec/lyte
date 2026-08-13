@@ -233,6 +233,28 @@ class MidiTests(unittest.TestCase):
         )
         self.assertIsNone(patch.state)
 
+    def test_patch_routes_program_changes_without_an_active_note(self) -> None:
+        class Config(BaseModel, frozen=True):
+            pass
+
+        class State(BaseModel):
+            pass
+
+        class TestPatch(midi.Patch[Config, State]):
+            programs: list[int] = []
+
+            def make_state(self, msg: mido.Message) -> State:
+                return State()
+
+            def program_change(self, msg: mido.Message) -> None:
+                self.programs.append(msg.program)
+
+        patch = TestPatch(config=Config())
+
+        patch.receive(mido.Message('program_change', program=7))
+
+        self.assertEqual(patch.programs, [7])
+
     def test_region_light_patch_composes_stateful_animations(self) -> None:
         patch = midi.RegionLightPatch(
             config=midi.RegionLightPatchConfig(
