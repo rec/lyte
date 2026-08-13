@@ -14,7 +14,7 @@ def write_config(path: Path, patches: str) -> None:
         'patch_library = "wearable.toml"\n'
         f'patches = {patches}\n'
         '[midi]\n'
-        'channel = 0\n'
+        'channel = 1\n'
         '[twinkly]\n'
     )
 

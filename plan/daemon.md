@@ -63,7 +63,7 @@ patches = ["prism_limbs", "breath_walker", "breath_mix_walk_twinkle"]
 fps = 60.0
 
 [midi]
-channel = 0
+channel = 1
 device_name = "Wind Controller"
 
 [twinkly]
@@ -82,6 +82,8 @@ Rules:
 - The wearable physical map must be `guessed` or `measured`; daemon startup
   rejects `provisional` maps and warns when it streams a guessed map.
 - `midi` uses the existing `MidiIn` input-name and channel filtering model.
+  Configuration names channels `1` through `16`; Mido's zero-based channel
+  values are converted only at the input boundary.
 - `twinkly` reuses existing connection and retry fields. There is still one
   Twinkly output in this version.
 - The configuration is read at startup only. No live reload is needed in the

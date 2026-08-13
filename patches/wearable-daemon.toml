@@ -37,7 +37,7 @@ patches = [
 fps = 60.0
 
 [midi]
-channel = 0
+channel = 1
 
 [twinkly]
 timeout = 5.0
