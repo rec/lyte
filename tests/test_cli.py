@@ -28,6 +28,13 @@ class CliTests(unittest.TestCase):
         self.assertEqual(config.duration, 1.5)
         self.assertEqual(config.fps, 30)
 
+    def test_cli_daemon_command_dispatches_daemon(self) -> None:
+        with patch.object(cli.daemon, 'run_daemon_command', return_value=0) as run:
+            result = cli.main(['daemon', 'status'])
+
+        self.assertEqual(result, 0)
+        self.assertEqual(run.call_args.args[0].action, 'status')
+
     def test_cli_preview_command_dispatches_preview(self) -> None:
         with patch.object(cli, 'run_preview', return_value=0) as run_preview:
             result = cli.main(

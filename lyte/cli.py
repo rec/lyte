@@ -9,7 +9,7 @@ from typing import Annotated
 
 import tyro
 
-from . import fps_test
+from . import daemon, fps_test
 from . import patches
 from . import show
 from .animate.config import AnimateConfig
@@ -134,6 +134,7 @@ def main(args: Sequence[str] | None = None) -> int:
             'black-floor': fps_test.BlackFloorTestConfig,
             'brightness': BrightnessConfig,
             'color': ColorConfig,
+            'daemon': daemon.DaemonCommandConfig,
             'diagnostic': diagnostic.DiagnosticCommandConfig,
             'effects': EffectsConfig,
             'layout': LayoutConfig,
@@ -177,6 +178,8 @@ def run_command(config: object) -> int:
             config.green,
             config.blue,
         )
+    if isinstance(config, daemon.DaemonCommandConfig):
+        return daemon.run_daemon_command(config)
     if isinstance(config, diagnostic.DiagnosticCommandConfig):
         return diagnostic.run_diagnostic_command(config)
     if isinstance(config, EffectsConfig):
