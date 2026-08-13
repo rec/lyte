@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from collections import deque
+from pathlib import Path
+from unittest.mock import patch
 
 import mido
 from pydantic import BaseModel
 
-from lyte import daemon_runtime, midi
+from lyte import daemon_config, daemon_runtime, midi, patches
 
 
 class Config(BaseModel, frozen=True):
@@ -71,3 +73,71 @@ def test_program_change_replays_active_note_controls(monkeypatch: object) -> Non
 
     assert selector.patch_name == 'two'
     assert created[1].events == ['note:60:100', 'breath:64', 'pitch:1024']
+
+
+def test_daemon_reopens_an_unavailable_midi_input() -> None:
+    class Port:
+        closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+        def poll(self) -> mido.Message | None:
+            return None
+
+    class FakeTrack:
+        def __init__(self, **kwargs: object) -> None:
+            self.device = kwargs['device']
+
+        def prepare(self) -> bool:
+            return True
+
+        def stream_frames(
+            self,
+            name: str,
+            fps: float,
+            duration: float | None,
+            render_frame: object,
+            before_frame: object,
+        ) -> None:
+            before_frame()
+
+        def close(self) -> None:
+            pass
+
+    library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+    library = library.model_copy(
+        update={
+            'wearable': library.wearable.model_copy(
+                update={'physical_map_status': 'measured'}
+            )
+        }
+    )
+    project = daemon_config.DaemonProject(
+        config=daemon_config.DaemonConfig(
+            patch_library=Path('patches/wearable-breath.toml'),
+            patches=['breath_walker'],
+            midi=midi.MidiIn(channel=0),
+            twinkly=daemon_config.TwinklyDaemonConfig(host='192.168.1.23'),
+        ),
+        library=library,
+    )
+    port = Port()
+    with (
+        patch('lyte.daemon_runtime.realtime.read_led_count', return_value=200),
+        patch('lyte.daemon_runtime.realtime.prepare_device', return_value=True),
+        patch(
+            'lyte.daemon_runtime.realtime.turn_off_streaming_device', return_value=True
+        ),
+        patch(
+            'lyte.daemon_runtime.midi.open_input',
+            side_effect=[ValueError('missing'), port],
+        ),
+        patch('lyte.daemon_runtime.track.TwinklyTrack', FakeTrack),
+        patch('lyte.daemon_runtime.time.sleep') as sleep,
+    ):
+        result = daemon_runtime.run_daemon(project)
+
+    assert result == 0
+    assert port.closed
+    sleep.assert_called_once_with(1)
