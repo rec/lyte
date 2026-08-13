@@ -18,6 +18,8 @@ from .twinkly.client import TwinklyClient
 def run_daemon(project: DaemonProject) -> int:
     config = project.config
     selector = PatchSelector.create(project.library, config.patch_names)
+    if project.library.wearable.physical_map_status == 'guessed':
+        log_status('[warn] Daemon is using a guessed physical map.')
     host = config.twinkly.host or realtime.discover_host(
         config.twinkly.discovery_timeout
     )

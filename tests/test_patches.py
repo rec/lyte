@@ -33,7 +33,7 @@ class PatchLibraryTests(unittest.TestCase):
 
         self.assertEqual(len(library.patches), 32)
         self.assertIn('random_walk', library.layers)
-        self.assertEqual(library.wearable.physical_map_status, 'provisional')
+        self.assertEqual(library.wearable.physical_map_status, 'guessed')
         self.assertEqual(
             list(library.wearable.segments),
             ['left_leg', 'right_leg', 'left_arm', 'right_arm', 'chest'],
@@ -292,13 +292,18 @@ class PatchLibraryTests(unittest.TestCase):
             )
 
         self.assertEqual(result, 0)
-        self.assertIn(
-            'Wearable: 200 LEDs (provisional physical map)', output.getvalue()
-        )
+        self.assertIn('Wearable: 200 LEDs (guessed physical map)', output.getvalue())
         self.assertIn('prism_limbs:', output.getvalue())
 
     def test_patch_playback_rejects_a_provisional_physical_map(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = library.model_copy(
+            update={
+                'wearable': library.wearable.model_copy(
+                    update={'physical_map_status': 'provisional'}
+                )
+            }
+        )
         errors = io.StringIO()
 
         with patch('sys.stderr', errors):
@@ -308,17 +313,10 @@ class PatchLibraryTests(unittest.TestCase):
             )
 
         self.assertEqual(result, 1)
-        self.assertIn('measured physical map', errors.getvalue())
+        self.assertIn('guessed or measured physical map', errors.getvalue())
 
     def test_patch_playback_recovers_after_a_failed_frame_send(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
-        library = library.model_copy(
-            update={
-                'wearable': library.wearable.model_copy(
-                    update={'physical_map_status': 'measured'}
-                )
-            }
-        )
 
         class Port:
             messages = iter([mido.Message('note_on', note=60, velocity=100)])

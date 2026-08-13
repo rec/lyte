@@ -41,9 +41,31 @@ def test_daemon_config_rejects_a_provisional_physical_map() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         library = root / 'wearable.toml'
+        library.write_text(
+            Path('patches/wearable-breath.toml')
+            .read_text()
+            .replace(
+                'physical_map_status = "guessed"',
+                'physical_map_status = "provisional"',
+            )
+        )
+        config = root / 'daemon.toml'
+        write_config(config, '["breath_walker"]')
+
+        with pytest.raises(
+            daemon_config.DaemonConfigError, match='guessed or measured'
+        ):
+            daemon_config.load_daemon_project(config)
+
+
+def test_daemon_config_accepts_a_guessed_physical_map() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        library = root / 'wearable.toml'
         library.write_text(Path('patches/wearable-breath.toml').read_text())
         config = root / 'daemon.toml'
         write_config(config, '["breath_walker"]')
 
-        with pytest.raises(daemon_config.DaemonConfigError, match='measured'):
-            daemon_config.load_daemon_project(config)
+        project = daemon_config.load_daemon_project(config)
+
+    assert project.library.wearable.physical_map_status == 'guessed'

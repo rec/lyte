@@ -70,7 +70,7 @@ class PhysicalRegionSpec(BaseModel, frozen=True):
 
 class WearableSpec(BaseModel, frozen=True):
     led_count: int
-    physical_map_status: Literal['provisional', 'measured']
+    physical_map_status: Literal['provisional', 'guessed', 'measured']
     segments: dict[str, RegionSpec]
     physical_map: dict[str, PhysicalRegionSpec]
 
@@ -500,9 +500,13 @@ def run_locator(config: PatchCommandConfig, library: PatchLibrary) -> int:
 
 def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int:
     validate_playback_config(config)
-    if library.wearable.physical_map_status != 'measured':
-        log_error('[failed] Patch playback requires a measured physical map.')
+    if library.wearable.physical_map_status == 'provisional':
+        log_error(
+            '[failed] Patch playback requires a guessed or measured physical map.'
+        )
         return 1
+    if library.wearable.physical_map_status == 'guessed':
+        log_status('[warn] Patch playback is using a guessed physical map.')
     if config.patch_name is None:
         sys.exit('Patch playback requires a patch name')
     patch = build_light_patch(library, config.patch_name)

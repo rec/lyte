@@ -1,6 +1,6 @@
 [wearable]
 led_count = 200
-physical_map_status = "provisional"
+physical_map_status = "guessed"
 
 [wearable.segments]
 left_leg = { start = 0, led_count = 32 }

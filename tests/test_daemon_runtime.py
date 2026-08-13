@@ -106,13 +106,6 @@ def test_daemon_reopens_an_unavailable_midi_input() -> None:
             pass
 
     library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
-    library = library.model_copy(
-        update={
-            'wearable': library.wearable.model_copy(
-                update={'physical_map_status': 'measured'}
-            )
-        }
-    )
     project = daemon_config.DaemonProject(
         config=daemon_config.DaemonConfig(
             patch_library=Path('patches/wearable-breath.toml'),

@@ -33,8 +33,9 @@ lyte preview
 
 `lyte patch list` lists the experimental 200-dot wearable patch library.
 `lyte patch locator` may be used while its physical map is provisional.
-Performance playback with `lyte patch play NAME` is intentionally blocked until
-the TOML library records a measured physical map.
+The supplied map is a guessed two-branch layout, so `lyte patch play NAME` and
+the daemon may be used for testing with a warning. Record it as `measured` only
+after checking it on the assembled garment.
 
 The current project is Twinkly-first. DMX, Art-Net, OSC, and other lighting
 protocols remain planned work rather than supported runtime features.
@@ -59,6 +60,6 @@ Install its per-user `launchd` or `systemd --user` service with:
 lyte daemon install
 ```
 
-The daemon has no control endpoint. It requires a measured wearable physical
-map, so the supplied configuration remains blocked until locator verification
-has been recorded.
+The daemon has no control endpoint. It accepts a guessed wearable physical
+map for testing and warns before playback. Record the map as `measured` after
+locator verification on the assembled garment.
