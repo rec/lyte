@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import threading
 import time
 
 import mido
 from pydantic import BaseModel, ConfigDict, SkipValidation
-from reccy import logging
+from reccy import logging, rpc
 
 from . import animation, midi, patches
 from .daemon_config import DaemonProject
@@ -17,9 +18,69 @@ from .twinkly.client import TwinklyClient
 LOGGER = logging.get_logger(__name__)
 
 
+class DaemonController:
+    def __init__(self, patch_names: list[str]) -> None:
+        self.patch_names = patch_names
+        self.patch_name = patch_names[0]
+        self.state = 'starting'
+        self.error: str | None = None
+        self.stop_requested = False
+        self.selected_patch: str | None = None
+        self.lock = threading.Lock()
+
+    def handle(self, request: rpc.Request) -> rpc.Response:
+        with self.lock:
+            if request.command == 'status':
+                return rpc.Response(
+                    id=request.id,
+                    ok=True,
+                    result={
+                        'state': self.state,
+                        'patch': self.patch_name,
+                        'error': self.error,
+                    },
+                )
+            if request.command in {'blackout', 'stop'}:
+                self.stop_requested = True
+                self.state = 'stopping'
+                return rpc.Response(id=request.id, ok=True)
+            if request.command == 'select_patch':
+                patch = request.params.get('name')
+                if not isinstance(patch, str) or patch not in self.patch_names:
+                    return rpc.Response(
+                        id=request.id,
+                        ok=False,
+                        message='select_patch requires a configured patch name',
+                    )
+                self.selected_patch = patch
+                return rpc.Response(id=request.id, ok=True)
+            return rpc.Response(
+                id=request.id,
+                ok=False,
+                message=f'unknown command {request.command}',
+            )
+
+    def take_selected_patch(self) -> str | None:
+        with self.lock:
+            patch, self.selected_patch = self.selected_patch, None
+        return patch
+
+    def snapshot(self, patch_name: str) -> dict[str, object]:
+        with self.lock:
+            self.patch_name = patch_name
+            return {'state': self.state, 'patch': patch_name, 'error': self.error}
+
+
 def run_daemon(project: DaemonProject) -> int:
     config = project.config
     selector = PatchSelector.create(project.library, config.patch_names)
+    controller = DaemonController(config.patch_names)
+    server = rpc.Server(
+        config.control_endpoint,
+        config.event_endpoint,
+        controller.handle,
+        role='lyte',
+    )
     if project.library.wearable.physical_map_status == 'guessed':
         LOGGER.info('[warn] Daemon is using a guessed physical map.')
     host = config.twinkly.host or realtime.discover_host(
@@ -51,6 +112,10 @@ def run_daemon(project: DaemonProject) -> int:
 
     def process_messages() -> None:
         nonlocal port
+        if selected_patch := controller.take_selected_patch():
+            selector.select(selected_patch)
+        if controller.stop_requested:
+            raise KeyboardInterrupt
         while port is None:
             try:
                 port = midi.open_input(config.midi)
@@ -69,6 +134,9 @@ def run_daemon(project: DaemonProject) -> int:
     try:
         if not twinkly_track.prepare():
             return 1
+        server.start()
+        controller.state = 'streaming'
+        server.publish('status', **controller.snapshot(selector.patch_name))
         LOGGER.info(f'[daemon] Selected patch: {selector.patch_name}')
         twinkly_track.stream_frames(
             'daemon',
@@ -86,6 +154,9 @@ def run_daemon(project: DaemonProject) -> int:
         if port is not None:
             port.close()
         twinkly_track.close()
+        controller.state = 'stopped'
+        server.publish('status', **controller.snapshot(selector.patch_name))
+        server.close()
     return 0
 
 
@@ -172,6 +243,11 @@ class PatchSelector(BaseModel):
     def advance(self) -> None:
         self.index = (self.index + 1) % len(self.patch_names)
         self.patch = patches.build_light_patch(self.library, self.patch_name)
+        self.performance.replay(self.patch)
+
+    def select(self, name: str) -> None:
+        self.index = self.patch_names.index(name)
+        self.patch = patches.build_light_patch(self.library, name)
         self.performance.replay(self.patch)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
