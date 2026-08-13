@@ -7,24 +7,46 @@ from unittest.mock import patch
 import mido
 from pydantic import BaseModel
 from reccy import rpc
+from reccy.reccy import Reccy
 
 from lyte import daemon_config, daemon_runtime, midi, patches
 
 
-def test_daemon_controller_handles_commands() -> None:
-    controller = daemon_runtime.DaemonController(['one', 'two'])
+def test_reccy_daemon_handles_commands(tmp_path: Path) -> None:
+    project = daemon_config.DaemonProject(
+        config=daemon_config.DaemonConfig(
+            patch_library=Path('patches/wearable-breath.toml'),
+            patches=['one', 'two'],
+            midi=midi.MidiIn(channel=1),
+            twinkly=daemon_config.TwinklyDaemonConfig(),
+        ),
+        library=object(),
+    )
+    daemon = daemon_runtime.LyteMidiDaemon(project=project, home=tmp_path)
 
-    status = controller.handle(rpc.Request(id='1', command='status'))
-    select = controller.handle(
+    status = daemon.rpc_response(rpc.Request(id='1', command='status'))
+    select = daemon.rpc_response(
         rpc.Request(id='2', command='select_patch', params={'name': 'two'})
     )
-    blackout = controller.handle(rpc.Request(id='3', command='blackout'))
+    blackout = daemon.rpc_response(rpc.Request(id='3', command='blackout'))
 
+    assert isinstance(daemon, Reccy)
     assert status.result['patch'] == 'one'
     assert select.ok
-    assert controller.take_selected_patch() == 'two'
+    assert daemon._selected_patch == 'two'
     assert blackout.ok
-    assert controller.stop_requested
+    assert daemon.status_snapshot().state == 'stopping'
+
+    with patch('reccy.reccy.rpc.Server'):
+        daemon.start()
+        try:
+            saved = daemon_runtime.LyteMidiStatus.model_validate_json(
+                daemon.status_path.read_text()
+            )
+            assert saved.running
+            assert saved.patch == 'one'
+        finally:
+            daemon.close()
 
 
 class Config(BaseModel, frozen=True):
@@ -92,7 +114,7 @@ def test_program_change_replays_active_note_controls(monkeypatch: object) -> Non
     assert created[1].events == ['note:60:100', 'breath:64', 'pitch:1024']
 
 
-def test_daemon_reopens_an_unavailable_midi_input() -> None:
+def test_daemon_reopens_an_unavailable_midi_input(tmp_path: Path) -> None:
     class Port:
         closed = False
 
@@ -144,9 +166,11 @@ def test_daemon_reopens_an_unavailable_midi_input() -> None:
             side_effect=[ValueError('missing'), port],
         ),
         patch('lyte.daemon_runtime.track.TwinklyTrack', FakeTrack),
+        patch.object(daemon_runtime.LyteMidiDaemon, 'start'),
+        patch.object(daemon_runtime.LyteMidiDaemon, 'close'),
         patch('lyte.daemon_runtime.time.sleep') as sleep,
     ):
-        result = daemon_runtime.run_daemon(project)
+        result = daemon_runtime.LyteMidiDaemon(project=project, home=tmp_path).run()
 
     assert result == 0
     assert port.closed

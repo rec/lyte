@@ -60,6 +60,7 @@ Install its per-user `launchd` or `systemd --user` service with:
 lyte daemon install
 ```
 
-The daemon has no control endpoint. It accepts a guessed wearable physical
-map for testing and warns before playback. Record the map as `measured` after
-locator verification on the assembled garment.
+The daemon exposes Reccy's local control endpoint for status, blackout, stop,
+and patch selection. It accepts a guessed wearable physical map for testing and
+warns before playback. Record the map as `measured` after locator verification
+on the assembled garment.
