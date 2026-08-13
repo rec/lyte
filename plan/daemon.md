@@ -4,7 +4,7 @@
 
 - [x] Program changes reach optional patch hooks.
 - [x] The daemon TOML model validates ordered patch lists and requires a
-  measured wearable map.
+  guessed or measured wearable map.
 - [x] The synchronous foreground daemon reopens unavailable MIDI input and
   uses `TwinklyTrack` for output, recovery, and blackout cleanup.
 - [x] `lyte daemon` exposes foreground and Reccy-backed service lifecycle
@@ -79,8 +79,8 @@ Rules:
 - `patches` is non-empty, ordered, and contains unique patch names from the
   selected `patch_library`.
 - The first name is current when the daemon starts.
-- The wearable physical map must be `measured`; daemon startup fails rather
-  than streaming a provisional map.
+- The wearable physical map must be `guessed` or `measured`; daemon startup
+  rejects `provisional` maps and warns when it streams a guessed map.
 - `midi` uses the existing `MidiIn` input-name and channel filtering model.
 - `twinkly` reuses existing connection and retry fields. There is still one
   Twinkly output in this version.

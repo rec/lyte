@@ -85,8 +85,10 @@ def load_daemon_project(path: Path) -> DaemonProject:
         library = patches.load_patch_library(config.patch_library)
     except patches.PatchLibraryError as error:
         raise DaemonConfigError(str(error)) from error
-    if library.wearable.physical_map_status != 'measured':
-        raise DaemonConfigError('daemon requires a measured wearable physical map')
+    if library.wearable.physical_map_status == 'provisional':
+        raise DaemonConfigError(
+            'daemon requires a guessed or measured wearable physical map'
+        )
     unknown = set(config.patch_names).difference(library.patches)
     if unknown:
         raise DaemonConfigError(

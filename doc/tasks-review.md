@@ -31,8 +31,8 @@ as finished end-user features.
   patch recovery coverage.
 - [x] Wearable bindings are checked against supported layer controls. Commit
   `d9abeb4` rejects unsupported speed and mix bindings.
-- [ ] The physical map remains provisional. Record the device identity, layout,
-  date, and successful locator observation only after physical verification.
+- [ ] The physical map is guessed for testing. Record the device identity,
+  layout, date, and successful locator observation before marking it measured.
 
 ## Findings Requiring Follow-up
 
@@ -158,13 +158,13 @@ Correction: validate control targets against the concrete layer kind, and
 document the unit and perceptual direction of each mapping. This should be
 part of a small per-layer control contract, not a generic string convention.
 
-### The provisional physical map is safe from performance use, but not clear
+### The guessed physical map is suitable for testing, but not clear
 
-The map is correctly blocked by `lyte patch play` until its status is
-`measured`, while `lyte patch locator` remains available. This is a good safety
-boundary. The remaining practical problem is that changing the TOML value to
-`measured` is the only gate; there is no recorded evidence of what was measured
-or which physical layout it describes.
+The map may be used by `lyte patch play` while its status is `guessed`, with a
+warning, while `provisional` maps remain blocked and `lyte patch locator`
+remains available. The remaining practical problem is that changing the TOML
+value to `measured` is the only gate; there is no recorded evidence of what was
+measured or which physical layout it describes.
 
 Correction: when the map is verified, add a short human-maintained note near
 the map with the device identity, layout, date, and locator observation. Do
