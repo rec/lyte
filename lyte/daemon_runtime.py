@@ -7,7 +7,7 @@ import time
 
 import mido
 from pydantic import BaseModel, ConfigDict, PrivateAttr, SkipValidation
-from reccy import models, rpc
+from reccy import ipc, models, rpc
 from reccy.reccy import Reccy, ReccyStatus
 
 from . import animation, midi, patches
@@ -52,14 +52,14 @@ class LyteMidiDaemon(Reccy, frozen=True):
         else:
             object.__setattr__(self, '_patch_name', '')
 
-    def rpc_response(self, request: rpc.Request) -> rpc.Response:
+    def rpc_response(self, request: rpc.Request) -> rpc.Result:
         with self._lock:
             if request.command == 'status':
-                return rpc.Response(id=request.id, ok=True, result=self._status_data())
+                return self._status_data()
             if request.command in {'blackout', 'stop'}:
                 object.__setattr__(self, '_stop_requested', True)
                 object.__setattr__(self, '_state', 'stopping')
-                return rpc.Response(id=request.id, ok=True)
+                return 'ok'
             if request.command == 'select_patch':
                 patch = request.params.get('name')
                 if (
@@ -67,18 +67,13 @@ class LyteMidiDaemon(Reccy, frozen=True):
                     or not isinstance(patch, str)
                     or patch not in self.project.config.patch_names
                 ):
-                    return rpc.Response(
-                        id=request.id,
-                        ok=False,
+                    return ipc.Error(
+                        type='error',
                         message='select_patch requires a configured patch name',
                     )
                 object.__setattr__(self, '_selected_patch', patch)
-                return rpc.Response(id=request.id, ok=True)
-        return rpc.Response(
-            id=request.id,
-            ok=False,
-            message=f'unknown command {request.command}',
-        )
+                return 'ok'
+        return ipc.Error(type='error', message=f'unknown command {request.command}')
 
     def status_snapshot(self) -> LyteMidiStatus:
         with self._lock:
