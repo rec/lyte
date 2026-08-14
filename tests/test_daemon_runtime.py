@@ -24,17 +24,18 @@ def test_reccy_daemon_handles_commands(tmp_path: Path) -> None:
     )
     daemon = daemon_runtime.LyteMidiDaemon(project=project, home=tmp_path)
 
-    status = daemon.rpc_response(rpc.Request(id='1', command='status'))
+    status = daemon.rpc_response(rpc.Request(command='status'))
     select = daemon.rpc_response(
-        rpc.Request(id='2', command='select_patch', params={'name': 'two'})
+        rpc.Request(command='select_patch', params={'name': 'two'})
     )
-    blackout = daemon.rpc_response(rpc.Request(id='3', command='blackout'))
+    blackout = daemon.rpc_response(rpc.Request(command='blackout'))
 
     assert isinstance(daemon, Reccy)
-    assert status.result['patch'] == 'one'
-    assert select.ok
+    assert isinstance(status, dict)
+    assert status['patch'] == 'one'
+    assert select == 'ok'
     assert daemon._selected_patch == 'two'
-    assert blackout.ok
+    assert blackout == 'ok'
     assert daemon.status_snapshot().state == 'stopping'
 
     with patch('reccy.reccy.rpc.Server'):
