@@ -19,6 +19,8 @@ from .client import TwinklyClient
 LOGGER = logging.get_logger(__name__)
 
 BLACKOUT_TIMEOUT = 3.0
+HEALTH_CHECK_INTERVAL = 2.0
+HEALTH_CHECK_TIMEOUT = 1.0
 
 
 class FrameDeadlineReport(BaseModel):
@@ -59,6 +61,8 @@ class TwinklyTrack(BaseModel):
     configured_host: str | None
     discovery_timeout: float | None
     device: animation.Device
+    expected_mac: str | None = None
+    last_health_check: float | None = None
     connection: realtime.PlaybackConnection = Field(
         default_factory=realtime.PlaybackConnection
     )
@@ -92,6 +96,19 @@ class TwinklyTrack(BaseModel):
         try:
             while stop_at is None or time.monotonic() < stop_at:
                 started_at = time.monotonic()
+                if (
+                    self.last_health_check is not None
+                    and started_at - self.last_health_check >= HEALTH_CHECK_INTERVAL
+                    and not realtime.probe_streaming_device(
+                        self.client,
+                        self.retry,
+                        self.host,
+                        started_at + HEALTH_CHECK_TIMEOUT,
+                    )
+                ):
+                    self._recover()
+                    continue
+                self.last_health_check = started_at
                 if before_frame is not None:
                     before_frame()
                 frame = animation.validate_byte_rgb_frame(self.device, render_frame())
@@ -101,22 +118,26 @@ class TwinklyTrack(BaseModel):
                 elapsed = time.monotonic() - started_at
                 report.record_frame(elapsed, frame_delay)
                 if result.status is not realtime.FrameSendStatus.SENT:
-                    self.connection.begin_recovery()
                     recovery_started_at = time.monotonic()
-                    self.host = realtime.recover_streaming_device(
-                        self.client,
-                        self.retry,
-                        self.configured_host,
-                        self.discovery_timeout,
-                        self.device.led_count,
-                    )
+                    self._recover()
                     report.record_recovery(time.monotonic() - recovery_started_at)
-                    self.connection.resume_streaming()
                     continue
                 remaining = frame_delay - elapsed
                 if remaining > 0:
                     time.sleep(remaining)
         finally:
             report.log_report(name, fps)
+
+    def _recover(self) -> None:
+        self.connection.begin_recovery()
+        self.host = realtime.recover_streaming_device(
+            self.client,
+            self.retry,
+            self.configured_host,
+            self.discovery_timeout,
+            self.device.led_count,
+            self.expected_mac,
+        )
+        self.connection.resume_streaming()
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
