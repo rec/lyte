@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -147,6 +148,21 @@ class RealtimeTransportTests(unittest.TestCase):
 
         assert host == '192.168.1.4'
         prepare.assert_called_once()
+
+    def test_recovery_stops_when_requested(self) -> None:
+        stop_event = threading.Event()
+        stop_event.set()
+
+        host = realtime.recover_streaming_device(
+            TwinklyClient(host='192.168.1.2'),
+            RetryConfig(attempts=1, delay=0, backoff=1),
+            None,
+            None,
+            3,
+            stop_event=stop_event,
+        )
+
+        assert host is None
 
     def test_realtime_frame_reports_missing_token(self) -> None:
         result = realtime.send_realtime_frame(
