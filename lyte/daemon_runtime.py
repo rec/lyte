@@ -7,6 +7,8 @@ import threading
 import time
 
 import mido
+import numpy as np
+from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, PrivateAttr, SkipValidation
 from reccy import ipc, models, rpc
 from reccy.reccy import Reccy, ReccyStatus
@@ -183,7 +185,10 @@ class LyteMidiDaemon(Reccy, frozen=True):
                     self.logger.info('[connected] MIDI input opened')
                 try:
                     for message in midi.input_messages(port, config.midi):
-                        selector.receive(message)
+                        try:
+                            selector.receive(message)
+                        except (AttributeError, TypeError, ValueError) as error:
+                            self.publish_error(f'Ignoring MIDI message: {error}')
                     with self._lock:
                         object.__setattr__(self, '_patch_name', selector.patch_name)
                 except (OSError, ValueError) as error:
@@ -192,6 +197,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
                     next_midi_open_at = time.monotonic() + 1
                     selector.clear_performance()
                     self._set_midi_connection(False, str(error))
+                    self.publish_error(f'MIDI input disconnected: {error}')
                     self.logger.error(f'[waiting] MIDI input disconnected: {error}')
 
             if not twinkly_track.prepare():
@@ -199,15 +205,21 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 return 1
             self._set_state(DaemonState.STREAMING)
             self.logger.info(f'[daemon] Selected patch: {selector.patch_name}')
+
+            def render_frame() -> NDArray[np.uint8]:
+                try:
+                    return patches.encode_wearable_frame(
+                        project.library.wearable,
+                        selector.patch.render(twinkly_track.device),
+                    )
+                except (ArithmeticError, IndexError, TypeError, ValueError) as error:
+                    self.publish_error(
+                        f'Patch {selector.patch_name} render failed: {error}'
+                    )
+                    return np.zeros((twinkly_track.device.led_count, 3), dtype=np.uint8)
+
             twinkly_track.stream_frames(
-                'daemon',
-                config.fps,
-                None,
-                lambda: patches.encode_wearable_frame(
-                    project.library.wearable,
-                    selector.patch.render(twinkly_track.device),
-                ),
-                process_messages,
+                'daemon', config.fps, None, render_frame, process_messages
             )
         except KeyboardInterrupt:
             self.logger.debug('')

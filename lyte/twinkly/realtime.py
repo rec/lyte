@@ -261,7 +261,11 @@ def discover_host(
         if stop_event is not None:
             attempt_timeout = min(attempt_timeout, 0.25)
         attempts += 1
-        devices = list(discover(timeout=attempt_timeout))
+        try:
+            devices = list(discover(timeout=attempt_timeout))
+        except OSError as error:
+            LOGGER.error(f'[warn] Twinkly discovery failed: {error}')
+            devices = []
         if devices:
             if len(devices) > 1:
                 LOGGER.debug('[warn] Multiple devices found; using the first one.')
