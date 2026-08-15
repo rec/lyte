@@ -176,7 +176,7 @@ def test_daemon_reopens_an_unavailable_midi_input(tmp_path: Path) -> None:
     )
     port = Port()
     with (
-        patch('lyte.daemon_runtime.realtime.read_led_count', return_value=200),
+        patch('lyte.daemon_runtime.realtime.recover_streaming_device', return_value='192.168.1.23'),
         patch('lyte.daemon_runtime.realtime.prepare_device', return_value=True),
         patch(
             'lyte.daemon_runtime.realtime.turn_off_streaming_device', return_value=True
@@ -188,7 +188,7 @@ def test_daemon_reopens_an_unavailable_midi_input(tmp_path: Path) -> None:
         patch('lyte.daemon_runtime.track.TwinklyTrack', FakeTrack),
         patch.object(daemon_runtime.LyteMidiDaemon, 'start'),
         patch.object(daemon_runtime.LyteMidiDaemon, 'close'),
-        patch('lyte.daemon_runtime.time.monotonic', side_effect=[0.0, 0.0, 1.0]),
+        patch('lyte.daemon_runtime.time.monotonic', side_effect=[0.0, 0.0, 1.0, 1.0, 1.0]),
     ):
         result = daemon_runtime.LyteMidiDaemon(project=project, home=tmp_path).run()
 
