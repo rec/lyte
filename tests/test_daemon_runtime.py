@@ -72,6 +72,8 @@ def test_daemon_rate_limits_repeated_render_errors(tmp_path: Path) -> None:
     assert publish_error.call_count == 1
     assert status.render_error == 'Patch one render failed: invalid frame'
     assert status.render_error_count == 2
+    assert status.last_failure == 'Patch one render failed: invalid frame'
+    assert status.failure_count == 2
 
     daemon._clear_render_error()
 

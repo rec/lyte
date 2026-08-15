@@ -54,6 +54,9 @@ class LyteMidiStatus(ReccyStatus):
     recovery_count: int = 0
     render_error: str | None = None
     render_error_count: int = 0
+    last_failure: str | None = None
+    last_failure_at: datetime.datetime | None = None
+    failure_count: int = 0
     selection_generation: int = 0
     applied_selection_generation: int = 0
 
@@ -83,6 +86,9 @@ class LyteMidiDaemon(Reccy, frozen=True):
     _recovery_count: int = PrivateAttr(default=0)
     _render_error: str | None = PrivateAttr(default=None)
     _render_error_count: int = PrivateAttr(default=0)
+    _last_failure: str | None = PrivateAttr(default=None)
+    _last_failure_at: datetime.datetime | None = PrivateAttr(default=None)
+    _failure_count: int = PrivateAttr(default=0)
     _stop_requested: threading.Event = PrivateAttr(default_factory=threading.Event)
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
 
@@ -133,6 +139,9 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 recovery_count=self._recovery_count,
                 render_error=self._render_error,
                 render_error_count=self._render_error_count,
+                last_failure=self._last_failure,
+                last_failure_at=self._last_failure_at,
+                failure_count=self._failure_count,
                 selection_generation=self._selection_generation,
                 applied_selection_generation=self._applied_selection_generation,
             )
@@ -220,7 +229,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
                         try:
                             selector.receive(message)
                         except (AttributeError, TypeError, ValueError) as error:
-                            self.publish_error(f'Ignoring MIDI message: {error}')
+                            self._record_failure(f'Ignoring MIDI message: {error}')
                     with self._lock:
                         object.__setattr__(self, '_patch_name', selector.patch_name)
                 except (OSError, ValueError) as error:
@@ -229,7 +238,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
                     next_midi_open_at = time.monotonic() + 1
                     selector.clear_performance()
                     self._set_midi_connection(False, str(error))
-                    self.publish_error(f'MIDI input disconnected: {error}')
+                    self._record_failure(f'MIDI input disconnected: {error}')
                     self.logger.error(f'[waiting] MIDI input disconnected: {error}')
 
             if not twinkly_track.prepare():
@@ -266,6 +275,10 @@ class LyteMidiDaemon(Reccy, frozen=True):
         return 0
 
     def _set_output_state(self, output_state: realtime.PlaybackConnectionState) -> None:
+        if output_state is realtime.PlaybackConnectionState.RECOVERING:
+            self._record_failure('Twinkly output is recovering')
+        elif output_state is realtime.PlaybackConnectionState.UNKNOWN:
+            self._record_failure('Twinkly output state is unknown')
         with self._lock:
             if output_state is realtime.PlaybackConnectionState.RECOVERING:
                 object.__setattr__(self, '_recovery_count', self._recovery_count + 1)
@@ -278,11 +291,20 @@ class LyteMidiDaemon(Reccy, frozen=True):
     def _record_render_error(self, patch_name: str, error: Exception) -> None:
         message = f'Patch {patch_name} render failed: {error}'
         with self._lock:
-            changed = self._render_error != message
             object.__setattr__(self, '_render_error', message)
             object.__setattr__(
                 self, '_render_error_count', self._render_error_count + 1
             )
+        self._record_failure(message)
+
+    def _record_failure(self, message: str) -> None:
+        with self._lock:
+            changed = self._last_failure != message
+            object.__setattr__(self, '_last_failure', message)
+            object.__setattr__(
+                self, '_last_failure_at', datetime.datetime.now(datetime.UTC)
+            )
+            object.__setattr__(self, '_failure_count', self._failure_count + 1)
         if changed:
             self.publish_error(message)
 
@@ -338,6 +360,9 @@ class LyteMidiDaemon(Reccy, frozen=True):
             'recovery_count': self._recovery_count,
             'render_error': self._render_error,
             'render_error_count': self._render_error_count,
+            'last_failure': self._last_failure,
+            'last_failure_at': self._last_failure_at,
+            'failure_count': self._failure_count,
             'selection_generation': self._selection_generation,
             'applied_selection_generation': self._applied_selection_generation,
             'error': None,
