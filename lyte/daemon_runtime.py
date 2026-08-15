@@ -151,6 +151,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 configured_host=config.twinkly.host,
                 discovery_timeout=config.twinkly.discovery_timeout,
                 device=animation.Device(led_count=led_count),
+                expected_mac=client.mac,
             )
 
             def process_messages() -> None:

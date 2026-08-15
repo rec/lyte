@@ -119,6 +119,35 @@ class RealtimeTransportTests(unittest.TestCase):
         self.assertEqual(client.host, '192.168.1.23')
         self.assertIsNone(client.mac)
 
+    def test_recovery_requires_the_original_device_mac(self) -> None:
+        client = TwinklyClient(host='192.168.1.2')
+        macs = iter(['other', 'expected'])
+
+        def read_led_count(*args: object) -> int:
+            client.mac = next(macs)
+            return 3
+
+        with (
+            patch(
+                'lyte.twinkly.realtime.discover_host',
+                side_effect=['192.168.1.3', '192.168.1.4'],
+            ),
+            patch('lyte.twinkly.realtime.read_led_count', read_led_count),
+            patch('lyte.twinkly.realtime.prepare_device', return_value=True) as prepare,
+            patch('lyte.twinkly.realtime.time.sleep'),
+        ):
+            host = realtime.recover_streaming_device(
+                client,
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                None,
+                None,
+                3,
+                'expected',
+            )
+
+        assert host == '192.168.1.4'
+        prepare.assert_called_once()
+
     def test_realtime_frame_reports_missing_token(self) -> None:
         result = realtime.send_realtime_frame(
             TwinklyClient(host='192.168.1.23'),

@@ -18,6 +18,7 @@ from .frame import send_frame_v3
 LOGGER = logging.get_logger(__name__)
 
 DISCOVERY_ATTEMPT_TIMEOUT = 5.0
+RECOVERY_ATTEMPT_TIMEOUT = 3.0
 
 
 class PlaybackConnectionState(enum.StrEnum):
@@ -85,6 +86,7 @@ def read_led_count(
     retry: RetryConfig,
     configured_led_count: int | None,
     host: str,
+    deadline: float | None = None,
 ) -> int | None:
     LOGGER.debug(f'[step] Reading device info from {host}')
     led_count, gestalt = session.read_device_led_count(
@@ -92,6 +94,7 @@ def read_led_count(
         retry,
         configured_led_count,
         f'HTTP device info read from {host}',
+        deadline,
     )
     if gestalt is None:
         LOGGER.error(f'[failed] Could not read device info from {host}.')
@@ -106,12 +109,18 @@ def read_led_count(
     return led_count
 
 
-def prepare_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool:
+def prepare_device(
+    client: TwinklyClient,
+    retry: RetryConfig,
+    host: str,
+    deadline: float | None = None,
+) -> bool:
     LOGGER.debug('[step] Authenticating')
     token = session.authenticate_device(
         client,
         retry,
         f'login and verify with {host}',
+        deadline,
     )
     if token is None:
         LOGGER.error(f'[failed] Could not authenticate with {host}.')
@@ -126,6 +135,7 @@ def prepare_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool
         client,
         retry,
         f'switch {host} to realtime mode',
+        deadline,
     )
     if response is None:
         LOGGER.error(f'[failed] Could not switch {host} to realtime mode.')
@@ -140,6 +150,7 @@ def recover_streaming_device(
     configured_host: str | None,
     discovery_timeout: float | None,
     expected_led_count: int,
+    expected_mac: str | None = None,
 ) -> str:
     while True:
         host = configured_host or discover_host(discovery_timeout)
@@ -149,8 +160,13 @@ def recover_streaming_device(
         client.host = host
         client.mac = None
         client.token = None
-        led_count = read_led_count(client, retry, expected_led_count, host)
-        if led_count == expected_led_count and prepare_device(client, retry, host):
+        deadline = time.monotonic() + RECOVERY_ATTEMPT_TIMEOUT
+        led_count = read_led_count(client, retry, expected_led_count, host, deadline)
+        if (
+            led_count == expected_led_count
+            and (expected_mac is None or client.mac == expected_mac)
+            and prepare_device(client, retry, host, deadline)
+        ):
             return host
         time.sleep(retry.delay)
 
@@ -235,3 +251,12 @@ def discover_host(timeout: float | None) -> str | None:
             )
         else:
             LOGGER.debug(f'[warn] No Twinkly discovery replies on attempt {attempts}.')
+
+
+def probe_streaming_device(
+    client: TwinklyClient, retry: RetryConfig, host: str, deadline: float
+) -> bool:
+    return (
+        session.read_gestalt(client, retry, f'HTTP health probe for {host}', deadline)
+        is not None
+    )
