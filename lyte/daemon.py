@@ -33,5 +33,5 @@ def run_daemon_command(config: DaemonCommandConfig) -> int:
         )
     else:
         result = getattr(daemon, f'{config.action}_service')()
-    service.print_service_status(daemon_runtime.LYTE_MIDI_SERVICE.name, result)
+    service.print_service_status(daemon_runtime.LYTE_SERVICE.name, result)
     return 0 if result.running is not False else 1

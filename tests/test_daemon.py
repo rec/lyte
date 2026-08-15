@@ -8,9 +8,9 @@ from lyte import daemon, daemon_runtime
 
 
 def test_midi_daemon_service_has_a_stable_identity() -> None:
-    assert daemon_runtime.LYTE_MIDI_SERVICE.name == 'lyte-midi'
-    assert daemon_runtime.LYTE_MIDI_SERVICE.launchd_label == 'com.swirly.lyte-midi'
-    assert daemon_runtime.LYTE_MIDI_SERVICE.daemon_env_var == 'LYTE_MIDI_DAEMON'
+    assert daemon_runtime.LYTE_SERVICE.name == 'lyte'
+    assert daemon_runtime.LYTE_SERVICE.launchd_label == 'com.swirly.lyte'
+    assert daemon_runtime.LYTE_SERVICE.daemon_env_var == 'LYTE_DAEMON'
 
 
 def test_reccy_daemon_metadata_uses_the_foreground_daemon_command(
@@ -55,7 +55,7 @@ def test_daemon_install_uses_reccy_application(
 def test_reccy_service_definitions_start_the_foreground_daemon(tmp_path: Path) -> None:
     for platform in [models.Platform.linux, models.Platform.macos]:
         service_paths = paths.service_paths(
-            daemon_runtime.LYTE_MIDI_SERVICE, platform, tmp_path
+            daemon_runtime.LYTE_SERVICE, platform, tmp_path
         )
         metadata = renderers.service_metadata(
             Path('/venv/bin/python'),
@@ -65,11 +65,11 @@ def test_reccy_service_definitions_start_the_foreground_daemon(tmp_path: Path) -
         )
         definition = (
             renderers.linux_systemd_unit(
-                metadata, service_paths, daemon_runtime.LYTE_MIDI_SERVICE
+                metadata, service_paths, daemon_runtime.LYTE_SERVICE
             )
             if platform is models.Platform.linux
             else renderers.macos_launch_agent(
-                metadata, service_paths, daemon_runtime.LYTE_MIDI_SERVICE
+                metadata, service_paths, daemon_runtime.LYTE_SERVICE
             )
         )
 

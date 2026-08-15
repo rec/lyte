@@ -20,13 +20,13 @@ from .retry import RetryConfig
 from .twinkly import realtime, track
 from .twinkly.client import TwinklyClient
 
-LYTE_MIDI_SERVICE = models.ServiceSpec(
-    name='lyte-midi',
+LYTE_SERVICE = models.ServiceSpec(
+    name='lyte',
     display_name='Lyte MIDI',
     description='Lyte MIDI patch player',
-    launchd_label='com.swirly.lyte-midi',
-    daemon_env_var='LYTE_MIDI_DAEMON',
-    windows_pipe=r'\\.\pipe\lyte-midi',
+    launchd_label='com.swirly.lyte',
+    daemon_env_var='LYTE_DAEMON',
+    windows_pipe=r'\\.\pipe\lyte',
 )
 
 
@@ -62,7 +62,7 @@ class LyteMidiStatus(ReccyStatus):
 
 
 class LyteMidiDaemon(Reccy, frozen=True):
-    service_spec = LYTE_MIDI_SERVICE
+    service_spec = LYTE_SERVICE
     status_model = LyteMidiStatus
     rpc_enabled = True
     rpc_role = 'lyte'
