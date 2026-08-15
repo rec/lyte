@@ -115,6 +115,24 @@ def test_program_change_replays_active_note_controls(monkeypatch: object) -> Non
     assert created[1].events == ['note:60:100', 'breath:64', 'pitch:1024']
 
 
+def test_midi_disconnect_ends_the_active_patch(monkeypatch: object) -> None:
+    created: list[RecordingPatch] = []
+
+    def build_patch(library: object, name: str) -> RecordingPatch:
+        patch = RecordingPatch(config=Config())
+        created.append(patch)
+        return patch
+
+    monkeypatch.setattr(daemon_runtime.patches, 'build_light_patch', build_patch)
+    selector = daemon_runtime.PatchSelector.create(object(), ['one'])
+    selector.receive(mido.Message('note_on', channel=2, note=60, velocity=100))
+
+    selector.clear_performance()
+
+    assert selector.performance.note is None
+    assert created[0].state is None
+
+
 def test_daemon_reopens_an_unavailable_midi_input(tmp_path: Path) -> None:
     class Port:
         closed = False
@@ -141,6 +159,7 @@ def test_daemon_reopens_an_unavailable_midi_input(tmp_path: Path) -> None:
             before_frame: object,
         ) -> None:
             before_frame()
+            before_frame()
 
         def close(self) -> None:
             pass
@@ -165,14 +184,14 @@ def test_daemon_reopens_an_unavailable_midi_input(tmp_path: Path) -> None:
         patch(
             'lyte.daemon_runtime.midi.open_input',
             side_effect=[ValueError('missing'), port],
-        ),
+        ) as open_input,
         patch('lyte.daemon_runtime.track.TwinklyTrack', FakeTrack),
         patch.object(daemon_runtime.LyteMidiDaemon, 'start'),
         patch.object(daemon_runtime.LyteMidiDaemon, 'close'),
-        patch('lyte.daemon_runtime.time.sleep') as sleep,
+        patch('lyte.daemon_runtime.time.monotonic', side_effect=[0.0, 0.0, 1.0]),
     ):
         result = daemon_runtime.LyteMidiDaemon(project=project, home=tmp_path).run()
 
     assert result == 0
+    assert open_input.call_count == 2
     assert port.closed
-    sleep.assert_called_once_with(1)

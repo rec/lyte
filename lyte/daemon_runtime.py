@@ -41,6 +41,8 @@ class LyteMidiStatus(ReccyStatus):
     state: DaemonState = DaemonState.STARTING
     patch: str | None = None
     host: str | None = None
+    midi_connected: bool = False
+    midi_error: str | None = None
 
 
 class LyteMidiDaemon(Reccy, frozen=True):
@@ -56,6 +58,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
     _selected_patch: str | None = PrivateAttr(default=None)
     _state: DaemonState = PrivateAttr(default=DaemonState.STARTING)
     _host: str | None = PrivateAttr(default=None)
+    _midi_connected: bool = PrivateAttr(default=False)
+    _midi_error: str | None = PrivateAttr(default=None)
     _stop_requested: threading.Event = PrivateAttr(default_factory=threading.Event)
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
 
@@ -96,6 +100,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 state=self._state,
                 patch=self._patch_name,
                 host=self._host,
+                midi_connected=self._midi_connected,
+                midi_error=self._midi_error,
             )
 
     def run(self) -> int:
@@ -106,6 +112,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
         selector = PatchSelector.create(project.library, config.patch_names)
         twinkly_track: track.TwinklyTrack | None = None
         port: midi.MidiInput | None = None
+        next_midi_open_at = 0.0
         self.start()
         self._set_state(DaemonState.CONNECTING)
 
@@ -147,7 +154,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
             )
 
             def process_messages() -> None:
-                nonlocal port
+                nonlocal next_midi_open_at, port
                 with self._lock:
                     selected_patch = self._selected_patch
                     object.__setattr__(self, '_selected_patch', None)
@@ -159,22 +166,29 @@ class LyteMidiDaemon(Reccy, frozen=True):
                     self.publish_status()
                 if stop_requested:
                     raise KeyboardInterrupt
-                while port is None:
+                if port is None:
+                    if time.monotonic() < next_midi_open_at:
+                        return
                     try:
                         port = midi.open_input(config.midi)
-                        self.logger.info('[connected] MIDI input opened')
                     except (OSError, ValueError) as error:
-                        self.logger.error(f'[waiting] MIDI input unavailable: {error}')
-                        time.sleep(1)
+                        next_midi_open_at = time.monotonic() + 1
+                        self._set_midi_connection(False, str(error))
+                        return
+                    self._set_midi_connection(True, None)
+                    self.logger.info('[connected] MIDI input opened')
                 try:
                     for message in midi.input_messages(port, config.midi):
                         selector.receive(message)
                     with self._lock:
                         object.__setattr__(self, '_patch_name', selector.patch_name)
-                except OSError as error:
-                    self.logger.error(f'[waiting] MIDI input disconnected: {error}')
-                    port.close()
+                except (OSError, ValueError) as error:
+                    self._close_midi_port(port)
                     port = None
+                    next_midi_open_at = time.monotonic() + 1
+                    selector.clear_performance()
+                    self._set_midi_connection(False, str(error))
+                    self.logger.error(f'[waiting] MIDI input disconnected: {error}')
 
             if not twinkly_track.prepare():
                 self._set_state(DaemonState.UNKNOWN)
@@ -196,12 +210,26 @@ class LyteMidiDaemon(Reccy, frozen=True):
             self.logger.debug('[ok] Stopped')
         finally:
             if port is not None:
-                port.close()
+                self._close_midi_port(port)
             if twinkly_track is not None:
                 twinkly_track.close()
             self._set_state(DaemonState.STOPPED)
             self.close()
         return 0
+
+    def _set_midi_connection(self, connected: bool, error: str | None) -> None:
+        with self._lock:
+            changed = self._midi_connected != connected or self._midi_error != error
+            object.__setattr__(self, '_midi_connected', connected)
+            object.__setattr__(self, '_midi_error', error)
+        if changed:
+            self.publish_status()
+
+    def _close_midi_port(self, port: midi.MidiInput) -> None:
+        try:
+            port.close()
+        except (OSError, ValueError) as error:
+            self.logger.error(f'[warn] Could not close MIDI input: {error}')
 
     def _set_state(self, state: DaemonState) -> None:
         with self._lock:
@@ -213,6 +241,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
             'state': self._state,
             'patch': self._patch_name,
             'host': self._host,
+            'midi_connected': self._midi_connected,
+            'midi_error': self._midi_error,
             'error': None,
         }
 
@@ -306,5 +336,17 @@ class PatchSelector(BaseModel):
         self.index = self.patch_names.index(name)
         self.patch = patches.build_light_patch(self.library, name)
         self.performance.replay(self.patch)
+
+    def clear_performance(self) -> None:
+        if self.performance.note is not None:
+            self.patch.receive(
+                mido.Message(
+                    'note_off',
+                    channel=self.performance.channel,
+                    note=self.performance.note,
+                    velocity=0,
+                )
+            )
+        self.performance = MidiPerformance()
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
