@@ -25,12 +25,12 @@ REST, OSC, or MIDI-network interface.
 
 ## Service Definition
 
-The repository now defines `lyte.daemon_runtime.LYTE_MIDI_SERVICE` with Reccy's
+The repository now defines `lyte.daemon_runtime.LYTE_SERVICE` with Reccy's
 `ServiceSpec`:
 
-- name: `lyte-midi`
-- launchd label: `com.swirly.lyte-midi`
-- daemon environment marker: `LYTE_MIDI_DAEMON=1`
+- name: `lyte`
+- launchd label: `com.swirly.lyte`
+- daemon environment marker: `LYTE_DAEMON=1`
 
 Reccy provides the per-user service definition and lifecycle mechanics:
 
