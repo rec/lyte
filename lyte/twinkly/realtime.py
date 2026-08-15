@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import threading
 import time
 
 import numpy as np
@@ -87,6 +88,7 @@ def read_led_count(
     configured_led_count: int | None,
     host: str,
     deadline: float | None = None,
+    stop_event: threading.Event | None = None,
 ) -> int | None:
     LOGGER.debug(f'[step] Reading device info from {host}')
     led_count, gestalt = session.read_device_led_count(
@@ -95,6 +97,7 @@ def read_led_count(
         configured_led_count,
         f'HTTP device info read from {host}',
         deadline,
+        stop_event,
     )
     if gestalt is None:
         LOGGER.error(f'[failed] Could not read device info from {host}.')
@@ -114,6 +117,7 @@ def prepare_device(
     retry: RetryConfig,
     host: str,
     deadline: float | None = None,
+    stop_event: threading.Event | None = None,
 ) -> bool:
     LOGGER.debug('[step] Authenticating')
     token = session.authenticate_device(
@@ -121,6 +125,7 @@ def prepare_device(
         retry,
         f'login and verify with {host}',
         deadline,
+        stop_event,
     )
     if token is None:
         LOGGER.error(f'[failed] Could not authenticate with {host}.')
@@ -136,6 +141,7 @@ def prepare_device(
         retry,
         f'switch {host} to realtime mode',
         deadline,
+        stop_event,
     )
     if response is None:
         LOGGER.error(f'[failed] Could not switch {host} to realtime mode.')
@@ -151,24 +157,35 @@ def recover_streaming_device(
     discovery_timeout: float | None,
     expected_led_count: int,
     expected_mac: str | None = None,
-) -> str:
+    stop_event: threading.Event | None = None,
+) -> str | None:
     while True:
-        host = configured_host or discover_host(discovery_timeout)
+        if stop_event is not None and stop_event.is_set():
+            return None
+        host = configured_host or discover_host(discovery_timeout, stop_event)
         if host is None:
-            time.sleep(retry.delay)
+            if stop_event is not None and stop_event.wait(retry.delay):
+                return None
+            if stop_event is None:
+                time.sleep(retry.delay)
             continue
         client.host = host
         client.mac = None
         client.token = None
         deadline = time.monotonic() + RECOVERY_ATTEMPT_TIMEOUT
-        led_count = read_led_count(client, retry, expected_led_count, host, deadline)
+        led_count = read_led_count(
+            client, retry, expected_led_count, host, deadline, stop_event
+        )
         if (
             led_count == expected_led_count
             and (expected_mac is None or client.mac == expected_mac)
-            and prepare_device(client, retry, host, deadline)
+            and prepare_device(client, retry, host, deadline, stop_event)
         ):
             return host
-        time.sleep(retry.delay)
+        if stop_event is not None and stop_event.wait(retry.delay):
+            return None
+        if stop_event is None:
+            time.sleep(retry.delay)
 
 
 def turn_off_device(client: TwinklyClient, retry: RetryConfig, host: str) -> bool:
@@ -223,11 +240,15 @@ def turn_off_streaming_device(
     return True
 
 
-def discover_host(timeout: float | None) -> str | None:
+def discover_host(
+    timeout: float | None, stop_event: threading.Event | None = None
+) -> str | None:
     LOGGER.debug('[step] Discovering Twinkly devices')
     started_at = time.monotonic()
     attempts = 0
     while True:
+        if stop_event is not None and stop_event.is_set():
+            return None
         remaining = (
             None if timeout is None else timeout - (time.monotonic() - started_at)
         )
@@ -237,6 +258,8 @@ def discover_host(timeout: float | None) -> str | None:
         attempt_timeout = DISCOVERY_ATTEMPT_TIMEOUT
         if remaining is not None:
             attempt_timeout = min(attempt_timeout, remaining)
+        if stop_event is not None:
+            attempt_timeout = min(attempt_timeout, 0.25)
         attempts += 1
         devices = list(discover(timeout=attempt_timeout))
         if devices:

@@ -120,7 +120,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
             if project.library.wearable.physical_map_status == 'guessed':
                 self.logger.info('[warn] Daemon is using a guessed physical map.')
             host = config.twinkly.host or realtime.discover_host(
-                config.twinkly.discovery_timeout
+                config.twinkly.discovery_timeout, self._stop_requested
             )
             if host is None:
                 self._set_state(DaemonState.UNKNOWN)
@@ -134,7 +134,9 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 backoff=config.twinkly.retry_backoff,
             )
             client = TwinklyClient(host=host, timeout=config.twinkly.timeout)
-            led_count = realtime.read_led_count(client, retry, None, host)
+            led_count = realtime.read_led_count(
+                client, retry, None, host, stop_event=self._stop_requested
+            )
             if led_count is None:
                 self._set_state(DaemonState.UNKNOWN)
                 return 1
@@ -152,6 +154,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 discovery_timeout=config.twinkly.discovery_timeout,
                 device=animation.Device(led_count=led_count),
                 expected_mac=client.mac,
+                stop_event=self._stop_requested,
             )
 
             def process_messages() -> None:

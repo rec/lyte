@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import math
+import threading
 import time
 from collections.abc import Callable
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SkipValidation
 from reccy import logging
 
 from .. import animation
@@ -62,6 +63,7 @@ class TwinklyTrack(BaseModel):
     discovery_timeout: float | None
     device: animation.Device
     expected_mac: str | None = None
+    stop_event: SkipValidation[threading.Event] | None = None
     last_health_check: float | None = None
     connection: realtime.PlaybackConnection = Field(
         default_factory=realtime.PlaybackConnection
@@ -69,7 +71,9 @@ class TwinklyTrack(BaseModel):
 
     def prepare(self) -> bool:
         self.connection.set_state(realtime.PlaybackConnectionState.CONNECTING)
-        if not realtime.prepare_device(self.client, self.retry, self.host):
+        if not realtime.prepare_device(
+            self.client, self.retry, self.host, stop_event=self.stop_event
+        ):
             return False
         self.connection.resume_streaming()
         return True
@@ -95,6 +99,8 @@ class TwinklyTrack(BaseModel):
         report = FrameDeadlineReport()
         try:
             while stop_at is None or time.monotonic() < stop_at:
+                if self.stop_event is not None and self.stop_event.is_set():
+                    return
                 started_at = time.monotonic()
                 if (
                     self.last_health_check is not None
@@ -106,7 +112,8 @@ class TwinklyTrack(BaseModel):
                         started_at + HEALTH_CHECK_TIMEOUT,
                     )
                 ):
-                    self._recover()
+                    if not self._recover():
+                        return
                     continue
                 self.last_health_check = started_at
                 if before_frame is not None:
@@ -119,7 +126,8 @@ class TwinklyTrack(BaseModel):
                 report.record_frame(elapsed, frame_delay)
                 if result.status is not realtime.FrameSendStatus.SENT:
                     recovery_started_at = time.monotonic()
-                    self._recover()
+                    if not self._recover():
+                        return
                     report.record_recovery(time.monotonic() - recovery_started_at)
                     continue
                 remaining = frame_delay - elapsed
@@ -128,16 +136,21 @@ class TwinklyTrack(BaseModel):
         finally:
             report.log_report(name, fps)
 
-    def _recover(self) -> None:
+    def _recover(self) -> bool:
         self.connection.begin_recovery()
-        self.host = realtime.recover_streaming_device(
+        host = realtime.recover_streaming_device(
             self.client,
             self.retry,
             self.configured_host,
             self.discovery_timeout,
             self.device.led_count,
             self.expected_mac,
+            self.stop_event,
         )
+        if host is None:
+            return False
+        self.host = host
         self.connection.resume_streaming()
+        return True
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
