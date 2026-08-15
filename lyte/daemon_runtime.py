@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import enum
 import threading
 import time
 
@@ -26,9 +27,20 @@ LYTE_MIDI_SERVICE = models.ServiceSpec(
 )
 
 
+class DaemonState(enum.StrEnum):
+    STARTING = enum.auto()
+    CONNECTING = enum.auto()
+    STREAMING = enum.auto()
+    RECOVERING = enum.auto()
+    STOPPING = enum.auto()
+    STOPPED = enum.auto()
+    UNKNOWN = enum.auto()
+
+
 class LyteMidiStatus(ReccyStatus):
-    state: str = 'starting'
+    state: DaemonState = DaemonState.STARTING
     patch: str | None = None
+    host: str | None = None
 
 
 class LyteMidiDaemon(Reccy, frozen=True):
@@ -42,8 +54,9 @@ class LyteMidiDaemon(Reccy, frozen=True):
 
     _patch_name: str = PrivateAttr()
     _selected_patch: str | None = PrivateAttr(default=None)
-    _state: str = PrivateAttr(default='starting')
-    _stop_requested: bool = PrivateAttr(default=False)
+    _state: DaemonState = PrivateAttr(default=DaemonState.STARTING)
+    _host: str | None = PrivateAttr(default=None)
+    _stop_requested: threading.Event = PrivateAttr(default_factory=threading.Event)
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
 
     def model_post_init(self, context: object) -> None:
@@ -57,8 +70,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
             if request.command == 'status':
                 return self._status_data()
             if request.command in {'blackout', 'stop'}:
-                object.__setattr__(self, '_stop_requested', True)
-                object.__setattr__(self, '_state', 'stopping')
+                self._stop_requested.set()
+                object.__setattr__(self, '_state', DaemonState.STOPPING)
                 return 'ok'
             if request.command == 'select_patch':
                 patch = request.params.get('name')
@@ -82,6 +95,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 errors=self._errors.copy(),
                 state=self._state,
                 patch=self._patch_name,
+                host=self._host,
             )
 
     def run(self) -> int:
@@ -90,74 +104,82 @@ class LyteMidiDaemon(Reccy, frozen=True):
         project = self.project
         config = project.config
         selector = PatchSelector.create(project.library, config.patch_names)
-        if project.library.wearable.physical_map_status == 'guessed':
-            self.logger.info('[warn] Daemon is using a guessed physical map.')
-        host = config.twinkly.host or realtime.discover_host(
-            config.twinkly.discovery_timeout
-        )
-        if host is None:
-            return 1
-        retry = RetryConfig(
-            attempts=config.twinkly.attempts,
-            delay=config.twinkly.retry_delay,
-            backoff=config.twinkly.retry_backoff,
-        )
-        client = TwinklyClient(host=host, timeout=config.twinkly.timeout)
-        led_count = realtime.read_led_count(client, retry, None, host)
-        if led_count is None:
-            return 1
-        if led_count != project.library.wearable.led_count:
-            self.logger.error(
-                f'[failed] {host} does not match the patch library LED count.'
-            )
-            return 1
-        twinkly_track = track.TwinklyTrack(
-            client=client,
-            retry=retry,
-            host=host,
-            configured_host=config.twinkly.host,
-            discovery_timeout=config.twinkly.discovery_timeout,
-            device=animation.Device(led_count=led_count),
-        )
+        twinkly_track: track.TwinklyTrack | None = None
         port: midi.MidiInput | None = None
-
-        def process_messages() -> None:
-            nonlocal port
-            with self._lock:
-                selected_patch = self._selected_patch
-                object.__setattr__(self, '_selected_patch', None)
-                stop_requested = self._stop_requested
-            if selected_patch is not None:
-                selector.select(selected_patch)
-                with self._lock:
-                    object.__setattr__(self, '_patch_name', selector.patch_name)
-                self.publish_status()
-            if stop_requested:
-                raise KeyboardInterrupt
-            while port is None:
-                try:
-                    port = midi.open_input(config.midi)
-                    self.logger.info('[connected] MIDI input opened')
-                except (OSError, ValueError) as error:
-                    self.logger.error(f'[waiting] MIDI input unavailable: {error}')
-                    time.sleep(1)
-            try:
-                for message in midi.input_messages(port, config.midi):
-                    selector.receive(message)
-                with self._lock:
-                    object.__setattr__(self, '_patch_name', selector.patch_name)
-            except OSError as error:
-                self.logger.error(f'[waiting] MIDI input disconnected: {error}')
-                port.close()
-                port = None
+        self.start()
+        self._set_state(DaemonState.CONNECTING)
 
         try:
-            if not twinkly_track.prepare():
+            if project.library.wearable.physical_map_status == 'guessed':
+                self.logger.info('[warn] Daemon is using a guessed physical map.')
+            host = config.twinkly.host or realtime.discover_host(
+                config.twinkly.discovery_timeout
+            )
+            if host is None:
+                self._set_state(DaemonState.UNKNOWN)
                 return 1
-            self.start()
             with self._lock:
-                object.__setattr__(self, '_state', 'streaming')
+                object.__setattr__(self, '_host', host)
             self.publish_status()
+            retry = RetryConfig(
+                attempts=config.twinkly.attempts,
+                delay=config.twinkly.retry_delay,
+                backoff=config.twinkly.retry_backoff,
+            )
+            client = TwinklyClient(host=host, timeout=config.twinkly.timeout)
+            led_count = realtime.read_led_count(client, retry, None, host)
+            if led_count is None:
+                self._set_state(DaemonState.UNKNOWN)
+                return 1
+            if led_count != project.library.wearable.led_count:
+                self.logger.error(
+                    f'[failed] {host} does not match the patch library LED count.'
+                )
+                self._set_state(DaemonState.UNKNOWN)
+                return 1
+            twinkly_track = track.TwinklyTrack(
+                client=client,
+                retry=retry,
+                host=host,
+                configured_host=config.twinkly.host,
+                discovery_timeout=config.twinkly.discovery_timeout,
+                device=animation.Device(led_count=led_count),
+            )
+
+            def process_messages() -> None:
+                nonlocal port
+                with self._lock:
+                    selected_patch = self._selected_patch
+                    object.__setattr__(self, '_selected_patch', None)
+                    stop_requested = self._stop_requested.is_set()
+                if selected_patch is not None:
+                    selector.select(selected_patch)
+                    with self._lock:
+                        object.__setattr__(self, '_patch_name', selector.patch_name)
+                    self.publish_status()
+                if stop_requested:
+                    raise KeyboardInterrupt
+                while port is None:
+                    try:
+                        port = midi.open_input(config.midi)
+                        self.logger.info('[connected] MIDI input opened')
+                    except (OSError, ValueError) as error:
+                        self.logger.error(f'[waiting] MIDI input unavailable: {error}')
+                        time.sleep(1)
+                try:
+                    for message in midi.input_messages(port, config.midi):
+                        selector.receive(message)
+                    with self._lock:
+                        object.__setattr__(self, '_patch_name', selector.patch_name)
+                except OSError as error:
+                    self.logger.error(f'[waiting] MIDI input disconnected: {error}')
+                    port.close()
+                    port = None
+
+            if not twinkly_track.prepare():
+                self._set_state(DaemonState.UNKNOWN)
+                return 1
+            self._set_state(DaemonState.STREAMING)
             self.logger.info(f'[daemon] Selected patch: {selector.patch_name}')
             twinkly_track.stream_frames(
                 'daemon',
@@ -175,16 +197,22 @@ class LyteMidiDaemon(Reccy, frozen=True):
         finally:
             if port is not None:
                 port.close()
-            twinkly_track.close()
-            with self._lock:
-                object.__setattr__(self, '_state', 'stopped')
+            if twinkly_track is not None:
+                twinkly_track.close()
+            self._set_state(DaemonState.STOPPED)
             self.close()
         return 0
+
+    def _set_state(self, state: DaemonState) -> None:
+        with self._lock:
+            object.__setattr__(self, '_state', state)
+        self.publish_status()
 
     def _status_data(self) -> dict[str, object]:
         return {
             'state': self._state,
             'patch': self._patch_name,
+            'host': self._host,
             'error': None,
         }
 
