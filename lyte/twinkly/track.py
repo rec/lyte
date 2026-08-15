@@ -67,6 +67,8 @@ class TwinklyTrack(BaseModel):
     on_connection_state: (
         SkipValidation[Callable[[realtime.PlaybackConnectionState], None]] | None
     ) = None
+    on_device_connected: SkipValidation[Callable[[str, str | None], None]] | None = None
+    on_health_check: SkipValidation[Callable[[], None]] | None = None
     last_health_check: float | None = None
     connection: realtime.PlaybackConnection = Field(
         default_factory=realtime.PlaybackConnection
@@ -80,6 +82,8 @@ class TwinklyTrack(BaseModel):
             return False
         self.connection.resume_streaming()
         self._notify_connection_state()
+        self._notify_device_connected()
+        self._notify_health_check()
         return True
 
     def close(self) -> None:
@@ -110,16 +114,17 @@ class TwinklyTrack(BaseModel):
                 if (
                     self.last_health_check is not None
                     and started_at - self.last_health_check >= HEALTH_CHECK_INTERVAL
-                    and not realtime.probe_streaming_device(
+                ):
+                    if not realtime.probe_streaming_device(
                         self.client,
                         self.retry,
                         self.host,
                         started_at + HEALTH_CHECK_TIMEOUT,
-                    )
-                ):
-                    if not self._recover():
-                        return
-                    continue
+                    ):
+                        if not self._recover():
+                            return
+                        continue
+                    self._notify_health_check()
                 self.last_health_check = started_at
                 if before_frame is not None:
                     before_frame()
@@ -158,6 +163,8 @@ class TwinklyTrack(BaseModel):
         self.host = host
         self.connection.resume_streaming()
         self._notify_connection_state()
+        self._notify_device_connected()
+        self._notify_health_check()
         return True
 
     def _set_connection_state(self, state: realtime.PlaybackConnectionState) -> None:
@@ -167,5 +174,13 @@ class TwinklyTrack(BaseModel):
     def _notify_connection_state(self) -> None:
         if self.on_connection_state is not None:
             self.on_connection_state(self.connection.state)
+
+    def _notify_device_connected(self) -> None:
+        if self.on_device_connected is not None:
+            self.on_device_connected(self.host, self.client.mac)
+
+    def _notify_health_check(self) -> None:
+        if self.on_health_check is not None:
+            self.on_health_check()
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

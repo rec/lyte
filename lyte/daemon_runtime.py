@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import enum
 import threading
 import time
@@ -43,6 +44,8 @@ class LyteMidiStatus(ReccyStatus):
     state: DaemonState = DaemonState.STARTING
     patch: str | None = None
     host: str | None = None
+    device_mac: str | None = None
+    last_output_contact: datetime.datetime | None = None
     midi_connected: bool = False
     midi_error: str | None = None
     output_state: realtime.PlaybackConnectionState = (
@@ -68,6 +71,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
     _applied_selection_generation: int = PrivateAttr(default=0)
     _state: DaemonState = PrivateAttr(default=DaemonState.STARTING)
     _host: str | None = PrivateAttr(default=None)
+    _device_mac: str | None = PrivateAttr(default=None)
+    _last_output_contact: datetime.datetime | None = PrivateAttr(default=None)
     _midi_connected: bool = PrivateAttr(default=False)
     _midi_error: str | None = PrivateAttr(default=None)
     _output_state: realtime.PlaybackConnectionState = PrivateAttr(
@@ -116,6 +121,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 state=self._state,
                 patch=self._patch_name,
                 host=self._host,
+                device_mac=self._device_mac,
+                last_output_contact=self._last_output_contact,
                 midi_connected=self._midi_connected,
                 midi_error=self._midi_error,
                 output_state=self._output_state,
@@ -170,6 +177,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 expected_mac=client.mac,
                 stop_event=self._stop_requested,
                 on_connection_state=self._set_output_state,
+                on_device_connected=self._set_output_device,
+                on_health_check=self._confirm_output_contact,
             )
 
             def process_messages() -> None:
@@ -260,6 +269,18 @@ class LyteMidiDaemon(Reccy, frozen=True):
             object.__setattr__(self, '_output_state', output_state)
         self.publish_status()
 
+    def _set_output_device(self, host: str, mac: str | None) -> None:
+        with self._lock:
+            object.__setattr__(self, '_host', host)
+            object.__setattr__(self, '_device_mac', mac)
+        self.publish_status()
+
+    def _confirm_output_contact(self) -> None:
+        with self._lock:
+            object.__setattr__(
+                self, '_last_output_contact', datetime.datetime.now(datetime.UTC)
+            )
+
     def _set_midi_connection(self, connected: bool, error: str | None) -> None:
         with self._lock:
             changed = self._midi_connected != connected or self._midi_error != error
@@ -284,6 +305,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
             'state': self._state,
             'patch': self._patch_name,
             'host': self._host,
+            'device_mac': self._device_mac,
+            'last_output_contact': self._last_output_contact,
             'midi_connected': self._midi_connected,
             'midi_error': self._midi_error,
             'output_state': self._output_state,
