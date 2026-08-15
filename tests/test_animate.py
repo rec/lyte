@@ -180,6 +180,36 @@ class AnimateTests(unittest.TestCase):
         self.assertEqual(report.recovery_count, 1)
         self.assertEqual(report.recovery_duration_ms, 3500)
 
+    def test_track_recovers_after_a_failed_health_probe(self) -> None:
+        states: list[track.realtime.PlaybackConnectionState] = []
+        twinkly_track = make_track()
+        twinkly_track.last_health_check = 0
+        twinkly_track.on_connection_state = states.append
+
+        with (
+            patch(
+                'lyte.twinkly.track.realtime.probe_streaming_device',
+                return_value=False,
+            ),
+            patch(
+                'lyte.twinkly.track.realtime.recover_streaming_device',
+                return_value='192.168.1.23',
+            ) as recover,
+            patch(
+                'lyte.twinkly.track.time.monotonic', side_effect=[0.0, 2.0, 2.0, 11.0]
+            ),
+            patch('sys.stdout', new_callable=io.StringIO),
+        ):
+            twinkly_track.stream_frames(
+                'test', 60, 10, lambda: np.zeros((1, 3), dtype=np.uint8)
+            )
+
+        recover.assert_called_once()
+        assert states == [
+            track.realtime.PlaybackConnectionState.RECOVERING,
+            track.realtime.PlaybackConnectionState.STREAMING,
+        ]
+
     def test_animation_recovers_after_streaming_token_loss(self) -> None:
         class ConstantAnimation(animation.Animation):
             def render(
