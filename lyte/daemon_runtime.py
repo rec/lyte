@@ -49,6 +49,8 @@ class LyteMidiStatus(ReccyStatus):
         realtime.PlaybackConnectionState.UNKNOWN
     )
     recovery_count: int = 0
+    selection_generation: int = 0
+    applied_selection_generation: int = 0
 
 
 class LyteMidiDaemon(Reccy, frozen=True):
@@ -61,7 +63,9 @@ class LyteMidiDaemon(Reccy, frozen=True):
     project: DaemonProject | None = None
 
     _patch_name: str = PrivateAttr()
-    _selected_patch: str | None = PrivateAttr(default=None)
+    _selected_patch: tuple[str, int] | None = PrivateAttr(default=None)
+    _selection_generation: int = PrivateAttr(default=0)
+    _applied_selection_generation: int = PrivateAttr(default=0)
     _state: DaemonState = PrivateAttr(default=DaemonState.STARTING)
     _host: str | None = PrivateAttr(default=None)
     _midi_connected: bool = PrivateAttr(default=False)
@@ -98,8 +102,10 @@ class LyteMidiDaemon(Reccy, frozen=True):
                         type='error',
                         message='select_patch requires a configured patch name',
                     )
-                object.__setattr__(self, '_selected_patch', patch)
-                return 'ok'
+                generation = self._selection_generation + 1
+                object.__setattr__(self, '_selection_generation', generation)
+                object.__setattr__(self, '_selected_patch', (patch, generation))
+                return {'state': 'queued', 'generation': generation}
         return ipc.Error(type='error', message=f'unknown command {request.command}')
 
     def status_snapshot(self) -> LyteMidiStatus:
@@ -114,6 +120,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 midi_error=self._midi_error,
                 output_state=self._output_state,
                 recovery_count=self._recovery_count,
+                selection_generation=self._selection_generation,
+                applied_selection_generation=self._applied_selection_generation,
             )
 
     def run(self) -> int:
@@ -171,9 +179,13 @@ class LyteMidiDaemon(Reccy, frozen=True):
                     object.__setattr__(self, '_selected_patch', None)
                     stop_requested = self._stop_requested.is_set()
                 if selected_patch is not None:
-                    selector.select(selected_patch)
+                    patch_name, generation = selected_patch
+                    selector.select(patch_name)
                     with self._lock:
                         object.__setattr__(self, '_patch_name', selector.patch_name)
+                        object.__setattr__(
+                            self, '_applied_selection_generation', generation
+                        )
                     self.publish_status()
                 if stop_requested:
                     raise KeyboardInterrupt
@@ -276,6 +288,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
             'midi_error': self._midi_error,
             'output_state': self._output_state,
             'recovery_count': self._recovery_count,
+            'selection_generation': self._selection_generation,
+            'applied_selection_generation': self._applied_selection_generation,
             'error': None,
         }
 
