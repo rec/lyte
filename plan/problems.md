@@ -329,6 +329,47 @@ local UDP send failure, successful recovery, MIDI port reopen after an
 7. Add deterministic fake-clock and fake-device tests for every failure path,
    then perform the physical verification listed above one failure at a time.
 
+
+## Implementation Status
+
+Implemented:
+
+- Reccy starts before Twinkly connection attempts. Startup and recovery are
+  cancellable, and status distinguishes `connecting`, `streaming`,
+  `recovering`, `stopping`, and `stopped`.
+- Realtime UDP frames use one send attempt. Startup, recovery, health probes,
+  and shutdown use bounded operations, with a three-second upper bound for
+  blackout.
+- MIDI reconnection runs without pausing the output loop. A confirmed MIDI
+  disconnect ends the active note and clears controller state.
+- Realtime playback probes the Twinkly periodically over HTTP. Failed probes
+  trigger recovery; recovery requires the initially verified MAC address and
+  expected LED count.
+- Daemon status reports Twinkly host and MAC address, last confirmed output
+  contact, MIDI state, recovery count, queued versus applied patch-selection
+  generations, and the most recent failure.
+- A failed patch render returns a black frame. Repeated identical render or
+  input failures increment status counters without repeatedly publishing the
+  same error event.
+- Reccy control RPC now bounds handshakes, concurrent requests, and command
+  size, and reports malformed control messages as structured errors.
+
+The WX7's actual event rate is low, so no per-frame MIDI message budget was
+added. Mido already supplies complete messages rather than raw partial serial
+bytes; its selected hardware backend still needs the physical disconnect and
+reconnect verification below.
+
+Physical verification still required:
+
+1. Power-cycle or unplug the Twinkly during playback, then restore it. Confirm
+   `recovering` status, recovery to the original MAC, and resumed output.
+2. Unplug and replug the WX7 during an active note. Confirm blackout, continued
+   output health monitoring, and normal input after reconnecting.
+3. Stop the daemon while the Twinkly is unreachable. Confirm return within the
+   three-second blackout policy plus one in-flight HTTP timeout.
+4. Send malformed local control RPC only in a test environment. Confirm the
+   daemon remains running and reports an RPC error.
+
 ## Additional Work Beyond the Prompt
 
 None.
