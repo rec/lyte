@@ -134,6 +134,24 @@ class AnimateTests(unittest.TestCase):
             np.array([[25, 125, 150]], dtype=np.uint8),
         )
 
+    def test_track_reports_verified_device_and_contact(self) -> None:
+        devices: list[tuple[str, str | None]] = []
+        contacts: list[None] = []
+        twinkly_track = make_track()
+        twinkly_track.client.mac = 'aa:bb:cc:dd:ee:ff'
+
+        def report_device(host: str, mac: str | None) -> None:
+            devices.append((host, mac))
+
+        twinkly_track.on_device_connected = report_device
+        twinkly_track.on_health_check = lambda: contacts.append(None)
+
+        with patch('lyte.twinkly.track.realtime.prepare_device', return_value=True):
+            assert twinkly_track.prepare()
+
+        assert devices == [('192.168.1.23', 'aa:bb:cc:dd:ee:ff')]
+        assert contacts == [None]
+
     def test_track_blackout_uses_three_second_deadline(self) -> None:
         twinkly_track = make_track()
 
