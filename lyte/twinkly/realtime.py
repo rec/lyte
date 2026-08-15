@@ -173,9 +173,7 @@ def recover_streaming_device(
         client.mac = None
         client.token = None
         deadline = time.monotonic() + RECOVERY_ATTEMPT_TIMEOUT
-        led_count = read_led_count(
-            client, retry, expected_led_count, host, deadline, stop_event
-        )
+        led_count = read_led_count(client, retry, None, host, deadline, stop_event)
         if (
             led_count == expected_led_count
             and (expected_mac is None or client.mac == expected_mac)

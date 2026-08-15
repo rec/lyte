@@ -131,40 +131,34 @@ class LyteMidiDaemon(Reccy, frozen=True):
         try:
             if project.library.wearable.physical_map_status == 'guessed':
                 self.logger.info('[warn] Daemon is using a guessed physical map.')
-            host = config.twinkly.host or realtime.discover_host(
-                config.twinkly.discovery_timeout, self._stop_requested
-            )
-            if host is None:
-                self._set_state(DaemonState.UNKNOWN)
-                return 1
-            with self._lock:
-                object.__setattr__(self, '_host', host)
-            self.publish_status()
             retry = RetryConfig(
                 attempts=config.twinkly.attempts,
                 delay=config.twinkly.retry_delay,
                 backoff=config.twinkly.retry_backoff,
             )
-            client = TwinklyClient(host=host, timeout=config.twinkly.timeout)
-            led_count = realtime.read_led_count(
-                client, retry, None, host, stop_event=self._stop_requested
+            client = TwinklyClient(
+                host=config.twinkly.host or '0.0.0.0', timeout=config.twinkly.timeout
             )
-            if led_count is None:
-                self._set_state(DaemonState.UNKNOWN)
-                return 1
-            if led_count != project.library.wearable.led_count:
-                self.logger.error(
-                    f'[failed] {host} does not match the patch library LED count.'
-                )
-                self._set_state(DaemonState.UNKNOWN)
-                return 1
+            host = realtime.recover_streaming_device(
+                client,
+                retry,
+                config.twinkly.host,
+                config.twinkly.discovery_timeout,
+                project.library.wearable.led_count,
+                stop_event=self._stop_requested,
+            )
+            if host is None:
+                return 0
+            with self._lock:
+                object.__setattr__(self, '_host', host)
+            self.publish_status()
             twinkly_track = track.TwinklyTrack(
                 client=client,
                 retry=retry,
                 host=host,
                 configured_host=config.twinkly.host,
                 discovery_timeout=config.twinkly.discovery_timeout,
-                device=animation.Device(led_count=led_count),
+                device=animation.Device(led_count=project.library.wearable.led_count),
                 expected_mac=client.mac,
                 stop_event=self._stop_requested,
                 on_connection_state=self._set_output_state,
