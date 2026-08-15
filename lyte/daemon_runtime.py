@@ -45,6 +45,10 @@ class LyteMidiStatus(ReccyStatus):
     host: str | None = None
     midi_connected: bool = False
     midi_error: str | None = None
+    output_state: realtime.PlaybackConnectionState = (
+        realtime.PlaybackConnectionState.UNKNOWN
+    )
+    recovery_count: int = 0
 
 
 class LyteMidiDaemon(Reccy, frozen=True):
@@ -62,6 +66,10 @@ class LyteMidiDaemon(Reccy, frozen=True):
     _host: str | None = PrivateAttr(default=None)
     _midi_connected: bool = PrivateAttr(default=False)
     _midi_error: str | None = PrivateAttr(default=None)
+    _output_state: realtime.PlaybackConnectionState = PrivateAttr(
+        default=realtime.PlaybackConnectionState.UNKNOWN
+    )
+    _recovery_count: int = PrivateAttr(default=0)
     _stop_requested: threading.Event = PrivateAttr(default_factory=threading.Event)
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
 
@@ -104,6 +112,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 host=self._host,
                 midi_connected=self._midi_connected,
                 midi_error=self._midi_error,
+                output_state=self._output_state,
+                recovery_count=self._recovery_count,
             )
 
     def run(self) -> int:
@@ -157,6 +167,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 device=animation.Device(led_count=led_count),
                 expected_mac=client.mac,
                 stop_event=self._stop_requested,
+                on_connection_state=self._set_output_state,
             )
 
             def process_messages() -> None:
@@ -233,6 +244,16 @@ class LyteMidiDaemon(Reccy, frozen=True):
             self.close()
         return 0
 
+    def _set_output_state(self, output_state: realtime.PlaybackConnectionState) -> None:
+        with self._lock:
+            if output_state is realtime.PlaybackConnectionState.RECOVERING:
+                object.__setattr__(self, '_recovery_count', self._recovery_count + 1)
+                object.__setattr__(self, '_state', DaemonState.RECOVERING)
+            elif output_state is realtime.PlaybackConnectionState.STREAMING:
+                object.__setattr__(self, '_state', DaemonState.STREAMING)
+            object.__setattr__(self, '_output_state', output_state)
+        self.publish_status()
+
     def _set_midi_connection(self, connected: bool, error: str | None) -> None:
         with self._lock:
             changed = self._midi_connected != connected or self._midi_error != error
@@ -259,6 +280,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
             'host': self._host,
             'midi_connected': self._midi_connected,
             'midi_error': self._midi_error,
+            'output_state': self._output_state,
+            'recovery_count': self._recovery_count,
             'error': None,
         }
 
