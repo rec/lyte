@@ -52,6 +52,34 @@ def test_reccy_daemon_handles_commands(tmp_path: Path) -> None:
             daemon.close()
 
 
+def test_daemon_rate_limits_repeated_render_errors(tmp_path: Path) -> None:
+    project = daemon_config.DaemonProject(
+        config=daemon_config.DaemonConfig(
+            patch_library=Path('patches/wearable-breath.toml'),
+            patches=['one'],
+            midi=midi.MidiIn(channel=1),
+            twinkly=daemon_config.TwinklyDaemonConfig(),
+        ),
+        library=object(),
+    )
+    daemon = daemon_runtime.LyteMidiDaemon(project=project, home=tmp_path)
+
+    with patch.object(daemon_runtime.LyteMidiDaemon, 'publish_error') as publish_error:
+        daemon._record_render_error('one', ValueError('invalid frame'))
+        daemon._record_render_error('one', ValueError('invalid frame'))
+
+    status = daemon.status_snapshot()
+    assert publish_error.call_count == 1
+    assert status.render_error == 'Patch one render failed: invalid frame'
+    assert status.render_error_count == 2
+
+    daemon._clear_render_error()
+
+    status = daemon.status_snapshot()
+    assert status.render_error is None
+    assert status.render_error_count == 0
+
+
 class Config(BaseModel, frozen=True):
     pass
 

@@ -52,6 +52,8 @@ class LyteMidiStatus(ReccyStatus):
         realtime.PlaybackConnectionState.UNKNOWN
     )
     recovery_count: int = 0
+    render_error: str | None = None
+    render_error_count: int = 0
     selection_generation: int = 0
     applied_selection_generation: int = 0
 
@@ -79,6 +81,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
         default=realtime.PlaybackConnectionState.UNKNOWN
     )
     _recovery_count: int = PrivateAttr(default=0)
+    _render_error: str | None = PrivateAttr(default=None)
+    _render_error_count: int = PrivateAttr(default=0)
     _stop_requested: threading.Event = PrivateAttr(default_factory=threading.Event)
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
 
@@ -127,6 +131,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 midi_error=self._midi_error,
                 output_state=self._output_state,
                 recovery_count=self._recovery_count,
+                render_error=self._render_error,
+                render_error_count=self._render_error_count,
                 selection_generation=self._selection_generation,
                 applied_selection_generation=self._applied_selection_generation,
             )
@@ -234,15 +240,15 @@ class LyteMidiDaemon(Reccy, frozen=True):
 
             def render_frame() -> NDArray[np.uint8]:
                 try:
-                    return patches.encode_wearable_frame(
+                    frame = patches.encode_wearable_frame(
                         project.library.wearable,
                         selector.patch.render(twinkly_track.device),
                     )
                 except (ArithmeticError, IndexError, TypeError, ValueError) as error:
-                    self.publish_error(
-                        f'Patch {selector.patch_name} render failed: {error}'
-                    )
+                    self._record_render_error(selector.patch_name, error)
                     return np.zeros((twinkly_track.device.led_count, 3), dtype=np.uint8)
+                self._clear_render_error()
+                return frame
 
             twinkly_track.stream_frames(
                 'daemon', config.fps, None, render_frame, process_messages
@@ -267,6 +273,25 @@ class LyteMidiDaemon(Reccy, frozen=True):
             elif output_state is realtime.PlaybackConnectionState.STREAMING:
                 object.__setattr__(self, '_state', DaemonState.STREAMING)
             object.__setattr__(self, '_output_state', output_state)
+        self.publish_status()
+
+    def _record_render_error(self, patch_name: str, error: Exception) -> None:
+        message = f'Patch {patch_name} render failed: {error}'
+        with self._lock:
+            changed = self._render_error != message
+            object.__setattr__(self, '_render_error', message)
+            object.__setattr__(
+                self, '_render_error_count', self._render_error_count + 1
+            )
+        if changed:
+            self.publish_error(message)
+
+    def _clear_render_error(self) -> None:
+        with self._lock:
+            if self._render_error is None:
+                return
+            object.__setattr__(self, '_render_error', None)
+            object.__setattr__(self, '_render_error_count', 0)
         self.publish_status()
 
     def _set_output_device(self, host: str, mac: str | None) -> None:
@@ -311,6 +336,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
             'midi_error': self._midi_error,
             'output_state': self._output_state,
             'recovery_count': self._recovery_count,
+            'render_error': self._render_error,
+            'render_error_count': self._render_error_count,
             'selection_generation': self._selection_generation,
             'applied_selection_generation': self._applied_selection_generation,
             'error': None,
