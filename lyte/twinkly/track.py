@@ -64,18 +64,22 @@ class TwinklyTrack(BaseModel):
     device: animation.Device
     expected_mac: str | None = None
     stop_event: SkipValidation[threading.Event] | None = None
+    on_connection_state: (
+        SkipValidation[Callable[[realtime.PlaybackConnectionState], None]] | None
+    ) = None
     last_health_check: float | None = None
     connection: realtime.PlaybackConnection = Field(
         default_factory=realtime.PlaybackConnection
     )
 
     def prepare(self) -> bool:
-        self.connection.set_state(realtime.PlaybackConnectionState.CONNECTING)
+        self._set_connection_state(realtime.PlaybackConnectionState.CONNECTING)
         if not realtime.prepare_device(
             self.client, self.retry, self.host, stop_event=self.stop_event
         ):
             return False
         self.connection.resume_streaming()
+        self._notify_connection_state()
         return True
 
     def close(self) -> None:
@@ -85,6 +89,7 @@ class TwinklyTrack(BaseModel):
                 self.client, self.retry, self.host, deadline
             )
         )
+        self._notify_connection_state()
 
     def stream_frames(
         self,
@@ -138,6 +143,7 @@ class TwinklyTrack(BaseModel):
 
     def _recover(self) -> bool:
         self.connection.begin_recovery()
+        self._notify_connection_state()
         host = realtime.recover_streaming_device(
             self.client,
             self.retry,
@@ -151,6 +157,15 @@ class TwinklyTrack(BaseModel):
             return False
         self.host = host
         self.connection.resume_streaming()
+        self._notify_connection_state()
         return True
+
+    def _set_connection_state(self, state: realtime.PlaybackConnectionState) -> None:
+        self.connection.set_state(state)
+        self._notify_connection_state()
+
+    def _notify_connection_state(self) -> None:
+        if self.on_connection_state is not None:
+            self.on_connection_state(self.connection.state)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
