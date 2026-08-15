@@ -33,8 +33,10 @@ def test_reccy_daemon_handles_commands(tmp_path: Path) -> None:
     assert isinstance(daemon, Reccy)
     assert isinstance(status, dict)
     assert status['patch'] == 'one'
-    assert select == 'ok'
-    assert daemon._selected_patch == 'two'
+    assert select == {'state': 'queued', 'generation': 1}
+    assert daemon._selected_patch == ('two', 1)
+    assert status['selection_generation'] == 0
+    assert status['applied_selection_generation'] == 0
     assert blackout == 'ok'
     assert daemon.status_snapshot().state == 'stopping'
 
@@ -176,7 +178,10 @@ def test_daemon_reopens_an_unavailable_midi_input(tmp_path: Path) -> None:
     )
     port = Port()
     with (
-        patch('lyte.daemon_runtime.realtime.recover_streaming_device', return_value='192.168.1.23'),
+        patch(
+            'lyte.daemon_runtime.realtime.recover_streaming_device',
+            return_value='192.168.1.23',
+        ),
         patch('lyte.daemon_runtime.realtime.prepare_device', return_value=True),
         patch(
             'lyte.daemon_runtime.realtime.turn_off_streaming_device', return_value=True
@@ -188,7 +193,9 @@ def test_daemon_reopens_an_unavailable_midi_input(tmp_path: Path) -> None:
         patch('lyte.daemon_runtime.track.TwinklyTrack', FakeTrack),
         patch.object(daemon_runtime.LyteMidiDaemon, 'start'),
         patch.object(daemon_runtime.LyteMidiDaemon, 'close'),
-        patch('lyte.daemon_runtime.time.monotonic', side_effect=[0.0, 0.0, 1.0, 1.0, 1.0]),
+        patch(
+            'lyte.daemon_runtime.time.monotonic', side_effect=[0.0, 0.0, 1.0, 1.0, 1.0]
+        ),
     ):
         result = daemon_runtime.LyteMidiDaemon(project=project, home=tmp_path).run()
 
