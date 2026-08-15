@@ -272,7 +272,7 @@ class TwinklyClient(BaseModel):
 
         try:
             data = json.loads(raw.decode() or '{}')
-        except json.JSONDecodeError as err:
+        except (json.JSONDecodeError, UnicodeDecodeError) as err:
             raise ProtocolError(f'Device returned invalid JSON: {raw!r}') from err
         if not isinstance(data, dict):
             raise ProtocolError(f'Device returned a non-object JSON response: {data!r}')

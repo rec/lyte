@@ -52,7 +52,10 @@ def discover(
                 continue
             if data == DISCOVERY_MESSAGE:
                 continue
-            device = parse_discovery_response(data)
+            try:
+                device = parse_discovery_response(data)
+            except (DiscoveryError, UnicodeDecodeError, ValueError):
+                continue
             if device.ip_address in seen:
                 continue
             seen.add(device.ip_address)
