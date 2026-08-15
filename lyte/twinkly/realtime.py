@@ -8,10 +8,12 @@ from numpy.typing import NDArray
 from pydantic import BaseModel
 from reccy import logging
 
+from ..errors import ProtocolError
 from ..retry import RetryConfig
 from . import session
 from .client import TwinklyClient
 from .discovery import discover
+from .frame import send_frame_v3
 
 LOGGER = logging.get_logger(__name__)
 
@@ -71,14 +73,9 @@ def send_realtime_frame(
 ) -> FrameSendResult:
     if client.token is None:
         return FrameSendResult(status=FrameSendStatus.TOKEN_MISSING)
-    sent = session.send_authenticated_frame(
-        client,
-        host,
-        frame,
-        retry,
-        f'UDP realtime frame send to {host}',
-    )
-    if sent is None:
+    try:
+        sent = send_frame_v3(host, client.token.value, frame)
+    except (OSError, ProtocolError, ValueError):
         return FrameSendResult(status=FrameSendStatus.TRANSPORT_FAILED)
     return FrameSendResult(status=FrameSendStatus.SENT, byte_count=sent)
 
@@ -191,13 +188,17 @@ def turn_off_device(client: TwinklyClient, retry: RetryConfig, host: str) -> boo
 
 
 def turn_off_streaming_device(
-    client: TwinklyClient, retry: RetryConfig, host: str
+    client: TwinklyClient,
+    retry: RetryConfig,
+    host: str,
+    deadline: float | None = None,
 ) -> bool:
     LOGGER.debug('[step] Switching device to off mode')
     response = session.set_off_mode_with_retry(
         client,
         retry,
         f'switch {host} to off mode',
+        deadline,
     )
     if response is None:
         LOGGER.error(f'[failed] Could not switch {host} to off mode.')

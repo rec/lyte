@@ -134,6 +134,20 @@ class AnimateTests(unittest.TestCase):
             np.array([[25, 125, 150]], dtype=np.uint8),
         )
 
+    def test_track_blackout_uses_three_second_deadline(self) -> None:
+        twinkly_track = make_track()
+
+        with (
+            patch('lyte.twinkly.track.time.monotonic', return_value=10.0),
+            patch(
+                'lyte.twinkly.track.realtime.turn_off_streaming_device',
+                return_value=True,
+            ) as turn_off,
+        ):
+            twinkly_track.close()
+
+        assert turn_off.call_args.args[3] == 13.0
+
     def test_frame_deadline_report_counts_late_frames_and_recovery(self) -> None:
         report = track.FrameDeadlineReport()
 

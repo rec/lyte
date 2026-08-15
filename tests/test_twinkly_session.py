@@ -7,7 +7,7 @@ import numpy as np
 
 from lyte.animations.colors import solid_rgb_frame
 from lyte.retry import RetryConfig
-from lyte.twinkly import realtime, session
+from lyte.twinkly import client, realtime, session
 from lyte.twinkly.client import TWINKLY_API_PREFIX, TwinklyClient, TwinklyResponse
 
 
@@ -131,13 +131,13 @@ class RealtimeTransportTests(unittest.TestCase):
         self.assertEqual(result.byte_count, 0)
 
     def test_realtime_frame_reports_transport_failure(self) -> None:
-        client = TwinklyClient(host='192.168.1.23')
-        client.token = object()
-        with patch(
-            'lyte.twinkly.realtime.session.send_authenticated_frame', return_value=None
-        ):
+        twinkly_client = TwinklyClient(host='192.168.1.23')
+        twinkly_client.token = client.AuthToken(
+            value='AAAAAAAAAAA=', challenge_response='', expires_at=None
+        )
+        with patch('lyte.twinkly.realtime.send_frame_v3', side_effect=OSError):
             result = realtime.send_realtime_frame(
-                client,
+                twinkly_client,
                 RetryConfig(attempts=1, delay=0, backoff=1),
                 '192.168.1.23',
                 np.zeros((1, 3), dtype=np.uint8),

@@ -351,7 +351,7 @@ class PatchLibraryTests(unittest.TestCase):
             patch('lyte.patches.midi.open_input', return_value=port),
             patch(
                 'lyte.twinkly.track.time.monotonic',
-                side_effect=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+                side_effect=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0],
             ),
             patch('lyte.twinkly.track.time.sleep'),
         ):

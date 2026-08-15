@@ -18,6 +18,8 @@ from .client import TwinklyClient
 
 LOGGER = logging.get_logger(__name__)
 
+BLACKOUT_TIMEOUT = 3.0
+
 
 class FrameDeadlineReport(BaseModel):
     frame_count: int = 0
@@ -69,8 +71,11 @@ class TwinklyTrack(BaseModel):
         return True
 
     def close(self) -> None:
+        deadline = time.monotonic() + BLACKOUT_TIMEOUT
         self.connection.finish_blackout(
-            realtime.turn_off_streaming_device(self.client, self.retry, self.host)
+            realtime.turn_off_streaming_device(
+                self.client, self.retry, self.host, deadline
+            )
         )
 
     def stream_frames(
