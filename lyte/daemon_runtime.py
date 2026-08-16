@@ -6,12 +6,13 @@ import datetime
 import enum
 import threading
 import time
+from pathlib import Path
 
 import mido
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, PrivateAttr, SkipValidation
-from reccy import ipc, models, rpc
+from reccy import ipc, rpc, service_spec
 from reccy.reccy import Reccy, ReccyStatus
 
 from . import animation, midi, patches
@@ -20,14 +21,7 @@ from .retry import RetryConfig
 from .twinkly import realtime, track
 from .twinkly.client import TwinklyClient
 
-LYTE_SERVICE = models.ServiceSpec(
-    name='lyte',
-    display_name='Lyte MIDI',
-    description='Lyte MIDI patch player',
-    launchd_label='com.swirly.lyte',
-    daemon_env_var='LYTE_DAEMON',
-    windows_pipe=r'\\.\pipe\lyte',
-)
+LYTE_SERVICE = service_spec.load(Path(__file__).with_name('service.toml'))
 
 
 class DaemonState(enum.StrEnum):
