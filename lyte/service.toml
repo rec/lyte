@@ -1,0 +1,6 @@
+name = "lyte"
+display_name = "Lyte MIDI"
+description = "Lyte MIDI patch player"
+launchd_label = "com.swirly.lyte"
+daemon_env_var = "LYTE_DAEMON"
+windows_pipe = "\\\\.\\pipe\\lyte"
