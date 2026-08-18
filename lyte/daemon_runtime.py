@@ -58,6 +58,7 @@ class LyteMidiStatus(ReccyStatus):
 
 class LyteMidiDaemon(Reccy, frozen=True):
     service_spec = LYTE_SERVICE
+    daemon_module = 'lyte'
     status_model = LyteMidiStatus
     rpc_enabled = True
     rpc_role = 'lyte'
