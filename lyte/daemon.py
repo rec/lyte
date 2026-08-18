@@ -29,7 +29,7 @@ def run_daemon_command(config: DaemonCommandConfig) -> int:
     daemon = daemon_runtime.LyteMidiDaemon()
     if config.action == 'install':
         result = daemon.install_service(
-            ['-m', 'lyte', 'daemon', 'run', '--config', str(config.config.resolve())]
+            ['daemon', 'run', '--config', str(config.config.resolve())]
         )
     else:
         result = getattr(daemon, f'{config.action}_service')()

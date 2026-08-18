@@ -19,10 +19,11 @@ def test_reccy_daemon_metadata_uses_the_foreground_daemon_command(
     midi_daemon = daemon_runtime.LyteMidiDaemon(home=tmp_path)
 
     metadata = midi_daemon.service_metadata(
-        ['-m', 'lyte', 'daemon', 'run', '--config', '/tmp/daemon.toml']
+        ['daemon', 'run', '--config', '/tmp/daemon.toml']
     )
 
-    assert metadata.argv[:4] == ['-m', 'lyte', 'daemon', 'run']
+    assert metadata.module == 'lyte'
+    assert metadata.argv[:2] == ['daemon', 'run']
     assert metadata.argv[-1] == '/tmp/daemon.toml'
 
 
@@ -48,7 +49,7 @@ def test_daemon_install_uses_reccy_application(
 
     assert result == 0
     assert midi_daemon.argv is not None
-    assert midi_daemon.argv[:4] == ['-m', 'lyte', 'daemon', 'run']
+    assert midi_daemon.argv[:2] == ['daemon', 'run']
     assert midi_daemon.argv[-1].endswith('daemon.toml')
 
 
@@ -58,9 +59,9 @@ def test_reccy_service_definitions_start_the_foreground_daemon(tmp_path: Path) -
             daemon_runtime.LYTE_SERVICE, platform, tmp_path
         )
         metadata = renderers.service_metadata(
-            Path('/venv/bin/python'),
             platform,
-            ['-m', 'lyte', 'daemon', 'run'],
+            'lyte',
+            ['daemon', 'run'],
             service_paths,
         )
         definition = (
