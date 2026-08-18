@@ -65,6 +65,19 @@ class AnimateTests(unittest.TestCase):
 
         self.assertEqual(args.animation, 'random')
 
+    def test_standalone_playback_configures_reccy_logging(self) -> None:
+        args = config.AnimateConfig(animation='off')
+
+        with (
+            patch('lyte.animate.playback.logging.configure') as configure,
+            patch('lyte.animate.playback.parse_args', return_value=args),
+            patch('lyte.animate.playback.run_animate', return_value=0),
+        ):
+            result = self.script.main()
+
+        self.assertEqual(result, 0)
+        configure.assert_called_once_with()
+
     def test_random_mode_uses_hamiltonian_settings(self) -> None:
         with patch('sys.argv', ['lyte']):
             args = self.script.parse_args()

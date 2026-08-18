@@ -12,7 +12,7 @@ import mido
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, PrivateAttr, SkipValidation
-from reccy import ipc, rpc, service_spec
+from reccy import ipc, logging, rpc, service_spec
 from reccy.reccy import Reccy, ReccyStatus
 
 from . import animation, midi, patches
@@ -22,6 +22,7 @@ from .twinkly import realtime, track
 from .twinkly.client import TwinklyClient
 
 LYTE_SERVICE = service_spec.load(Path(__file__).with_name('service.toml'))
+LOGGER = logging.get_logger(__name__)
 
 
 class DaemonState(enum.StrEnum):
@@ -60,7 +61,6 @@ class LyteMidiDaemon(Reccy, frozen=True):
     status_model = LyteMidiStatus
     rpc_enabled = True
     rpc_role = 'lyte'
-    logger_name = 'lyte.daemon'
 
     project: DaemonProject | None = None
 
@@ -154,7 +154,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
 
         try:
             if project.library.wearable.physical_map_status == 'guessed':
-                self.logger.info('[warn] Daemon is using a guessed physical map.')
+                LOGGER.info('[warn] Daemon is using a guessed physical map.')
             retry = RetryConfig(
                 attempts=config.twinkly.attempts,
                 delay=config.twinkly.retry_delay,
@@ -217,7 +217,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
                         self._set_midi_connection(False, str(error))
                         return
                     self._set_midi_connection(True, None)
-                    self.logger.info('[connected] MIDI input opened')
+                    LOGGER.info('[connected] MIDI input opened')
                 try:
                     for message in midi.input_messages(port, config.midi):
                         try:
@@ -233,13 +233,13 @@ class LyteMidiDaemon(Reccy, frozen=True):
                     selector.clear_performance()
                     self._set_midi_connection(False, str(error))
                     self._record_failure(f'MIDI input disconnected: {error}')
-                    self.logger.error(f'[waiting] MIDI input disconnected: {error}')
+                    LOGGER.error(f'[waiting] MIDI input disconnected: {error}')
 
             if not twinkly_track.prepare():
                 self._set_state(DaemonState.UNKNOWN)
                 return 1
             self._set_state(DaemonState.STREAMING)
-            self.logger.info(f'[daemon] Selected patch: {selector.patch_name}')
+            LOGGER.info(f'[daemon] Selected patch: {selector.patch_name}')
 
             def render_frame() -> NDArray[np.uint8]:
                 try:
@@ -257,8 +257,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 'daemon', config.fps, None, render_frame, process_messages
             )
         except KeyboardInterrupt:
-            self.logger.debug('')
-            self.logger.debug('[ok] Stopped')
+            LOGGER.debug('')
+            LOGGER.debug('[ok] Stopped')
         finally:
             if port is not None:
                 self._close_midi_port(port)
@@ -334,7 +334,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
         try:
             port.close()
         except (OSError, ValueError) as error:
-            self.logger.error(f'[warn] Could not close MIDI input: {error}')
+            LOGGER.error(f'[warn] Could not close MIDI input: {error}')
 
     def _set_state(self, state: DaemonState) -> None:
         with self._lock:
