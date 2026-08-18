@@ -21,6 +21,7 @@ LOGGER = logging.get_logger(__name__)
 
 
 def main() -> int:
+    logging.configure()
     args = parse_args()
     return run_animate(args)
 

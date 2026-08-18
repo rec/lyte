@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import mido
 from pydantic import BaseModel
@@ -221,6 +221,7 @@ def test_daemon_reopens_an_unavailable_midi_input(tmp_path: Path) -> None:
             side_effect=[ValueError('missing'), port],
         ) as open_input,
         patch('lyte.daemon_runtime.track.TwinklyTrack', FakeTrack),
+        patch('lyte.daemon_runtime.LOGGER.info') as log_info,
         patch.object(daemon_runtime.LyteMidiDaemon, 'start'),
         patch.object(daemon_runtime.LyteMidiDaemon, 'close'),
         patch(
@@ -232,3 +233,4 @@ def test_daemon_reopens_an_unavailable_midi_input(tmp_path: Path) -> None:
     assert result == 0
     assert open_input.call_count == 2
     assert port.closed
+    assert call('[warn] Daemon is using a guessed physical map.') in log_info.mock_calls
