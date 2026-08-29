@@ -61,6 +61,7 @@ lyte daemon install
 ```
 
 The daemon exposes Reccy's local control endpoint for status, blackout, stop,
-and patch selection. It accepts a guessed wearable physical map for testing and
-warns before playback. Record the map as `measured` after locator verification
-on the assembled garment.
+patch selection, and a white fade test command. It accepts a guessed wearable
+physical map for testing and warns before playback. Record the map as
+`measured` after locator verification on the assembled garment. The `test`
+command accepts `level` percent and `duration` seconds parameters.

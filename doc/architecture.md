@@ -129,8 +129,9 @@ The daemon owns one patch selector and one Twinkly track. It processes MIDI
 without blocking output while a port is unavailable, clears the active note on
 a confirmed disconnect, and reopens the port periodically. Program changes
 advance through the configured patch list. Reccy's local RPC accepts status,
-blackout, stop, and named patch selection. Patch selections are queued and are
-applied by the frame loop; status reports both queue and applied generations.
+blackout, stop, named patch selection, and a white fade test command. Patch
+selections and tests are queued and are applied by the frame loop; status
+reports both queue and applied generations for patch selections.
 
 Daemon status records lifecycle state, Twinkly host and MAC, the most recent
 output contact, MIDI state, recovery count, render failures, and the most recent
