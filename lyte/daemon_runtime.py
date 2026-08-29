@@ -6,6 +6,7 @@ import datetime
 import enum
 import threading
 import time
+from math import isfinite
 from pathlib import Path
 
 import mido
@@ -56,6 +57,28 @@ class LyteMidiStatus(ReccyStatus):
     applied_selection_generation: int = 0
 
 
+class LightTestCommand(BaseModel, frozen=True):
+    level: float = 50.0
+    duration: float = 2.0
+
+
+class ActiveLightTest(BaseModel, frozen=True):
+    command: LightTestCommand
+    started_at: float
+
+    def render(self, device: animation.Device, now: float) -> NDArray[np.uint8] | None:
+        elapsed = now - self.started_at
+        if elapsed > self.command.duration:
+            return None
+        half_duration = self.command.duration / 2
+        if elapsed <= half_duration:
+            fraction = elapsed / half_duration
+        else:
+            fraction = (self.command.duration - elapsed) / half_duration
+        level = round(255 * self.command.level / 100 * max(0.0, fraction))
+        return np.full((device.led_count, 3), level, dtype=np.uint8)
+
+
 class LyteMidiDaemon(Reccy, frozen=True):
     service_spec = LYTE_SERVICE
     daemon_module = 'lyte'
@@ -67,6 +90,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
 
     _patch_name: str = PrivateAttr()
     _selected_patch: tuple[str, int] | None = PrivateAttr(default=None)
+    _selected_test: LightTestCommand | None = PrivateAttr(default=None)
+    _active_test: ActiveLightTest | None = PrivateAttr(default=None)
     _selection_generation: int = PrivateAttr(default=0)
     _applied_selection_generation: int = PrivateAttr(default=0)
     _state: DaemonState = PrivateAttr(default=DaemonState.STARTING)
@@ -116,6 +141,16 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 object.__setattr__(self, '_selection_generation', generation)
                 object.__setattr__(self, '_selected_patch', (patch, generation))
                 return {'state': 'queued', 'generation': generation}
+            if request.command == 'test':
+                test = _light_test_command(request.params)
+                if isinstance(test, ipc.Error):
+                    return test
+                object.__setattr__(self, '_selected_test', test)
+                return {
+                    'state': 'queued',
+                    'level': test.level,
+                    'duration': test.duration,
+                }
         return ipc.Error(type='error', message=f'unknown command {request.command}')
 
     def status_snapshot(self) -> LyteMidiStatus:
@@ -195,7 +230,9 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 nonlocal next_midi_open_at, port
                 with self._lock:
                     selected_patch = self._selected_patch
+                    selected_test = self._selected_test
                     object.__setattr__(self, '_selected_patch', None)
+                    object.__setattr__(self, '_selected_test', None)
                     stop_requested = self._stop_requested.is_set()
                 if selected_patch is not None:
                     patch_name, generation = selected_patch
@@ -206,6 +243,15 @@ class LyteMidiDaemon(Reccy, frozen=True):
                             self, '_applied_selection_generation', generation
                         )
                     self.publish_status()
+                if selected_test is not None:
+                    with self._lock:
+                        object.__setattr__(
+                            self,
+                            '_active_test',
+                            ActiveLightTest(
+                                command=selected_test, started_at=time.monotonic()
+                            ),
+                        )
                 if stop_requested:
                     raise KeyboardInterrupt
                 if port is None:
@@ -243,6 +289,15 @@ class LyteMidiDaemon(Reccy, frozen=True):
             LOGGER.info(f'[daemon] Selected patch: {selector.patch_name}')
 
             def render_frame() -> NDArray[np.uint8]:
+                with self._lock:
+                    active_test = self._active_test
+                if active_test is not None:
+                    frame = active_test.render(twinkly_track.device, time.monotonic())
+                    if frame is not None:
+                        return frame
+                    with self._lock:
+                        if self._active_test == active_test:
+                            object.__setattr__(self, '_active_test', None)
                 try:
                     frame = patches.encode_wearable_frame(
                         project.library.wearable,
@@ -467,3 +522,26 @@ class PatchSelector(BaseModel):
         self.performance = MidiPerformance()
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+def _light_test_command(params: dict[str, object]) -> LightTestCommand | ipc.Error:
+    level = _number_param(params, 'level', 50.0)
+    duration = _number_param(params, 'duration', 2.0)
+    if isinstance(level, ipc.Error):
+        return level
+    if isinstance(duration, ipc.Error):
+        return duration
+    if not isfinite(level) or level < 0 or level > 100:
+        return ipc.Error(type='error', message='test level must be between 0 and 100')
+    if not isfinite(duration) or duration <= 0:
+        return ipc.Error(type='error', message='test duration must be greater than 0')
+    return LightTestCommand(level=level, duration=duration)
+
+
+def _number_param(
+    params: dict[str, object], name: str, default: float
+) -> float | ipc.Error:
+    value = params.get(name, default)
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return ipc.Error(type='error', message=f'test {name} must be a number')
+    return float(value)
