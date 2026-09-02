@@ -48,6 +48,12 @@ class LyteMidiStatus(ReccyStatus):
         realtime.PlaybackConnectionState.UNKNOWN
     )
     recovery_count: int = 0
+    queued_test: LightTestCommand | None = None
+    active_test: LightTestCommand | None = None
+    frame_send_count: int = 0
+    last_frame_sent_at: datetime.datetime | None = None
+    output_error: str | None = None
+    output_failure_count: int = 0
     render_error: str | None = None
     render_error_count: int = 0
     last_failure: str | None = None
@@ -104,6 +110,10 @@ class LyteMidiDaemon(Reccy, frozen=True):
         default=realtime.PlaybackConnectionState.UNKNOWN
     )
     _recovery_count: int = PrivateAttr(default=0)
+    _frame_send_count: int = PrivateAttr(default=0)
+    _last_frame_sent_at: datetime.datetime | None = PrivateAttr(default=None)
+    _output_error: str | None = PrivateAttr(default=None)
+    _output_failure_count: int = PrivateAttr(default=0)
     _render_error: str | None = PrivateAttr(default=None)
     _render_error_count: int = PrivateAttr(default=0)
     _last_failure: str | None = PrivateAttr(default=None)
@@ -167,6 +177,14 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 midi_error=self._midi_error,
                 output_state=self._output_state,
                 recovery_count=self._recovery_count,
+                queued_test=self._selected_test,
+                active_test=(
+                    None if self._active_test is None else self._active_test.command
+                ),
+                frame_send_count=self._frame_send_count,
+                last_frame_sent_at=self._last_frame_sent_at,
+                output_error=self._output_error,
+                output_failure_count=self._output_failure_count,
                 render_error=self._render_error,
                 render_error_count=self._render_error_count,
                 last_failure=self._last_failure,
@@ -224,6 +242,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 on_connection_state=self._set_output_state,
                 on_device_connected=self._set_output_device,
                 on_health_check=self._confirm_output_contact,
+                on_frame_sent=self._record_frame_sent,
+                on_output_failure=self._record_output_failure,
             )
 
             def process_messages() -> None:
@@ -252,6 +272,11 @@ class LyteMidiDaemon(Reccy, frozen=True):
                                 command=selected_test, started_at=time.monotonic()
                             ),
                         )
+                    LOGGER.info(
+                        f'[test] Consumed light test: {selected_test.level:g}% white '
+                        f'over {selected_test.duration:g} seconds'
+                    )
+                    self.publish_status()
                 if stop_requested:
                     raise KeyboardInterrupt
                 if port is None:
@@ -325,9 +350,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
         return 0
 
     def _set_output_state(self, output_state: realtime.PlaybackConnectionState) -> None:
-        if output_state is realtime.PlaybackConnectionState.RECOVERING:
-            self._record_failure('Twinkly output is recovering')
-        elif output_state is realtime.PlaybackConnectionState.UNKNOWN:
+        if output_state is realtime.PlaybackConnectionState.UNKNOWN:
             self._record_failure('Twinkly output state is unknown')
         with self._lock:
             if output_state is realtime.PlaybackConnectionState.RECOVERING:
@@ -378,6 +401,22 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 self, '_last_output_contact', datetime.datetime.now(datetime.UTC)
             )
 
+    def _record_frame_sent(self) -> None:
+        now = datetime.datetime.now(datetime.UTC)
+        with self._lock:
+            object.__setattr__(self, '_frame_send_count', self._frame_send_count + 1)
+            object.__setattr__(self, '_last_frame_sent_at', now)
+            object.__setattr__(self, '_last_output_contact', now)
+            object.__setattr__(self, '_output_error', None)
+
+    def _record_output_failure(self, message: str) -> None:
+        with self._lock:
+            object.__setattr__(self, '_output_error', message)
+            object.__setattr__(
+                self, '_output_failure_count', self._output_failure_count + 1
+            )
+        self._record_failure(f'Twinkly output failed: {message}')
+
     def _set_midi_connection(self, connected: bool, error: str | None) -> None:
         with self._lock:
             changed = self._midi_connected != connected or self._midi_error != error
@@ -408,6 +447,16 @@ class LyteMidiDaemon(Reccy, frozen=True):
             'midi_error': self._midi_error,
             'output_state': self._output_state,
             'recovery_count': self._recovery_count,
+            'queued_test': _light_test_data(self._selected_test),
+            'active_test': (
+                None
+                if self._active_test is None
+                else _light_test_data(self._active_test.command)
+            ),
+            'frame_send_count': self._frame_send_count,
+            'last_frame_sent_at': self._last_frame_sent_at,
+            'output_error': self._output_error,
+            'output_failure_count': self._output_failure_count,
             'render_error': self._render_error,
             'render_error_count': self._render_error_count,
             'last_failure': self._last_failure,
@@ -545,3 +594,9 @@ def _number_param(
     if isinstance(value, bool) or not isinstance(value, int | float):
         return ipc.Error(type='error', message=f'test {name} must be a number')
     return float(value)
+
+
+def _light_test_data(test: LightTestCommand | None) -> dict[str, float] | None:
+    if test is None:
+        return None
+    return {'level': test.level, 'duration': test.duration}

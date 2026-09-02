@@ -180,7 +180,10 @@ class RealtimeTransportTests(unittest.TestCase):
         twinkly_client.token = client.AuthToken(
             value='AAAAAAAAAAA=', challenge_response='', expires_at=None
         )
-        with patch('lyte.twinkly.realtime.send_frame_v3', side_effect=OSError):
+        with patch(
+            'lyte.twinkly.realtime.send_frame_v3',
+            side_effect=OSError('Network is unreachable'),
+        ):
             result = realtime.send_realtime_frame(
                 twinkly_client,
                 RetryConfig(attempts=1, delay=0, backoff=1),
@@ -190,6 +193,7 @@ class RealtimeTransportTests(unittest.TestCase):
 
         self.assertEqual(result.status, realtime.FrameSendStatus.TRANSPORT_FAILED)
         self.assertEqual(result.byte_count, 0)
+        self.assertEqual(result.error, 'OSError: Network is unreachable')
 
 
 class RuntimeTests(unittest.TestCase):
