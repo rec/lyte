@@ -31,6 +31,8 @@ def run_daemon_command(config: DaemonCommandConfig) -> int:
         result = daemon.install_service(
             ['daemon', 'run', '--config', str(config.config.resolve())]
         )
+    elif config.action == 'status':
+        result = daemon.service_status()
     else:
         result = getattr(daemon, f'{config.action}_service')()
     service.print_service_status(daemon_runtime.LYTE_SERVICE.name, result)
