@@ -136,6 +136,7 @@ class RealtimeTransportTests(unittest.TestCase):
             patch('lyte.twinkly.realtime.read_led_count', read_led_count),
             patch('lyte.twinkly.realtime.prepare_device', return_value=True) as prepare,
             patch('lyte.twinkly.realtime.time.sleep'),
+            patch('lyte.twinkly.realtime.LOGGER.error') as log_error,
         ):
             host = realtime.recover_streaming_device(
                 client,
@@ -148,6 +149,35 @@ class RealtimeTransportTests(unittest.TestCase):
 
         assert host == '192.168.1.4'
         prepare.assert_called_once()
+        log_error.assert_called_once_with(
+            '[failed] 192.168.1.3 MAC changed: expected expected, found other.'
+        )
+
+    def test_recovery_reports_changed_led_count(self) -> None:
+        client = TwinklyClient(host='192.168.1.2')
+
+        with (
+            patch(
+                'lyte.twinkly.realtime.discover_host',
+                side_effect=['192.168.1.3', '192.168.1.4'],
+            ),
+            patch('lyte.twinkly.realtime.read_led_count', side_effect=[100, 250]),
+            patch('lyte.twinkly.realtime.prepare_device', return_value=True),
+            patch('lyte.twinkly.realtime.time.sleep'),
+            patch('lyte.twinkly.realtime.LOGGER.error') as log_error,
+        ):
+            host = realtime.recover_streaming_device(
+                client,
+                RetryConfig(attempts=1, delay=0, backoff=1),
+                None,
+                None,
+                250,
+            )
+
+        assert host == '192.168.1.4'
+        log_error.assert_called_once_with(
+            '[failed] 192.168.1.3 LED count changed: expected 250, found 100.'
+        )
 
     def test_recovery_stops_when_requested(self) -> None:
         stop_event = threading.Event()

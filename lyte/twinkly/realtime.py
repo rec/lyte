@@ -180,11 +180,17 @@ def recover_streaming_device(
         client.token = None
         deadline = time.monotonic() + RECOVERY_ATTEMPT_TIMEOUT
         led_count = read_led_count(client, retry, None, host, deadline, stop_event)
-        if (
-            led_count == expected_led_count
-            and (expected_mac is None or client.mac == expected_mac)
-            and prepare_device(client, retry, host, deadline, stop_event)
-        ):
+        if led_count != expected_led_count:
+            LOGGER.error(
+                f'[failed] {host} LED count changed: expected {expected_led_count}, '
+                f'found {led_count}.'
+            )
+        elif expected_mac is not None and client.mac != expected_mac:
+            LOGGER.error(
+                f'[failed] {host} MAC changed: expected {expected_mac}, '
+                f'found {client.mac}.'
+            )
+        elif prepare_device(client, retry, host, deadline, stop_event):
             return host
         if stop_event is not None and stop_event.wait(retry.delay):
             return None
