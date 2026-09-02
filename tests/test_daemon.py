@@ -53,6 +53,21 @@ def test_daemon_install_uses_reccy_application(
     assert midi_daemon.argv[-1].endswith('daemon.toml')
 
 
+def test_daemon_status_uses_reccy_service_status(monkeypatch: object) -> None:
+    class MidiDaemon:
+        def service_status(self) -> models.StatusResult:
+            return models.StatusResult(installed=True, running=True)
+
+    monkeypatch.setattr(daemon.daemon_runtime, 'LyteMidiDaemon', lambda: MidiDaemon())
+    monkeypatch.setattr(
+        daemon.service, 'print_service_status', lambda name, result: None
+    )
+
+    result = daemon.run_daemon_command(daemon.DaemonCommandConfig(action='status'))
+
+    assert result == 0
+
+
 def test_reccy_service_definitions_start_the_foreground_daemon(tmp_path: Path) -> None:
     for platform in [models.Platform.linux, models.Platform.macos]:
         service_paths = paths.service_paths(
