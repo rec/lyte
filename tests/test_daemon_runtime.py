@@ -102,6 +102,10 @@ def test_reccy_daemon_queues_test_command(tmp_path: Path) -> None:
 
     assert default == {'state': 'queued', 'level': 50.0, 'duration': 2.0}
     assert custom == {'state': 'queued', 'level': 25.0, 'duration': 4.0}
+    assert daemon.rpc_response(rpc.Request(command='status'))['queued_test'] == {
+        'level': 25.0,
+        'duration': 4.0,
+    }
 
 
 def test_reccy_daemon_rejects_invalid_test_command(tmp_path: Path) -> None:
@@ -303,6 +307,7 @@ def test_daemon_test_command_overrides_patch_frames(tmp_path: Path) -> None:
     class FakeTrack:
         def __init__(self, **kwargs: object) -> None:
             self.device = kwargs['device']
+            self.on_frame_sent = kwargs['on_frame_sent']
 
         def prepare(self) -> bool:
             return True
@@ -319,8 +324,11 @@ def test_daemon_test_command_overrides_patch_frames(tmp_path: Path) -> None:
             assert callable(render_frame)
             before_frame()
             frames.append(render_frame())
+            self.on_frame_sent()
             frames.append(render_frame())
+            self.on_frame_sent()
             frames.append(render_frame())
+            self.on_frame_sent()
 
         def close(self) -> None:
             pass
@@ -356,3 +364,8 @@ def test_daemon_test_command_overrides_patch_frames(tmp_path: Path) -> None:
 
     assert [int(f[0, 0]) for f in frames] == [0, 102, 0]
     assert all(np.all(f == f[0, 0]) for f in frames)
+    status = daemon.rpc_response(rpc.Request(command='status'))
+    assert status['queued_test'] is None
+    assert status['active_test'] == {'level': 40.0, 'duration': 2.0}
+    assert status['frame_send_count'] == 3
+    assert status['last_frame_sent_at'] is not None

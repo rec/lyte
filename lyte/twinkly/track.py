@@ -69,6 +69,8 @@ class TwinklyTrack(BaseModel):
     ) = None
     on_device_connected: SkipValidation[Callable[[str, str | None], None]] | None = None
     on_health_check: SkipValidation[Callable[[], None]] | None = None
+    on_frame_sent: SkipValidation[Callable[[], None]] | None = None
+    on_output_failure: SkipValidation[Callable[[str], None]] | None = None
     last_health_check: float | None = None
     connection: realtime.PlaybackConnection = Field(
         default_factory=realtime.PlaybackConnection
@@ -106,6 +108,7 @@ class TwinklyTrack(BaseModel):
         frame_delay = 1 / fps
         stop_at = None if duration is None else time.monotonic() + duration
         report = FrameDeadlineReport()
+        LOGGER.info(f'[output] Streaming {name} frames at {fps:g} FPS')
         try:
             while stop_at is None or time.monotonic() < stop_at:
                 if self.stop_event is not None and self.stop_event.is_set():
@@ -121,6 +124,9 @@ class TwinklyTrack(BaseModel):
                         self.host,
                         started_at + HEALTH_CHECK_TIMEOUT,
                     ):
+                        message = f'HTTP health probe to {self.host} failed'
+                        LOGGER.error(f'[network] {message}; recovering output.')
+                        self._notify_output_failure(message)
                         if not self._recover():
                             return
                         continue
@@ -135,11 +141,20 @@ class TwinklyTrack(BaseModel):
                 elapsed = time.monotonic() - started_at
                 report.record_frame(elapsed, frame_delay)
                 if result.status is not realtime.FrameSendStatus.SENT:
+                    message = result.error or result.status
+                    LOGGER.error(
+                        f'[network] {name} frame send to {self.host} failed: '
+                        f'{message}; recovering output.'
+                    )
+                    self._notify_output_failure(
+                        f'{name} frame send to {self.host} failed: {message}'
+                    )
                     recovery_started_at = time.monotonic()
                     if not self._recover():
                         return
                     report.record_recovery(time.monotonic() - recovery_started_at)
                     continue
+                self._notify_frame_sent()
                 remaining = frame_delay - elapsed
                 if remaining > 0:
                     time.sleep(remaining)
@@ -182,5 +197,13 @@ class TwinklyTrack(BaseModel):
     def _notify_health_check(self) -> None:
         if self.on_health_check is not None:
             self.on_health_check()
+
+    def _notify_frame_sent(self) -> None:
+        if self.on_frame_sent is not None:
+            self.on_frame_sent()
+
+    def _notify_output_failure(self, message: str) -> None:
+        if self.on_output_failure is not None:
+            self.on_output_failure(message)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

@@ -131,12 +131,15 @@ a confirmed disconnect, and reopens the port periodically. Program changes
 advance through the configured patch list. Reccy's local RPC accepts status,
 blackout, stop, named patch selection, and a white fade test command. Patch
 selections and tests are queued and are applied by the frame loop; status
-reports both queue and applied generations for patch selections.
+reports both queue and applied generations for patch selections, queued and
+active light tests, and output frame-send counters.
 
 Daemon status records lifecycle state, Twinkly host and MAC, the most recent
-output contact, MIDI state, recovery count, render failures, and the most recent
-failure. Render failures produce a black frame and identical repeated failures
-are counted without publishing an unbounded stream of events.
+output contact and frame send, MIDI state, recovery count, output failures,
+render failures, and the most recent failure. Connection changes, failed health
+probes, and UDP send errors are recorded through Reccy logging. Render failures
+produce a black frame and identical repeated failures are counted without
+publishing an unbounded stream of events.
 
 The daemon configuration loader is `lyte/daemon_config.py`. Its TOML references
 a patch library, an ordered patch list, MIDI input settings, Twinkly connection

@@ -65,6 +65,7 @@ class FrameSendStatus(enum.StrEnum):
 class FrameSendResult(BaseModel, frozen=True):
     status: FrameSendStatus
     byte_count: int = 0
+    error: str | None = None
 
 
 def send_realtime_frame(
@@ -74,11 +75,16 @@ def send_realtime_frame(
     frame: NDArray[np.uint8],
 ) -> FrameSendResult:
     if client.token is None:
-        return FrameSendResult(status=FrameSendStatus.TOKEN_MISSING)
+        return FrameSendResult(
+            status=FrameSendStatus.TOKEN_MISSING,
+            error='Twinkly authentication token is missing',
+        )
     try:
         sent = send_frame_v3(host, client.token.value, frame)
-    except (OSError, ProtocolError, ValueError):
-        return FrameSendResult(status=FrameSendStatus.TRANSPORT_FAILED)
+    except (OSError, ProtocolError, ValueError) as error:
+        message = f'{type(error).__name__}: {error}'
+        LOGGER.error(f'[network] Realtime UDP send to {host} failed: {message}')
+        return FrameSendResult(status=FrameSendStatus.TRANSPORT_FAILED, error=message)
     return FrameSendResult(status=FrameSendStatus.SENT, byte_count=sent)
 
 
