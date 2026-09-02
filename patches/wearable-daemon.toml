@@ -41,7 +41,6 @@ channel = 1
 
 [twinkly]
 timeout = 5.0
-discovery_timeout = null
 attempts = 10
 retry_delay = 0.5
 retry_backoff = 2.0
