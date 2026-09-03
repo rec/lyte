@@ -36,12 +36,22 @@ def frame_packets_v3(
         yield b'\x03' + raw_token + b'\x00\x00' + bytes((index,)), fragment
 
 
-def send_frame_v3(host: str, token: str, frame: NDArray[np.uint8]) -> int:
+def send_frame_v3(
+    host: str, token: str, frame: NDArray[np.uint8], output: socket.socket | None = None
+) -> int:
+    if output is not None:
+        return _send_frame_v3(output, host, token, frame)
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) as sock:
+        return _send_frame_v3(sock, host, token, frame)
+
+
+def _send_frame_v3(
+    output: socket.socket, host: str, token: str, frame: NDArray[np.uint8]
+) -> int:
     sent = 0
     address = (host, REALTIME_PORT)
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) as sock:
-        for header, payload in frame_packets_v3(token, frame):
-            sent += sock.sendmsg([header, payload], [], 0, address)
+    for header, payload in frame_packets_v3(token, frame):
+        sent += output.sendmsg([header, payload], [], 0, address)
     return sent
 
 

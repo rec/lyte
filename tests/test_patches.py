@@ -424,7 +424,7 @@ class PatchLibraryTests(unittest.TestCase):
         with (
             patch(
                 'lyte.twinkly.track.realtime.send_realtime_frame',
-                side_effect=lambda *args: frames.append(args[-1]) or sent,
+                side_effect=lambda *args: frames.append(args[-2]) or sent,
             ),
             patch(
                 'lyte.twinkly.track.time.monotonic',

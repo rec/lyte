@@ -299,10 +299,10 @@ class AnimateTests(unittest.TestCase):
             patch(
                 'lyte.twinkly.track.realtime.send_realtime_frame',
                 lambda *a: (
-                    sent_frames.append(a[-1])
+                    sent_frames.append(a[-2])
                     or self.script.realtime.FrameSendResult(
                         status=self.script.realtime.FrameSendStatus.SENT,
-                        byte_count=a[-1].nbytes,
+                        byte_count=a[-2].nbytes,
                     )
                 ),
             ),
