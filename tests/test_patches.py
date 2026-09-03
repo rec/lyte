@@ -50,6 +50,29 @@ class PatchLibraryTests(unittest.TestCase):
         npt.assert_array_equal(physical_frame[76:100], logical_frame[152:176])
         npt.assert_array_equal(physical_frame[176:200], logical_frame[176:200])
 
+    def test_wearable_layout_scales_to_the_connected_led_count(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+
+        with patch('lyte.patches.LOGGER.warning') as log_warning:
+            wearable = patches.scale_wearable_layout(library.wearable, 250)
+
+        assert wearable.led_count == 250
+        assert wearable.segments['left_leg'] == patches.RegionSpec(
+            start=0, led_count=40
+        )
+        assert wearable.segments['left_arm'] == patches.RegionSpec(
+            start=80, led_count=55
+        )
+        assert wearable.physical_map['left_arm'].ranges == [
+            patches.PhysicalRangeSpec(start=0, led_count=35),
+            patches.PhysicalRangeSpec(start=75, led_count=20),
+        ]
+        frame = np.zeros((250, 3), dtype=np.float32)
+        assert patches.map_logical_frame(wearable, frame).shape == (250, 3)
+        log_warning.assert_called_once_with(
+            '[warn] Scaling wearable layout from 200 LEDs to 250 LEDs.'
+        )
+
     def test_library_uses_validated_control_bindings(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
         patch = library.patches['breath_mix_walk_twinkle']
@@ -338,7 +361,7 @@ class PatchLibraryTests(unittest.TestCase):
 
         with (
             patch('lyte.patches.realtime.discover_host', return_value='192.168.1.23'),
-            patch('lyte.patches.realtime.read_led_count', return_value=200),
+            patch('lyte.patches.realtime.read_led_count', return_value=250),
             patch('lyte.patches.realtime.prepare_device', return_value=True),
             patch(
                 'lyte.patches.realtime.send_realtime_frame', return_value=failed
@@ -360,6 +383,7 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertTrue(port.closed)
         send.assert_called_once()
+        assert send.call_args.args[3].shape == (250, 3)
         recover.assert_called_once()
 
     def test_patch_playback_applies_input_before_rendering_each_frame(self) -> None:

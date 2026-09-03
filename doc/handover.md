@@ -71,6 +71,10 @@ current physical mapping. It currently declares `physical_map_status =
 "guessed"`. Do not change that to `"measured"` until the physical string has
 been checked on the garment.
 
+The wearable LED count is the authored layout count. Lyte warns and scales the
+runtime layout when the attached string reports a different count. Verify the
+result with the locator before performance use.
+
 Run the locator before a performance with a changed garment or string routing:
 
 ```sh

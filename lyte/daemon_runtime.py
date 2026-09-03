@@ -41,6 +41,8 @@ class LyteMidiStatus(ReccyStatus):
     patch: str | None = None
     host: str | None = None
     device_mac: str | None = None
+    planned_led_count: int | None = None
+    actual_led_count: int | None = None
     last_output_contact: datetime.datetime | None = None
     midi_connected: bool = False
     midi_error: str | None = None
@@ -103,6 +105,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
     _state: DaemonState = PrivateAttr(default=DaemonState.STARTING)
     _host: str | None = PrivateAttr(default=None)
     _device_mac: str | None = PrivateAttr(default=None)
+    _planned_led_count: int | None = PrivateAttr(default=None)
+    _actual_led_count: int | None = PrivateAttr(default=None)
     _last_output_contact: datetime.datetime | None = PrivateAttr(default=None)
     _midi_connected: bool = PrivateAttr(default=False)
     _midi_error: str | None = PrivateAttr(default=None)
@@ -172,6 +176,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 patch=self._patch_name,
                 host=self._host,
                 device_mac=self._device_mac,
+                planned_led_count=self._planned_led_count,
+                actual_led_count=self._actual_led_count,
                 last_output_contact=self._last_output_contact,
                 midi_connected=self._midi_connected,
                 midi_error=self._midi_error,
@@ -199,7 +205,6 @@ class LyteMidiDaemon(Reccy, frozen=True):
             raise ValueError('daemon requires a project')
         project = self.project
         config = project.config
-        selector = PatchSelector.create(project.library, config.patch_names)
         twinkly_track: track.TwinklyTrack | None = None
         port: midi.MidiInput | None = None
         next_midi_open_at = 0.0
@@ -222,13 +227,25 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 retry,
                 config.twinkly.host,
                 config.twinkly.discovery_timeout,
-                project.library.wearable.led_count,
+                None,
                 stop_event=self._stop_requested,
             )
             if host is None:
                 return 0
+            actual_led_count = realtime.read_led_count(client, retry, None, host)
+            if actual_led_count is None:
+                self._set_state(DaemonState.UNKNOWN)
+                return 1
+            runtime_library = patches.scale_patch_library(
+                project.library, actual_led_count
+            )
+            selector = PatchSelector.create(runtime_library, config.patch_names)
             with self._lock:
                 object.__setattr__(self, '_host', host)
+                object.__setattr__(
+                    self, '_planned_led_count', project.library.wearable.led_count
+                )
+                object.__setattr__(self, '_actual_led_count', actual_led_count)
             self.publish_status()
             twinkly_track = track.TwinklyTrack(
                 client=client,
@@ -236,7 +253,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 host=host,
                 configured_host=config.twinkly.host,
                 discovery_timeout=config.twinkly.discovery_timeout,
-                device=animation.Device(led_count=project.library.wearable.led_count),
+                device=animation.Device(led_count=actual_led_count),
                 expected_mac=client.mac,
                 stop_event=self._stop_requested,
                 on_connection_state=self._set_output_state,
@@ -325,7 +342,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
                             object.__setattr__(self, '_active_test', None)
                 try:
                     frame = patches.encode_wearable_frame(
-                        project.library.wearable,
+                        runtime_library.wearable,
                         selector.patch.render(twinkly_track.device),
                     )
                 except (ArithmeticError, IndexError, TypeError, ValueError) as error:
@@ -442,6 +459,8 @@ class LyteMidiDaemon(Reccy, frozen=True):
             'patch': self._patch_name,
             'host': self._host,
             'device_mac': self._device_mac,
+            'planned_led_count': self._planned_led_count,
+            'actual_led_count': self._actual_led_count,
             'last_output_contact': self._last_output_contact,
             'midi_connected': self._midi_connected,
             'midi_error': self._midi_error,

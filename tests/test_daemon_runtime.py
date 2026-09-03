@@ -270,6 +270,7 @@ def test_daemon_reopens_an_unavailable_midi_input(tmp_path: Path) -> None:
             'lyte.daemon_runtime.realtime.recover_streaming_device',
             return_value='192.168.1.23',
         ),
+        patch('lyte.daemon_runtime.realtime.read_led_count', return_value=200),
         patch('lyte.daemon_runtime.realtime.prepare_device', return_value=True),
         patch(
             'lyte.daemon_runtime.realtime.turn_off_streaming_device', return_value=True
@@ -354,6 +355,7 @@ def test_daemon_test_command_overrides_patch_frames(tmp_path: Path) -> None:
             'lyte.daemon_runtime.realtime.recover_streaming_device',
             return_value='192.168.1.23',
         ),
+        patch('lyte.daemon_runtime.realtime.read_led_count', return_value=250),
         patch('lyte.daemon_runtime.midi.open_input', return_value=Port()),
         patch('lyte.daemon_runtime.track.TwinklyTrack', FakeTrack),
         patch.object(daemon_runtime.LyteMidiDaemon, 'start'),
@@ -363,9 +365,12 @@ def test_daemon_test_command_overrides_patch_frames(tmp_path: Path) -> None:
         assert daemon.run() == 0
 
     assert [int(f[0, 0]) for f in frames] == [0, 102, 0]
+    assert all(f.shape == (250, 3) for f in frames)
     assert all(np.all(f == f[0, 0]) for f in frames)
     status = daemon.rpc_response(rpc.Request(command='status'))
     assert status['queued_test'] is None
     assert status['active_test'] == {'level': 40.0, 'duration': 2.0}
     assert status['frame_send_count'] == 3
     assert status['last_frame_sent_at'] is not None
+    assert status['planned_led_count'] == 200
+    assert status['actual_led_count'] == 250

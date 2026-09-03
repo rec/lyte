@@ -161,7 +161,7 @@ def recover_streaming_device(
     retry: RetryConfig,
     configured_host: str | None,
     discovery_timeout: float | None,
-    expected_led_count: int,
+    expected_led_count: int | None,
     expected_mac: str | None = None,
     stop_event: threading.Event | None = None,
 ) -> str | None:
@@ -180,7 +180,9 @@ def recover_streaming_device(
         client.token = None
         deadline = time.monotonic() + RECOVERY_ATTEMPT_TIMEOUT
         led_count = read_led_count(client, retry, None, host, deadline, stop_event)
-        if led_count != expected_led_count:
+        if led_count is None:
+            pass
+        elif expected_led_count is not None and led_count != expected_led_count:
             LOGGER.error(
                 f'[failed] {host} LED count changed: expected {expected_led_count}, '
                 f'found {led_count}.'
