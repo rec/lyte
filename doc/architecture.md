@@ -134,6 +134,11 @@ selections and tests are queued and are applied by the frame loop; status
 reports both queue and applied generations for patch selections, queued and
 active light tests, and output frame-send counters.
 
+Wearable patch libraries declare an authored LED count. When a connected string
+reports a different count, Lyte warns and derives a runtime layout by scaling
+logical and physical map boundaries to the actual count. The configured map is
+unchanged; recovery still requires the established runtime count.
+
 Daemon status records lifecycle state, Twinkly host and MAC, the most recent
 output contact and frame send, MIDI state, recovery count, output failures,
 render failures, and the most recent failure. Connection changes, failed health

@@ -375,6 +375,86 @@ def load_patch_library(path: Path) -> PatchLibrary:
         raise PatchLibraryError(f'{path}: {error}') from error
 
 
+def scale_wearable_layout(wearable: WearableSpec, led_count: int) -> WearableSpec:
+    if led_count <= 0:
+        raise ValueError('runtime LED count must be greater than zero')
+    if led_count == wearable.led_count:
+        return wearable
+    LOGGER.warning(
+        f'[warn] Scaling wearable layout from {wearable.led_count} LEDs to '
+        f'{led_count} LEDs.'
+    )
+    physical_map = {
+        name: PhysicalRegionSpec(
+            ranges=[
+                _scaled_physical_range(
+                    physical_range, wearable.led_count, led_count, name
+                )
+                for physical_range in physical_region.ranges
+            ]
+        )
+        for name, physical_region in wearable.physical_map.items()
+    }
+    segments = {}
+    start = 0
+    for name in wearable.segments:
+        region_led_count = sum(r.led_count for r in physical_map[name].ranges)
+        segments[name] = RegionSpec(start=start, led_count=region_led_count)
+        start += region_led_count
+    return WearableSpec(
+        led_count=led_count,
+        physical_map_status=wearable.physical_map_status,
+        segments=segments,
+        physical_map=physical_map,
+    )
+
+
+def scale_patch_library(library: PatchLibrary, led_count: int) -> PatchLibrary:
+    return library.model_copy(
+        update={'wearable': scale_wearable_layout(library.wearable, led_count)}
+    )
+
+
+def _scaled_physical_range(
+    physical_range: PhysicalRangeSpec,
+    planned_led_count: int,
+    actual_led_count: int,
+    name: str,
+) -> PhysicalRangeSpec:
+    return PhysicalRangeSpec(
+        start=_scale_boundary(
+            physical_range.start, planned_led_count, actual_led_count
+        ),
+        led_count=_scaled_led_count(
+            physical_range.start,
+            physical_range.led_count,
+            planned_led_count,
+            actual_led_count,
+            f'physical range for {name}',
+        ),
+    )
+
+
+def _scale_boundary(
+    position: int, planned_led_count: int, actual_led_count: int
+) -> int:
+    return (position * actual_led_count + planned_led_count // 2) // planned_led_count
+
+
+def _scaled_led_count(
+    start: int,
+    led_count: int,
+    planned_led_count: int,
+    actual_led_count: int,
+    name: str,
+) -> int:
+    scaled_start = _scale_boundary(start, planned_led_count, actual_led_count)
+    scaled_end = _scale_boundary(start + led_count, planned_led_count, actual_led_count)
+    if scaled_end <= scaled_start:
+        raise ValueError(f'{name} collapses when scaled to {actual_led_count} LEDs')
+    return scaled_end - scaled_start
+
+
 def map_logical_frame(
     wearable: WearableSpec,
     logical_frame: NDArray[np.float32],
@@ -475,18 +555,14 @@ def run_locator(config: PatchCommandConfig, library: PatchLibrary) -> int:
     led_count = realtime.read_led_count(client, retry, None, host)
     if led_count is None:
         return 1
-    if led_count != library.wearable.led_count:
-        sys.exit(
-            f'Patch library needs {library.wearable.led_count} LEDs; '
-            f'{host} has {led_count}.'
-        )
+    wearable = scale_wearable_layout(library.wearable, led_count)
     try:
         if not realtime.prepare_device(client, retry, host):
             return 1
-        for region in library.wearable.segments:
+        for region in wearable.segments:
             LOGGER.info(f'[locator] {region}')
             frame = animation.byte_light_frame_from_float(
-                locator_frame(library.wearable, region)
+                locator_frame(wearable, region)
             )
             stop_at = time.monotonic() + config.region_duration
             while time.monotonic() < stop_at:
@@ -511,7 +587,6 @@ def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int
         LOGGER.info('[warn] Patch playback is using a guessed physical map.')
     if config.patch_name is None:
         sys.exit('Patch playback requires a patch name')
-    patch = build_light_patch(library, config.patch_name)
     host = config.host or realtime.discover_host(config.discovery_timeout)
     if host is None:
         return 1
@@ -522,10 +597,11 @@ def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int
         backoff=config.retry_backoff,
     )
     client = TwinklyClient(host=host, timeout=config.timeout)
-    led_count = realtime.read_led_count(client, retry, library.wearable.led_count, host)
-    if led_count != library.wearable.led_count:
-        LOGGER.error(f'[failed] {host} does not match the patch library LED count.')
+    led_count = realtime.read_led_count(client, retry, None, host)
+    if led_count is None:
         return 1
+    runtime_library = scale_patch_library(library, led_count)
+    patch = build_light_patch(runtime_library, config.patch_name)
 
     port = midi.open_input(config.midi_input)
     twinkly_track = track.TwinklyTrack(
@@ -534,12 +610,12 @@ def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int
         host=host,
         configured_host=config.host,
         discovery_timeout=config.discovery_timeout,
-        device=animation.Device(led_count=library.wearable.led_count),
+        device=animation.Device(led_count=led_count),
     )
     try:
         if not twinkly_track.prepare():
             return 1
-        stream_patch_frames(port, config, library, patch, twinkly_track)
+        stream_patch_frames(port, config, runtime_library, patch, twinkly_track)
     except KeyboardInterrupt:
         LOGGER.debug('')
         LOGGER.debug('[ok] Stopped')
