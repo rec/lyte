@@ -454,37 +454,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
         self.publish_status()
 
     def _status_data(self) -> dict[str, object]:
-        return {
-            'state': self._state,
-            'patch': self._patch_name,
-            'host': self._host,
-            'device_mac': self._device_mac,
-            'planned_led_count': self._planned_led_count,
-            'actual_led_count': self._actual_led_count,
-            'last_output_contact': self._last_output_contact,
-            'midi_connected': self._midi_connected,
-            'midi_error': self._midi_error,
-            'output_state': self._output_state,
-            'recovery_count': self._recovery_count,
-            'queued_test': _light_test_data(self._selected_test),
-            'active_test': (
-                None
-                if self._active_test is None
-                else _light_test_data(self._active_test.command)
-            ),
-            'frame_send_count': self._frame_send_count,
-            'last_frame_sent_at': self._last_frame_sent_at,
-            'output_error': self._output_error,
-            'output_failure_count': self._output_failure_count,
-            'render_error': self._render_error,
-            'render_error_count': self._render_error_count,
-            'last_failure': self._last_failure,
-            'last_failure_at': self._last_failure_at,
-            'failure_count': self._failure_count,
-            'selection_generation': self._selection_generation,
-            'applied_selection_generation': self._applied_selection_generation,
-            'error': None,
-        }
+        return self.status_snapshot().model_dump(mode='json')
 
 
 class MidiPerformance(BaseModel):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections import deque
 from pathlib import Path
 from unittest.mock import call, patch
@@ -368,6 +369,7 @@ def test_daemon_test_command_overrides_patch_frames(tmp_path: Path) -> None:
     assert all(f.shape == (250, 3) for f in frames)
     assert all(np.all(f == f[0, 0]) for f in frames)
     status = daemon.rpc_response(rpc.Request(command='status'))
+    json.dumps(status)
     assert status['queued_test'] is None
     assert status['active_test'] == {'level': 40.0, 'duration': 2.0}
     assert status['frame_send_count'] == 3
