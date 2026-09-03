@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import socket
 import threading
 import time
 
@@ -73,6 +74,7 @@ def send_realtime_frame(
     retry: RetryConfig,
     host: str,
     frame: NDArray[np.uint8],
+    output: socket.socket | None = None,
 ) -> FrameSendResult:
     if client.token is None:
         return FrameSendResult(
@@ -80,7 +82,7 @@ def send_realtime_frame(
             error='Twinkly authentication token is missing',
         )
     try:
-        sent = send_frame_v3(host, client.token.value, frame)
+        sent = send_frame_v3(host, client.token.value, frame, output)
     except (OSError, ProtocolError, ValueError) as error:
         message = f'{type(error).__name__}: {error}'
         LOGGER.error(f'[network] Realtime UDP send to {host} failed: {message}')

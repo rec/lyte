@@ -73,6 +73,29 @@ class RealtimeFrameTests(unittest.TestCase):
         self.assertEqual(buffers[0], b'\x030"\x06\x04]j&X\x00\x00\x00')
         self.assertIs(buffers[1].obj, frame)
 
+    def test_send_frame_uses_given_output(self) -> None:
+        frame = solid_rgb_frame(1, 1, 2, 3)
+        sent_buffers = []
+
+        class Socket:
+            def sendmsg(
+                self,
+                buffers: list[Sized],
+                flags: list[object],
+                mode: int,
+                address: tuple[str, int],
+            ) -> int:
+                sent_buffers.append((buffers, flags, mode, address))
+                return sum(len(buffer) for buffer in buffers)
+
+        output = Socket()
+        with patch('lyte.twinkly.frame.socket.socket') as create_socket:
+            sent = send_frame_v3('192.168.1.23', 'MCIGBF1qJlg=', frame, output)
+
+        self.assertEqual(sent, 15)
+        create_socket.assert_not_called()
+        self.assertEqual(len(sent_buffers), 1)
+
     def test_rejects_bad_realtime_token(self) -> None:
         with self.assertRaises(ProtocolError):
             list(frame_packets_v3('bad', solid_rgb_frame(1, 0, 0, 0)))
