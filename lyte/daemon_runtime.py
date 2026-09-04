@@ -340,6 +340,9 @@ class LyteMidiDaemon(Reccy, frozen=True):
                     with self._lock:
                         if self._active_test == active_test:
                             object.__setattr__(self, '_active_test', None)
+                    self._stop_requested.set()
+                    LOGGER.info('[test] Completed light test; stopping Lyte.')
+                    return np.zeros((twinkly_track.device.led_count, 3), dtype=np.uint8)
                 try:
                     frame = patches.encode_wearable_frame(
                         runtime_library.wearable,
