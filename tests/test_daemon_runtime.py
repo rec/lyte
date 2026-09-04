@@ -310,6 +310,7 @@ def test_daemon_test_command_overrides_patch_frames(tmp_path: Path) -> None:
         def __init__(self, **kwargs: object) -> None:
             self.device = kwargs['device']
             self.on_frame_sent = kwargs['on_frame_sent']
+            self.stop_event = kwargs['stop_event']
 
         def prepare(self) -> bool:
             return True
@@ -324,13 +325,10 @@ def test_daemon_test_command_overrides_patch_frames(tmp_path: Path) -> None:
         ) -> None:
             assert callable(before_frame)
             assert callable(render_frame)
-            before_frame()
-            frames.append(render_frame())
-            self.on_frame_sent()
-            frames.append(render_frame())
-            self.on_frame_sent()
-            frames.append(render_frame())
-            self.on_frame_sent()
+            while not self.stop_event.is_set():
+                before_frame()
+                frames.append(render_frame())
+                self.on_frame_sent()
 
         def close(self) -> None:
             pass
@@ -361,7 +359,7 @@ def test_daemon_test_command_overrides_patch_frames(tmp_path: Path) -> None:
         patch('lyte.daemon_runtime.track.TwinklyTrack', FakeTrack),
         patch.object(daemon_runtime.LyteMidiDaemon, 'start'),
         patch.object(daemon_runtime.LyteMidiDaemon, 'close'),
-        patch('lyte.daemon_runtime.time.monotonic', side_effect=[0, 0, 0, 1, 2]),
+        patch('lyte.daemon_runtime.time.monotonic', side_effect=[0, 0, 0, 1, 3]),
     ):
         assert daemon.run() == 0
 
@@ -371,7 +369,7 @@ def test_daemon_test_command_overrides_patch_frames(tmp_path: Path) -> None:
     status = daemon.rpc_response(rpc.Request(command='status'))
     json.dumps(status)
     assert status['queued_test'] is None
-    assert status['active_test'] == {'level': 40.0, 'duration': 2.0}
+    assert status['active_test'] is None
     assert status['frame_send_count'] == 3
     assert status['last_frame_sent_at'] is not None
     assert status['planned_led_count'] == 200
