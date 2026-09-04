@@ -40,6 +40,7 @@ fps = 60.0
 channel = 1
 
 [twinkly]
+host = "10.0.0.231"
 timeout = 5.0
 attempts = 10
 retry_delay = 0.5
