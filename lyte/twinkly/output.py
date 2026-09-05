@@ -4,7 +4,7 @@ import sys
 from typing import Literal
 
 from pydantic import BaseModel, field_validator
-from reccy import logging
+from reccy.runtime import logging
 
 from .client import TwinklyClient
 from .command import run_twinkly_command

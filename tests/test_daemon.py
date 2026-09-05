@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from reccy import models, paths, renderers
+from reccy.services import models, paths, renderers
 
 from lyte import daemon, daemon_runtime
 
@@ -40,7 +40,7 @@ def test_daemon_install_uses_reccy_application(
     midi_daemon = MidiDaemon()
     monkeypatch.setattr(daemon.daemon_runtime, 'LyteMidiDaemon', lambda: midi_daemon)
     monkeypatch.setattr(
-        daemon.service, 'print_service_status', lambda name, result: None
+        daemon.controller, 'print_service_status', lambda name, result: None
     )
 
     result = daemon.run_daemon_command(
@@ -60,7 +60,7 @@ def test_daemon_status_uses_reccy_service_status(monkeypatch: object) -> None:
 
     monkeypatch.setattr(daemon.daemon_runtime, 'LyteMidiDaemon', lambda: MidiDaemon())
     monkeypatch.setattr(
-        daemon.service, 'print_service_status', lambda name, result: None
+        daemon.controller, 'print_service_status', lambda name, result: None
     )
 
     result = daemon.run_daemon_command(daemon.DaemonCommandConfig(action='status'))
@@ -94,4 +94,5 @@ def test_reccy_service_definitions_start_the_foreground_daemon(tmp_path: Path) -
             if platform is models.Platform.linux
             else '<string>lyte</string>'
         )
+        assert 'reccy.services.runner' in definition.content
         assert expected in definition.content

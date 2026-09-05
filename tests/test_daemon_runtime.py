@@ -8,7 +8,7 @@ from unittest.mock import call, patch
 import mido
 import numpy as np
 from pydantic import BaseModel
-from reccy import ipc, rpc
+from reccy.protocol import ipc, rpc
 from reccy.reccy import Reccy
 
 from lyte import daemon_config, daemon_runtime, midi, patches

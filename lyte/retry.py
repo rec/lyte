@@ -7,7 +7,7 @@ import time
 from collections.abc import Callable
 
 from pydantic import BaseModel
-from reccy import logging
+from reccy.runtime import logging
 
 LOGGER = logging.get_logger(__name__)
 

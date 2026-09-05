@@ -5,7 +5,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from pydantic import BaseModel
-from reccy import logging
+from reccy.runtime import logging
 
 from ..errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
 from ..retry import RetryConfig, retry_call

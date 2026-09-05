@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel
-from reccy import logging
+from reccy.runtime import logging
 
 from .client import TwinklyClient
 from .command import read_json_object, run_twinkly_command, write_json_file

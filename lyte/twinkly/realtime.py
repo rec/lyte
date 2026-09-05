@@ -8,7 +8,7 @@ import time
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
-from reccy import logging
+from reccy.runtime import logging
 
 from ..errors import ProtocolError
 from ..retry import RetryConfig

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Annotated
 
 import tyro
-from reccy import logging
+from reccy.runtime import logging
 
 from . import daemon, fps_test
 from . import patches
