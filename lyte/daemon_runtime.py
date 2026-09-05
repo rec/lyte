@@ -13,8 +13,10 @@ import mido
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, PrivateAttr, SkipValidation
-from reccy import ipc, logging, rpc, service_spec
+from reccy.protocol import ipc, rpc
 from reccy.reccy import Reccy, ReccyStatus
+from reccy.runtime import logging
+from reccy.services import spec
 
 from . import animation, midi, patches
 from .daemon_config import DaemonProject
@@ -22,7 +24,7 @@ from .retry import RetryConfig
 from .twinkly import realtime, track
 from .twinkly.client import TwinklyClient
 
-LYTE_SERVICE = service_spec.load(Path(__file__).with_name('service.toml'))
+LYTE_SERVICE = spec.load(Path(__file__).with_name('service.toml'))
 LOGGER = logging.get_logger(__name__)
 
 

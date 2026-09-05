@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from reccy import logging
+from reccy.runtime import logging
 
 from .client import TwinklyClient
 from .command import run_twinkly_command

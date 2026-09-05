@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass
 from typing import NoReturn
 
-from reccy import logging
+from reccy.runtime import logging
 
 from ..animations.colors import solid_rgb_frame
 from ..errors import DiscoveryError, ProtocolError

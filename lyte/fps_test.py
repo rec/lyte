@@ -14,7 +14,7 @@ from typing import Literal, TextIO
 
 import numpy as np
 from numpy.typing import NDArray
-from reccy import logging
+from reccy.runtime import logging
 
 from .animation import Device, validate_byte_rgb_frame
 from .animations.colors import RGB

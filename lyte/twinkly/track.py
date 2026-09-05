@@ -11,7 +11,7 @@ from collections.abc import Callable
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, SkipValidation
-from reccy import logging
+from reccy.runtime import logging
 
 from .. import animation
 from ..retry import RetryConfig

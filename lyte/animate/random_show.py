@@ -5,7 +5,7 @@ import time
 from dataclasses import replace
 from typing import cast
 
-from reccy import logging
+from reccy.runtime import logging
 
 from . import config
 

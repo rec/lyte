@@ -12,7 +12,7 @@ import numpy as np
 import tyro
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, SkipValidation, model_validator
-from reccy import logging
+from reccy.runtime import logging
 
 from . import animation, midi
 from .animations import bibliopixel

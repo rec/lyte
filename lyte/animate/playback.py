@@ -7,7 +7,7 @@ from collections.abc import Sequence
 import numpy as np
 import tyro
 from numpy.typing import NDArray
-from reccy import logging
+from reccy.runtime import logging
 
 from .. import animation
 from ..retry import RetryConfig
