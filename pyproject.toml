@@ -42,4 +42,4 @@ extra-paths = ["type_stubs"]
 exclude-newer = "1 week"
 
 [tool.uv.sources]
-reccy = { path = "../reccy", editable = true }
+reccy = { git = "https://github.com/rec/reccy.git", branch = "main" }
