@@ -25,8 +25,9 @@ Use `lyte patch list` to inspect the wearable patch catalogue. For an
 interactive wearable session, use `lyte patch play NAME`. Use `Ctrl-C` to stop
 an interactive command; it requests a bounded blackout before returning.
 
-The working assumption is one Twinkly on the local network. Leave host options
-unset unless that assumption stops being true.
+Direct Twinkly commands assume one discoverable device on the local network.
+Leave their host options unset unless that assumption stops being true. Mixed
+installation targets always require explicit host addresses in their TOML.
 
 ## Daemon Operation
 
@@ -48,6 +49,12 @@ lyte daemon stop
 
 `lyte daemon install` records an absolute path to the selected configuration.
 After changing the daemon TOML, run `lyte daemon restart`.
+
+The daemon's Reccy endpoint accepts status, blackout, stop, named patch
+selection, and a white fade test. Status distinguishes queued and applied patch
+selections, queued and active tests, connection state, recent output contact,
+frame sends, recovery, and failures. The test command's level is a percentage
+and its duration is the complete fade-up and fade-down time.
 
 Use service status as the first check after a failed performance setup. For a
 stale or disconnected MIDI device, reconnect the device and wait for the daemon
@@ -112,6 +119,10 @@ Automated tests verify DMX profile validation, exact universe bytes, ArtDmx
 packet bytes, mixed scheduling, independent failures, and shutdown calls. They
 do not verify a fixture manual, network route, node configuration, visible
 output, or physical blackout.
+
+The current installation runner supports Art-Net output only. DMX programs are
+static values in the installation file; dynamic DMX effects, DMX input, sACN,
+and USB DMX are not implemented.
 
 ## Safety and Recovery Expectations
 

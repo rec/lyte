@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lyte"
 version = "0.1.2"
-description = "Small dependency-free Python client for Twinkly generation 2 lights"
+description = "Python lighting player for Twinkly pixels and Art-Net DMX instruments"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
