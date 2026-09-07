@@ -372,5 +372,5 @@ def test_daemon_test_command_overrides_patch_frames(tmp_path: Path) -> None:
     assert status['active_test'] is None
     assert status['frame_send_count'] == 3
     assert status['last_frame_sent_at'] is not None
-    assert status['planned_led_count'] == 200
+    assert status['planned_led_count'] == 250
     assert status['actual_led_count'] == 250
