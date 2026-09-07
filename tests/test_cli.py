@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from lyte import cli, patches
+from lyte import cli, installation, patches
 
 
 class CliTests(unittest.TestCase):
@@ -126,6 +126,19 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result, 0)
         config = run_show.call_args.args[0]
         self.assertEqual(config.files, [Path('first.toml'), Path('second.toml')])
+
+    def test_cli_installation_command_dispatches_runtime(self) -> None:
+        with patch.object(
+            installation, 'run_installation_command', return_value=0
+        ) as run:
+            result = cli.main(
+                ['installation', 'run', 'installation.toml', '--duration', '2']
+            )
+
+        self.assertEqual(result, 0)
+        config = run.call_args.args[0]
+        self.assertEqual(config.config, Path('installation.toml'))
+        self.assertEqual(config.duration, 2)
 
     def test_cli_black_floor_command_dispatches_black_floor_test(self) -> None:
         with patch.object(

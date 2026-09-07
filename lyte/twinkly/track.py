@@ -118,54 +118,86 @@ class TwinklyTrack(BaseModel):
                     if self.stop_event is not None and self.stop_event.is_set():
                         return
                     started_at = time.monotonic()
-                    if (
-                        self.last_health_check is not None
-                        and started_at - self.last_health_check >= HEALTH_CHECK_INTERVAL
-                    ):
-                        if not realtime.probe_streaming_device(
-                            self.client,
-                            self.retry,
-                            self.host,
-                            started_at + HEALTH_CHECK_TIMEOUT,
-                        ):
-                            message = f'HTTP health probe to {self.host} failed'
-                            LOGGER.error(f'[network] {message}; recovering output.')
-                            self._notify_output_failure(message)
-                            if not self._recover():
-                                return
-                            continue
-                        self._notify_health_check()
-                    self.last_health_check = started_at
+                    if not self._check_health(started_at):
+                        continue
                     if before_frame is not None:
                         before_frame()
                     frame = animation.validate_byte_rgb_frame(
                         self.device, render_frame()
                     )
-                    result = realtime.send_realtime_frame(
-                        self.client, self.retry, self.host, frame, output
-                    )
+                    recovery_duration = self._send_frame(name, frame, output)
                     elapsed = time.monotonic() - started_at
                     report.record_frame(elapsed, frame_delay)
-                    if result.status is not realtime.FrameSendStatus.SENT:
-                        message = result.error or result.status
-                        LOGGER.error(
-                            f'[network] {name} frame send to {self.host} failed: '
-                            f'{message}; recovering output.'
-                        )
-                        self._notify_output_failure(
-                            f'{name} frame send to {self.host} failed: {message}'
-                        )
-                        recovery_started_at = time.monotonic()
-                        if not self._recover():
-                            return
-                        report.record_recovery(time.monotonic() - recovery_started_at)
+                    if recovery_duration is not None:
+                        report.record_recovery(recovery_duration)
                         continue
-                    self._notify_frame_sent()
                     remaining = frame_delay - elapsed
                     if remaining > 0:
                         time.sleep(remaining)
             finally:
                 report.log_report(name, fps)
+
+    def send_frame(
+        self,
+        name: str,
+        frame: NDArray[np.uint8],
+        output: socket.socket,
+    ) -> bool:
+        if not self._check_health(time.monotonic()):
+            return False
+        return (
+            self._send_frame(
+                name, animation.validate_byte_rgb_frame(self.device, frame), output
+            )
+            is None
+        )
+
+    def _check_health(self, started_at: float) -> bool:
+        if self.last_health_check is None:
+            self.last_health_check = started_at
+        elif started_at - self.last_health_check >= HEALTH_CHECK_INTERVAL:
+            if not realtime.probe_streaming_device(
+                self.client,
+                self.retry,
+                self.host,
+                started_at + HEALTH_CHECK_TIMEOUT,
+            ):
+                message = f'HTTP health probe to {self.host} failed'
+                LOGGER.error(f'[network] {message}; recovering output.')
+                self._notify_output_failure(message)
+                if self._recover():
+                    self.last_health_check = started_at
+                return False
+            self._notify_health_check()
+            self.last_health_check = started_at
+        return True
+
+    def _send_frame(
+        self,
+        name: str,
+        frame: NDArray[np.uint8],
+        output: socket.socket,
+    ) -> float | None:
+        result = realtime.send_realtime_frame(
+            self.client, self.retry, self.host, frame, output
+        )
+        if result.status is realtime.FrameSendStatus.SENT:
+            self._notify_frame_sent()
+            return None
+        message = result.error or result.status
+        LOGGER.error(
+            f'[network] {name} frame send to {self.host} failed: '
+            f'{message}; recovering output.'
+        )
+        self._notify_output_failure(
+            f'{name} frame send to {self.host} failed: {message}'
+        )
+        recovery_started_at = time.monotonic()
+        recovered = self._recover()
+        recovered_at = time.monotonic()
+        if recovered:
+            self.last_health_check = recovered_at
+        return recovered_at - recovery_started_at
 
     def _recover(self) -> bool:
         self.connection.begin_recovery()
