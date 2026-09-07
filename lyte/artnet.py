@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import socket
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from . import dmx
 
@@ -16,6 +16,8 @@ class ArtNetEndpoint(BaseModel, frozen=True):
     host: str = Field(min_length=1)
     port: int = Field(default=ARTNET_PORT, ge=1, le=65535)
     universe_offset: int = -1
+
+    model_config = ConfigDict(extra='forbid')
 
 
 class ArtNetDriver:

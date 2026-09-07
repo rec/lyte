@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from lyte import dmx, installation
 
@@ -73,11 +74,29 @@ def test_load_installation_reports_source_path(tmp_path: Path) -> None:
         installation.load_installation(path)
 
 
+def test_example_installation_is_valid() -> None:
+    config = installation.load_installation(Path('examples/installation.toml'))
+
+    assert set(config.run) == {'tree', 'front_wash'}
+
+
 def test_installation_rejects_program_for_wrong_target_family() -> None:
     data = example_installation()
     data['run'] = {'tree': {'program': 'wash'}}
 
     with pytest.raises(ValueError, match='requires a pixel program'):
+        installation.parse_installation(data)
+
+
+def test_installation_rejects_unknown_fixture_fields() -> None:
+    data = example_installation()
+    dmx_targets = data['dmx']
+    assert isinstance(dmx_targets, dict)
+    fixture = dmx_targets['front_wash']
+    assert isinstance(fixture, dict)
+    fixture['adress'] = 1
+
+    with pytest.raises(ValidationError, match='adress'):
         installation.parse_installation(data)
 
 

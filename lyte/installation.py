@@ -35,7 +35,11 @@ class InstallationFileError(ValueError):
     pass
 
 
-class TwinklyTargetSpec(BaseModel, frozen=True):
+class InstallationDefinition(BaseModel, frozen=True):
+    model_config = ConfigDict(extra='forbid')
+
+
+class TwinklyTargetSpec(InstallationDefinition, frozen=True):
     host: str = Field(min_length=1)
     led_count: int = Field(gt=0)
     fps: float = Field(default=30.0, gt=0)
@@ -49,7 +53,7 @@ class DmxTargetSpec(dmx.DmxInstrument, frozen=True):
     fps: float = Field(default=40.0, gt=0)
 
 
-class PixelProgramSpec(BaseModel, frozen=True):
+class PixelProgramSpec(InstallationDefinition, frozen=True):
     kind: Literal['pixel'] = 'pixel'
     impl: str = Field(min_length=1)
     params: dict[str, object] = Field(default_factory=dict)
@@ -62,11 +66,11 @@ class DmxProgramSpec(dmx.DmxValues, frozen=True):
 ProgramSpec = Annotated[PixelProgramSpec | DmxProgramSpec, Field(discriminator='kind')]
 
 
-class InstallationRunSpec(BaseModel, frozen=True):
+class InstallationRunSpec(InstallationDefinition, frozen=True):
     program: str = Field(min_length=1)
 
 
-class InstallationFile(BaseModel, frozen=True):
+class InstallationFile(InstallationDefinition, frozen=True):
     artnet_endpoint: artnet.ArtNetEndpoint | None = None
     twinkly_targets: dict[str, TwinklyTargetSpec] = Field(default_factory=dict)
     dmx_targets: dict[str, DmxTargetSpec] = Field(default_factory=dict)
@@ -174,6 +178,7 @@ class TwinklyOutputDriver:
 
     def open(self) -> bool:
         if not self.track.prepare():
+            self.track.close()
             return False
         self._socket = socket.socket(
             socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP

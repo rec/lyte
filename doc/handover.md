@@ -84,6 +84,35 @@ lyte patch locator
 Record the observed mapping and update the TOML deliberately. Do not alter the
 factory string to make the logical layout fit the file.
 
+## Mixed Installation Operation
+
+`examples/installation.toml` documents one Twinkly target and one generic
+eight-channel DMX instrument. Its TEST-NET addresses deliberately do not name
+real installation hardware. Copy it to an installation-specific file, replace
+the addresses, and replace every DMX category and pattern value with the
+fixture manual's actual profile.
+
+Run a configured installation in the foreground:
+
+```sh
+lyte installation run installation.toml
+```
+
+Use `--duration SECONDS` for a bounded setup test. Normal completion and
+`Ctrl-C` attempt Twinkly and DMX blackout before closing output sockets. A
+target failure is logged and counted without stopping other targets; the
+command returns failure after bounded playback if any target failed.
+
+DMX universe numbers are one-based in the installation file. Category channel
+numbers are one-based offsets within the instrument's contiguous channel
+range. Art-Net subtracts one from the configured universe by default when it
+constructs the Art-Net port address.
+
+Automated tests verify DMX profile validation, exact universe bytes, ArtDmx
+packet bytes, mixed scheduling, independent failures, and shutdown calls. They
+do not verify a fixture manual, network route, node configuration, visible
+output, or physical blackout.
+
 ## Safety and Recovery Expectations
 
 The output attempts to turn off within three seconds when a normal command or
@@ -105,6 +134,8 @@ machine and record the result:
    promptly.
 4. Run `lyte patch locator` on the assembled garment and verify every named
    region.
+5. Run a bounded mixed installation test, verify the DMX fixture's address and
+   mode against its manual, and confirm visible Art-Net output and blackout.
 
 ## Development Maintenance
 
