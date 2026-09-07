@@ -1,91 +1,97 @@
 # lyte
 
-Lyte is a personal Python 3.13 lighting player for one Twinkly string. It
-preserves a library of stateful pixel animations and provides a reliable
-realtime playback path with discovery, authentication, recovery, and blackout
-cleanup.
+Lyte is a Python 3.13 lighting player for Twinkly pixel strings and DMX
+instruments. It provides stateful RGB animations, reliable Twinkly realtime
+playback, MIDI-controlled wearable patches, and mixed Twinkly and Art-Net
+installation playback.
 
-Lyte uses `numpy`, `pydantic`, `tyro`, and `mido`. Its animation contract is a
-logical `float32` RGB frame; Twinkly byte encoding happens only when sending a
-realtime frame.
+Pixel animations render C-contiguous `numpy.float32` RGB frames. Conversion to
+Twinkly's byte format happens at the output boundary. DMX instruments use typed
+channel categories and render independent 512-slot universe frames.
 
-## Commands
+## Twinkly Commands
 
-Inspect the connected Twinkly device:
+Inspect the discovered device without changing it, play an animation, or list
+animations that can be rendered to HTML:
 
 ```sh
 lyte diagnostic
-```
-
-Run an animation:
-
-```sh
 lyte animate hamiltonian --speed 80
-```
-
-Inspect available animations without connecting to lights:
-
-```sh
 lyte preview
 ```
 
-## Experimental Wearable Patches
-
-`lyte patch list` lists the experimental 250-dot wearable patch library.
-`lyte patch locator` may be used while its physical map is provisional.
-The supplied map is a guessed two-branch layout, so `lyte patch play NAME` and
-the daemon may be used for testing with a warning. Record it as `measured` only
-after checking it on the assembled garment.
-
-The current project supports Twinkly directly and DMX through Art-Net. These
-remain separate output models and can run together from one installation file.
-
-## Mixed Twinkly and DMX Installations
-
-`lyte installation run` loads one TOML file containing Twinkly targets, DMX
-instruments, typed DMX channel categories, pixel and DMX programs, and a run
-map. Start from the non-runnable TEST-NET example:
+Generate a hardware-free preview by naming an animation and output file:
 
 ```sh
-cp examples/installation.toml installation.toml
-lyte installation run installation.toml
+lyte preview rainbow preview.html
 ```
 
-Replace both example addresses and the generic fixture profile before running
-the command. DMX output uses Art-Net. Universe numbers in configuration are
-one-based by default and are converted to zero-based Art-Net port addresses by
-the output driver. `Ctrl-C` requests blackout from every opened output before
-returning.
+Direct Twinkly playback discovers a single device when no host is supplied. It
+authenticates the device, enters realtime mode, probes the HTTP connection while
+streaming UDP frames, recovers after connection failures, and requests blackout
+when playback ends.
 
-DMX instrument channel numbers inside category definitions are one-based
-offsets relative to the instrument's `start_channel`. Common controls use typed
-categories such as `brightness`, `rgb`, `chase_speed`, `pattern_select`,
-`strobe`, `pan`, `tilt`, `color_wheel`, and `gobo_select`. Use a named `raw`
-category only for a documented fixture control that does not fit those
-categories.
+## Wearable Patches
 
-## MIDI Daemon
+The supplied wearable catalogue is authored for 250 LEDs split into five
+logical regions. Its physical map is guessed, not measured:
 
-`patches/wearable-daemon.toml` defines the ordered wearable patch list for the
-MIDI daemon. The daemon starts with its first patch and advances, wrapping at
-the end, for every program-change message on the selected MIDI channel. A
-program change while a note is active replays that note, its breath control,
-and pitch bend into the new patch.
+```sh
+lyte patch list
+lyte patch locator
+lyte patch play PATCH_NAME
+```
 
-Run it in the foreground with:
+Lyte warns when using the guessed map. If the connected string has a different
+LED count, it warns again and scales the logical regions and physical map to the
+actual count. Mark the map as `measured` only after checking every region on the
+assembled garment.
+
+`patches/wearable-daemon.toml` configures the MIDI input, ordered patch list,
+Twinkly connection, and frame rate. Run the daemon in the foreground or install
+its per-user service:
 
 ```sh
 lyte daemon run
+lyte daemon install
+lyte daemon status
 ```
 
-Install its per-user `launchd` or `systemd --user` service with:
+Program-change messages select the next patch. Note, CC 2 breath, and pitch-bend
+messages control the active patch. The Reccy endpoint supports status, blackout,
+stop, named patch selection, and a white fade test; the test level percentage
+and total duration are configurable.
+
+## Mixed Installations
+
+`lyte installation run` loads Twinkly targets, DMX instruments, programs, and a
+run map from one TOML file. Start with the example:
 
 ```sh
-lyte daemon install
+cp examples/installation.toml installation.toml
+lyte installation run installation.toml --duration 10
 ```
 
-The daemon exposes Reccy's local control endpoint for status, blackout, stop,
-patch selection, and a white fade test command. It accepts a guessed wearable
-physical map for testing and warns before playback. Record the map as
-`measured` after locator verification on the assembled garment. The `test`
-command accepts `level` percent and `duration` seconds parameters.
+The example uses non-routable TEST-NET addresses and a generic fixture profile.
+Replace both addresses and define the DMX channels from the fixture manual
+before running it.
+
+DMX output currently uses Art-Net. Universe numbers and instrument
+`start_channel` values are one-based. Category channel numbers are one-based
+offsets within an instrument. Available categories are `brightness`, `rgb`,
+`white`, `chase_speed`, `pattern_select`, `strobe`, `pan`, `tilt`,
+`color_wheel`, `gobo_select`, and named `raw` channels.
+
+Installation DMX programs are static semantic values. Pixel programs construct
+an `Animation` from a trusted local Python import path. The scheduler runs each
+target at its configured frame rate, records failures independently, and
+requests blackout from every opened output at shutdown.
+
+`lyte show` is a separate offline validator for Twinkly-only show graphs. It
+does not connect to hardware or run an installation.
+
+## Documentation
+
+- `doc/architecture.md` describes the code and runtime boundaries.
+- `doc/handover.md` contains operation, configuration, recovery, and physical
+  validation procedures.

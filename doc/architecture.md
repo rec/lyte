@@ -176,9 +176,11 @@ brightness, RGB, white, chase speed, pattern selection, strobe, movement,
 color wheels, gobos, and named raw controls using relative one-based channel
 offsets. Instrument validation rejects out-of-range and duplicate assignments.
 
-A `DmxProgram` renders semantic `DmxValues`. The instrument encoder converts
-those values into a C-contiguous 512-slot `uint8` `DmxFrame`. Multiple
-non-overlapping instruments can contribute to one universe frame.
+A `DmxProgram` renders semantic `DmxValues`. The installation file currently
+constructs only `StaticDmxProgram`; dynamic DMX effects are not implemented.
+The instrument encoder converts values into a C-contiguous 512-slot `uint8`
+`DmxFrame`. Multiple non-overlapping instruments can contribute to one universe
+frame.
 
 `lyte/artnet.py` converts universe frames into ArtDmx packets and owns UDP
 delivery, sequence numbers, universe conversion, and blackout frames. DMX
