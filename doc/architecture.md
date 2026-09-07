@@ -2,13 +2,10 @@
 
 ## Scope
 
-Lyte is a Python 3.13 lighting player for one Twinkly pixel string. It renders
-stateful RGB animations locally, encodes them for the Twinkly realtime protocol,
-and provides interactive, preview, diagnostic, wearable-patch, and MIDI-daemon
-workflows.
-
-The implemented runtime is Twinkly-specific. DMX, Art-Net, OSC, and other
-lighting protocols are not part of the current architecture.
+Lyte is a Python 3.13 lighting player for Twinkly pixel strings and DMX
+instruments. It renders stateful RGB animations locally, encodes semantic DMX
+programs into universe frames, and provides interactive, preview, diagnostic,
+wearable-patch, MIDI-daemon, and mixed-installation workflows.
 
 ## Top-Level Structure
 
@@ -22,6 +19,11 @@ lyte CLI
   |
   |- diagnostic and Twinkly control commands
   |    -> Twinkly HTTP transport
+  |
+  |- installation
+  |    -> shared monotonic scheduler
+  |    -> pixel animation -> Twinkly realtime output
+  |    -> DMX program -> universe frame -> Art-Net output
   |
   |- daemon
        -> MIDI input -> patch selector -> TwinklyTrack
@@ -166,6 +168,34 @@ constructs named animation graphs, and allocates independent device/state pairs
 for run targets. `lyte show` is an offline preflight command only: it does not
 open a device, render a frame, or play a show.
 
+## DMX and Installation Playback
+
+`lyte/dmx.py` defines the DMX authoring boundary. A `DmxInstrument` owns one
+contiguous channel range in one universe. Its frozen category models describe
+brightness, RGB, white, chase speed, pattern selection, strobe, movement,
+color wheels, gobos, and named raw controls using relative one-based channel
+offsets. Instrument validation rejects out-of-range and duplicate assignments.
+
+A `DmxProgram` renders semantic `DmxValues`. The instrument encoder converts
+those values into a C-contiguous 512-slot `uint8` `DmxFrame`. Multiple
+non-overlapping instruments can contribute to one universe frame.
+
+`lyte/artnet.py` converts universe frames into ArtDmx packets and owns UDP
+delivery, sequence numbers, universe conversion, and blackout frames. DMX
+programs and instrument definitions do not depend on Art-Net and can later use
+another universe transport without changing their authoring model.
+
+`lyte/installation.py` loads mixed installation TOML and builds independent
+pixel and DMX targets. Its single-threaded scheduler uses one monotonic clock,
+runs each target at its own frame rate, preserves independent state, records
+per-target output failures, and attempts blackout and close on every opened
+driver. Twinkly targets reuse `TwinklyTrack` connection health and recovery;
+DMX targets sharing an Art-Net endpoint retain one combined universe state.
+
+The installation command is the live mixed-output workflow. `lyte show`
+remains an offline Twinkly graph preflight command and continues to reject
+non-Twinkly devices.
+
 ## Testing Boundaries
 
 `tests/` is organized by subsystem. Unit tests use fake clocks, MIDI ports,
@@ -174,8 +204,9 @@ validation, frame conversion, patch composition, recovery decisions, and CLI
 dispatch.
 
 Physical device behavior remains outside the automated suite. Power cycling a
-Twinkly, Wi-Fi loss, MIDI unplug/replug, and the wearable physical map require
-explicit manual validation on the actual playback system.
+Twinkly, Wi-Fi loss, MIDI unplug/replug, the wearable physical map, and Art-Net
+fixture addressing and blackout require explicit manual validation on the
+actual playback system.
 
 ## Extension Boundaries
 
@@ -183,7 +214,7 @@ New pixel animations should implement `Animation` and keep changing data in a
 `State` subclass. New wearable effects should normally be expressed as patch
 layers and bindings before adding new patch-composition primitives.
 
-A future non-Twinkly output should not be forced into the current RGB pixel
-frame or Twinkly track abstractions. It should define its own device and frame
-model, then join a higher-level runner only when that runner has a concrete
-multi-device scheduling contract.
+Additional universe transports should consume `DmxFrame` without changing DMX
+programs or instrument profiles. Additional output families should define
+their own device and frame model and join the installation scheduler only when
+their render and driver boundaries are concrete.

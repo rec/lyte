@@ -11,29 +11,33 @@ from pydantic import BaseModel, ConfigDict, Field, SkipValidation, model_validat
 DMX_CHANNEL_COUNT = 512
 
 
-class BrightnessChannels(BaseModel, frozen=True):
+class DmxDefinition(BaseModel, frozen=True):
+    model_config = ConfigDict(extra='forbid')
+
+
+class BrightnessChannels(DmxDefinition, frozen=True):
     kind: Literal['brightness'] = 'brightness'
     channels: list[int] = Field(min_length=1)
 
 
-class RgbChannels(BaseModel, frozen=True):
+class RgbChannels(DmxDefinition, frozen=True):
     kind: Literal['rgb'] = 'rgb'
     red: list[int] = Field(min_length=1)
     green: list[int] = Field(min_length=1)
     blue: list[int] = Field(min_length=1)
 
 
-class WhiteChannels(BaseModel, frozen=True):
+class WhiteChannels(DmxDefinition, frozen=True):
     kind: Literal['white'] = 'white'
     channels: list[int] = Field(min_length=1)
 
 
-class ChaseSpeedChannels(BaseModel, frozen=True):
+class ChaseSpeedChannels(DmxDefinition, frozen=True):
     kind: Literal['chase_speed'] = 'chase_speed'
     channels: list[int] = Field(min_length=1)
 
 
-class PatternSelectChannels(BaseModel, frozen=True):
+class PatternSelectChannels(DmxDefinition, frozen=True):
     kind: Literal['pattern_select'] = 'pattern_select'
     channels: list[int] = Field(min_length=1)
     patterns: dict[str, int] = Field(min_length=1)
@@ -44,22 +48,22 @@ class PatternSelectChannels(BaseModel, frozen=True):
         return self
 
 
-class StrobeChannels(BaseModel, frozen=True):
+class StrobeChannels(DmxDefinition, frozen=True):
     kind: Literal['strobe'] = 'strobe'
     channels: list[int] = Field(min_length=1)
 
 
-class PanChannels(BaseModel, frozen=True):
+class PanChannels(DmxDefinition, frozen=True):
     kind: Literal['pan'] = 'pan'
     channels: list[int] = Field(min_length=1)
 
 
-class TiltChannels(BaseModel, frozen=True):
+class TiltChannels(DmxDefinition, frozen=True):
     kind: Literal['tilt'] = 'tilt'
     channels: list[int] = Field(min_length=1)
 
 
-class ColorWheelChannels(BaseModel, frozen=True):
+class ColorWheelChannels(DmxDefinition, frozen=True):
     kind: Literal['color_wheel'] = 'color_wheel'
     channels: list[int] = Field(min_length=1)
     colors: dict[str, int] = Field(min_length=1)
@@ -70,7 +74,7 @@ class ColorWheelChannels(BaseModel, frozen=True):
         return self
 
 
-class GoboSelectChannels(BaseModel, frozen=True):
+class GoboSelectChannels(DmxDefinition, frozen=True):
     kind: Literal['gobo_select'] = 'gobo_select'
     channels: list[int] = Field(min_length=1)
     gobos: dict[str, int] = Field(min_length=1)
@@ -81,7 +85,7 @@ class GoboSelectChannels(BaseModel, frozen=True):
         return self
 
 
-class RawChannels(BaseModel, frozen=True):
+class RawChannels(DmxDefinition, frozen=True):
     kind: Literal['raw'] = 'raw'
     name: str = Field(min_length=1)
     channels: list[int] = Field(min_length=1)
@@ -103,7 +107,7 @@ DmxChannelCategory = Annotated[
 ]
 
 
-class DmxInstrument(BaseModel, frozen=True):
+class DmxInstrument(DmxDefinition, frozen=True):
     name: str = Field(min_length=1)
     universe: int = Field(ge=1)
     start_channel: int = Field(ge=1, le=DMX_CHANNEL_COUNT)
@@ -135,7 +139,7 @@ class DmxInstrument(BaseModel, frozen=True):
         return self
 
 
-class DmxFrame(BaseModel, frozen=True):
+class DmxFrame(DmxDefinition, frozen=True):
     universe: int = Field(ge=1)
     slots: SkipValidation[NDArray[np.uint8]]
 
@@ -144,7 +148,7 @@ class DmxFrame(BaseModel, frozen=True):
         validate_slots(self.slots)
         return self
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='forbid')
 
 
 class DmxState(BaseModel):
@@ -152,7 +156,7 @@ class DmxState(BaseModel):
     fps: float = Field(default=40.0, gt=0)
 
 
-class DmxValues(BaseModel, frozen=True):
+class DmxValues(DmxDefinition, frozen=True):
     brightness: float | None = None
     rgb: list[float] | None = None
     white: float | None = None
@@ -181,7 +185,7 @@ class DmxValues(BaseModel, frozen=True):
         return self
 
 
-class DmxProgram(BaseModel, frozen=True):
+class DmxProgram(DmxDefinition, frozen=True):
     def initial_state(self, instrument: DmxInstrument) -> DmxState:
         return DmxState()
 
@@ -197,7 +201,7 @@ class StaticDmxProgram(DmxProgram, frozen=True):
         return self.values
 
 
-class InstrumentOutput(BaseModel, frozen=True):
+class InstrumentOutput(DmxDefinition, frozen=True):
     instrument: DmxInstrument
     values: DmxValues
 

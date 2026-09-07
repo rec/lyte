@@ -37,8 +37,32 @@ The supplied map is a guessed two-branch layout, so `lyte patch play NAME` and
 the daemon may be used for testing with a warning. Record it as `measured` only
 after checking it on the assembled garment.
 
-The current project is Twinkly-first. DMX, Art-Net, OSC, and other lighting
-protocols remain planned work rather than supported runtime features.
+The current project supports Twinkly directly and DMX through Art-Net. These
+remain separate output models and can run together from one installation file.
+
+## Mixed Twinkly and DMX Installations
+
+`lyte installation run` loads one TOML file containing Twinkly targets, DMX
+instruments, typed DMX channel categories, pixel and DMX programs, and a run
+map. Start from the non-runnable TEST-NET example:
+
+```sh
+cp examples/installation.toml installation.toml
+lyte installation run installation.toml
+```
+
+Replace both example addresses and the generic fixture profile before running
+the command. DMX output uses Art-Net. Universe numbers in configuration are
+one-based by default and are converted to zero-based Art-Net port addresses by
+the output driver. `Ctrl-C` requests blackout from every opened output before
+returning.
+
+DMX instrument channel numbers inside category definitions are one-based
+offsets relative to the instrument's `start_channel`. Common controls use typed
+categories such as `brightness`, `rgb`, `chase_speed`, `pattern_select`,
+`strobe`, `pan`, `tilt`, `color_wheel`, and `gobo_select`. Use a named `raw`
+category only for a documented fixture control that does not fit those
+categories.
 
 ## MIDI Daemon
 

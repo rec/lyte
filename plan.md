@@ -2,6 +2,10 @@
 
 ## Goal
 
+Implementation status: the software work is complete. Fixture-profile,
+network, visible-output, and blackout validation remain to be performed on the
+target installation.
+
 Run Twinkly pixel strings and DMX lighting from one Lyte installation. The
 installation owns lifecycle, timing, cue selection, and shutdown. Each lighting
 family keeps its useful native authoring model:
@@ -96,8 +100,8 @@ The initial category dataclasses are:
 - `ColorWheelChannels(channels: list[int], colors: dict[str, int])` and
   `GoboSelectChannels(channels: list[int], gobos: dict[str, int])`: named
   wheel selections.
-- `RawChannels(channels: list[int])`: an intentional escape hatch for a
-  documented fixture control that has no semantic category yet.
+- `RawChannels(name: str, channels: list[int])`: an intentional escape hatch
+  for a documented fixture control that has no semantic category yet.
 
 Every category is a frozen Pydantic model. The parsed configuration is a
 discriminated union keyed by `kind`, for example `kind = "brightness"` or
@@ -114,12 +118,15 @@ write `RawChannels`, but still render through the same `DmxFrame` validation.
 
 ## Configuration Shape
 
-Installation TOML separates output wiring from program selection. The following
-is illustrative, not a commitment to these exact program names:
+Installation TOML separates output wiring from program selection. The complete
+example is maintained in `examples/installation.toml`:
 
 ```toml
+[artnet]
+host = "192.0.2.20"
+
 [twinkly.tree]
-host = "192.168.1.23"
+host = "192.0.2.10"
 led_count = 250
 fps = 30
 
@@ -148,8 +155,24 @@ kind = "pattern_select"
 channels = [6]
 patterns = { static = 0, chase = 64, sound_active = 192 }
 
+[[dmx.front_wash.categories]]
+kind = "raw"
+name = "reserved"
+channels = [7, 8]
+
+[programs.tree_rainbow]
+kind = "pixel"
+impl = "lyte.animations.bibliopixel.rainbow.Rainbow"
+
+[programs.front_wash_chase]
+kind = "dmx"
+brightness = 0.5
+rgb = [1.0, 0.25, 0.0]
+chase_speed = 1.0
+pattern = "chase"
+
 [run.tree]
-program = "tree_breath"
+program = "tree_rainbow"
 
 [run.front_wash]
 program = "front_wash_chase"
@@ -162,49 +185,47 @@ different `start_channel` without changing program logic.
 
 ## Module Boundaries
 
-Add protocol-specific modules without moving existing Twinkly code until a
-concrete integration requires it:
+The implementation adds protocol-specific modules without moving existing
+Twinkly code:
 
 ```text
 lyte/
   animation.py       existing pixel animation contract
   twinkly/           existing Twinkly protocol and realtime playback
   dmx.py             universe, frame, instrument, categories, program contract
-  dmx_programs.py    initial semantic DMX programs and encoders
   artnet.py          ArtDmx packet encoding and sender
   installation.py    target scheduling, lifecycle, status, shutdown
   show.py            declarative parsing and offline preflight
 ```
 
-`show.py` currently accepts only Twinkly devices and performs no output. Extend
-its declarative model only after `dmx.py` validates instrument definitions and
-the installation runner can run a real target abstraction. The existing MIDI
-daemon stays a Twinkly wearable workflow unless a specific shared-control need
-arises.
+`show.py` accepts only Twinkly devices and performs no output. The installation
+command is the live multi-output path. The existing MIDI daemon stays a
+Twinkly wearable workflow.
 
 ## Delivery Order
 
-1. Add `dmx.py` with `DmxFrame`, universe validation, `DmxInstrument`, and the
+1. Complete: add `dmx.py` with `DmxFrame`, universe validation, `DmxInstrument`, and the
    typed category dataclasses.
-2. Add parsing and validation for DMX instrument TOML. Test valid fixtures,
+2. Complete: add parsing and validation for DMX instrument TOML. Test valid fixtures,
    range overflow, empty category collections, duplicate channels, and invalid
    pattern values.
-3. Add `DmxProgram` and its state contract. Implement a small semantic program
+3. Complete: add `DmxProgram` and its state contract. Implement a small semantic program
    that sets brightness, RGB, chase speed, and pattern selection for a fixture.
-4. Add a pure instrument encoder from semantic output to universe frames. Test
+4. Complete: add a pure instrument encoder from semantic output to universe frames. Test
    exact byte positions and values, including multiple instruments sharing one
    universe.
-5. Add `artnet.py` as the first DMX transport. Test ArtDmx packet bytes, the
+5. Complete: add `artnet.py` as the first DMX transport. Test ArtDmx packet bytes, the
    configured universe conversion, sequence handling, and black-frame output.
-6. Add `installation.py` with fake-clock and fake-driver tests for mixed
+6. Complete: add `installation.py` with fake-clock and fake-driver tests for mixed
    Twinkly and DMX due times, independent state, one target failure, and global
    shutdown.
-7. Add `lyte installation run` only after the runner can coordinate real
+7. Complete: add `lyte installation run` after the runner can coordinate real
    Twinkly and Art-Net drivers. Keep `lyte show` as offline preflight until
    this command is ready.
-8. Add one physical DMX instrument definition and verify its category mapping,
-   Art-Net universe, refresh rate, and blackout on the actual fixture.
-9. Add sACN or USB DMX only when a concrete output interface requires it. They
+8. Field validation: replace the generic example with the physical DMX
+   instrument definition and verify its category mapping, Art-Net universe,
+   refresh rate, and blackout on the actual fixture.
+9. Deferred: add sACN or USB DMX only when a concrete output interface requires it. They
    consume the same universe frames and must not change instrument profiles or
    DMX programs.
 

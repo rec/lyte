@@ -44,14 +44,46 @@ def test_multiple_instruments_share_a_universe() -> None:
     assert frames[1].slots[10] == 255
 
 
+def test_instrument_encodes_all_remaining_semantic_categories() -> None:
+    instrument = dmx.DmxInstrument(
+        name='moving_head',
+        universe=2,
+        start_channel=1,
+        channel_count=10,
+        categories=[
+            dmx.WhiteChannels(channels=[1]),
+            dmx.StrobeChannels(channels=[2]),
+            dmx.PanChannels(channels=[3, 4]),
+            dmx.TiltChannels(channels=[5, 6]),
+            dmx.ColorWheelChannels(channels=[7], colors={'red': 7}),
+            dmx.GoboSelectChannels(channels=[8], gobos={'circle': 9}),
+            dmx.RawChannels(name='focus', channels=[9, 10]),
+        ],
+    )
+
+    slots = dmx.encode_instrument(
+        np.zeros(dmx.DMX_CHANNEL_COUNT, dtype=np.uint8),
+        instrument,
+        dmx.DmxValues(
+            white=0.5,
+            strobe=1.0,
+            pan=0.5,
+            tilt=1.0,
+            color='red',
+            gobo='circle',
+            raw={'focus': 0x1234},
+        ),
+    )
+
+    assert slots[:10].tolist() == [128, 255, 128, 0, 255, 255, 7, 9, 18, 52]
+
+
 def test_instrument_rejects_channel_range_overflow() -> None:
+    data = example_instrument().model_dump()
+    data.update(start_channel=510, channel_count=8)
+
     with pytest.raises(ValidationError, match='end at or before 512'):
-        example_instrument().model_copy(
-            update={'start_channel': 510, 'channel_count': 8}
-        ).model_validate(
-            example_instrument().model_dump()
-            | {'start_channel': 510, 'channel_count': 8}
-        )
+        dmx.DmxInstrument.model_validate(data)
 
 
 def test_instrument_rejects_empty_channel_collection() -> None:
