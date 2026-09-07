@@ -16,7 +16,7 @@ from lyte.twinkly import realtime, track
 from lyte.twinkly.client import TwinklyClient
 
 
-def make_track(led_count: int = 200) -> track.TwinklyTrack:
+def make_track(led_count: int = 250) -> track.TwinklyTrack:
     return track.TwinklyTrack(
         client=TwinklyClient(host='192.168.1.23'),
         retry=RetryConfig(attempts=1, delay=0, backoff=1),
@@ -39,38 +39,38 @@ class PatchLibraryTests(unittest.TestCase):
             ['left_leg', 'right_leg', 'left_arm', 'right_arm', 'chest'],
         )
 
-        logical_frame = np.zeros((200, 3), dtype=np.float32)
-        logical_frame[:, 0] = np.arange(200, dtype=np.float32)
+        logical_frame = np.zeros((250, 3), dtype=np.float32)
+        logical_frame[:, 0] = np.arange(250, dtype=np.float32)
         physical_frame = patches.map_logical_frame(library.wearable, logical_frame)
 
-        npt.assert_array_equal(physical_frame[28:60], logical_frame[0:32])
-        npt.assert_array_equal(physical_frame[128:160], logical_frame[32:64])
-        npt.assert_array_equal(physical_frame[0:28], logical_frame[64:92])
-        npt.assert_array_equal(physical_frame[60:76], logical_frame[92:108])
-        npt.assert_array_equal(physical_frame[76:100], logical_frame[152:176])
-        npt.assert_array_equal(physical_frame[176:200], logical_frame[176:200])
+        npt.assert_array_equal(physical_frame[35:75], logical_frame[0:40])
+        npt.assert_array_equal(physical_frame[160:200], logical_frame[40:80])
+        npt.assert_array_equal(physical_frame[0:35], logical_frame[80:115])
+        npt.assert_array_equal(physical_frame[75:95], logical_frame[115:135])
+        npt.assert_array_equal(physical_frame[95:125], logical_frame[190:220])
+        npt.assert_array_equal(physical_frame[220:250], logical_frame[220:250])
 
     def test_wearable_layout_scales_to_the_connected_led_count(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
 
         with patch('lyte.patches.LOGGER.warning') as log_warning:
-            wearable = patches.scale_wearable_layout(library.wearable, 250)
+            wearable = patches.scale_wearable_layout(library.wearable, 200)
 
-        assert wearable.led_count == 250
+        assert wearable.led_count == 200
         assert wearable.segments['left_leg'] == patches.RegionSpec(
-            start=0, led_count=40
+            start=0, led_count=32
         )
         assert wearable.segments['left_arm'] == patches.RegionSpec(
-            start=80, led_count=55
+            start=64, led_count=44
         )
         assert wearable.physical_map['left_arm'].ranges == [
-            patches.PhysicalRangeSpec(start=0, led_count=35),
-            patches.PhysicalRangeSpec(start=75, led_count=20),
+            patches.PhysicalRangeSpec(start=0, led_count=28),
+            patches.PhysicalRangeSpec(start=60, led_count=16),
         ]
-        frame = np.zeros((250, 3), dtype=np.float32)
-        assert patches.map_logical_frame(wearable, frame).shape == (250, 3)
+        frame = np.zeros((200, 3), dtype=np.float32)
+        assert patches.map_logical_frame(wearable, frame).shape == (200, 3)
         log_warning.assert_called_once_with(
-            '[warn] Scaling wearable layout from 200 LEDs to 250 LEDs.'
+            '[warn] Scaling wearable layout from 250 LEDs to 200 LEDs.'
         )
 
     def test_library_uses_validated_control_bindings(self) -> None:
@@ -173,33 +173,33 @@ class PatchLibraryTests(unittest.TestCase):
 
     def test_wearable_encoder_maps_logical_values_before_byte_encoding(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
-        logical_frame = np.zeros((200, 3), dtype=np.float32)
-        logical_frame[0:32, 1] = 1.0
+        logical_frame = np.zeros((250, 3), dtype=np.float32)
+        logical_frame[0:40, 1] = 1.0
 
         encoded = patches.encode_wearable_frame(library.wearable, logical_frame)
 
-        self.assertTrue(np.all(encoded[28:60, 1] == 255))
-        self.assertTrue(np.all(encoded[0:28, 1] == 0))
+        self.assertTrue(np.all(encoded[35:75, 1] == 255))
+        self.assertTrue(np.all(encoded[0:35, 1] == 0))
 
     def test_locator_frame_lights_only_the_selected_logical_region(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
 
         frame = patches.locator_frame(library.wearable, 'left_arm')
 
-        self.assertTrue(np.all(frame[0:28] == 1.0))
-        self.assertTrue(np.all(frame[60:76] == 1.0))
-        self.assertTrue(np.all(frame[28:60] == 0.0))
-        self.assertTrue(np.all(frame[76:200] == 0.0))
+        self.assertTrue(np.all(frame[0:35] == 1.0))
+        self.assertTrue(np.all(frame[75:95] == 1.0))
+        self.assertTrue(np.all(frame[35:75] == 0.0))
+        self.assertTrue(np.all(frame[95:250] == 0.0))
 
     def test_build_light_patch_composes_named_layers(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
         patch = patches.build_light_patch(library, 'breath_mix_walk_twinkle')
-        device = animation.Device(led_count=200)
+        device = animation.Device(led_count=250)
 
         patch.receive(mido.Message('note_on', note=64, velocity=100))
 
         frame = patch.render(device)
-        self.assertEqual(frame.shape, (200, 3))
+        self.assertEqual(frame.shape, (250, 3))
         self.assertEqual(frame.dtype, np.float32)
         self.assertTrue(frame.flags.c_contiguous)
 
@@ -272,9 +272,9 @@ class PatchLibraryTests(unittest.TestCase):
         chest = patch.layers['chest_spiral']
         limbs = patch.layers['limb_fill']
         self.assertEqual(len(chest.config.regions), 1)
-        self.assertEqual(chest.config.regions[0].start, 152)
+        self.assertEqual(chest.config.regions[0].start, 190)
         self.assertEqual(len(limbs.config.regions), 4)
-        self.assertNotIn(152, [region.start for region in limbs.config.regions])
+        self.assertNotIn(190, [region.start for region in limbs.config.regions])
 
     def test_declarative_patch_compiles_declared_blend_policy(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
@@ -315,7 +315,7 @@ class PatchLibraryTests(unittest.TestCase):
             )
 
         self.assertEqual(result, 0)
-        self.assertIn('Wearable: 200 LEDs (guessed physical map)', output.getvalue())
+        self.assertIn('Wearable: 250 LEDs (guessed physical map)', output.getvalue())
         self.assertIn('prism_limbs:', output.getvalue())
 
     def test_patch_playback_rejects_a_provisional_physical_map(self) -> None:

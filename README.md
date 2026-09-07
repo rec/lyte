@@ -31,7 +31,7 @@ lyte preview
 
 ## Experimental Wearable Patches
 
-`lyte patch list` lists the experimental 200-dot wearable patch library.
+`lyte patch list` lists the experimental 250-dot wearable patch library.
 `lyte patch locator` may be used while its physical map is provisional.
 The supplied map is a guessed two-branch layout, so `lyte patch play NAME` and
 the daemon may be used for testing with a warning. Record it as `measured` only

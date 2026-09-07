@@ -1,30 +1,30 @@
 [wearable]
-led_count = 200
+led_count = 250
 physical_map_status = "guessed"
 
 [wearable.segments]
-left_leg = { start = 0, led_count = 32 }
-right_leg = { start = 32, led_count = 32 }
-left_arm = { start = 64, led_count = 44 }
-right_arm = { start = 108, led_count = 44 }
-chest = { start = 152, led_count = 48 }
+left_leg = { start = 0, led_count = 40 }
+right_leg = { start = 40, led_count = 40 }
+left_arm = { start = 80, led_count = 55 }
+right_arm = { start = 135, led_count = 55 }
+chest = { start = 190, led_count = 60 }
 
-# This map assumes physical indexes 0..99 are the left branch and 100..199
+# This map assumes physical indexes 0..124 are the left branch and 125..249
 # are the right branch. Verify it with the locator patch before performance use.
 [wearable.physical_map.left_leg]
-ranges = [{ start = 28, led_count = 32 }]
+ranges = [{ start = 35, led_count = 40 }]
 
 [wearable.physical_map.right_leg]
-ranges = [{ start = 128, led_count = 32 }]
+ranges = [{ start = 160, led_count = 40 }]
 
 [wearable.physical_map.left_arm]
-ranges = [{ start = 0, led_count = 28 }, { start = 60, led_count = 16 }]
+ranges = [{ start = 0, led_count = 35 }, { start = 75, led_count = 20 }]
 
 [wearable.physical_map.right_arm]
-ranges = [{ start = 100, led_count = 28 }, { start = 160, led_count = 16 }]
+ranges = [{ start = 125, led_count = 35 }, { start = 200, led_count = 20 }]
 
 [wearable.physical_map.chest]
-ranges = [{ start = 76, led_count = 24 }, { start = 176, led_count = 24 }]
+ranges = [{ start = 95, led_count = 30 }, { start = 220, led_count = 30 }]
 
 # The first sixteen patches use this fixed five-segment virtual wearable.
 
