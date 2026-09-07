@@ -10,7 +10,7 @@ from typing import Annotated
 import tyro
 from reccy.runtime import logging
 
-from . import daemon, fps_test
+from . import daemon, fps_test, installation
 from . import patches
 from . import show
 from .animate.config import AnimateConfig
@@ -140,6 +140,7 @@ def main(args: Sequence[str] | None = None) -> int:
             'diagnostic': diagnostic.DiagnosticCommandConfig,
             'effects': EffectsConfig,
             'layout': LayoutConfig,
+            'installation': installation.InstallationCommandConfig,
             'led-config': LedConfigConfig,
             'mic': MicConfig,
             'mode': ModeConfig,
@@ -194,6 +195,8 @@ def run_command(config: object) -> int:
         return layout.run_layout_control(
             config.diagnostic_config(), config.action, config.path
         )
+    if isinstance(config, installation.InstallationCommandConfig):
+        return installation.run_installation_command(config)
     if isinstance(config, LedConfigConfig):
         return layout.run_led_config_control(
             config.diagnostic_config(), config.action, config.path

@@ -4,7 +4,7 @@ import importlib
 import io
 import random
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 from numpy import testing as npt
@@ -222,6 +222,30 @@ class AnimateTests(unittest.TestCase):
             track.realtime.PlaybackConnectionState.RECOVERING,
             track.realtime.PlaybackConnectionState.STREAMING,
         ]
+
+    def test_track_health_probe_is_not_postponed_by_frame_sends(self) -> None:
+        twinkly_track = make_track()
+        twinkly_track.last_health_check = 0
+        frame = np.zeros((1, 3), dtype=np.uint8)
+        sent = self.script.realtime.FrameSendResult(
+            status=self.script.realtime.FrameSendStatus.SENT, byte_count=3
+        )
+
+        with (
+            patch('lyte.twinkly.track.time.monotonic', side_effect=[0.5, 2.0]),
+            patch(
+                'lyte.twinkly.track.realtime.probe_streaming_device',
+                return_value=True,
+            ) as probe,
+            patch(
+                'lyte.twinkly.track.realtime.send_realtime_frame',
+                return_value=sent,
+            ),
+        ):
+            assert twinkly_track.send_frame('test', frame, MagicMock())
+            assert twinkly_track.send_frame('test', frame, MagicMock())
+
+        probe.assert_called_once()
 
     def test_animation_recovers_after_streaming_token_loss(self) -> None:
         class ConstantAnimation(animation.Animation):
