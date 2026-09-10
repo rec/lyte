@@ -55,6 +55,8 @@ Animation implementations live in `lyte/animations/`:
 - `bibliopixel/` contains the ported pattern collection.
 - `christmas/` contains Hamiltonian and random-walk effects plus their support
   code.
+- `one_d.py` contains FPS-aware procedural fields, particles, simulations, and
+  event-based effects for linear strings.
 - `colors.py` and `validators.py` hold shared animation helpers.
 
 `SegmentAnimation` combines consecutive logical pixel regions. It owns a child
