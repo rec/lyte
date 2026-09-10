@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-08-29T13:21:30.684937Z"
+exclude-newer = "2026-09-03T13:59:38.583075Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -77,6 +77,7 @@ dependencies = [
     { name = "python-rtmidi" },
     { name = "reccy" },
     { name = "tyro" },
+    { name = "ufor" },
 ]
 
 [package.dev-dependencies]
@@ -95,6 +96,7 @@ requires-dist = [
     { name = "python-rtmidi", specifier = ">=1.5.8" },
     { name = "reccy", git = "https://github.com/rec/reccy.git?branch=main" },
     { name = "tyro", specifier = ">=1.0.15" },
+    { name = "ufor", url = "https://github.com/rec/ufor/archive/0b88a111b9b02dd696716581dfa0cc68e8cf235c.tar.gz" },
 ]
 
 [package.metadata.requires-dev]
@@ -405,6 +407,15 @@ wheels = [
 ]
 
 [[package]]
+name = "tomlkit"
+version = "0.15.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/96/e07752635b98536177fa1f37671c8f3cdde2e724c6bcf6034b2cfb571565/tomlkit-0.15.1.tar.gz", hash = "sha256:e25bbf38843005246210a12982776f27f99cb9be67160e14434d0c0d21ee1e97", size = 180129, upload-time = "2026-07-17T01:48:04.562Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/13/bc/8c13eb66537dce1d2bd3a57132902f38d0e7f5bb46fa9f4daed9fe9d76ee/tomlkit-0.15.1-py3-none-any.whl", hash = "sha256:177a05aece5a8ca5266fd3c448abb47b8d352f09d477d3ca8332db4d89b24304", size = 49449, upload-time = "2026-07-17T01:48:05.728Z" },
+]
+
+[[package]]
 name = "ty"
 version = "0.0.56"
 source = { registry = "https://pypi.org/simple" }
@@ -474,4 +485,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/12/78/a5749a6c1ee9abc2999e294f339f8f72476d1a60bb95fc0e86156aafed3b/tyro-1.0.15.tar.gz", hash = "sha256:3f1d60887723eecb9c489f195d11f079c4a1f33df74b723552ad31ec57c667bb", size = 593822, upload-time = "2026-06-20T08:48:28.364Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5d/28/d607636187cf6c18eb72efb5d65c1d1b9e451db03d84676f835dd488fdbd/tyro-1.0.15-py3-none-any.whl", hash = "sha256:982da1d566005f1b2a6b56f6be6c6929c96f0e5fab9d61bc6097573ddfaf8d13", size = 215045, upload-time = "2026-06-20T08:48:27.104Z" },
+]
+
+[[package]]
+name = "ufor"
+version = "0.1.0"
+source = { url = "https://github.com/rec/ufor/archive/0b88a111b9b02dd696716581dfa0cc68e8cf235c.tar.gz" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "tomlkit" },
+]
+sdist = { hash = "sha256:bfaaf1dbdb20b8fc97d899a3d4022e8017aaee2825b1513cf019dab3c14320ba" }
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.13.4" },
+    { name = "tomlkit", specifier = ">=0.15.1" },
 ]
