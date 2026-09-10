@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from ..animation import Animation
-from ..animations import bibliopixel
+from ..animations import bibliopixel, one_d
 from ..animations.christmas import effects, gradients
 from ..animations.christmas.hamiltonian import Hamiltonian
 from ..animations.christmas.random_walk import RandomWalk
@@ -11,6 +11,87 @@ from .config import AnimateConfig
 
 
 def build_animation(args: AnimateConfig) -> Animation:
+    effect_speed = args.speed / 25
+    if args.animation == 'fire_and_embers':
+        return one_d.FireAndEmbers(
+            palette=color_list_arg(args.colors, one_d.FIRE_PALETTE),
+            origin='end' if args.reverse else 'start',
+            speed=effect_speed,
+            seed=args.seed,
+        )
+    if args.animation == 'aurora':
+        return one_d.Aurora(
+            palette=color_list_arg(args.colors, one_d.AURORA_PALETTE),
+            speed=effect_speed,
+            seed=args.seed,
+        )
+    if args.animation == 'ocean_current':
+        return one_d.OceanCurrent(
+            palette=color_list_arg(args.colors, one_d.OCEAN_PALETTE),
+            speed=effect_speed,
+            seed=args.seed,
+        )
+    if args.animation == 'interference':
+        return one_d.Interference(
+            palette=color_list_arg(args.colors, one_d.INTERFERENCE_PALETTE),
+            speed=effect_speed,
+        )
+    if args.animation == 'palette_conveyor':
+        return one_d.PaletteConveyor(
+            palette=color_list_arg(args.colors, one_d.CONVEYOR_PALETTE),
+            speed=effect_speed,
+            reverse=args.reverse,
+        )
+    if args.animation == 'confetti_with_decay':
+        return one_d.ConfettiWithDecay(
+            palette=color_list_arg(args.colors, one_d.CONFETTI_PALETTE),
+            speed=effect_speed,
+            seed=args.seed,
+        )
+    if args.animation == 'lightning_storm':
+        return one_d.LightningStorm(
+            color=rgb_arg(args.color, (200, 220, 255)),
+            speed=effect_speed,
+            seed=args.seed,
+        )
+    if args.animation == 'candle_bank':
+        return one_d.CandleBank(
+            color=rgb_arg(args.color, (255, 120, 30)),
+            speed=effect_speed,
+            seed=args.seed,
+        )
+    if args.animation == 'colliding_particles':
+        return one_d.CollidingParticles(
+            palette=color_list_arg(args.colors, one_d.PARTICLE_PALETTE),
+            speed=effect_speed,
+            seed=args.seed,
+        )
+    if args.animation == 'expanding_ripples':
+        return one_d.ExpandingRipples(
+            palette=color_list_arg(args.colors, one_d.RIPPLE_PALETTE),
+            speed=effect_speed,
+            seed=args.seed,
+        )
+    if args.animation == 'cellular_automaton':
+        return one_d.CellularAutomaton(
+            palette=color_list_arg(args.colors, one_d.CELLULAR_PALETTE),
+            speed=effect_speed,
+            seed=args.seed,
+        )
+    if args.animation == 'reaction_diffusion_strip':
+        return one_d.ReactionDiffusionStrip(
+            palette=color_list_arg(args.colors, one_d.REACTION_PALETTE),
+            speed=effect_speed,
+            seed=args.seed,
+        )
+    if args.animation == 'packet_traffic':
+        direction = 'reverse' if args.reverse else 'both'
+        return one_d.PacketTraffic(
+            palette=color_list_arg(args.colors, one_d.PACKET_PALETTE),
+            direction=direction,
+            speed=effect_speed,
+            seed=args.seed,
+        )
     if args.animation == 'hamiltonian':
         return Hamiltonian(
             speed=args.speed,
@@ -200,3 +281,9 @@ def colors_arg(
     return tuple(
         (value[i], value[i + 1], value[i + 2]) for i in range(0, len(value), 3)
     )
+
+
+def color_list_arg(
+    value: Sequence[int] | None, default: tuple[bibliopixel.RGB, ...]
+) -> list[bibliopixel.RGB]:
+    return list(colors_arg(value, default))

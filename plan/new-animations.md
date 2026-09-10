@@ -17,6 +17,10 @@ I/O themselves.
 These effects need only an LED index and can run on an ordinary Twinkly string
 or inside a wearable region.
 
+Implementation status: all effects in this section are available through
+`lyte animate` and `lyte preview`. Their classes also expose the richer controls
+listed below for Python and installation-file construction.
+
 ### Fire and Embers
 
 Maintain a one-dimensional heat field. New heat appears near a configurable
@@ -208,23 +212,15 @@ model contains named logical regions and physical index ranges, not spatial
 coordinates. These effects should not infer geometry from LED index or region
 names.
 
-## Suggested Order
+## Linear Animation Completion
 
-1. Implement Confetti With Decay to establish a simple persistent-pixel state.
-2. Implement Palette Conveyor as a deterministic, stateless numerical effect.
-3. Implement Fire and Embers as the first evolving field simulation.
-4. Implement Expanding Ripples with seeded events, then expose it as Velocity
-   Splash through a patch binding.
-5. Implement Region Relay and Mirrored Limbs using the existing wearable region
-   composition.
-6. Evaluate Cellular Automaton and Reaction-Diffusion performance at the
-   supported LED counts and frame rates before exposing them through the CLI.
+The linear animations share behavior-focused tests for frame shape and type,
+bounded output, deterministic seeded output, progression across frames, and
+single-LED strings. Focused tests also cover persistent confetti decay, ripple
+propagation, cellular rules, elapsed-time reaction-diffusion, and packet
+acknowledgements.
 
-Each implementation should include behavior-focused tests for frame shape and
-type, deterministic seeded output where randomness is used, progression across
-frames, and independence from frame rate where the effect is time-based. Add it
-to the normal animation builder and HTML preview only when its public controls
-are settled.
+The wearable-region and input-reactive sections remain possible future work.
 
 ## Additional work beyond the prompt
 
