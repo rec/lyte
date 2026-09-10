@@ -15,8 +15,11 @@ from pydantic import BaseModel, ConfigDict, Field, SkipValidation, model_validat
 from reccy.runtime import logging
 
 from . import animation, midi
-from .animations import bibliopixel
-from .animations.christmas.random_walk import RandomWalk
+from .animations import compositions
+from .animations.events import color_chase, twinkle
+from .animations.fields import rainbow
+from .animations.patterns import color_fill
+from .animations.simulations.random_walk import RandomWalk
 from .retry import RetryConfig
 from .twinkly import realtime, track
 from .twinkly.client import TwinklyClient
@@ -247,8 +250,8 @@ class DeclarativePatchState(BaseModel):
 
 class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
     layers: dict[str, SkipValidation[midi.LightPatch]]
-    base_layer_configs: dict[str, midi.RegionLightPatchConfig]
-    mixer: SkipValidation[midi.BlendLightPatch | midi.WeightedBlendLightPatch]
+    base_layer_configs: dict[str, compositions.Segments]
+    mixer: SkipValidation[midi.MixLightPatch]
 
     def make_state(self, msg: mido.Message) -> DeclarativePatchState:
         return DeclarativePatchState(
@@ -269,10 +272,7 @@ class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
 
     def note_on(self, msg: mido.Message) -> None:
         self.restore_layer_configs()
-        if isinstance(self.mixer, midi.WeightedBlendLightPatch):
-            self.mixer.state = self.mixer.make_state(msg)
-        else:
-            self.mixer.state = self.mixer.make_state(msg)
+        self.mixer.state = self.mixer.make_state(msg)
         self.apply_bindings('note', msg.note)
 
     def note_off(self) -> None:
@@ -304,9 +304,8 @@ class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
                 if len(self.layers) == 2:
                     other = next(name for name in self.layers if name != parameter)
                     self.state.weights[other] = 1.0 - mapped_value
-                if isinstance(self.mixer, midi.WeightedBlendLightPatch):
-                    for index, name in enumerate(self.layers):
-                        self.mixer.set_weight(index, self.state.weights[name])
+                for index, name in enumerate(self.layers):
+                    self.mixer.set_weight(index, self.state.weights[name])
             elif parameter == 'gain':
                 self.state.gains[target_name] = mapped_value
             elif parameter == 'speed':
@@ -319,6 +318,7 @@ class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
             )
         frames = []
         for name, layer in self.layers.items():
+            layer.fps = self.fps
             frame = animation.validate_frame(device, layer.render(device))
             if (color := self.state.colors.get(name)) is not None:
                 intensity = np.max(frame, axis=1, keepdims=True)
@@ -347,23 +347,18 @@ def map_binding_value(mapping: LinearMapSpec, value: int) -> float:
 def set_layer_speed(layer: midi.LightPatch, speed: float) -> None:
     if not isinstance(layer, midi.RegionLightPatch):
         raise ValueError('Layer speed control requires a region light patch')
-    regions = []
-    for region in layer.config.regions:
-        source = region.animation
+    sources = []
+    for source in layer.config.sources:
         if isinstance(source, RandomWalk):
             source = source.model_copy(update={'speed': speed})
-        elif isinstance(source, bibliopixel.Twinkle):
+        elif isinstance(source, twinkle.Twinkle):
             source = source.model_copy(update={'speed': round(speed)})
-        elif isinstance(source, bibliopixel.ColorChase | bibliopixel.Rainbow):
+        elif isinstance(source, color_chase.ColorChase | rainbow.Rainbow):
             source = source.model_copy(update={'step': max(1, round(speed))})
-        regions.append(
-            midi.RegionAnimation(
-                animation=source,
-                start=region.start,
-                led_count=region.led_count,
-            )
-        )
-    layer.config = midi.RegionLightPatchConfig(regions=regions)
+        sources.append(source)
+    layer.config = compositions.Segments(
+        sources=sources, placements=layer.config.placements
+    )
 
 
 def load_patch_library(path: Path) -> PatchLibrary:
@@ -632,6 +627,8 @@ def stream_patch_frames(
     patch: midi.LightPatch,
     twinkly_track: track.TwinklyTrack,
 ) -> None:
+    patch.fps = config.fps
+
     def process_messages() -> None:
         for message in midi.input_messages(port, config.midi_input):
             patch.receive(message)
@@ -675,29 +672,26 @@ def build_light_patch(library: PatchLibrary, name: str) -> midi.LightPatch:
         layer = library.layers[layer_name]
         layer_regions = layer.regions or default_regions
         layers[layer_name] = midi.RegionLightPatch(
-            config=midi.RegionLightPatchConfig(
-                regions=[
-                    midi.RegionAnimation(
-                        animation=build_layer_animation(layer),
+            config=compositions.Segments(
+                sources=[build_layer_animation(layer) for _ in layer_regions],
+                placements=[
+                    compositions.Placement(
                         start=library.wearable.segments[region].start,
                         led_count=library.wearable.segments[region].led_count,
                     )
                     for region in layer_regions
-                ]
+                ],
             )
         )
     children = list(layers.values())
-    if patch.blend == 'weighted':
-        mixer = midi.WeightedBlendLightPatch(
-            config=midi.WeightedBlendLightPatchConfig(
-                weights=[1.0] + [0.0] * (len(children) - 1)
-            ),
-            patches=children,
-        )
-    else:
-        mixer = midi.BlendLightPatch(
-            config=midi.BlendLightPatchConfig(), patches=children
-        )
+    weights = (
+        [1.0] + [0.0] * (len(children) - 1)
+        if patch.blend == 'weighted'
+        else [1.0] * len(children)
+    )
+    mixer = midi.MixLightPatch(
+        config=midi.MixLightPatchConfig(weights=weights), patches=children
+    )
     return DeclarativeLightPatch(
         config=patch,
         layers=layers,
@@ -714,14 +708,14 @@ def build_layer_animation(layer: LayerSpec) -> animation.Animation:
     color = (layer.color[0], layer.color[1], layer.color[2])
     rgb = animation.rgb_from_float_color(color)
     if layer.kind == 'solid':
-        return bibliopixel.ColorFill(color=rgb)
+        return color_fill.ColorFill(color=rgb)
     if layer.kind == 'random_walk':
         return RandomWalk(
             speed=layer.speed,
             color=(color[0] * 255, color[1] * 255, color[2] * 255),
         )
     if layer.kind == 'twinkle':
-        return bibliopixel.Twinkle(colors=(rgb,), speed=round(layer.speed))
+        return twinkle.Twinkle(colors=(rgb,), speed=round(layer.speed))
     if layer.kind == 'chase':
-        return bibliopixel.ColorChase(color=rgb, step=max(1, round(layer.speed)))
-    return bibliopixel.Rainbow(step=max(1, round(layer.speed)))
+        return color_chase.ColorChase(color=rgb, step=max(1, round(layer.speed)))
+    return rainbow.Rainbow(step=max(1, round(layer.speed)))

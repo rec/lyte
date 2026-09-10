@@ -14,7 +14,7 @@ class ShowFileTests(unittest.TestCase):
                 'run': {'tree': 'rainbow'},
                 'animations': {
                     'rainbow': {
-                        'impl': 'lyte.animations.bibliopixel.rainbow.Rainbow',
+                        'impl': 'lyte.animations.fields.rainbow.Rainbow',
                         'fps': 60,
                     }
                 },
@@ -38,7 +38,7 @@ class ShowFileTests(unittest.TestCase):
             run = root / 'run.toml'
             library.write_text(
                 '[animations.rainbow]\n'
-                'impl = "lyte.animations.bibliopixel.rainbow.Rainbow"\n'
+                'impl = "lyte.animations.fields.rainbow.Rainbow"\n'
             )
             devices.write_text('[devices.tree]\nkind = "twinkly"\n')
             run.write_text('[run]\ntree = "rainbow"\n')
@@ -54,7 +54,7 @@ class ShowFileTests(unittest.TestCase):
             {
                 'run': {'tree': {'source': 'rainbow', 'brightness': 0.8}},
                 'animations': {
-                    'rainbow': {'impl': 'lyte.animations.bibliopixel.rainbow.Rainbow'}
+                    'rainbow': {'impl': 'lyte.animations.fields.rainbow.Rainbow'}
                 },
                 'devices': {'tree': {'kind': 'twinkly'}},
             },
@@ -82,14 +82,12 @@ class ShowFileTests(unittest.TestCase):
         show_file = show.parse_show_file(
             {
                 'animations': {
-                    'wash': {
-                        'impl': 'lyte.animations.bibliopixel.color_fill.ColorFill'
-                    },
-                    'sparkle': {'impl': 'lyte.animations.bibliopixel.twinkle.Twinkle'},
+                    'wash': {'impl': 'lyte.animations.patterns.color_fill.ColorFill'},
+                    'sparkle': {'impl': 'lyte.animations.events.twinkle.Twinkle'},
                     'look': {
-                        'impl': 'lyte.composition.Add',
+                        'impl': 'lyte.animations.compositions.Mix',
                         'sources': ['wash', 'sparkle'],
-                        'clip': True,
+                        'weights': [1.0, 1.0],
                     },
                 },
             },
@@ -97,13 +95,13 @@ class ShowFileTests(unittest.TestCase):
         )
 
         self.assertEqual(show_file.animations['look'].sources, ['wash', 'sparkle'])
-        self.assertEqual(show_file.animations['look'].params, {'clip': True})
+        self.assertEqual(show_file.animations['look'].params, {'weights': [1.0, 1.0]})
 
     def test_merge_show_files_combines_library_device_and_run_files(self) -> None:
         library = show.parse_show_file(
             {
                 'animations': {
-                    'rainbow': {'impl': 'lyte.animations.bibliopixel.rainbow.Rainbow'}
+                    'rainbow': {'impl': 'lyte.animations.fields.rainbow.Rainbow'}
                 }
             },
             'library.toml',
@@ -124,7 +122,7 @@ class ShowFileTests(unittest.TestCase):
         first = show.parse_show_file(
             {
                 'animations': {
-                    'rainbow': {'impl': 'lyte.animations.bibliopixel.rainbow.Rainbow'}
+                    'rainbow': {'impl': 'lyte.animations.fields.rainbow.Rainbow'}
                 }
             },
             'first.toml',
@@ -132,7 +130,7 @@ class ShowFileTests(unittest.TestCase):
         second = show.parse_show_file(
             {
                 'animations': {
-                    'rainbow': {'impl': 'lyte.animations.bibliopixel.rainbow.Rainbow'}
+                    'rainbow': {'impl': 'lyte.animations.fields.rainbow.Rainbow'}
                 }
             },
             'second.toml',
@@ -146,7 +144,7 @@ class ShowFileTests(unittest.TestCase):
             run={'tree': show.RunTargetSpec(source='rainbow')},
             animations={
                 'rainbow': show.AnimationSpec(
-                    impl='lyte.animations.bibliopixel.rainbow.Rainbow'
+                    impl='lyte.animations.fields.rainbow.Rainbow'
                 )
             },
             devices={'tree': show.DeviceSpec(kind='twinkly')},
@@ -155,7 +153,7 @@ class ShowFileTests(unittest.TestCase):
             run={'arch': show.RunTargetSpec(source='rainbow')},
             animations={
                 'rainbow': show.AnimationSpec(
-                    impl='lyte.animations.bibliopixel.rainbow.Rainbow'
+                    impl='lyte.animations.fields.rainbow.Rainbow'
                 )
             },
             devices={'arch': show.DeviceSpec(kind='twinkly')},
@@ -171,7 +169,7 @@ class ShowFileTests(unittest.TestCase):
                     run={'tree': show.RunTargetSpec(source='rainbow')},
                     animations={
                         'rainbow': show.AnimationSpec(
-                            impl='lyte.animations.bibliopixel.rainbow.Rainbow'
+                            impl='lyte.animations.fields.rainbow.Rainbow'
                         )
                     },
                 )
@@ -202,7 +200,7 @@ class ShowFileTests(unittest.TestCase):
             {
                 'animations': {
                     'rainbow': {
-                        'impl': 'lyte.animations.bibliopixel.rainbow.Rainbow',
+                        'impl': 'lyte.animations.fields.rainbow.Rainbow',
                         'step': 2,
                     }
                 }
@@ -219,7 +217,7 @@ class ShowFileTests(unittest.TestCase):
             {
                 'run': {'left': 'rainbow', 'right': 'rainbow'},
                 'animations': {
-                    'rainbow': {'impl': 'lyte.animations.bibliopixel.rainbow.Rainbow'}
+                    'rainbow': {'impl': 'lyte.animations.fields.rainbow.Rainbow'}
                 },
                 'devices': {
                     'left': {'kind': 'twinkly', 'led_count': 3},
@@ -244,7 +242,7 @@ class ShowFileTests(unittest.TestCase):
             {
                 'run': {'tree': 'rainbow'},
                 'animations': {
-                    'rainbow': {'impl': 'lyte.animations.bibliopixel.rainbow.Rainbow'}
+                    'rainbow': {'impl': 'lyte.animations.fields.rainbow.Rainbow'}
                 },
                 'devices': {'tree': {'kind': 'twinkly'}},
             },
@@ -271,7 +269,7 @@ class ShowFileTests(unittest.TestCase):
             show.build_show_graph(show_file)
 
     def test_resolve_python_path_finds_callables(self) -> None:
-        value = show.resolve_python_path('lyte.animations.bibliopixel.rainbow.Rainbow')
+        value = show.resolve_python_path('lyte.animations.fields.rainbow.Rainbow')
 
         self.assertTrue(callable(value))
 
@@ -287,7 +285,7 @@ class ShowFileTests(unittest.TestCase):
                 '[run]\n'
                 'tree = "rainbow"\n'
                 '[animations.rainbow]\n'
-                'impl = "lyte.animations.bibliopixel.rainbow.Rainbow"\n'
+                'impl = "lyte.animations.fields.rainbow.Rainbow"\n'
                 '[devices.tree]\n'
                 'kind = "twinkly"\n'
                 'led_count = 3\n'

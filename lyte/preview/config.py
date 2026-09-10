@@ -7,8 +7,16 @@ from typing import Annotated, Literal, cast
 import tyro
 
 from ..animate import config
+from ..animation import Family
 
 PreviewAnimationName = Literal[
+    'composition',
+    'linear_gradient',
+    'log_gradient',
+    'grey_code',
+    'exponential_fade',
+    'randomize',
+    'rain',
     'alternates',
     'aurora',
     'candle_bank',
@@ -56,6 +64,9 @@ PREVIEW_ANIMATIONS: tuple[str, ...] = tuple(
 class PreviewConfig:
     animation: Annotated[PreviewAnimationName | None, tyro.conf.Positional] = None
     output: Annotated[Path | None, tyro.conf.Positional] = None
+    composition_file: Path | None = None
+    composition_source: str = 'main'
+    family: Family | None = None
     open: bool = False
     name: str | None = None
     width: int = 16
@@ -102,6 +113,8 @@ class PreviewConfig:
             raise ValueError('preview animation is required')
         return config.AnimateConfig(
             animation=cast(config.AnimationName, self.animation),
+            composition_file=self.composition_file,
+            composition_source=self.composition_source,
             speed=self.speed,
             fps=self.fps,
             duration=self.duration,

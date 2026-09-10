@@ -1,0 +1,32 @@
+# A 250-pixel mirrored composition followed by a crossfade into aurora.
+# Preview at the same logical size: --width 250 --height 1.
+
+[animations.ripple]
+impl = "lyte.animations.events.expanding_ripples.ExpandingRipples"
+seed = 17
+
+[animations.mirror]
+impl = "lyte.animations.compositions.Reverse"
+sources = ["ripple"]
+
+[animations.limbs]
+impl = "lyte.animations.compositions.Segments"
+sources = ["ripple", "mirror"]
+placements = [{start = 0, led_count = 125}, {start = 125, led_count = 125}]
+
+[animations.aurora]
+impl = "lyte.animations.fields.aurora.Aurora"
+seed = 17
+
+[animations.main]
+impl = "lyte.animations.compositions.Sequence"
+sources = ["limbs", "aurora"]
+cues = [{start = 0, duration = 6}, {start = 4, duration = 6}]
+easing = "smooth"
+
+[devices.preview]
+kind = "twinkly"
+led_count = 250
+
+[run.preview]
+source = "main"

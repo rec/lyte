@@ -68,6 +68,8 @@ power or Wi-Fi and allow the daemon to reconnect before intervening further.
 - `patch_library` is resolved relative to this file.
 - `patches` is the ordered performance list.
 - `fps` sets the daemon frame rate.
+- `transition_duration` in `[daemon]` sets patch crossfade time in seconds
+  (default 0.25); zero selects immediate switching.
 - `[midi]` selects the MIDI channel and optionally a device name or ordered list
   of acceptable device names.
 - MIDI channel values use the musician-facing range `1` through `16`.
@@ -165,3 +167,17 @@ their opt-in environment setting is supplied.
 Treat the patch TOML files as executable configuration: validate them through
 `lyte patch list` or the test suite after editing. `lyte show` validates a show
 file only; it is not a command for operating lights.
+
+Animation import paths now use `lyte.animations.patterns`, `fields`, `events`,
+`simulations`, and `compositions`. Update locally authored show and installation
+files that reference the former `bibliopixel`, `christmas`, or `one_d` paths.
+For example, `lyte.animations.fields.rainbow.Rainbow` names the rainbow field.
+
+`examples/composition.toml` demonstrates segments, a mirrored child, and a timed
+crossfade. Use `lyte preview composition preview.html --composition-file
+examples/composition.toml --width 250 --height 1` to render that graph without
+hardware. `lyte animate composition --composition-file examples/composition.toml
+--duration 10` plays it on a 250-LED string. Compositions use seconds for timing
+and nonnegative gain/weights; existing generator colors and motion parameters
+retain their prior units. Wearable patch colors are converted from normalized
+RGB to the generator's byte color arguments when constructing each layer.

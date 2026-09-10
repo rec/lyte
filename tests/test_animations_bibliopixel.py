@@ -7,7 +7,32 @@ from numpy import testing as npt
 from numpy.typing import NDArray
 
 from lyte import animation
-from lyte.animations import bibliopixel
+from lyte.animations.events import (
+    color_chase,
+    fire_flies,
+    larson_scanner,
+    pixel_ping_pong,
+    pulse,
+    searchlights,
+    twinkle,
+    white_twinkle,
+)
+from lyte.animations.fields import (
+    color_fade,
+    halves_rainbow,
+    linear_rainbow,
+    rainbow,
+    rainbow_cycle,
+    wave,
+)
+from lyte.animations.patterns import (
+    alternates,
+    color_fill,
+    color_pattern,
+    color_wipe,
+    saber_blade,
+)
+from lyte.animations.simulations import party_mode
 
 
 def render(
@@ -27,7 +52,7 @@ def initial_state(
 
 class BiblioPixelTests(unittest.TestCase):
     def test_color_fill_fills_all_leds(self) -> None:
-        animation = bibliopixel.ColorFill(color=(1, 2, 3))
+        animation = color_fill.ColorFill(color=(1, 2, 3))
         device, state = initial_state(animation, 3)
 
         npt.assert_array_equal(
@@ -36,7 +61,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_color_chase_moves_lit_window(self) -> None:
-        chase = bibliopixel.ColorChase(color=(9, 8, 7), width=2)
+        chase = color_chase.ColorChase(color=(9, 8, 7), width=2)
         device, state = initial_state(chase, 5)
 
         npt.assert_array_equal(
@@ -55,7 +80,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_color_wipe_preserves_previous_lit_leds(self) -> None:
-        wipe = bibliopixel.ColorWipe(color=(1, 2, 3))
+        wipe = color_wipe.ColorWipe(color=(1, 2, 3))
         device, state = initial_state(wipe, 4)
 
         npt.assert_array_equal(
@@ -74,7 +99,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_alternates_flips_each_frame(self) -> None:
-        source = bibliopixel.Alternates(color1=(1, 1, 1), color2=(2, 2, 2))
+        source = alternates.Alternates(color1=(1, 1, 1), color2=(2, 2, 2))
         device, state = initial_state(source, 4)
 
         npt.assert_array_equal(
@@ -93,7 +118,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_color_pattern_repeats_color_widths(self) -> None:
-        pattern = bibliopixel.ColorPattern(
+        pattern = color_pattern.ColorPattern(
             colors=((1, 0, 0), (0, 2, 0), (0, 0, 3)),
             width=2,
         )
@@ -115,7 +140,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_color_fade_scales_color_across_span(self) -> None:
-        fade = bibliopixel.ColorFade(
+        fade = color_fade.ColorFade(
             colors=((10, 20, 30),),
             level_step=225,
             start=1,
@@ -132,7 +157,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_party_mode_alternates_color_and_blank_frames(self) -> None:
-        party = bibliopixel.PartyMode(colors=((1, 2, 3), (4, 5, 6)))
+        party = party_mode.PartyMode(colors=((1, 2, 3), (4, 5, 6)))
         device, state = initial_state(party, 2)
 
         npt.assert_array_equal(
@@ -149,7 +174,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_fire_flies_lights_seeded_random_pixels(self) -> None:
-        source = bibliopixel.FireFlies(
+        source = fire_flies.FireFlies(
             colors=((1, 2, 3),),
             width=2,
             count=1,
@@ -164,7 +189,7 @@ class BiblioPixelTests(unittest.TestCase):
         self.assertLessEqual(np.count_nonzero(frame[:, 0]), 2)
 
     def test_saber_blade_extends_then_retracts(self) -> None:
-        saber = bibliopixel.SaberBlade(colors=((1, 2, 3),), speed=1)
+        saber = saber_blade.SaberBlade(colors=((1, 2, 3),), speed=1)
         device, state = initial_state(saber, 3)
 
         npt.assert_array_equal(
@@ -177,8 +202,8 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_rainbows_generate_wheel_frames(self) -> None:
-        source = bibliopixel.Rainbow()
-        cycle = bibliopixel.RainbowCycle()
+        source = rainbow.Rainbow()
+        cycle = rainbow_cycle.RainbowCycle()
         device, state = initial_state(source, 3)
         cycle_device, cycle_state = initial_state(cycle, 3)
 
@@ -192,7 +217,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_linear_rainbow_fills_progressively(self) -> None:
-        source = bibliopixel.LinearRainbow()
+        source = linear_rainbow.LinearRainbow()
         device, state = initial_state(source, 3)
 
         npt.assert_array_equal(
@@ -205,7 +230,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_halves_rainbow_expands_from_center(self) -> None:
-        source = bibliopixel.HalvesRainbow()
+        source = halves_rainbow.HalvesRainbow()
         device, state = initial_state(source, 5)
 
         npt.assert_array_equal(
@@ -224,7 +249,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_larson_scanner_bounces_lit_pixel(self) -> None:
-        scanner = bibliopixel.LarsonScanner(color=(1, 2, 3), tail=0)
+        scanner = larson_scanner.LarsonScanner(color=(1, 2, 3), tail=0)
         device, state = initial_state(scanner, 3)
 
         npt.assert_array_equal(
@@ -237,7 +262,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_pulse_starts_when_chance_always_hits(self) -> None:
-        source = bibliopixel.Pulse(
+        source = pulse.Pulse(
             colors=((10, 20, 30),),
             tail=0,
             chance=100,
@@ -252,7 +277,7 @@ class BiblioPixelTests(unittest.TestCase):
         self.assertGreater(np.count_nonzero(frame), 0)
 
     def test_pixel_ping_pong_fades_previous_pixels(self) -> None:
-        ping_pong = bibliopixel.PixelPingPong(color=(10, 0, 0), fade_delay=1)
+        ping_pong = pixel_ping_pong.PixelPingPong(color=(10, 0, 0), fade_delay=1)
         device, state = initial_state(ping_pong, 3)
 
         npt.assert_array_equal(
@@ -265,7 +290,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_searchlights_blend_moving_beams(self) -> None:
-        source = bibliopixel.Searchlights(
+        source = searchlights.Searchlights(
             colors=((10, 0, 0), (0, 20, 0), (0, 0, 30)),
             tail=0,
             seed=1,
@@ -278,7 +303,7 @@ class BiblioPixelTests(unittest.TestCase):
         self.assertGreater(np.count_nonzero(frame), 0)
 
     def test_wave_generates_sine_colored_frame(self) -> None:
-        source = bibliopixel.Wave(color=(10, 20, 30), cycles=1)
+        source = wave.Wave(color=(10, 20, 30), cycles=1)
         device, state = initial_state(source, 3)
 
         npt.assert_array_equal(
@@ -287,7 +312,7 @@ class BiblioPixelTests(unittest.TestCase):
         )
 
     def test_twinkle_lights_seeded_random_pixel(self) -> None:
-        source = bibliopixel.Twinkle(
+        source = twinkle.Twinkle(
             colors=((10, 20, 30),),
             density=100,
             speed=10,
@@ -300,7 +325,7 @@ class BiblioPixelTests(unittest.TestCase):
         self.assertGreater(np.count_nonzero(frame), 0)
 
     def test_white_twinkle_uses_white_pixels(self) -> None:
-        source = bibliopixel.WhiteTwinkle(density=100, speed=10, seed=1)
+        source = white_twinkle.WhiteTwinkle(density=100, speed=10, seed=1)
         device, state = initial_state(source, 4)
 
         frame = render(source, device, state)

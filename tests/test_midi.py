@@ -10,7 +10,8 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict
 
 from lyte import animation, midi
-from lyte.animations import bibliopixel
+from lyte.animations import compositions
+from lyte.animations.patterns import color_fill
 
 
 class MidiInputTests(unittest.TestCase):
@@ -257,19 +258,15 @@ class MidiTests(unittest.TestCase):
 
     def test_region_light_patch_composes_stateful_animations(self) -> None:
         patch = midi.RegionLightPatch(
-            config=midi.RegionLightPatchConfig(
-                regions=[
-                    midi.RegionAnimation(
-                        animation=bibliopixel.ColorFill(color=(255, 0, 0)),
-                        start=0,
-                        led_count=2,
-                    ),
-                    midi.RegionAnimation(
-                        animation=bibliopixel.ColorFill(color=(0, 0, 255)),
-                        start=2,
-                        led_count=3,
-                    ),
-                ]
+            config=compositions.Segments(
+                sources=[
+                    color_fill.ColorFill(color=(255, 0, 0)),
+                    color_fill.ColorFill(color=(0, 0, 255)),
+                ],
+                placements=[
+                    compositions.Placement(start=0, led_count=2),
+                    compositions.Placement(start=2, led_count=3),
+                ],
             )
         )
         device = animation.Device(led_count=5)
@@ -292,14 +289,9 @@ class MidiTests(unittest.TestCase):
 
     def test_region_light_patch_is_black_without_an_active_note(self) -> None:
         patch = midi.RegionLightPatch(
-            config=midi.RegionLightPatchConfig(
-                regions=[
-                    midi.RegionAnimation(
-                        animation=bibliopixel.ColorFill(color=(255, 0, 0)),
-                        start=0,
-                        led_count=1,
-                    )
-                ]
+            config=compositions.Segments(
+                sources=[color_fill.ColorFill(color=(255, 0, 0))],
+                placements=[compositions.Placement(start=0, led_count=1)],
             )
         )
 
@@ -341,8 +333,8 @@ class MidiTests(unittest.TestCase):
                     frame[:, 1] = self.config.value
                 return animation.validate_frame(device, frame)
 
-        patch = midi.BlendLightPatch(
-            config=midi.BlendLightPatchConfig(),
+        patch = midi.MixLightPatch(
+            config=midi.MixLightPatchConfig(weights=[1.0, 1.0]),
             patches=[
                 RedPatch(config=RedConfig()),
                 GreenPatch(config=GreenConfig()),
@@ -373,18 +365,21 @@ class MidiTests(unittest.TestCase):
                 frame[:, self.config.channel] = 0.75
                 return animation.validate_frame(device, frame)
 
-        patch = midi.BlendLightPatch(
-            config=midi.BlendLightPatchConfig(),
+        patch = midi.MixLightPatch(
+            config=midi.MixLightPatchConfig(weights=[1.0, 1.0]),
             patches=[
                 ConstantPatch(config=Config(channel=0)),
                 ConstantPatch(config=Config(channel=0)),
             ],
         )
+        patch.receive(mido.Message('note_on', note=64, velocity=100))
 
         npt.assert_array_equal(
             patch.render(animation.Device(led_count=1)),
             np.array([[1.0, 0.0, 0.0]], dtype=np.float32),
         )
+        patch.receive(mido.Message('note_off', note=64))
+        self.assertFalse(patch.render(animation.Device(led_count=1)).any())
 
     def test_weighted_blend_light_patch_uses_mutable_note_state_weights(self) -> None:
         class Config(BaseModel, frozen=True):
@@ -402,8 +397,8 @@ class MidiTests(unittest.TestCase):
                 frame[:] = self.config.color
                 return animation.validate_frame(device, frame)
 
-        patch = midi.WeightedBlendLightPatch(
-            config=midi.WeightedBlendLightPatchConfig(weights=[1.0, 0.0]),
+        patch = midi.MixLightPatch(
+            config=midi.MixLightPatchConfig(weights=[1.0, 0.0]),
             patches=[
                 ConstantPatch(config=Config(color=(1.0, 0.0, 0.0))),
                 ConstantPatch(config=Config(color=(0.0, 0.0, 1.0))),

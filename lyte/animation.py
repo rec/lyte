@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
-from typing import cast
+from enum import StrEnum, auto
+from typing import ClassVar, cast
 
 import numpy as np
 import pydantic
 from numpy.typing import NDArray
+
+
+class Family(StrEnum):
+    PATTERNS = auto()
+    FIELDS = auto()
+    EVENTS = auto()
+    SIMULATIONS = auto()
+    COMPOSITIONS = auto()
 
 
 class Device(pydantic.BaseModel, frozen=True):
@@ -37,6 +46,8 @@ FloatRGB = tuple[float, float, float]
 
 
 class Animation[StateT: State](pydantic.BaseModel, frozen=True):
+    family: ClassVar[Family | None] = None
+
     def initial_state(self, device: Device) -> StateT:
         return cast(StateT, State())
 
@@ -44,62 +55,6 @@ class Animation[StateT: State](pydantic.BaseModel, frozen=True):
         raise NotImplementedError
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
-
-
-class AnimationSegment(pydantic.BaseModel, frozen=True):
-    animation: pydantic.SkipValidation[Animation]
-    led_count: int
-
-    @pydantic.model_validator(mode='after')
-    def validate_segment(self) -> AnimationSegment:
-        if self.led_count <= 0:
-            raise ValueError('segment led_count must be greater than zero')
-        return self
-
-    model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
-
-
-class SegmentState(State):
-    states: list[pydantic.SkipValidation[State]]
-
-
-class SegmentAnimation(Animation[SegmentState], frozen=True):
-    segments: list[AnimationSegment]
-
-    @pydantic.model_validator(mode='after')
-    def validate_segments(self) -> SegmentAnimation:
-        if len(self.segments) < 2:
-            raise ValueError('SegmentAnimation requires at least two segments')
-        return self
-
-    def initial_state(self, device: Device) -> SegmentState:
-        self.validate_device_length(device)
-        states = [
-            s.animation.initial_state(Device(led_count=s.led_count))
-            for s in self.segments
-        ]
-        return SegmentState(states=states)
-
-    def render(self, device: Device, state: SegmentState) -> NDArray[np.float32]:
-        self.validate_device_length(device)
-        if len(state.states) != len(self.segments):
-            raise ValueError('Segment state must contain one state per segment')
-        frames = []
-        for segment, child_state in zip(self.segments, state.states, strict=True):
-            child_device = Device(led_count=segment.led_count)
-            child_state.fps = state.fps
-            frames.append(
-                validate_frame(
-                    child_device, segment.animation.render(child_device, child_state)
-                )
-            )
-        state.frame += 1
-        return validate_frame(device, np.ascontiguousarray(np.concatenate(frames)))
-
-    def validate_device_length(self, device: Device) -> None:
-        segment_led_count = sum(s.led_count for s in self.segments)
-        if segment_led_count != device.led_count:
-            raise ValueError('Segment led counts must total device led_count')
 
 
 def validate_frame(device: Device, frame: NDArray[np.float32]) -> NDArray[np.float32]:

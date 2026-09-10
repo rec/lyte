@@ -31,6 +31,25 @@ authenticates the device, enters realtime mode, probes the HTTP connection while
 streaming UDP frames, recovers after connection failures, and requests blackout
 when playback ends.
 
+## Animation Families and Compositions
+
+Animations are organized into patterns, fields, events, simulations, and
+compositions. List a family with `lyte preview --family fields`.
+
+Compositions combine other animations using segments, weighted mixes,
+crossfades, reversal, intensity envelopes, and timed sequences. The same graph
+can be previewed or played:
+
+```sh
+lyte preview composition preview.html --composition-file examples/composition.toml --width 250 --height 1
+lyte animate composition --composition-file examples/composition.toml --duration 10
+```
+
+`--composition-source` selects a named graph node (default `main`). The example
+uses 250 logical LEDs. Graph files contain trusted Python implementation paths;
+their `sources` lists reference other named nodes. Each occurrence owns its
+playback state. See `doc/architecture.md` for composition semantics.
+
 ## Wearable Patches
 
 The supplied wearable catalogue is authored for 250 LEDs split into five
@@ -62,6 +81,10 @@ messages control the active patch. The Reccy endpoint supports status, blackout,
 stop, named patch selection, and a white fade test; the test level percentage
 and total duration are configurable.
 
+Patch changes during an active note crossfade for 0.25 seconds. Set
+`transition_duration` in `[daemon]` to change this, or to zero for immediate
+switching. Note-off cancels an active transition.
+
 ## Mixed Installations
 
 `lyte installation run` loads Twinkly targets, DMX instruments, programs, and a
@@ -83,7 +106,9 @@ offsets within an instrument. Available categories are `brightness`, `rgb`,
 `color_wheel`, `gobo_select`, and named `raw` channels.
 
 Installation DMX programs are static semantic values. Pixel programs construct
-an `Animation` from a trusted local Python import path. The scheduler runs each
+an `Animation` from a trusted local Python import path. A pixel program may list
+other pixel program names in `sources` to construct a composition; its `params`
+configure placements, weights, envelopes, or cues. The scheduler runs each
 target at its configured frame rate, records failures independently, and
 requests blackout from every opened output at shutdown.
 

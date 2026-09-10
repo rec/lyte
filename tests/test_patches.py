@@ -223,7 +223,7 @@ class PatchLibraryTests(unittest.TestCase):
             note_patch.config.note_palette[1],
         )
         self.assertEqual(
-            breath_patch.layers['random_walk'].config.regions[0].animation.speed,
+            breath_patch.layers['random_walk'].config.sources[0].speed,
             100.0,
         )
 
@@ -236,15 +236,15 @@ class PatchLibraryTests(unittest.TestCase):
         layer = patch.layers['random_walk']
         if not isinstance(layer, midi.RegionLightPatch):
             self.fail('layer did not compile to a region light patch')
-        initial_speed = layer.config.regions[0].animation.speed
+        initial_speed = layer.config.sources[0].speed
         patch.receive(mido.Message('note_on', note=60, velocity=100))
         patch.receive(mido.Message('control_change', control=2, value=127))
-        self.assertEqual(layer.config.regions[0].animation.speed, 100.0)
+        self.assertEqual(layer.config.sources[0].speed, 100.0)
 
         patch.receive(mido.Message('note_off', note=60))
-        self.assertEqual(layer.config.regions[0].animation.speed, initial_speed)
+        self.assertEqual(layer.config.sources[0].speed, initial_speed)
         patch.receive(mido.Message('note_on', note=61, velocity=100))
-        self.assertEqual(layer.config.regions[0].animation.speed, initial_speed)
+        self.assertEqual(layer.config.sources[0].speed, initial_speed)
 
     def test_declarative_patch_applies_note_breath_mix_and_pitch_bindings(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
@@ -271,10 +271,10 @@ class PatchLibraryTests(unittest.TestCase):
 
         chest = patch.layers['chest_spiral']
         limbs = patch.layers['limb_fill']
-        self.assertEqual(len(chest.config.regions), 1)
-        self.assertEqual(chest.config.regions[0].start, 190)
-        self.assertEqual(len(limbs.config.regions), 4)
-        self.assertNotIn(190, [region.start for region in limbs.config.regions])
+        self.assertEqual(len(chest.config.placements), 1)
+        self.assertEqual(chest.config.placements[0].start, 190)
+        self.assertEqual(len(limbs.config.placements), 4)
+        self.assertNotIn(190, [region.start for region in limbs.config.placements])
 
     def test_declarative_patch_compiles_declared_blend_policy(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
@@ -285,8 +285,8 @@ class PatchLibraryTests(unittest.TestCase):
             self.fail('additive patch did not compile')
         if not isinstance(weighted, patches.DeclarativeLightPatch):
             self.fail('weighted patch did not compile')
-        self.assertIsInstance(additive.mixer, midi.BlendLightPatch)
-        self.assertIsInstance(weighted.mixer, midi.WeightedBlendLightPatch)
+        self.assertEqual(additive.mixer.config.weights, [1.0] * len(additive.layers))
+        self.assertEqual(weighted.mixer.config.weights, [1.0, 0.0])
 
     def test_pitch_bend_maps_only_the_positive_half(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
@@ -297,9 +297,9 @@ class PatchLibraryTests(unittest.TestCase):
         patch.receive(mido.Message('note_on', note=60, velocity=100))
         layer = patch.layers['random_walk']
         patch.receive(mido.Message('pitchwheel', pitch=-4096))
-        self.assertEqual(layer.config.regions[0].animation.speed, 1.0)
+        self.assertEqual(layer.config.sources[0].speed, 1.0)
         patch.receive(mido.Message('pitchwheel', pitch=8191))
-        self.assertEqual(layer.config.regions[0].animation.speed, 300.0)
+        self.assertEqual(layer.config.sources[0].speed, 300.0)
 
     def test_build_light_patch_rejects_unknown_patch(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))

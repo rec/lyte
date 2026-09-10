@@ -52,15 +52,42 @@ in Twinkly packet bytes.
 
 Animation implementations live in `lyte/animations/`:
 
-- `bibliopixel/` contains the ported pattern collection.
-- `christmas/` contains Hamiltonian and random-walk effects plus their support
-  code.
-- `one_d.py` contains FPS-aware procedural fields, particles, simulations, and
-  event-based effects for linear strings.
+- `patterns/` contains fills, discrete patterns, wipes, and color traversals.
+- `fields/` contains gradients, rainbows, waves, fades, and procedural fields.
+- `events/` contains moving objects, pulses, twinkles, and emitted bursts.
+- `simulations/` contains stochastic processes, heat, interacting particles,
+  cellular automata, and reaction-diffusion.
+- `compositions.py` contains spatial placement, weighted mixes, crossfades,
+  reversal, intensity envelopes, and sequences.
+- `numerical.py` shares palette sampling and numerical helpers across effects.
 - `colors.py` and `validators.py` hold shared animation helpers.
 
-`SegmentAnimation` combines consecutive logical pixel regions. It owns a child
-`State` for each child animation and concatenates their validated frames.
+Every built-in animation identifies its `Family`. Families organize algorithms
+without imposing unused parameters on them. Existing generator color arguments
+retain their byte RGB units and existing speed/width meanings; patch colors and
+logical frames use normalized RGB, converted at patch construction. Moving an
+effect into a family does not change its output or reinterpret its parameters.
+
+Composition models accept ordered `sources` and own independent child states.
+`Segments` places sources into disjoint local spans, leaves gaps black, and
+rejects overlap. `Mix` sums nonnegative weighted frames and clips at its own
+boundary without normalizing weights. Nested mixes preserve their individual
+clipping boundaries. `Crossfade` uses a `Fade` with duration in seconds and
+linear or smooth easing. Callers retain the incoming child's state after overlap.
+`Reverse` reverses one child's output. `Envelope` applies nonnegative gain points
+at times in seconds, optionally repeating. A single point is a constant gain.
+`Sequence` schedules independent occurrences with explicit start times and
+durations; two overlapping cues crossfade and gaps render black.
+
+Children receive the actual parent FPS. Delayed sequence children start at local
+time zero when first rendered, without advancing through invisible frames.
+Reusing an immutable description creates separate states per occurrence. A
+seeded source and its reversed copy therefore provide synchronized mirrors.
+
+`show.build_show_graph()` constructs these compositions from trusted Python
+paths and named sources. The animate and preview composition workflow and
+installation pixel programs use that same builder. Legacy `bibliopixel`,
+`christmas`, and `one_d` import paths have been replaced by family paths.
 
 ## Playback and Twinkly Output
 
@@ -111,8 +138,9 @@ at input filtering.
 - `WearableSpec` describes logical regions and the mapping from them to physical
   Twinkly indices;
 - layers compile to standard animation implementations;
-- `RegionLightPatch`, additive `BlendLightPatch`, and
-  `WeightedBlendLightPatch` compose layer frames;
+- `RegionLightPatch` takes a `Segments` composition directly; `MixLightPatch`
+  uses the shared weighted-sum operation for both additive and weighted patches.
+  These patch types own MIDI lifecycle handling, not separate pixel algorithms;
 - `DeclarativeLightPatch` applies note, breath, and pitch bindings before
   rendering;
 - the physical map is applied by `encode_wearable_frame()` immediately before
@@ -137,6 +165,14 @@ blackout, stop, named patch selection, and a white fade test command. Patch
 selections and tests are queued and are applied by the frame loop; status
 reports both queue and applied generations for patch selections, queued and
 active light tests, and output frame-send counters.
+
+Patch changes during an active note crossfade for `transition_duration` seconds
+(default 0.25, zero for immediate switching). The selector renders both patches
+through the common `Fade` operation and retains the incoming patch's state.
+Note replacement or a matching note-off cancels overlap. MIDI disconnect clears
+both the performance and transition; blackout still uses the output lifecycle.
+A further patch selection replaces the outgoing transition with the current
+selected patch, keeping at most two patches active.
 
 Wearable patch libraries declare an authored LED count. When a connected string
 reports a different count, Lyte warns and derives a runtime layout by scaling

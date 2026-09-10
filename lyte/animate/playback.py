@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 from reccy.runtime import logging
 
 from .. import animation
+from ..animations import compositions
 from ..retry import RetryConfig
 from ..twinkly import realtime, track
 from ..twinkly.client import TwinklyClient
@@ -177,27 +178,17 @@ def run_crossfade(
 ) -> None:
     device = twinkly_track.device
     started_at = time.monotonic()
+    source = compositions.Crossfade(
+        sources=[current_animation, next_animation],
+        fade=compositions.Fade(duration=duration),
+    )
+    state = compositions.TimedChildrenState(
+        states=[current_state, next_state], fps=args.fps
+    )
 
     def render_frame() -> NDArray[np.uint8]:
-        progress = (time.monotonic() - started_at) / duration
-        frame = blend_frames(
-            animation.validate_frame(
-                device, current_animation.render(device, current_state)
-            ),
-            animation.validate_frame(device, next_animation.render(device, next_state)),
-            progress,
-        )
+        state.elapsed = time.monotonic() - started_at
+        frame = source.render(device, state)
         return animation.byte_light_frame_from_float(frame)
 
     twinkly_track.stream_frames('crossfade', args.fps, duration, render_frame)
-
-
-def blend_frames(
-    current_frame: NDArray[np.float32],
-    next_frame: NDArray[np.float32],
-    progress: float,
-) -> NDArray[np.float32]:
-    if current_frame.shape != next_frame.shape:
-        raise ValueError('cannot blend frames with different shapes')
-    progress = max(0.0, min(1.0, progress))
-    return current_frame * (1.0 - progress) + next_frame * progress

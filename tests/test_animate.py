@@ -12,9 +12,11 @@ from numpy.typing import NDArray
 
 from lyte import animation
 from lyte.animate import config, random_show
-from lyte.animations import bibliopixel
-from lyte.animations.christmas import hamiltonian
-from lyte.animations.christmas.random_walk import RandomWalk
+from lyte.animations import compositions
+from lyte.animations.events import color_chase
+from lyte.animations.fields import rainbow
+from lyte.animations.patterns import color_fill, hamiltonian
+from lyte.animations.simulations.random_walk import RandomWalk
 from lyte.retry import RetryConfig
 from lyte.twinkly import track
 from lyte.twinkly.client import TwinklyClient, TwinklyResponse
@@ -121,7 +123,7 @@ class AnimateTests(unittest.TestCase):
             ),
             patch(
                 'lyte.animate.playback.build_animation',
-                return_value=bibliopixel.ColorFill(),
+                return_value=color_fill.ColorFill(),
             ),
             patch('lyte.animate.playback.run_animation_state') as run_animation_state,
             patch('lyte.animate.playback.time.monotonic', side_effect=[0, 0, 0, 2]),
@@ -142,7 +144,9 @@ class AnimateTests(unittest.TestCase):
 
         npt.assert_allclose(
             animation.byte_light_frame_from_float(
-                self.script.blend_frames(current_frame, next_frame, 0.25)
+                compositions.Fade(duration=1).render(
+                    animation.Device(led_count=1), [current_frame, next_frame], 0.25
+                )
             ),
             np.array([[25, 125, 150]], dtype=np.uint8),
         )
@@ -392,7 +396,7 @@ class AnimateTests(unittest.TestCase):
         animation = self.script.build_animation(args)
         device, state = initial_state(animation, 3)
 
-        self.assertIsInstance(animation, bibliopixel.ColorChase)
+        self.assertIsInstance(animation, color_chase.ColorChase)
         npt.assert_array_equal(
             render(animation, device, state),
             np.array([[1, 2, 3], [1, 2, 3], [0, 0, 0]], dtype=np.uint8),
@@ -405,7 +409,7 @@ class AnimateTests(unittest.TestCase):
         animation = self.script.build_animation(args)
         device, state = initial_state(animation, 3)
 
-        self.assertIsInstance(animation, bibliopixel.Rainbow)
+        self.assertIsInstance(animation, rainbow.Rainbow)
         npt.assert_array_equal(
             render(animation, device, state),
             np.array([[255, 0, 0], [252, 3, 0], [249, 6, 0]], dtype=np.uint8),
