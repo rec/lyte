@@ -2,85 +2,74 @@ from __future__ import annotations
 
 import base64
 import json
-import tempfile
-import unittest
 from pathlib import Path
 
-from lyte.animations.patterns import color_fill
+from ufor import light_animation
+from ufor.interface import LightBinding, Output
+from ufor.library import Entry, Library
+from ufor.lights import LightType, rings
+from ufor.time import Rate, Timebase
+
+from lyte import rendering, show
 from lyte.preview import document
-from lyte.preview.layout import Layout
 
 
-def preview_data(document: str) -> dict[str, object]:
-    start = document.index('const data = ') + len('const data = ')
-    end = document.index(';\nconst canvas', start)
-    return json.loads(document[start:end])
+def preview_data(value: str) -> dict[str, object]:
+    start = value.index('const data = ') + len('const data = ')
+    end = value.index(';\nconst canvas', start)
+    return json.loads(value[start:end])
 
 
-class PreviewTests(unittest.TestCase):
-    def test_layout_accepts_explicit_coords(self) -> None:
-        layout = Layout(coords=[[0.0, 0.0], [1.0, 0.5]])
-
-        self.assertEqual(layout.points(), [[0.0, 0.0], [1.0, 0.5]])
-
-    def test_layout_generates_grid_from_dims_and_spacing(self) -> None:
-        layout = Layout(dims=[2, 3], spacing=[2.0, 3.0])
-
-        self.assertEqual(
-            layout.points(),
-            [
-                [0.0, 0.0],
-                [2.0, 0.0],
-                [4.0, 0.0],
-                [0.0, 3.0],
-                [2.0, 3.0],
-                [4.0, 3.0],
-            ],
-        )
-
-    def test_layout_requires_exactly_one_coordinate_source(self) -> None:
-        with self.assertRaises(ValueError):
-            Layout()
-        with self.assertRaises(ValueError):
-            Layout(coords=[[0.0, 0.0]], dims=[1, 1])
-
-    def test_animation_document_embeds_base64_frames(self) -> None:
-        html = document.animation_document(
-            color_fill.ColorFill(color=(1, 2, 3)),
-            Layout(name='preview', dims=[1, 2]),
-            fps=2,
-            duration=1,
-            led_size=2.5,
-        )
-
-        data = preview_data(html)
-
-        self.assertEqual(data['name'], 'preview')
-        self.assertEqual(data['coords'], [[0.0, 0.0], [1.0, 0.0]])
-        self.assertEqual(data['ledSize'], 2.5)
-        frames = data['frames']
-        if not isinstance(frames, list):
-            self.fail('frames must be a list')
-        first_frame = frames[0]
-        if not isinstance(first_frame, str):
-            self.fail('frames must contain strings')
-        self.assertEqual(len(frames), 2)
-        self.assertEqual(
-            base64.b64decode(first_frame),
-            bytes([1, 2, 3, 1, 2, 3]),
-        )
-
-    def test_render_animation_html_writes_document(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / 'preview.html'
-
-            document.render_animation_html(
-                color_fill.ColorFill(color=(1, 2, 3)),
-                Layout(coords=[[0.0, 0.0]]),
-                path,
-                fps=1,
-                duration=1,
-                led_size=3,
+def test_animation_document_uses_authored_ring_coordinates() -> None:
+    layout = rings([4, 8], [1.0, 2.0])
+    value = light_animation.AnimationScore(
+        name='rings',
+        title='Rings',
+        timebases=[Timebase(name='frames', rate=Rate(numerator=2))],
+        outputs=[
+            Output(
+                name='light',
+                stream=LightType(
+                    timebase='frames',
+                    components=['red', 'green', 'blue'],
+                    layout=layout,
+                ),
+                binding=LightBinding(),
             )
+        ],
+        body=light_animation.Animation(
+            operation=light_animation.Fill(values=[1 / 255, 2 / 255, 3 / 255])
+        ),
+    )
+    library = Library(
+        [Entry(library='test', address='/rings.toml', name='rings', score=value)]
+    )
+    prepared = rendering.PreparedAnimation(
+        library, library.composition('rings'), 'light'
+    )
 
-            self.assertIn('<canvas', path.read_text())
+    data = preview_data(
+        document.animation_document(
+            prepared, duration=1, led_size=2.5, name='Concentric rings'
+        )
+    )
+
+    assert data['name'] == 'Concentric rings'
+    assert data['coords'] == [light.position for light in layout.lights]
+    assert data['ledSize'] == 2.5
+    frames = data['frames']
+    assert isinstance(frames, list)
+    assert len(frames) == 2
+    assert base64.b64decode(frames[0]) == bytes([1, 2, 3] * 12)
+
+
+def test_one_dimensional_layout_is_padded_for_canvas_projection() -> None:
+    prepared = show.prepare_animation(
+        show.LightProgramSpec(selector='examples:/ripple.toml'),
+        Path('examples/library.toml'),
+    )
+
+    data = preview_data(document.animation_document(prepared, duration=0.05))
+
+    assert data['coords'][0] == [0.0, 0.0]
+    assert data['coords'][-1] == [124.0, 0.0]

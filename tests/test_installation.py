@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from lyte import dmx, installation
+from lyte import dmx, installation, show
 
 
 class FakeClock:
@@ -111,6 +111,45 @@ def test_build_runtime_constructs_both_target_families() -> None:
     assert len(runtime.drivers) == 2
 
 
+def test_build_runtime_identifies_invalid_pixel_program() -> None:
+    data = example_installation()
+    programs = data['programs']
+    assert isinstance(programs, dict)
+    pixel = programs['rainbow']
+    assert isinstance(pixel, dict)
+    pixel['selector'] = 'missing'
+
+    with pytest.raises(
+        installation.InstallationFileError, match="pixel program 'rainbow'"
+    ):
+        installation.build_runtime(installation.parse_installation(data))
+
+
+def test_pixel_renderer_keeps_logical_rate_independent_of_output_rate() -> None:
+    prepared = show.prepare_animation(
+        show.LightProgramSpec(selector='examples:/composition.toml'),
+        Path('examples/library.toml'),
+    )
+    renderer = installation.PixelRenderer(prepared, output_fps=40)
+
+    frames = [renderer() for _ in range(4)]
+
+    assert prepared.tick == 2
+    assert (frames[0] == frames[1]).all()
+    assert (frames[2] == frames[3]).all()
+
+
+def test_preview_and_device_preparation_render_the_same_logical_frame() -> None:
+    program = show.LightProgramSpec(selector='examples:/composition.toml')
+    preview = show.prepare_animation(program, Path('examples/library.toml'))
+    device = show.prepare_animation(program, Path('examples/library.toml'))
+
+    expected = preview.byte_frame()
+    actual = installation.PixelRenderer(device, output_fps=20)()
+
+    assert (actual == expected).all()
+
+
 def test_scheduler_runs_pixel_and_dmx_targets_on_one_clock() -> None:
     clock = FakeClock()
     pixel_driver = FakeDriver()
@@ -181,6 +220,7 @@ def test_scheduler_reports_failure_and_continues_other_targets() -> None:
 
 def example_installation() -> dict[str, object]:
     return {
+        'library_config': 'examples/library.toml',
         'artnet': {'host': '192.168.1.50'},
         'twinkly': {'tree': {'host': '192.168.1.23', 'led_count': 250, 'fps': 30}},
         'dmx': {
@@ -205,7 +245,7 @@ def example_installation() -> dict[str, object]:
         'programs': {
             'rainbow': {
                 'kind': 'pixel',
-                'impl': 'lyte.animations.fields.rainbow.Rainbow',
+                'selector': 'examples:/composition.toml',
             },
             'wash': {
                 'kind': 'dmx',

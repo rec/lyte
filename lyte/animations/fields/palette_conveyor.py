@@ -1,29 +1,17 @@
 from __future__ import annotations
 
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import Field, model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State
 from .. import numerical
-from ..colors import RGB
 
 
-class PaletteConveyor(Animation[State], frozen=True):
+class PaletteConveyor(effects.PaletteConveyor, Animation[State]):
     family: ClassVar[Family] = Family.FIELDS
-
-    palette: list[RGB] = Field(default_factory=lambda: list(numerical.CONVEYOR_PALETTE))
-    stop_spacing: float = Field(default=8.0, gt=0)
-    speed: float = Field(default=1.0, ge=0)
-    reverse: bool = False
-    interpolation: Literal['linear', 'smooth'] = 'smooth'
-
-    @model_validator(mode='after')
-    def validate_palette_conveyor(self) -> PaletteConveyor:
-        numerical.validate_palette(self.palette)
-        return self
 
     def render(self, device: Device, state: State) -> NDArray[np.float32]:
         direction = -1 if self.reverse else 1

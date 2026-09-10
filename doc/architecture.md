@@ -2,259 +2,180 @@
 
 ## Scope
 
-Lyte is a Python 3.13 lighting player for Twinkly pixel strings and DMX
-instruments. It renders stateful RGB animations locally, encodes semantic DMX
-programs into universe frames, and provides interactive, preview, diagnostic,
-wearable-patch, MIDI-daemon, and mixed-installation workflows.
+Lyte is the rendering and output host for Ufor light scores. Ufor owns portable
+score discovery, references, presets, layouts, component contracts, animation
+settings, composition, timing, and scalar modulation. Lyte owns NumPy effect
+implementations, mutable playback state, HTML preview encoding, Twinkly
+HTTP/UDP output, wearable MIDI patches, DMX encoding, Art-Net, and service
+lifecycle.
 
-## Top-Level Structure
+Ufor has no dependency on Lyte or NumPy. Lyte pins a tested Ufor revision.
+
+## Command Boundaries
 
 ```text
-lyte CLI
-  |- animate, patch play, FPS tests, verify
-  |    -> TwinklyTrack -> Twinkly HTTP/UDP transport -> Twinkly device
-  |
-  |- preview
-  |    -> animation construction -> standalone HTML
-  |
-  |- diagnostic and Twinkly control commands
-  |    -> Twinkly HTTP transport
-  |
-  |- installation
-  |    -> shared monotonic scheduler
-  |    -> pixel animation -> Twinkly realtime output
-  |    -> DMX program -> universe frame -> Art-Net output
-  |
-  |- daemon
-       -> MIDI input -> patch selector -> TwinklyTrack
-       -> Reccy service, status, and local RPC
+Ufor library config -> score selection -> Composition -> PreparedAnimation
+                                            |              |
+                                            |              +-> HTML preview
+                                            |              +-> Twinkly bytes
+                                            |
+installation TOML -> DMX program ------------------------------> Art-Net
+
+wearable patch TOML -> MIDI patch renderer --------------------> Twinkly
 ```
 
-`lyte/cli.py` is the Tyro command table. Command configuration is represented
-by frozen dataclasses, with Pydantic models used for runtime and persisted data.
+`lyte show`, `lyte preview`, `lyte animate`, and installation pixel
+programs all use `show.prepare_animation()` or its already-read-library
+equivalent. The old Lyte show graph, `impl` strings, and recursive Python
+construction no longer exist.
 
-## Animation Model
+## Library Preparation
 
-`lyte/animation.py` defines the core rendering contract:
+`lyte/show.py` calls `ufor.library_files.read_library()`. With no explicit
+path, Ufor reads `~/.config/ufor/library.toml`; an explicit path replaces the
+default. Reading creates no files. Ufor discovers independent entries, records
+diagnostics, binds relative paths and selectors, verifies optional hashes,
+normalizes presets, detects cycles, and constructs a `Composition`.
 
-- `Animation` is an immutable description of an effect.
-- `Device` is an immutable description of the logical pixel device. It currently
-  contains only `led_count`.
-- `State` is mutable playback state. It carries the frame counter and active
-  FPS; individual animations define more specific state subclasses.
-- `Animation.render(device, state)` returns a C-contiguous, finite
-  `numpy.float32` frame of shape `(led_count, 3)`.
+A `LightProgramSpec` selects:
 
-The three columns are RGB channels and logical values conventionally range from
-`0.0` to `1.0`. `byte_light_frame_from_float()` clips and rounds this frame to
-Twinkly's `uint8` RGB payload at the output boundary. Animations must not work
-in Twinkly packet bytes.
+- one score by literal Ufor selector;
+- one named light output;
+- public scalar parameter overrides;
+- an optional physical `Wiring` order.
 
-Animation implementations live in `lyte/animations/`:
+All library diagnostics are logged, including fields and cycle paths. An
+unrelated rejected entry does not prevent a ready score from playing. Missing,
+ambiguous, blocked, non-animation, unsupported-effect, incompatible-component,
+or invalid-wiring selections fail during preparation, before output opens.
 
-- `patterns/` contains fills, discrete patterns, wipes, and color traversals.
-- `fields/` contains gradients, rainbows, waves, fades, and procedural fields.
-- `events/` contains moving objects, pulses, twinkles, and emitted bursts.
-- `simulations/` contains stochastic processes, heat, interacting particles,
-  cellular automata, and reaction-diffusion.
-- `compositions.py` contains spatial placement, weighted mixes, crossfades,
-  reversal, intensity envelopes, and sequences.
-- `numerical.py` shares palette sampling and numerical helpers across effects.
-- `colors.py` and `validators.py` hold shared animation helpers.
+Python score files use the explicit `rendering.PythonAnimationScore` contract.
+Ufor retains the declared class but does not infer playback methods. Lyte
+requires that exact subclass, creates one state per prepared part, and invokes
+its typed state and frame methods. Score roots are never added to `sys.path`.
 
-Every built-in animation identifies its `Family`. Families organize algorithms
-without imposing unused parameters on them. Existing generator color arguments
-retain their byte RGB units and existing speed/width meanings; patch colors and
-logical frames use normalized RGB, converted at patch construction. Moving an
-effect into a family does not change its output or reinterpret its parameters.
+## Rendering
 
-Composition models accept ordered `sources` and own independent child states.
-`Segments` places sources into disjoint local spans, leaves gaps black, and
-rejects overlap. `Mix` sums nonnegative weighted frames and clips at its own
-boundary without normalizing weights. Nested mixes preserve their individual
-clipping boundaries. `Crossfade` uses a `Fade` with duration in seconds and
-linear or smooth easing. Callers retain the incoming child's state after overlap.
-`Reverse` reverses one child's output. `Envelope` applies nonnegative gain points
-at times in seconds, optionally repeating. A single point is a constant gain.
-`Sequence` schedules independent occurrences with explicit start times and
-durations; two overlapping cues crossfade and gaps render black.
+`lyte/rendering.py` carries the selected Ufor `LightType`. Every logical
+frame is a finite, C-contiguous `numpy.float32` array with shape:
 
-Children receive the actual parent FPS. Delayed sequence children start at local
-time zero when first rendered, without advancing through invisible frames.
-Reusing an immutable description creates separate states per occurrence. A
-seeded source and its reversed copy therefore provide synchronized mirrors.
+```text
+(len(layout.lights), len(components))
+```
 
-`show.build_show_graph()` constructs these compositions from trusted Python
-paths and named sources. The animate and preview composition workflow and
-installation pixel programs use that same builder. Legacy `bibliopixel`,
-`christmas`, and `one_d` import paths have been replaced by family paths.
+Generic Ufor operations support any positive component count:
 
-## Playback and Twinkly Output
+- `Fill` repeats one component vector.
+- `Mix` sums weighted frames and clips at that mix boundary.
+- `Place` maps child rows to ordered, named output lights.
+- `Reverse` reverses lights only.
+- `Gain` scales without clipping.
+- `Crossfade` blends without clipping.
+- `Cues` use exact rational timing, cue-local ticks, and black gaps.
+- `ComponentMap` applies an explicit output-row by input-column matrix.
 
-`lyte/twinkly/track.py` owns realtime playback. A caller supplies a byte-frame
-renderer and, optionally, a function that handles input before each frame.
+Nested mixes retain their own clipping. Placement, gain, crossfade, and
+component mapping preserve values outside `[0, 1]`. Final byte conversion
+clips and rounds once.
 
-The track:
+Each prepared part path owns one mutable state. Repeated selection of the same
+part is cached for a logical tick and advances once. Separate parts referencing
+the same score have independent states. Stateful effects advance on integer
+logical ticks at the score's rational rate. Output delivery may repeat a frame
+or omit delivery of an intermediate frame, but it does not alter the simulation
+step sequence.
 
-1. authenticates and switches the device to realtime mode;
-2. renders and sends one UDP realtime frame per frame interval;
-3. probes the device over HTTP every two seconds, because successful UDP writes
-   do not prove that the device received a frame;
-4. enters recovery after a failed send or failed probe, then discovers,
-   verifies, authenticates, and restores realtime mode;
-5. attempts an off-mode blackout on exit, with a three-second deadline.
+Public parameters are validated by `Composition.parameter_contract()`.
+Presets and caller overrides are resolved by Ufor. Live updates rebuild the
+prepared parameter graph while retaining part state. Built-in effect parameter
+updates are reported as construction-only because some effect fields determine
+state shape or random initialization; generic scalar operations such as
+`Gain` can update without resetting children.
 
-Realtime frame sends are one-shot. They do not use the general exponential
-retry schedule, so a failed frame transfers promptly into recovery instead of
-blocking the frame loop.
+## Built-In RGB Effects
 
-`lyte/twinkly/` contains the Twinkly boundary:
+`lyte/animate/build.py` is the explicit registry from all 41
+`ufor.effects` tags to installed Lyte renderers. Score data cannot load an
+arbitrary import path. The Ufor description remains the runtime source of
+settings; Lyte's renderer classes and dedicated state classes supply behavior.
 
-- `client.py`: HTTP client, authentication token lifecycle, and response
-  validation.
-- `authentication.py`: challenge-response calculation.
-- `discovery.py`: UDP discovery packet parsing.
-- `frame.py`: realtime UDP packet encoding and send.
-- `session.py` and `realtime.py`: bounded authentication, mode changes,
-  discovery, recovery, health probes, and device shutdown.
-- the remaining modules implement the explicit diagnostic and device-control
-  commands.
+These extracted algorithms require exactly `red`, `green`, `blue` drive
+components in that order. Other component contracts use generic operations and
+must author an explicit `ComponentMap` where conversion is intended. Lyte
+does not infer RGBW, dimmer, warm/cool, or linear-sRGB conversion.
 
-The `retry.py` helper is generic. It accepts an optional deadline and stop event
-so setup and recovery can be cancelled without waiting through a retry delay.
+`lyte/animations/` groups implementation code into `patterns`, `fields`,
+`events`, and `simulations`. The older composition classes remain an
+internal part of the wearable patch engine; Ufor operations are the only
+composition format accepted by show, preview, animate, and installation pixel
+programs.
 
-## Wearable Patches and MIDI
+## Layout and Wiring
 
-`lyte/midi.py` defines the generic patch lifecycle. A `Patch` has immutable
-configuration and optional mutable note state; a `LightPatch` renders a logical
-RGB frame. Note on creates state, note off clears it, CC 2 is breath control,
-and pitch wheel is forwarded while a note is active. MIDI configuration names
-channels `1` through `16`; conversion to Mido's zero-based channels is isolated
-at input filtering.
+Ufor `Layout` list order is logical frame order. Coordinates may be irregular
+and one-, two-, or three-dimensional. Strip effects continue to use logical
+order unless an algorithm explicitly reads coordinates. HTML previews use the
+authored coordinates and never apply physical wiring.
 
-`lyte/patches.py` implements the wearable layer above that lifecycle:
+`Wiring.indexes(layout)` is computed during preparation and applied once,
+immediately before physical byte output. It changes light order only, not
+component order. A score layout count must match the installation target count;
+Lyte does not stretch authored score geometry to hide a mismatch. Wearable
+patch scaling is a separate, explicit host policy for the guessed garment map.
 
-- it loads and validates the patch-library TOML;
-- `WearableSpec` describes logical regions and the mapping from them to physical
-  Twinkly indices;
-- layers compile to standard animation implementations;
-- `RegionLightPatch` takes a `Segments` composition directly; `MixLightPatch`
-  uses the shared weighted-sum operation for both additive and weighted patches.
-  These patch types own MIDI lifecycle handling, not separate pixel algorithms;
-- `DeclarativeLightPatch` applies note, breath, and pitch bindings before
-  rendering;
-- the physical map is applied by `encode_wearable_frame()` immediately before
-  Twinkly byte encoding.
+## Twinkly Output
 
-A wearable map is `provisional`, `guessed`, or `measured`. Playback and the
-MIDI daemon reject a provisional map. A guessed map is allowed for testing but
-is explicitly warned about.
+`lyte/twinkly/track.py` owns realtime playback. It authenticates, enters
+realtime mode, sends one-shot UDP frames, probes HTTP health every two seconds,
+and enters bounded recovery after failed sends or probes. Recovery verifies the
+established LED count and MAC address. Shutdown attempts off-mode blackout
+within three seconds.
 
-## MIDI Daemon and Local Control
+Successful UDP writes are not health evidence. Connection, disconnection,
+probe, send, recovery, MAC mismatch, LED-count mismatch, and blackout failures
+are recorded through Reccy logging.
 
-`lyte/daemon_runtime.py` runs the foreground daemon, and `lyte/daemon.py`
-provides its service command. It starts Reccy before attempting Twinkly
-connection so status and stop requests remain available during startup and
-recovery.
+## Wearable Patches and Daemon
 
-The daemon owns one patch selector and one Twinkly track. It processes MIDI
-without blocking output while a port is unavailable, clears the active note on
-a confirmed disconnect, and reopens the port periodically. Program changes
-advance through the configured patch list. Reccy's local RPC accepts status,
-blackout, stop, named patch selection, and a white fade test command. Patch
-selections and tests are queued and are applied by the frame loop; status
-reports both queue and applied generations for patch selections, queued and
-active light tests, and output frame-send counters.
+`lyte/patches.py` loads the wearable patch catalogue and its logical regions.
+`lyte/midi.py` owns note, breath, and pitch lifecycle. The foreground daemon
+in `lyte/daemon_runtime.py` combines MIDI input, patch selection,
+`TwinklyTrack`, Reccy service status, and local RPC.
 
-Patch changes during an active note crossfade for `transition_duration` seconds
-(default 0.25, zero for immediate switching). The selector renders both patches
-through the common `Fade` operation and retains the incoming patch's state.
-Note replacement or a matching note-off cancels overlap. MIDI disconnect clears
-both the performance and transition; blackout still uses the output lifecycle.
-A further patch selection replaces the outgoing transition with the current
-selected patch, keeping at most two patches active.
+The current wearable map is guessed and authored for 250 lights. Its explicit
+host policy warns and scales region and physical-map boundaries when the
+attached string count differs. This does not alter Ufor score layouts.
 
-Wearable patch libraries declare an authored LED count. When a connected string
-reports a different count, Lyte warns and derives a runtime layout by scaling
-logical and physical map boundaries to the actual count. The configured map is
-unchanged; recovery still requires the established runtime count.
+The daemon RPC supports status, blackout, stop, named patch selection, and a
+configurable white fade test. Status includes queued and applied selections,
+queued and active tests, connection identity, output contact, frame sends,
+MIDI state, recovery counters, failures, and the latest error.
 
-Daemon status records lifecycle state, Twinkly host and MAC, the most recent
-output contact and frame send, MIDI state, recovery count, output failures,
-render failures, and the most recent failure. Connection changes, failed health
-probes, and UDP send errors are recorded through Reccy logging. Render failures
-produce a black frame and identical repeated failures are counted without
-publishing an unbounded stream of events.
+## DMX and Mixed Installations
 
-The daemon configuration loader is `lyte/daemon_config.py`. Its TOML references
-a patch library, an ordered patch list, MIDI input settings, Twinkly connection
-settings, and FPS.
+`lyte/dmx.py` defines a DMX instrument as one universe and one contiguous
+channel range. Typed categories describe brightness, RGB, white, chase speed,
+pattern selection, strobe, movement, color wheels, gobos, and named raw
+channels. The encoder produces C-contiguous 512-byte universe frames.
 
-## Other Workflows
+`lyte/artnet.py` owns ArtDmx packet encoding, sequence numbers, UDP delivery,
+universe conversion, and blackout. Installation DMX programs are currently
+static semantic values.
 
-`lyte/animate/` builds and plays an individual animation or a randomized show
-with crossfades. It shares `TwinklyTrack` with patch playback.
+`lyte/installation.py` runs Twinkly and DMX targets on one monotonic
+scheduler. Pixel programs are Ufor selectors. Each target records failures
+independently, and shutdown attempts blackout and close for every opened
+driver. Target FPS controls delivery; the Ufor score rate controls logical
+animation ticks.
 
-`lyte/preview/` builds the same animation descriptions but renders them to a
-standalone HTML file. It has no hardware connection.
+## Testing Boundary
 
-`lyte/fps_test.py` contains visual diagnostic workflows for frame rate, fades,
-temporal dithering experiments, black-floor testing, and feature verification.
+Automated tests cover score preparation, diagnostics, all effect registrations,
+generic one- through five-component composition, exact cue behavior, state
+ownership, presets, live gain, wiring, authored preview geometry, deterministic
+renderer fixtures, Twinkly recovery, MIDI, DMX bytes, Art-Net packets, mixed
+scheduling, and shutdown.
 
-`lyte/show.py` parses and validates TOML show files, merges compatible files,
-constructs named animation graphs, and allocates independent device/state pairs
-for run targets. `lyte show` is an offline preflight command only: it does not
-open a device, render a frame, or play a show.
-
-## DMX and Installation Playback
-
-`lyte/dmx.py` defines the DMX authoring boundary. A `DmxInstrument` owns one
-contiguous channel range in one universe. Its frozen category models describe
-brightness, RGB, white, chase speed, pattern selection, strobe, movement,
-color wheels, gobos, and named raw controls using relative one-based channel
-offsets. Instrument validation rejects out-of-range and duplicate assignments.
-
-A `DmxProgram` renders semantic `DmxValues`. The installation file currently
-constructs only `StaticDmxProgram`; dynamic DMX effects are not implemented.
-The instrument encoder converts values into a C-contiguous 512-slot `uint8`
-`DmxFrame`. Multiple non-overlapping instruments can contribute to one universe
-frame.
-
-`lyte/artnet.py` converts universe frames into ArtDmx packets and owns UDP
-delivery, sequence numbers, universe conversion, and blackout frames. DMX
-programs and instrument definitions do not depend on Art-Net and can later use
-another universe transport without changing their authoring model.
-
-`lyte/installation.py` loads mixed installation TOML and builds independent
-pixel and DMX targets. Its single-threaded scheduler uses one monotonic clock,
-runs each target at its own frame rate, preserves independent state, records
-per-target output failures, and attempts blackout and close on every opened
-driver. Twinkly targets reuse `TwinklyTrack` connection health and recovery;
-DMX targets sharing an Art-Net endpoint retain one combined universe state.
-
-The installation command is the live mixed-output workflow. `lyte show`
-remains an offline Twinkly graph preflight command and continues to reject
-non-Twinkly devices.
-
-## Testing Boundaries
-
-`tests/` is organized by subsystem. Unit tests use fake clocks, MIDI ports,
-HTTP responses, UDP senders, and Reccy connections. They cover parsing,
-validation, frame conversion, patch composition, recovery decisions, and CLI
-dispatch.
-
-Physical device behavior remains outside the automated suite. Power cycling a
-Twinkly, Wi-Fi loss, MIDI unplug/replug, the wearable physical map, and Art-Net
-fixture addressing and blackout require explicit manual validation on the
-actual playback system.
-
-## Extension Boundaries
-
-New pixel animations should implement `Animation` and keep changing data in a
-`State` subclass. New wearable effects should normally be expressed as patch
-layers and bindings before adding new patch-composition primitives.
-
-Additional universe transports should consume `DmxFrame` without changing DMX
-programs or instrument profiles. Additional output families should define
-their own device and frame model and join the installation scheduler only when
-their render and driver boundaries are concrete.
+They do not prove visible output, Wi-Fi recovery on a specific controller,
+wearable routing, fixture addressing, or physical blackout. Those remain
+explicit checks on the show hardware.

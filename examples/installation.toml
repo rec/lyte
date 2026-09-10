@@ -1,6 +1,8 @@
 # Documentation example only. Replace both TEST-NET addresses and the generic
 # DMX profile with the actual installation before running it.
 
+library_config = "library.toml"
+
 [artnet]
 host = "192.0.2.20"
 
@@ -39,9 +41,10 @@ kind = "raw"
 name = "reserved"
 channels = [7, 8]
 
-[programs.tree_rainbow]
+[programs.tree_show]
 kind = "pixel"
-impl = "lyte.animations.fields.rainbow.Rainbow"
+selector = "examples:/composition.toml"
+output = "light"
 
 [programs.front_wash_chase]
 kind = "dmx"
@@ -51,7 +54,7 @@ chase_speed = 1.0
 pattern = "chase"
 
 [run.tree]
-program = "tree_rainbow"
+program = "tree_show"
 
 [run.front_wash]
 program = "front_wash_chase"

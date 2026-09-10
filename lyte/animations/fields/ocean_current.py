@@ -6,11 +6,10 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import Field, model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State
 from .. import numerical
-from ..colors import RGB
 
 
 class OceanCurrentState(State):
@@ -21,20 +20,8 @@ class OceanCurrentState(State):
     generator: random.Random
 
 
-class OceanCurrent(Animation[OceanCurrentState], frozen=True):
+class OceanCurrent(effects.OceanCurrent, Animation[OceanCurrentState]):
     family: ClassVar[Family] = Family.FIELDS
-
-    palette: list[RGB] = Field(default_factory=lambda: list(numerical.OCEAN_PALETTE))
-    wave_count: int = Field(default=3, gt=0)
-    crest_rate: float = Field(default=0.8, ge=0)
-    turbulence: float = Field(default=0.2, ge=0)
-    speed: float = Field(default=1.0, ge=0)
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_ocean_current(self) -> OceanCurrent:
-        numerical.validate_palette(self.palette)
-        return self
 
     def initial_state(self, device: Device) -> OceanCurrentState:
         generator = random.Random(self.seed)

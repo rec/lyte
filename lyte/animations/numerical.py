@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 from typing import Literal
 
 import numpy as np
@@ -11,19 +12,21 @@ from .colors import RGB
 from .validators import validate_rgb
 
 
-def validate_palette(palette: list[RGB]) -> None:
+def validate_palette(palette: Sequence[Sequence[int]]) -> None:
     if not palette:
         raise ValueError('palette must not be empty')
     for color in palette:
         validate_rgb(color)
 
 
-def palette_array(palette: list[RGB]) -> NDArray[np.float32]:
+def palette_array(palette: Sequence[Sequence[int]]) -> NDArray[np.float32]:
     return np.array([float_color_from_rgb(c) for c in palette], dtype=np.float32)
 
 
 def map_palette(
-    values: NDArray[np.float32], palette: list[RGB], cyclic: bool = False
+    values: NDArray[np.float32],
+    palette: Sequence[Sequence[int]],
+    cyclic: bool = False,
 ) -> NDArray[np.float32]:
     colors = palette_array(palette)
     if len(colors) == 1:

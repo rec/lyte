@@ -4,11 +4,11 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
 from .. import validators
-from ..colors import RGB, scale_color, wheel_color
+from ..colors import scale_color, wheel_color
 
 
 class LarsonScannerState(State):
@@ -17,24 +17,8 @@ class LarsonScannerState(State):
     tail: int = 1
 
 
-class LarsonScanner(Animation[LarsonScannerState], frozen=True):
+class LarsonScanner(effects.LarsonScanner, Animation[LarsonScannerState]):
     family: ClassVar[Family] = Family.EVENTS
-
-    color: RGB = (255, 0, 0)
-    tail: int = 2
-    start: int = 0
-    end: int | None = None
-    step: int = 1
-    rainbow: bool = False
-
-    @model_validator(mode='after')
-    def validate_larson_scanner(self) -> LarsonScanner:
-        validators.validate_rgb(self.color)
-        validators.validate_step(self.step)
-        if self.tail < 0:
-            raise ValueError('tail must not be negative')
-        validators.validate_start(self.start)
-        return self
 
     def initial_state(self, device: Device) -> LarsonScannerState:
         validators.validate_span(

@@ -6,11 +6,9 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import Field, model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
-from ..colors import RGB
-from ..validators import validate_rgb
 
 
 class CandleBankState(State):
@@ -19,21 +17,8 @@ class CandleBankState(State):
     generator: random.Random
 
 
-class CandleBank(Animation[CandleBankState], frozen=True):
+class CandleBank(effects.CandleBank, Animation[CandleBankState]):
     family: ClassVar[Family] = Family.FIELDS
-
-    color: RGB = (255, 120, 30)
-    zone_size: int = Field(default=8, gt=0)
-    base_level: float = Field(default=0.55, ge=0, le=1)
-    flicker: float = Field(default=0.18, ge=0, le=1)
-    flare_rate: float = Field(default=0.3, ge=0)
-    speed: float = Field(default=1.0, ge=0)
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_candle_bank(self) -> CandleBank:
-        validate_rgb(self.color)
-        return self
 
     def initial_state(self, device: Device) -> CandleBankState:
         generator = random.Random(self.seed)

@@ -6,11 +6,9 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import Field, model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
-from .. import numerical
-from ..colors import RGB
 
 
 class ConfettiWithDecayState(State):
@@ -19,20 +17,8 @@ class ConfettiWithDecayState(State):
     spawn_credit: float = 0
 
 
-class ConfettiWithDecay(Animation[ConfettiWithDecayState], frozen=True):
+class ConfettiWithDecay(effects.ConfettiWithDecay, Animation[ConfettiWithDecayState]):
     family: ClassVar[Family] = Family.EVENTS
-
-    palette: list[RGB] = Field(default_factory=lambda: list(numerical.CONFETTI_PALETTE))
-    spawn_rate: float = Field(default=8.0, ge=0)
-    decay: float = Field(default=2.5, gt=0)
-    width: int = Field(default=1, gt=0)
-    speed: float = Field(default=1.0, ge=0)
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_confetti_with_decay(self) -> ConfettiWithDecay:
-        numerical.validate_palette(self.palette)
-        return self
 
     def initial_state(self, device: Device) -> ConfettiWithDecayState:
         return ConfettiWithDecayState(

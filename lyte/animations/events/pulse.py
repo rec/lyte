@@ -5,11 +5,11 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
 from ..colors import RGB, scale_color
-from ..validators import bounded_tail, validate_palette
+from ..validators import bounded_tail
 
 
 class PulseState(State):
@@ -20,26 +20,8 @@ class PulseState(State):
     tail: int = 1
 
 
-class Pulse(Animation[PulseState], frozen=True):
+class Pulse(effects.Pulse, Animation[PulseState]):
     family: ClassVar[Family] = Family.EVENTS
-
-    colors: tuple[RGB, ...] = ((255, 0, 0),)
-    tail: int = 2
-    chance: int = 30
-    min_speed: int = 1
-    max_speed: int = 5
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_pulse(self) -> Pulse:
-        validate_palette(self.colors)
-        if self.tail < 0:
-            raise ValueError('tail must not be negative')
-        if self.chance < 0 or self.chance > 100:
-            raise ValueError('chance must be between 0 and 100')
-        if self.min_speed < 1 or self.max_speed <= self.min_speed:
-            raise ValueError('min_speed and max_speed must define a non-empty range')
-        return self
 
     def initial_state(self, device: Device) -> PulseState:
         return PulseState(
@@ -50,7 +32,8 @@ class Pulse(Animation[PulseState], frozen=True):
     def render(self, device: Device, state: PulseState) -> NDArray[np.float32]:
         frame = np.zeros((device.led_count, 3), dtype=np.float32)
         if state.speed == 0 and state.random.randrange(0, 100) <= self.chance:
-            state.color = state.random.choice(self.colors)
+            color = state.random.choice(self.colors)
+            state.color = color[0], color[1], color[2]
             state.speed = state.random.randrange(self.min_speed, self.max_speed)
             state.position = 0
         if state.speed > 0 and state.color is not None:

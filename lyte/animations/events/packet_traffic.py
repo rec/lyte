@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import random
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import Field, model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State
 from .. import numerical
-from ..colors import RGB
 
 
 class PacketTrafficState(State):
@@ -22,24 +21,8 @@ class PacketTrafficState(State):
     spawn_credit: float = 0
 
 
-class PacketTraffic(Animation[PacketTrafficState], frozen=True):
+class PacketTraffic(effects.PacketTraffic, Animation[PacketTrafficState]):
     family: ClassVar[Family] = Family.EVENTS
-
-    palette: list[RGB] = Field(default_factory=lambda: list(numerical.PACKET_PALETTE))
-    direction: Literal['forward', 'reverse', 'both'] = 'both'
-    packet_rate: float = Field(default=1.2, ge=0)
-    minimum_length: int = Field(default=4, gt=1)
-    maximum_length: int = Field(default=12, gt=1)
-    error_rate: float = Field(default=0.15, ge=0, le=1)
-    speed: float = Field(default=1.0, ge=0)
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_packet_traffic(self) -> PacketTraffic:
-        numerical.validate_palette(self.palette)
-        if self.maximum_length < self.minimum_length:
-            raise ValueError('maximum_length must be at least minimum_length')
-        return self
 
     def initial_state(self, device: Device) -> PacketTrafficState:
         generator = random.Random(self.seed)

@@ -4,11 +4,11 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
 from ..colors import wheel_color
-from ..validators import resolve_end, validate_step
+from ..validators import resolve_end
 
 
 class LinearRainbowState(State):
@@ -17,17 +17,8 @@ class LinearRainbowState(State):
     position: int = 0
 
 
-class LinearRainbow(Animation[LinearRainbowState], frozen=True):
+class LinearRainbow(effects.LinearRainbow, Animation[LinearRainbowState]):
     family: ClassVar[Family] = Family.FIELDS
-
-    max_led: int | None = None
-    individual_pixel: bool = False
-    step: int = 1
-
-    @model_validator(mode='after')
-    def validate_linear_rainbow(self) -> LinearRainbow:
-        validate_step(self.step)
-        return self
 
     def initial_state(self, device: Device) -> LinearRainbowState:
         return LinearRainbowState(

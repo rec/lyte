@@ -4,6 +4,7 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
+from ufor import effects
 
 from ...animation import Animation, Device, Family, FloatRGB, State
 
@@ -12,11 +13,8 @@ class GreyCodeState(State):
     elapsed: FloatRGB = (0, 0, 0)
 
 
-class GreyCode(Animation[GreyCodeState], frozen=True):
+class GreyCode(effects.GreyCode, Animation[GreyCodeState]):
     family: ClassVar[Family] = Family.PATTERNS
-
-    offsets: FloatRGB = (0, 100, 200)
-    speeds: FloatRGB = (-0.01, 0.023, 0.014)
 
     def initial_state(self, device: Device) -> GreyCodeState:
         return GreyCodeState()

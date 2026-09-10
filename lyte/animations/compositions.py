@@ -8,7 +8,14 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, Field, SkipValidation, model_validator
 
-from ..animation import Animation, Device, Family, State, validate_frame
+from ..animation import (
+    Animation,
+    ConfiguredAnimation,
+    Device,
+    Family,
+    State,
+    validate_frame,
+)
 
 
 class Placement(BaseModel, frozen=True):
@@ -20,7 +27,7 @@ class ChildrenState(State):
     states: list[SkipValidation[State]]
 
 
-class Segments(Animation[ChildrenState], frozen=True):
+class Segments(ConfiguredAnimation[ChildrenState], frozen=True):
     family: ClassVar[Family] = Family.COMPOSITIONS
 
     sources: list[SkipValidation[Animation]] = Field(min_length=1)
@@ -63,7 +70,7 @@ class MixState(ChildrenState):
     weights: list[float]
 
 
-class Mix(Animation[MixState], frozen=True):
+class Mix(ConfiguredAnimation[MixState], frozen=True):
     family: ClassVar[Family] = Family.COMPOSITIONS
 
     sources: list[SkipValidation[Animation]] = Field(min_length=1)
@@ -121,7 +128,7 @@ class Fade(BaseModel, frozen=True):
         )
 
 
-class Crossfade(Animation[TimedChildrenState], frozen=True):
+class Crossfade(ConfiguredAnimation[TimedChildrenState], frozen=True):
     family: ClassVar[Family] = Family.COMPOSITIONS
 
     sources: list[SkipValidation[Animation]] = Field(min_length=2, max_length=2)
@@ -143,7 +150,7 @@ class Crossfade(Animation[TimedChildrenState], frozen=True):
         return frame
 
 
-class Reverse(Animation[ChildrenState], frozen=True):
+class Reverse(ConfiguredAnimation[ChildrenState], frozen=True):
     family: ClassVar[Family] = Family.COMPOSITIONS
 
     sources: list[SkipValidation[Animation]] = Field(min_length=1, max_length=1)
@@ -164,7 +171,7 @@ class EnvelopePoint(BaseModel, frozen=True):
     gain: float = Field(ge=0, allow_inf_nan=False)
 
 
-class Envelope(Animation[TimedChildrenState], frozen=True):
+class Envelope(ConfiguredAnimation[TimedChildrenState], frozen=True):
     family: ClassVar[Family] = Family.COMPOSITIONS
 
     sources: list[SkipValidation[Animation]] = Field(min_length=1, max_length=1)
@@ -204,7 +211,7 @@ class Cue(BaseModel, frozen=True):
     duration: float = Field(gt=0, allow_inf_nan=False)
 
 
-class Sequence(Animation[TimedChildrenState], frozen=True):
+class Sequence(ConfiguredAnimation[TimedChildrenState], frozen=True):
     family: ClassVar[Family] = Family.COMPOSITIONS
 
     sources: list[SkipValidation[Animation]] = Field(min_length=1)

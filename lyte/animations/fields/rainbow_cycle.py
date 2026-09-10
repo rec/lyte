@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 from numpy.typing import NDArray
+from ufor import effects
 
 from ...animation import Device, float_color_from_rgb
 from ..colors import wheel_color
@@ -9,7 +10,7 @@ from ..validators import advance_rainbow, span_size
 from .rainbow import Rainbow, RainbowState
 
 
-class RainbowCycle(Rainbow, frozen=True):
+class RainbowCycle(effects.RainbowCycle, Rainbow):
     def render(self, device: Device, state: RainbowState) -> NDArray[np.float32]:
         frame = np.zeros((device.led_count, 3), dtype=np.float32)
         size = span_size(device.led_count, self.start, self.end)

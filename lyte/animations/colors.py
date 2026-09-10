@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -23,7 +25,7 @@ def solid_rgb_frame(
     return frame
 
 
-def scale_color(color: RGB, level: int | float) -> RGB:
+def scale_color(color: Sequence[int], level: int | float) -> RGB:
     level = max(0, min(255, round(level)))
     return (
         round(color[0] * level / 255),
@@ -32,7 +34,7 @@ def scale_color(color: RGB, level: int | float) -> RGB:
     )
 
 
-def blend_color(frame: NDArray[np.uint8], index: int, color: RGB) -> None:
+def blend_color(frame: NDArray[np.uint8], index: int, color: Sequence[int]) -> None:
     if 0 <= index < len(frame):
         frame[index] = ((frame[index].astype(np.uint16) + np.array(color)) // 2).astype(
             np.uint8
@@ -50,7 +52,7 @@ def wheel_color(position: int | float) -> RGB:
     return position * 3, 0, 255 - position * 3
 
 
-def wave_color(color: RGB, value: float) -> RGB:
+def wave_color(color: Sequence[int], value: float) -> RGB:
     if value >= 0:
         level = 1 - value
         return (

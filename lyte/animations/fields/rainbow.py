@@ -4,7 +4,7 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
 from .. import validators
@@ -15,18 +15,8 @@ class RainbowState(State):
     position: int = 0
 
 
-class Rainbow(Animation[RainbowState], frozen=True):
+class Rainbow(effects.Rainbow, Animation[RainbowState]):
     family: ClassVar[Family] = Family.FIELDS
-
-    start: int = 0
-    end: int | None = None
-    step: int = 1
-
-    @model_validator(mode='after')
-    def validate_rainbow(self) -> Rainbow:
-        validators.validate_step(self.step)
-        validators.validate_start(self.start)
-        return self
 
     def initial_state(self, device: Device) -> RainbowState:
         validators.validate_span(

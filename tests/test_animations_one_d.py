@@ -5,9 +5,11 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
+from pydantic import TypeAdapter
+from ufor import effects
 
 from lyte import animation
-from lyte.animate import build, config
+from lyte.animate import build
 from lyte.animations.events import (
     confetti_with_decay,
     expanding_ripples,
@@ -238,8 +240,13 @@ def test_packet_acknowledgement_does_not_create_an_acknowledgement() -> None:
     ],
 )
 def test_builder_constructs_one_d_animation(
-    name: config.AnimationName, expected_type: type[animation.Animation]
+    name: str, expected_type: type[animation.Animation]
 ) -> None:
-    source = build.build_animation(config.AnimateConfig(animation=name, seed=3))
+    effect_type = build.EFFECT_RENDERERS[name]
+    data = {'effect': name}
+    if 'seed' in effect_type.model_fields:
+        data['seed'] = 3
+    description = TypeAdapter(effects.EffectValue).validate_python(data)
+    source = build.build_effect(description)
 
     assert isinstance(source, expected_type)

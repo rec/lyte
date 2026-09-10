@@ -1,296 +1,172 @@
 from __future__ import annotations
 
-import tempfile
-import unittest
 from pathlib import Path
 
-from lyte import animation, show
+import numpy as np
+import pytest
+from pydantic import TypeAdapter
+from ufor import effects, light_animation
+from ufor.interface import LightBinding, Output
+from ufor.library import Diagnostic, Entry, Library
+from ufor.lights import LightType, strip
+from ufor.time import Rate, Timebase
+
+from lyte import animation, rendering, show
+from lyte.animate import build
 
 
-class ShowFileTests(unittest.TestCase):
-    def test_parse_show_file_accepts_device_to_source_run_map(self) -> None:
-        show_file = show.parse_show_file(
-            {
-                'run': {'tree': 'rainbow'},
-                'animations': {
-                    'rainbow': {
-                        'impl': 'lyte.animations.fields.rainbow.Rainbow',
-                        'fps': 60,
-                    }
-                },
-                'devices': {'tree': {'kind': 'twinkly', 'host': '192.168.1.23'}},
-            },
-            'show.toml',
-        )
-
-        self.assertIsNotNone(show_file.run)
-        if show_file.run is None:
-            self.fail('run section was not parsed')
-        self.assertEqual(show_file.run['tree'].source, 'rainbow')
-        self.assertEqual(show_file.animations['rainbow'].params, {'fps': 60})
-        self.assertEqual(show_file.devices['tree'].params, {'host': '192.168.1.23'})
-
-    def test_load_show_files_reads_and_merges_toml(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            library = root / 'library.toml'
-            devices = root / 'devices.toml'
-            run = root / 'run.toml'
-            library.write_text(
-                '[animations.rainbow]\n'
-                'impl = "lyte.animations.fields.rainbow.Rainbow"\n'
+def score(
+    name: str,
+    operation: object,
+    count: int = 3,
+    components: list[str] | None = None,
+) -> light_animation.AnimationScore:
+    return light_animation.AnimationScore(
+        name=name,
+        title=name.title(),
+        timebases=[Timebase(name='frames', rate=Rate(numerator=20))],
+        outputs=[
+            Output(
+                name='light',
+                stream=LightType(
+                    timebase='frames',
+                    components=components or ['red', 'green', 'blue'],
+                    layout=strip(count),
+                ),
+                binding=LightBinding(),
             )
-            devices.write_text('[devices.tree]\nkind = "twinkly"\n')
-            run.write_text('[run]\ntree = "rainbow"\n')
+        ],
+        body=light_animation.Animation(operation=operation),
+    )
 
-            show_file = show.load_show_files([library, devices, run])
 
-        self.assertEqual(set(show_file.animations), {'rainbow'})
-        self.assertEqual(set(show_file.devices), {'tree'})
-        self.assertIsNotNone(show_file.run)
-
-    def test_parse_show_file_accepts_run_target_tables(self) -> None:
-        show_file = show.parse_show_file(
-            {
-                'run': {'tree': {'source': 'rainbow', 'brightness': 0.8}},
-                'animations': {
-                    'rainbow': {'impl': 'lyte.animations.fields.rainbow.Rainbow'}
-                },
-                'devices': {'tree': {'kind': 'twinkly'}},
-            },
-            'show.toml',
-        )
-
-        self.assertIsNotNone(show_file.run)
-        if show_file.run is None:
-            self.fail('run section was not parsed')
-        self.assertEqual(show_file.run['tree'].source, 'rainbow')
-        self.assertEqual(show_file.run['tree'].params, {'brightness': 0.8})
-
-    def test_parse_show_file_rejects_unsupported_device_kinds(self) -> None:
-        with self.assertRaisesRegex(show.ShowFileError, 'only twinkly'):
-            show.parse_show_file(
-                {'devices': {'stage': {'kind': 'artnet', 'led_count': 170}}},
-                'show.toml',
+def library_for(value: light_animation.AnimationScore) -> Library:
+    return Library(
+        [
+            Entry(
+                library='test',
+                address=f'/{value.name}.toml',
+                name=value.name,
+                score=value,
             )
+        ]
+    )
 
-    def test_parse_show_file_rejects_routes_section(self) -> None:
-        with self.assertRaisesRegex(show.ShowFileError, 'unknown top-level'):
-            show.parse_show_file({'routes': {}}, 'show.toml')
 
-    def test_parse_show_file_preserves_animation_sources(self) -> None:
-        show_file = show.parse_show_file(
-            {
-                'animations': {
-                    'wash': {'impl': 'lyte.animations.patterns.color_fill.ColorFill'},
-                    'sparkle': {'impl': 'lyte.animations.events.twinkle.Twinkle'},
-                    'look': {
-                        'impl': 'lyte.animations.compositions.Mix',
-                        'sources': ['wash', 'sparkle'],
-                        'weights': [1.0, 1.0],
-                    },
-                },
-            },
-            'show.toml',
+def test_example_library_prepares_and_renders() -> None:
+    prepared = show.prepare_animation(
+        show.LightProgramSpec(selector='examples:/composition.toml'),
+        Path('examples/library.toml'),
+    )
+
+    assert prepared.output.layout.name == 'installation'
+    assert prepared.fps == 20
+    assert prepared.render().shape == (250, 3)
+
+
+def test_missing_and_ambiguous_selections_fail_during_preparation() -> None:
+    first = score('first', light_animation.Fill(values=[0.0, 0.0, 0.0]))
+    second = score('second', light_animation.Fill(values=[0.0, 0.0, 0.0]))
+    library = Library(
+        [
+            Entry(library='a', address='/first.toml', name='same', score=first),
+            Entry(library='b', address='/second.toml', name='same', score=second),
+        ]
+    )
+
+    with pytest.raises(ValueError, match='no score matches'):
+        show.prepare_library_animation(
+            library, show.LightProgramSpec(selector='missing')
         )
+    with pytest.raises(ValueError, match='ambiguous selector'):
+        show.prepare_library_animation(library, show.LightProgramSpec(selector='same'))
 
-        self.assertEqual(show_file.animations['look'].sources, ['wash', 'sparkle'])
-        self.assertEqual(show_file.animations['look'].params, {'weights': [1.0, 1.0]})
 
-    def test_merge_show_files_combines_library_device_and_run_files(self) -> None:
-        library = show.parse_show_file(
-            {
-                'animations': {
-                    'rainbow': {'impl': 'lyte.animations.fields.rainbow.Rainbow'}
-                }
-            },
-            'library.toml',
-        )
-        devices = show.parse_show_file(
-            {'devices': {'tree': {'kind': 'twinkly'}}},
-            'devices.toml',
-        )
-        run = show.parse_show_file({'run': {'tree': 'rainbow'}}, 'run.toml')
-
-        merged = show.merge_show_files([library, devices, run])
-
-        self.assertEqual(set(merged.animations), {'rainbow'})
-        self.assertEqual(set(merged.devices), {'tree'})
-        self.assertIsNotNone(merged.run)
-
-    def test_merge_show_files_rejects_duplicate_names(self) -> None:
-        first = show.parse_show_file(
-            {
-                'animations': {
-                    'rainbow': {'impl': 'lyte.animations.fields.rainbow.Rainbow'}
-                }
-            },
-            'first.toml',
-        )
-        second = show.parse_show_file(
-            {
-                'animations': {
-                    'rainbow': {'impl': 'lyte.animations.fields.rainbow.Rainbow'}
-                }
-            },
-            'second.toml',
-        )
-
-        with self.assertRaisesRegex(show.ShowFileError, 'duplicate animations'):
-            show.merge_show_files([first, second])
-
-    def test_merge_show_files_rejects_multiple_run_sections(self) -> None:
-        first = show.ShowFile(
-            run={'tree': show.RunTargetSpec(source='rainbow')},
-            animations={
-                'rainbow': show.AnimationSpec(
-                    impl='lyte.animations.fields.rainbow.Rainbow'
-                )
-            },
-            devices={'tree': show.DeviceSpec(kind='twinkly')},
-        )
-        second = show.ShowFile(
-            run={'arch': show.RunTargetSpec(source='rainbow')},
-            animations={
-                'rainbow': show.AnimationSpec(
-                    impl='lyte.animations.fields.rainbow.Rainbow'
-                )
-            },
-            devices={'arch': show.DeviceSpec(kind='twinkly')},
-        )
-
-        with self.assertRaisesRegex(show.ShowFileError, 'multiple loaded show files'):
-            show.merge_show_files([first, second])
-
-    def test_show_file_rejects_unknown_run_device(self) -> None:
-        with self.assertRaisesRegex(ValueError, 'does not name a device'):
-            show.validate_graph(
-                show.ShowFile(
-                    run={'tree': show.RunTargetSpec(source='rainbow')},
-                    animations={
-                        'rainbow': show.AnimationSpec(
-                            impl='lyte.animations.fields.rainbow.Rainbow'
-                        )
-                    },
-                )
+def test_library_diagnostics_include_fields_and_cycles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages = []
+    monkeypatch.setattr(show.LOGGER, 'warning', messages.append)
+    library = Library(
+        [],
+        [
+            Diagnostic(
+                library='shows',
+                address='/broken.toml',
+                code='cycle',
+                message='circular reference',
+                field='body.parts[0]',
+                cycle=['shows:/a.toml', 'shows:/b.toml'],
             )
+        ],
+    )
 
-    def test_show_file_rejects_unknown_source(self) -> None:
-        with self.assertRaisesRegex(ValueError, 'unknown source'):
-            show.validate_graph(
-                show.ShowFile(
-                    run={'tree': show.RunTargetSpec(source='missing')},
-                    devices={'tree': show.DeviceSpec(kind='twinkly')},
-                )
-            )
+    show.log_diagnostics(library)
 
-    def test_show_file_rejects_source_cycles(self) -> None:
-        with self.assertRaisesRegex(ValueError, 'cycle'):
-            show.validate_graph(
-                show.ShowFile(
-                    animations={
-                        'a': show.AnimationSpec(impl='lyte.fake.A', sources=['b']),
-                        'b': show.AnimationSpec(impl='lyte.fake.B', sources=['a']),
-                    }
-                )
-            )
+    assert messages == [
+        '[cycle] shows:/broken.toml: circular reference '
+        '(field=body.parts[0], cycle=shows:/a.toml -> shows:/b.toml)'
+    ]
 
-    def test_build_show_graph_constructs_trusted_animation_paths(self) -> None:
-        show_file = show.parse_show_file(
-            {
-                'animations': {
-                    'rainbow': {
-                        'impl': 'lyte.animations.fields.rainbow.Rainbow',
-                        'step': 2,
-                    }
-                }
-            },
-            'show.toml',
+
+def test_every_ufor_effect_has_an_installed_renderer() -> None:
+    assert len(build.EFFECT_RENDERERS) == 41
+    for tag in build.EFFECT_RENDERERS:
+        description = TypeAdapter(effects.EffectValue).validate_python({'effect': tag})
+        renderer = build.build_effect(description)
+        assert isinstance(renderer, animation.Animation)
+        assert isinstance(renderer, type(description))
+        assert (
+            type(renderer).model_fields.keys() == type(description).model_fields.keys()
         )
 
-        graph = show.build_show_graph(show_file)
 
-        self.assertIsInstance(graph.sources['rainbow'], animation.Animation)
+def test_missing_effect_renderer_is_a_capability_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    renderers = dict(build.EFFECT_RENDERERS)
+    renderers.pop('aurora')
+    monkeypatch.setattr(build, 'EFFECT_RENDERERS', renderers)
 
-    def test_show_playback_gives_each_target_independent_state(self) -> None:
-        show_file = show.parse_show_file(
-            {
-                'run': {'left': 'rainbow', 'right': 'rainbow'},
-                'animations': {
-                    'rainbow': {'impl': 'lyte.animations.fields.rainbow.Rainbow'}
-                },
-                'devices': {
-                    'left': {'kind': 'twinkly', 'led_count': 3},
-                    'right': {'kind': 'twinkly', 'led_count': 3},
-                },
-            },
-            'show.toml',
-        )
+    with pytest.raises(build.RendererCapabilityError, match='aurora'):
+        build.build_effect(effects.Aurora())
 
-        graph = show.build_show_graph(show_file)
-        playback = show.create_show_playback(show_file, graph)
-        left, right = playback.targets
 
-        self.assertIs(left.animation, right.animation)
-        self.assertIsNot(left.state, right.state)
-        self.assertEqual(show.render_show_target(left).shape, (3, 3))
-        self.assertEqual(left.state.frame, 1)
-        self.assertEqual(right.state.frame, 0)
+def test_non_light_output_is_rejected_before_rendering() -> None:
+    value = score(
+        'white',
+        light_animation.Fill(values=[0.5]),
+        components=['white'],
+    )
+    prepared = show.prepare_library_animation(
+        library_for(value), show.LightProgramSpec(selector='white')
+    )
 
-    def test_show_playback_requires_device_led_count(self) -> None:
-        show_file = show.parse_show_file(
-            {
-                'run': {'tree': 'rainbow'},
-                'animations': {
-                    'rainbow': {'impl': 'lyte.animations.fields.rainbow.Rainbow'}
-                },
-                'devices': {'tree': {'kind': 'twinkly'}},
-            },
-            'show.toml',
-        )
+    assert prepared.render().tolist() == [[0.5], [0.5], [0.5]]
 
-        with self.assertRaisesRegex(show.ShowFileError, 'led_count'):
-            show.create_show_playback(show_file, show.build_show_graph(show_file))
 
-    def test_build_show_graph_rejects_non_animation_results(self) -> None:
-        show_file = show.parse_show_file(
-            {
-                'animations': {
-                    'bad': {
-                        'impl': 'lyte.show.resolve_python_path',
-                        'path': 'lyte.show.resolve_python_path',
-                    }
-                }
-            },
-            'show.toml',
-        )
+def test_log_gradient_one_light_is_finite() -> None:
+    value = score('log', effects.LogGradient(), count=1)
+    prepared = show.prepare_library_animation(
+        library_for(value), show.LightProgramSpec(selector='log')
+    )
 
-        with self.assertRaisesRegex(show.ShowFileError, 'did not construct'):
-            show.build_show_graph(show_file)
+    frame = prepared.render()
 
-    def test_resolve_python_path_finds_callables(self) -> None:
-        value = show.resolve_python_path('lyte.animations.fields.rainbow.Rainbow')
+    assert np.isfinite(frame).all()
+    assert frame.tolist() == [[1.0, 1.0, 1.0]]
 
-        self.assertTrue(callable(value))
 
-    def test_resolve_python_path_rejects_non_callables(self) -> None:
-        with self.assertRaisesRegex(show.ShowFileError, 'not callable'):
-            show.resolve_python_path('lyte.animation.__doc__')
+def test_python_score_requires_explicit_lyte_contract() -> None:
+    value = score('plain', light_animation.Fill(values=[0.0, 0.0, 0.0]))
+    entry = Entry(
+        library='test',
+        address='/plain.py',
+        name='plain',
+        score=value,
+        python_class=light_animation.AnimationScore,
+    )
+    library = Library([entry])
 
-    def test_run_show_loads_and_resolves_files(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            show_file = root / 'show.toml'
-            show_file.write_text(
-                '[run]\n'
-                'tree = "rainbow"\n'
-                '[animations.rainbow]\n'
-                'impl = "lyte.animations.fields.rainbow.Rainbow"\n'
-                '[devices.tree]\n'
-                'kind = "twinkly"\n'
-                'led_count = 3\n'
-            )
-
-            result = show.run_show(show.ShowConfig(files=[show_file]))
-
-        self.assertEqual(result, 0)
+    with pytest.raises(rendering.RendererCapabilityError, match='PythonAnimationScore'):
+        show.prepare_library_animation(library, show.LightProgramSpec(selector='plain'))

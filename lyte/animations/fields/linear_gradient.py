@@ -4,16 +4,13 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
+from ufor import effects
 
-from ...animation import Animation, Device, Family, FloatRGB, State
+from ...animation import Animation, Device, Family, State
 
 
-class LinearGradient(Animation[State], frozen=True):
+class LinearGradient(effects.LinearGradient, Animation[State]):
     family: ClassVar[Family] = Family.FIELDS
-
-    start: float = 1
-    end: float = 0
-    mask: FloatRGB = (1, 1, 1)
 
     def render(self, device: Device, state: State) -> NDArray[np.float32]:
         values = np.linspace(

@@ -4,26 +4,17 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
-from ..colors import DEFAULT_PATTERN, RGB
-from ..validators import validate_palette
 
 
 class PartyModeState(State):
     position: int = 0
 
 
-class PartyMode(Animation[PartyModeState], frozen=True):
+class PartyMode(effects.PartyMode, Animation[PartyModeState]):
     family: ClassVar[Family] = Family.SIMULATIONS
-
-    colors: tuple[RGB, ...] = DEFAULT_PATTERN
-
-    @model_validator(mode='after')
-    def validate_party_mode(self) -> PartyMode:
-        validate_palette(self.colors)
-        return self
 
     def initial_state(self, device: Device) -> PartyModeState:
         return PartyModeState()

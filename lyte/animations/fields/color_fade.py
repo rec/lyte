@@ -4,11 +4,11 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
 from .. import validators
-from ..colors import RGB, scale_color
+from ..colors import scale_color
 
 
 class ColorFadeState(State):
@@ -16,21 +16,8 @@ class ColorFadeState(State):
     position: int = 0
 
 
-class ColorFade(Animation[ColorFadeState], frozen=True):
+class ColorFade(effects.ColorFade, Animation[ColorFadeState]):
     family: ClassVar[Family] = Family.FIELDS
-
-    colors: tuple[RGB, ...] = ((255, 0, 0),)
-    level_step: int = 5
-    start: int = 0
-    end: int | None = None
-
-    @model_validator(mode='after')
-    def validate_color_fade(self) -> ColorFade:
-        validators.validate_palette(self.colors)
-        if self.level_step < 1:
-            raise ValueError('level_step must be at least 1')
-        validators.validate_start(self.start)
-        return self
 
     def initial_state(self, device: Device) -> ColorFadeState:
         validators.validate_span(

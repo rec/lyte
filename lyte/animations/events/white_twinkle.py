@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from ..colors import RGB
+from ufor import effects
+
 from .twinkle import Twinkle
 
 
-class WhiteTwinkle(Twinkle, frozen=True):
-    colors: tuple[RGB, ...] = ((255, 255, 255),)
-    density: int = 80
+class WhiteTwinkle(effects.WhiteTwinkle, Twinkle):
+    pass

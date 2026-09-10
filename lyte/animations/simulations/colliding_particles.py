@@ -6,11 +6,10 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import Field, model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State
 from .. import numerical
-from ..colors import RGB
 
 
 class CollidingParticlesState(State):
@@ -20,21 +19,10 @@ class CollidingParticlesState(State):
     pixels: NDArray[np.float32]
 
 
-class CollidingParticles(Animation[CollidingParticlesState], frozen=True):
+class CollidingParticles(
+    effects.CollidingParticles, Animation[CollidingParticlesState]
+):
     family: ClassVar[Family] = Family.SIMULATIONS
-
-    palette: list[RGB] = Field(default_factory=lambda: list(numerical.PARTICLE_PALETTE))
-    particle_count: int = Field(default=5, gt=0)
-    radius: float = Field(default=1.5, gt=0)
-    trail_decay: float = Field(default=4.0, gt=0)
-    collision_flash: float = Field(default=0.7, ge=0)
-    speed: float = Field(default=1.0, ge=0)
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_colliding_particles(self) -> CollidingParticles:
-        numerical.validate_palette(self.palette)
-        return self
 
     def initial_state(self, device: Device) -> CollidingParticlesState:
         generator = random.Random(self.seed)

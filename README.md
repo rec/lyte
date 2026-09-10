@@ -1,9 +1,10 @@
 # lyte
 
 Lyte is a Python 3.13 lighting player for Twinkly pixel strings and DMX
-instruments. It provides stateful RGB animations, reliable Twinkly realtime
-playback, MIDI-controlled wearable patches, and mixed Twinkly and Art-Net
-installation playback.
+instruments. Ufor score libraries own light layouts, animation settings,
+composition, and scalar controls. Lyte provides NumPy effect rendering,
+reliable Twinkly realtime playback, MIDI-controlled wearable patches, and mixed
+Twinkly and Art-Net installation playback.
 
 Pixel animations render C-contiguous `numpy.float32` RGB frames. Conversion to
 Twinkly's byte format happens at the output boundary. DMX instruments use typed
@@ -11,19 +12,22 @@ channel categories and render independent 512-slot universe frames.
 
 ## Twinkly Commands
 
-Inspect the discovered device without changing it, play an animation, or list
-animations that can be rendered to HTML:
+Inspect the discovered device without changing it, prepare and play a Ufor
+score, or list scores that can be rendered to HTML:
 
 ```sh
 lyte diagnostic
-lyte animate hamiltonian --speed 80
-lyte preview
+lyte animate examples:/composition.toml --library-config examples/library.toml
+lyte preview --library-config examples/library.toml
 ```
 
-Generate a hardware-free preview by naming an animation and output file:
+Override exported scalar controls as name/value pairs, for example
+`--parameters brightness 0.5`.
+
+Generate a hardware-free preview from the same score:
 
 ```sh
-lyte preview rainbow preview.html
+lyte preview examples:/composition.toml preview.html --library-config examples/library.toml
 ```
 
 Direct Twinkly playback discovers a single device when no host is supplied. It
@@ -31,24 +35,36 @@ authenticates the device, enters realtime mode, probes the HTTP connection while
 streaming UDP frames, recovers after connection failures, and requests blackout
 when playback ends.
 
-## Animation Families and Compositions
+## Ufor Scores and Compositions
 
-Animations are organized into patterns, fields, events, simulations, and
-compositions. List a family with `lyte preview --family fields`.
-
-Compositions combine other animations using segments, weighted mixes,
-crossfades, reversal, intensity envelopes, and timed sequences. The same graph
-can be previewed or played:
+Register score roots in a Ufor library configuration, then select a score by
+literal library, name, tag, or address. The default configuration is
+`~/.config/ufor/library.toml`; `--library-config` replaces that default.
+Reading a library never creates files. List one effect family with:
 
 ```sh
-lyte preview composition preview.html --composition-file examples/composition.toml --width 250 --height 1
-lyte animate composition --composition-file examples/composition.toml --duration 10
+lyte preview --library-config examples/library.toml --family fields
 ```
 
-`--composition-source` selects a named graph node (default `main`). The example
-uses 250 logical LEDs. Graph files contain trusted Python implementation paths;
-their `sources` lists reference other named nodes. Each occurrence owns its
-playback state. See `doc/architecture.md` for composition semantics.
+Ufor compositions provide named placement, weighted mixes, crossfades,
+reversal, gain, component mapping, and timed cues. The score declares its
+logical update rate, light components, and one-, two-, or three-dimensional
+layout. Preview uses those authored coordinates. Wiring is a final physical
+permutation and is never applied to previews or intermediate parts.
+
+The same 250-light graph can be validated, previewed, or played:
+
+```sh
+lyte show examples:/composition.toml --library-config examples/library.toml
+lyte preview examples:/composition.toml preview.html --library-config examples/library.toml
+lyte animate examples:/composition.toml --library-config examples/library.toml --duration 10
+```
+
+The example library is rooted at `examples/scores/`. Its composition places
+two 125-light ripple parts into named halves, reverses one half, and cues the
+result against a 250-light aurora. Ufor resolves references and presets before
+Lyte prepares one state per part path. No score data contains a Python import
+path.
 
 ## Wearable Patches
 
@@ -105,15 +121,17 @@ offsets within an instrument. Available categories are `brightness`, `rgb`,
 `white`, `chase_speed`, `pattern_select`, `strobe`, `pan`, `tilt`,
 `color_wheel`, `gobo_select`, and named `raw` channels.
 
-Installation DMX programs are static semantic values. Pixel programs construct
-an `Animation` from a trusted local Python import path. A pixel program may list
-other pixel program names in `sources` to construct a composition; its `params`
-configure placements, weights, envelopes, or cues. The scheduler runs each
-target at its configured frame rate, records failures independently, and
-requests blackout from every opened output at shutdown.
+Installation DMX programs are static semantic values. Each pixel program names
+a Ufor selector, light output, public parameter overrides, and optional wiring.
+The installation's `library_config` is resolved relative to its TOML file.
+Lyte validates score resolution, renderer support, component meaning, layout
+size, and wiring before opening output. The scheduler runs each target at its
+configured delivery rate while preserving the score's logical simulation rate,
+records failures independently, and requests blackout from every opened output
+at shutdown.
 
-`lyte show` is a separate offline validator for Twinkly-only show graphs. It
-does not connect to hardware or run an installation.
+`lyte show` performs the same Ufor selection and renderer preflight without
+connecting to hardware or running an installation.
 
 ## Documentation
 

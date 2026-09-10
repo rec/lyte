@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from enum import StrEnum, auto
 from typing import ClassVar, cast
 
@@ -45,7 +46,7 @@ RGB = tuple[int, int, int]
 FloatRGB = tuple[float, float, float]
 
 
-class Animation[StateT: State](pydantic.BaseModel, frozen=True):
+class Animation[StateT: State]:
     family: ClassVar[Family | None] = None
 
     def initial_state(self, device: Device) -> StateT:
@@ -54,6 +55,10 @@ class Animation[StateT: State](pydantic.BaseModel, frozen=True):
     def render(self, device: Device, state: StateT) -> NDArray[np.float32]:
         raise NotImplementedError
 
+
+class ConfiguredAnimation[StateT: State](
+    pydantic.BaseModel, Animation[StateT], frozen=True
+):
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
 
@@ -120,18 +125,18 @@ def byte_light_frame_from_float(frame: NDArray[np.float32]) -> NDArray[np.uint8]
     return np.ascontiguousarray(encoded)
 
 
-def float_color_from_rgb(color: RGB) -> FloatRGB:
+def float_color_from_rgb(color: Sequence[int]) -> FloatRGB:
     validate_rgb_color(color)
     return color[0] / 255, color[1] / 255, color[2] / 255
 
 
-def rgb_from_float_color(color: FloatRGB) -> RGB:
+def rgb_from_float_color(color: Sequence[float]) -> RGB:
     frame = np.array([color], dtype=np.float32)
     red, green, blue = byte_light_frame_from_float(frame)[0]
     return int(red), int(green), int(blue)
 
 
-def validate_rgb_color(color: RGB) -> None:
+def validate_rgb_color(color: Sequence[int]) -> None:
     for value in color:
         if value < 0 or value > 255:
             raise ValueError('RGB values must be between 0 and 255')
