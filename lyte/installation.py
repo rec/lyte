@@ -56,6 +56,7 @@ class DmxTargetSpec(dmx.DmxInstrument, frozen=True):
 class PixelProgramSpec(InstallationDefinition, frozen=True):
     kind: Literal['pixel'] = 'pixel'
     impl: str = Field(min_length=1)
+    sources: list[str] = Field(default_factory=list)
     params: dict[str, object] = Field(default_factory=dict)
 
 
@@ -272,6 +273,15 @@ def parse_installation(data: dict[str, object]) -> InstallationFile:
 
 
 def build_runtime(config: InstallationFile) -> InstallationRuntime:
+    graph = show.build_show_graph(
+        show.ShowFile(
+            animations={
+                n: show.AnimationSpec(impl=p.impl, sources=p.sources, params=p.params)
+                for n, p in config.programs.items()
+                if isinstance(p, PixelProgramSpec)
+            }
+        )
+    )
     targets: list[InstallationTarget] = []
     drivers: list[OutputDriver] = []
     pixel_drivers = {
@@ -299,7 +309,7 @@ def build_runtime(config: InstallationFile) -> InstallationRuntime:
                 raise InstallationFileError(
                     f'Twinkly target {name!r} requires a pixel program'
                 )
-            source = _build_pixel_program(run_spec.program, program_spec)
+            source = graph.sources[run_spec.program]
             device = animation.Device(led_count=target_spec.led_count)
             state = source.initial_state(device)
             state.fps = target_spec.fps
@@ -427,21 +437,6 @@ def run_installation_command(config: InstallationCommandConfig) -> int:
         else:
             LOGGER.error(f'{message}; last error: {target.last_error}')
     return 0 if status.successful else 1
-
-
-def _build_pixel_program(name: str, spec: PixelProgramSpec) -> animation.Animation:
-    factory = show.resolve_python_path(spec.impl)
-    try:
-        value = factory(**spec.params)
-    except TypeError as error:
-        raise InstallationFileError(
-            f'could not construct pixel program {name!r}: {error}'
-        ) from error
-    if not isinstance(value, animation.Animation):
-        raise InstallationFileError(
-            f'pixel program {name!r} did not construct an Animation'
-        )
-    return value
 
 
 def _validate_installation(config: InstallationFile) -> None:

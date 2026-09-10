@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated, Literal, NoReturn
 
 import tyro
 
 ANIMATIONS: tuple[str, ...] = (
+    'composition',
     'alternates',
     'aurora',
     'candle_bank',
@@ -54,6 +56,7 @@ ANIMATIONS: tuple[str, ...] = (
     'white_twinkle',
 )
 AnimationName = Literal[
+    'composition',
     'alternates',
     'aurora',
     'candle_bank',
@@ -101,7 +104,7 @@ AnimationName = Literal[
     'white_twinkle',
 ]
 RANDOM_ANIMATIONS: tuple[str, ...] = tuple(
-    a for a in ANIMATIONS if a not in ('off', 'random')
+    a for a in ANIMATIONS if a not in ('off', 'random', 'composition')
 )
 RANDOM_MIN_DURATION = 10.0
 RANDOM_MAX_DURATION = 30.0
@@ -114,6 +117,8 @@ RANDOM_WALK_PERIOD = 6.0
 @dataclass(frozen=True)
 class AnimateConfig:
     animation: Annotated[AnimationName, tyro.conf.Positional] = 'random'
+    composition_file: Path | None = None
+    composition_source: str = 'main'
     host: str | None = None
     timeout: float = 5.0
     discovery_timeout: float | None = None
@@ -158,6 +163,10 @@ class AnimateConfig:
 
 
 def validate_args(args: AnimateConfig) -> None:
+    if args.animation == 'composition' and args.composition_file is None:
+        fail('composition requires --composition-file')
+    if args.animation != 'composition' and args.composition_file is not None:
+        fail('--composition-file requires the composition animation')
     if args.attempts < 1:
         fail('--attempts must be at least 1')
     if args.retry_delay < 0:

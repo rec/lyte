@@ -8,8 +8,8 @@ from numpy import testing as npt
 from numpy.typing import NDArray
 
 from lyte import animation
-from lyte.animations.christmas import hamiltonian
-from lyte.animations.christmas.random_walk import RandomWalk, perturb
+from lyte.animations.patterns import hamiltonian
+from lyte.animations.simulations.random_walk import RandomWalk, perturb
 
 
 def render(
@@ -29,16 +29,23 @@ def initial_state(
 
 class ChristmasAnimationTests(unittest.TestCase):
     def test_ported_animations_render_float_frames(self) -> None:
-        from lyte.animations.christmas import effects, gradients
+        from lyte.animations.events import rain
+        from lyte.animations.fields import (
+            exponential_fade,
+            linear_gradient,
+            log_gradient,
+        )
+        from lyte.animations.patterns import grey_code
+        from lyte.animations.simulations import randomize
 
         device = animation.Device(led_count=4)
         sources = [
-            effects.ExponentialFade(),
-            effects.GreyCode(),
-            effects.Rain(seed=1),
-            effects.Randomize(seed=1),
-            gradients.LinearGradient(),
-            gradients.LogGradient(),
+            exponential_fade.ExponentialFade(),
+            grey_code.GreyCode(),
+            rain.Rain(seed=1),
+            randomize.Randomize(seed=1),
+            linear_gradient.LinearGradient(),
+            log_gradient.LogGradient(),
         ]
 
         for source in sources:

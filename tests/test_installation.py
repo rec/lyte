@@ -205,7 +205,7 @@ def example_installation() -> dict[str, object]:
         'programs': {
             'rainbow': {
                 'kind': 'pixel',
-                'impl': 'lyte.animations.bibliopixel.rainbow.Rainbow',
+                'impl': 'lyte.animations.fields.rainbow.Rainbow',
             },
             'wash': {
                 'kind': 'dmx',

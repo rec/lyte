@@ -19,6 +19,7 @@ from reccy.runtime import logging
 from reccy.services import spec
 
 from . import animation, midi, patches
+from .animations import compositions
 from .daemon_config import DaemonProject
 from .retry import RetryConfig
 from .twinkly import realtime, track
@@ -241,7 +242,9 @@ class LyteMidiDaemon(Reccy, frozen=True):
             runtime_library = patches.scale_patch_library(
                 project.library, actual_led_count
             )
-            selector = PatchSelector.create(runtime_library, config.patch_names)
+            selector = PatchSelector.create(
+                runtime_library, config.patch_names, config.transition_duration
+            )
             with self._lock:
                 object.__setattr__(self, '_host', host)
                 object.__setattr__(
@@ -348,7 +351,7 @@ class LyteMidiDaemon(Reccy, frozen=True):
                 try:
                     frame = patches.encode_wearable_frame(
                         runtime_library.wearable,
-                        selector.patch.render(twinkly_track.device),
+                        selector.render(twinkly_track.device, config.fps),
                     )
                 except (ArithmeticError, IndexError, TypeError, ValueError) as error:
                     self._record_render_error(selector.patch_name, error)
@@ -519,6 +522,9 @@ class PatchSelector(BaseModel):
     index: int = 0
     patch: SkipValidation[midi.LightPatch]
     performance: MidiPerformance = MidiPerformance()
+    previous: SkipValidation[midi.LightPatch] | None = None
+    transition_duration: float = 0.25
+    transition_elapsed: float = 0.0
 
     @property
     def patch_name(self) -> str:
@@ -526,12 +532,16 @@ class PatchSelector(BaseModel):
 
     @classmethod
     def create(
-        cls, library: patches.PatchLibrary, patch_names: list[str]
+        cls,
+        library: patches.PatchLibrary,
+        patch_names: list[str],
+        transition_duration: float = 0.25,
     ) -> PatchSelector:
         return cls(
             library=library,
             patch_names=patch_names,
             patch=patches.build_light_patch(library, patch_names[0]),
+            transition_duration=transition_duration,
         )
 
     def receive(self, msg: mido.Message) -> None:
@@ -541,16 +551,39 @@ class PatchSelector(BaseModel):
             return
         self.performance.receive(msg)
         self.patch.receive(msg)
+        if self.previous is not None:
+            self.previous.receive(msg)
+        if self.performance.note is None or msg.type == 'note_on' and msg.velocity:
+            self.previous = None
 
     def advance(self) -> None:
-        self.index = (self.index + 1) % len(self.patch_names)
-        self.patch = patches.build_light_patch(self.library, self.patch_name)
-        self.performance.replay(self.patch)
+        self.select(self.patch_names[(self.index + 1) % len(self.patch_names)])
 
     def select(self, name: str) -> None:
+        self.previous = (
+            self.patch
+            if self.performance.note is not None and self.transition_duration > 0
+            else None
+        )
+        self.transition_elapsed = 0.0
         self.index = self.patch_names.index(name)
         self.patch = patches.build_light_patch(self.library, name)
         self.performance.replay(self.patch)
+
+    def render(self, device: animation.Device, fps: float) -> NDArray[np.float32]:
+        self.patch.fps = fps
+        frame = animation.validate_frame(device, self.patch.render(device))
+        if self.previous is None:
+            return frame
+        self.previous.fps = fps
+        fade = compositions.Fade(duration=self.transition_duration)
+        frame = fade.render(
+            device, [self.previous.render(device), frame], self.transition_elapsed
+        )
+        self.transition_elapsed += 1 / fps
+        if self.transition_elapsed > self.transition_duration:
+            self.previous = None
+        return frame
 
     def clear_performance(self) -> None:
         if self.performance.note is not None:
@@ -563,6 +596,7 @@ class PatchSelector(BaseModel):
                 )
             )
         self.performance = MidiPerformance()
+        self.previous = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

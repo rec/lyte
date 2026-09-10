@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from lyte.animations import bibliopixel
+from lyte.animations.patterns import color_fill
 
 
 def preview_data(document: str) -> dict[str, object]:
@@ -39,7 +39,7 @@ class PreviewCommandTests(unittest.TestCase):
 
         animation = self.script.build.build_animation(args.animation_config)
 
-        self.assertIsInstance(animation, bibliopixel.ColorFill)
+        self.assertIsInstance(animation, color_fill.ColorFill)
         self.assertEqual(args.output, Path('preview.html'))
         self.assertEqual(args.width, 16)
         self.assertEqual(args.height, 16)

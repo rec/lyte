@@ -7,11 +7,12 @@ from numpy import testing as npt
 from numpy.typing import NDArray
 
 from lyte import animation
-from lyte.animations import bibliopixel
+from lyte.animations import compositions
 from lyte.animations.colors import solid_rgb_frame
+from lyte.animations.patterns import color_fill
 
 
-class SegmentAnimationTests(unittest.TestCase):
+class SegmentTests(unittest.TestCase):
     def test_segments_render_contiguous_frames_with_independent_states(self) -> None:
         class CountingState(animation.State):
             led_count: int
@@ -30,11 +31,12 @@ class SegmentAnimationTests(unittest.TestCase):
                 )
 
         source = CountingAnimation()
-        composite = animation.SegmentAnimation(
-            segments=[
-                animation.AnimationSegment(animation=source, led_count=2),
-                animation.AnimationSegment(animation=source, led_count=3),
-            ]
+        composite = compositions.Segments(
+            sources=[source, source],
+            placements=[
+                compositions.Placement(start=0, led_count=2),
+                compositions.Placement(start=2, led_count=3),
+            ],
         )
         device = animation.Device(led_count=5)
         state = composite.initial_state(device)
@@ -61,20 +63,21 @@ class SegmentAnimationTests(unittest.TestCase):
             np.full(5, 0.2, dtype=np.float32),
         )
 
-    def test_requires_at_least_two_segments(self) -> None:
-        with self.assertRaisesRegex(ValueError, 'at least two segments'):
-            animation.SegmentAnimation(segments=[])
+    def test_requires_at_least_one_segment(self) -> None:
+        with self.assertRaises(ValueError):
+            compositions.Segments(sources=[], placements=[])
 
-    def test_requires_segment_lengths_to_match_device(self) -> None:
-        source = bibliopixel.ColorFill(color=(1, 2, 3))
-        composite = animation.SegmentAnimation(
-            segments=[
-                animation.AnimationSegment(animation=source, led_count=2),
-                animation.AnimationSegment(animation=source, led_count=3),
-            ]
+    def test_requires_segments_to_fit_device(self) -> None:
+        source = color_fill.ColorFill(color=(1, 2, 3))
+        composite = compositions.Segments(
+            sources=[source, source],
+            placements=[
+                compositions.Placement(start=0, led_count=2),
+                compositions.Placement(start=2, led_count=3),
+            ],
         )
 
-        with self.assertRaisesRegex(ValueError, 'must total device led_count'):
+        with self.assertRaisesRegex(ValueError, 'must fit within device led_count'):
             composite.initial_state(animation.Device(led_count=4))
 
 

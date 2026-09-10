@@ -41,7 +41,7 @@ channels = [7, 8]
 
 [programs.tree_rainbow]
 kind = "pixel"
-impl = "lyte.animations.bibliopixel.rainbow.Rainbow"
+impl = "lyte.animations.fields.rainbow.Rainbow"
 
 [programs.front_wash_chase]
 kind = "dmx"

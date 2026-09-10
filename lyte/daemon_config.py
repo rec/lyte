@@ -43,6 +43,7 @@ class DaemonConfig(BaseModel, frozen=True):
     patch_library: Path
     patch_names: list[str] = Field(alias='patches')
     fps: float = 60.0
+    transition_duration: float = Field(default=0.25, ge=0, allow_inf_nan=False)
     midi: midi.MidiIn
     twinkly: TwinklyDaemonConfig
 

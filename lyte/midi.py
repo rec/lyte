@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, SkipValidation, model_validator
 
 from . import animation
+from .animations import compositions
 
 
 class MidiInput(Protocol):
@@ -128,45 +129,21 @@ class Patch[ConfigT: BaseModel, StateT: BaseModel](BaseModel, ABC):
 
 
 class LightPatch[ConfigT: BaseModel, StateT: BaseModel](Patch[ConfigT, StateT], ABC):
+    fps: float = 20.0
+
     @abstractmethod
     def render(self, device: animation.Device) -> NDArray[np.float32]:
         pass
 
 
-class RegionAnimation(BaseModel, frozen=True):
-    animation: SkipValidation[animation.Animation]
-    start: int
-    led_count: int
-
-    @model_validator(mode='after')
-    def validate_region(self) -> RegionAnimation:
-        if self.start < 0:
-            raise ValueError('Region animation start must not be negative')
-        if self.led_count <= 0:
-            raise ValueError('Region animation led_count must be greater than zero')
-        return self
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-
-class RegionLightPatchConfig(BaseModel, frozen=True):
-    regions: list[RegionAnimation]
-
-    @model_validator(mode='after')
-    def validate_regions(self) -> RegionLightPatchConfig:
-        if not self.regions:
-            raise ValueError('RegionLightPatch requires at least one region')
-        return self
-
-
 class RegionLightPatchState(BaseModel):
     device_led_count: int | None = None
-    states: list[SkipValidation[animation.State]] = []
+    composition: SkipValidation[compositions.ChildrenState] | None = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
-class RegionLightPatch(LightPatch[RegionLightPatchConfig, RegionLightPatchState]):
+class RegionLightPatch(LightPatch[compositions.Segments, RegionLightPatchState]):
     def make_state(self, msg: mido.Message) -> RegionLightPatchState:
         return RegionLightPatchState()
 
@@ -175,88 +152,41 @@ class RegionLightPatch(LightPatch[RegionLightPatchConfig, RegionLightPatchState]
             return animation.validate_frame(
                 device, np.zeros((device.led_count, 3), dtype=np.float32)
             )
-        self.ensure_states(device, state)
-        frame = np.zeros((device.led_count, 3), dtype=np.float32)
-        for region, child_state in zip(self.config.regions, state.states, strict=True):
-            child_device = animation.Device(led_count=region.led_count)
-            end = region.start + region.led_count
-            frame[region.start : end] = animation.validate_frame(
-                child_device, region.animation.render(child_device, child_state)
-            )
-        return animation.validate_frame(device, frame)
-
-    def ensure_states(
-        self, device: animation.Device, state: RegionLightPatchState
-    ) -> None:
-        if state.device_led_count == device.led_count:
-            return
-        for region in self.config.regions:
-            if region.start + region.led_count > device.led_count:
-                raise ValueError('Region animation must fit within device led_count')
-        state.states = [
-            region.animation.initial_state(animation.Device(led_count=region.led_count))
-            for region in self.config.regions
-        ]
-        state.device_led_count = device.led_count
+        source = self.config
+        if state.composition is None or state.device_led_count != device.led_count:
+            state.composition = source.initial_state(device)
+            state.device_led_count = device.led_count
+        state.composition.fps = self.fps
+        return source.render(device, state.composition)
 
 
-class BlendLightPatchConfig(BaseModel, frozen=True):
-    pass
-
-
-class BlendLightPatchState(BaseModel):
-    pass
-
-
-class BlendLightPatch(LightPatch[BlendLightPatchConfig, BlendLightPatchState]):
-    patches: list[SkipValidation[LightPatch]]
-
-    def make_state(self, msg: mido.Message) -> BlendLightPatchState:
-        return BlendLightPatchState()
-
-    def receive(self, msg: mido.Message) -> None:
-        super().receive(msg)
-        for patch in self.patches:
-            patch.receive(msg)
-
-    def render(self, device: animation.Device) -> NDArray[np.float32]:
-        return self.blend(device, [patch.render(device) for patch in self.patches])
-
-    def blend(
-        self, device: animation.Device, frames: list[NDArray[np.float32]]
-    ) -> NDArray[np.float32]:
-        return add_light_frames(device, frames)
-
-
-class WeightedBlendLightPatchConfig(BaseModel, frozen=True):
+class MixLightPatchConfig(BaseModel, frozen=True):
     weights: list[float]
 
     @model_validator(mode='after')
-    def validate_weights(self) -> WeightedBlendLightPatchConfig:
+    def validate_weights(self) -> MixLightPatchConfig:
         if not self.weights:
-            raise ValueError('WeightedBlendLightPatch requires at least one weight')
+            raise ValueError('MixLightPatch requires at least one weight')
         if any(weight < 0 for weight in self.weights):
             raise ValueError('Blend weights must not be negative')
         return self
 
 
-class WeightedBlendLightPatchState(BaseModel):
+class MixLightPatchState(BaseModel):
     weights: list[float]
 
 
-class WeightedBlendLightPatch(
-    LightPatch[WeightedBlendLightPatchConfig, WeightedBlendLightPatchState]
-):
+class MixLightPatch(LightPatch[MixLightPatchConfig, MixLightPatchState]):
     patches: list[SkipValidation[LightPatch]]
 
     @model_validator(mode='after')
-    def validate_patches(self) -> WeightedBlendLightPatch:
+    def validate_patches(self) -> MixLightPatch:
         if len(self.patches) != len(self.config.weights):
             raise ValueError('Blend weights must match the number of patches')
         return self
 
-    def make_state(self, msg: mido.Message) -> WeightedBlendLightPatchState:
-        return WeightedBlendLightPatchState(weights=list(self.config.weights))
+    def make_state(self, msg: mido.Message) -> MixLightPatchState:
+        return MixLightPatchState(weights=list(self.config.weights))
 
     def receive(self, msg: mido.Message) -> None:
         super().receive(msg)
@@ -264,6 +194,8 @@ class WeightedBlendLightPatch(
             patch.receive(msg)
 
     def render(self, device: animation.Device) -> NDArray[np.float32]:
+        for patch in self.patches:
+            patch.fps = self.fps
         return self.blend(device, [patch.render(device) for patch in self.patches])
 
     def blend(
@@ -273,12 +205,7 @@ class WeightedBlendLightPatch(
             return animation.validate_frame(
                 device, np.zeros((device.led_count, 3), dtype=np.float32)
             )
-        if len(state.weights) != len(frames):
-            raise ValueError('Blend state weights must match the number of frames')
-        total = np.zeros((device.led_count, 3), dtype=np.float32)
-        for frame, weight in zip(frames, state.weights, strict=True):
-            total += animation.validate_frame(device, frame) * weight
-        return animation.validate_frame(device, np.clip(total, 0.0, 1.0))
+        return compositions.mix_frames(device, frames, state.weights)
 
     def set_weight(self, index: int, value: float) -> None:
         if value < 0:
@@ -393,16 +320,3 @@ class ConcatLightPatch(Patch[ConcatLightPatchConfig, ConcatLightPatchState]):
             )
             start = end
         return frames
-
-
-def add_light_frames(
-    device: animation.Device, frames: list[NDArray[np.float32]]
-) -> NDArray[np.float32]:
-    if not frames:
-        return animation.validate_frame(
-            device, np.zeros((device.led_count, 3), dtype=np.float32)
-        )
-    total = np.zeros_like(animation.validate_frame(device, frames[0]))
-    for frame in frames:
-        total += animation.validate_frame(device, frame)
-    return np.clip(total, 0.0, 1.0)

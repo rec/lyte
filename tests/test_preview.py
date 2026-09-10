@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lyte.animations import bibliopixel
+from lyte.animations.patterns import color_fill
 from lyte.preview import document
 from lyte.preview.layout import Layout
 
@@ -46,7 +46,7 @@ class PreviewTests(unittest.TestCase):
 
     def test_animation_document_embeds_base64_frames(self) -> None:
         html = document.animation_document(
-            bibliopixel.ColorFill(color=(1, 2, 3)),
+            color_fill.ColorFill(color=(1, 2, 3)),
             Layout(name='preview', dims=[1, 2]),
             fps=2,
             duration=1,
@@ -75,7 +75,7 @@ class PreviewTests(unittest.TestCase):
             path = Path(directory) / 'preview.html'
 
             document.render_animation_html(
-                bibliopixel.ColorFill(color=(1, 2, 3)),
+                color_fill.ColorFill(color=(1, 2, 3)),
                 Layout(coords=[[0.0, 0.0]]),
                 path,
                 fps=1,
