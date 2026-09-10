@@ -708,14 +708,14 @@ def build_layer_animation(layer: LayerSpec) -> animation.Animation:
     color = (layer.color[0], layer.color[1], layer.color[2])
     rgb = animation.rgb_from_float_color(color)
     if layer.kind == 'solid':
-        return color_fill.ColorFill(color=rgb)
+        return color_fill.ColorFill(color=list(rgb))
     if layer.kind == 'random_walk':
         return RandomWalk(
             speed=layer.speed,
-            color=(color[0] * 255, color[1] * 255, color[2] * 255),
+            color=[color[0] * 255, color[1] * 255, color[2] * 255],
         )
     if layer.kind == 'twinkle':
-        return twinkle.Twinkle(colors=(rgb,), speed=round(layer.speed))
+        return twinkle.Twinkle(colors=[list(rgb)], speed=round(layer.speed))
     if layer.kind == 'chase':
-        return color_chase.ColorChase(color=rgb, step=max(1, round(layer.speed)))
+        return color_chase.ColorChase(color=list(rgb), step=max(1, round(layer.speed)))
     return rainbow.Rainbow(step=max(1, round(layer.speed)))

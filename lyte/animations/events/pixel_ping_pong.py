@@ -4,12 +4,11 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ... import animation
 from ...animation import Family
-from ..colors import RGB
-from ..validators import resolve_end, validate_rgb
+from ..validators import resolve_end
 
 
 class PixelPingPongState(animation.State):
@@ -18,22 +17,8 @@ class PixelPingPongState(animation.State):
     positive: bool = True
 
 
-class PixelPingPong(animation.Animation[PixelPingPongState], frozen=True):
+class PixelPingPong(effects.PixelPingPong, animation.Animation[PixelPingPongState]):
     family: ClassVar[Family] = Family.EVENTS
-
-    color: RGB = (255, 255, 255)
-    max_led: int | None = None
-    total_pixels: int = 1
-    fade_delay: int = 1
-
-    @model_validator(mode='after')
-    def validate_pixel_ping_pong(self) -> PixelPingPong:
-        validate_rgb(self.color)
-        if self.total_pixels < 1:
-            raise ValueError('total_pixels must be at least 1')
-        if self.fade_delay < 1:
-            raise ValueError('fade_delay must be at least 1')
-        return self
 
     def initial_state(self, device: animation.Device) -> PixelPingPongState:
         return PixelPingPongState(

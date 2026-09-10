@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State
 from ..patterns.hamiltonian import FloatRGB, frame_array, interpolate
@@ -22,36 +23,20 @@ class RandomWalkState(State):
     total_pixels: float = 0
 
 
-class RandomWalk(Animation[RandomWalkState], frozen=True):
+class RandomWalk(effects.RandomWalk, Animation[RandomWalkState]):
     family: ClassVar[Family] = Family.SIMULATIONS
-
-    speed: float = 10
-    variance: float = 1
-    bounds: tuple[float, float] = (0, 180)
-    color: FloatRGB | None = None
-    period: float = 0
-    pre_fill: bool = False
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_random_walk(self) -> RandomWalk:
-        if self.speed < 0:
-            raise ValueError('speed must not be negative')
-        if self.variance < 0:
-            raise ValueError('variance must not be negative')
-        low, high = self.bounds
-        if low >= high:
-            raise ValueError('bounds must be ordered low, high')
-        if self.period * self.speed == 1:
-            raise ValueError('period * speed must not equal 1')
-        return self
 
     def initial_state(self, device: Device) -> RandomWalkState:
         generator = random.Random(self.seed)
         low, high = self.bounds
+        initial_color = (
+            (self.color[0], self.color[1], self.color[2])
+            if self.color is not None
+            else random_color(generator, low, high)
+        )
         state = RandomWalkState(
             cache=[(0.0, 0.0, 0.0)] * (device.led_count + 1),
-            next_color=self.color or random_color(generator, low, high),
+            next_color=initial_color,
             period=self.period * self.speed,
             random=generator,
         )
@@ -114,7 +99,7 @@ def random_color(generator: random.Random, low: float, high: float) -> FloatRGB:
 def perturb(
     component: float,
     variance: float,
-    bounds: tuple[float, float],
+    bounds: Sequence[float],
     generator: random.Random,
 ) -> float:
     if not variance:

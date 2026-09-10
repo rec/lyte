@@ -1,109 +1,76 @@
 from __future__ import annotations
 
-import importlib
 import io
 import json
-import tempfile
-import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from lyte.animations.patterns import color_fill
+from lyte.preview import command
 
 
-def preview_data(document: str) -> dict[str, object]:
-    start = document.index('const data = ') + len('const data = ')
-    end = document.index(';\nconst canvas', start)
-    return json.loads(document[start:end])
+def preview_data(value: str) -> dict[str, object]:
+    start = value.index('const data = ') + len('const data = ')
+    end = value.index(';\nconst canvas', start)
+    return json.loads(value[start:end])
 
 
-class PreviewCommandTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.script = importlib.import_module('lyte.preview.command')
+def test_parse_args_selects_a_library_score() -> None:
+    args = command.parse_args(
+        [
+            'examples:/composition.toml',
+            'preview.html',
+            '--library-config',
+            'examples/library.toml',
+        ]
+    )
 
-    def test_parse_args_builds_preview_animation(self) -> None:
-        with patch(
-            'sys.argv',
-            [
-                'lyte',
-                'color_fill',
-                'preview.html',
-                '--color',
-                '1',
-                '2',
-                '3',
-            ],
-        ):
-            args = self.script.parse_args()
+    assert args.selector == 'examples:/composition.toml'
+    assert args.output == Path('preview.html')
+    assert args.library_config == Path('examples/library.toml')
+    assert args.led_size == 1.0
 
-        animation = self.script.build.build_animation(args.animation_config)
 
-        self.assertIsInstance(animation, color_fill.ColorFill)
-        self.assertEqual(args.output, Path('preview.html'))
-        self.assertEqual(args.width, 16)
-        self.assertEqual(args.height, 16)
-        self.assertEqual(args.spacing, 1.0)
-        self.assertEqual(args.led_size, 1.0)
+def test_main_without_arguments_lists_ready_animation_scores() -> None:
+    output = io.StringIO()
 
-    def test_main_without_arguments_prints_patterns(self) -> None:
-        output = io.StringIO()
+    with (
+        patch('sys.argv', ['lyte', '--library-config', 'examples/library.toml']),
+        patch('sys.stdout', output),
+        patch.object(command, 'render_animation_html') as render_animation_html,
+    ):
+        result = command.main()
 
-        with (
-            patch('sys.argv', ['lyte']),
-            patch('sys.stdout', output),
-            patch.object(self.script, 'render_animation_html') as render_animation_html,
-        ):
-            result = self.script.main()
+    assert result == 0
+    assert 'composition\n' in output.getvalue()
+    assert 'aurora\n' in output.getvalue()
+    render_animation_html.assert_not_called()
 
-        self.assertEqual(result, 0)
-        self.assertIn('color_fill\n', output.getvalue())
-        self.assertIn('rainbow\n', output.getvalue())
-        self.assertNotIn('off\n', output.getvalue())
-        self.assertNotIn('random\n', output.getvalue())
-        render_animation_html.assert_not_called()
 
-    def test_animation_config_keeps_layout_width_out_of_animation(self) -> None:
-        with patch(
-            'sys.argv',
-            ['lyte', 'color_chase', 'preview.html', '--width', '24'],
-        ):
-            args = self.script.parse_args()
+def test_family_listing_uses_effect_metadata() -> None:
+    output = io.StringIO()
 
-        self.assertEqual(args.width, 24)
-        self.assertEqual(args.animation_config.width, 1)
+    with patch('sys.stdout', output):
+        command.print_preview_scores(Path('examples/library.toml'), 'fields')
 
-    def test_main_writes_preview_without_layout_file(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / 'preview.html'
-            with patch(
-                'sys.argv',
-                [
-                    'lyte',
-                    'color_fill',
-                    str(output),
-                    '--width',
-                    '2',
-                    '--height',
-                    '1',
-                    '--duration',
-                    '1',
-                    '--fps',
-                    '1',
-                    '--name',
-                    'Preview',
-                    '--led-size',
-                    '2.5',
-                    '--open',
-                ],
-            ):
-                with patch.object(self.script.webbrowser, 'open') as open_browser:
-                    result = self.script.main()
+    assert output.getvalue().splitlines() == ['aurora']
 
-            data = preview_data(output.read_text())
 
-        self.assertEqual(result, 0)
-        self.assertEqual(data['name'], 'Preview')
-        self.assertEqual(data['coords'], [[0.0, 0.0], [1.0, 0.0]])
-        self.assertEqual(data['ledSize'], 2.5)
-        open_browser.assert_called_once_with(output.resolve().as_uri())
+def test_main_writes_preview_from_authored_layout(tmp_path: Path) -> None:
+    output = tmp_path / 'preview.html'
+    result = command.run_preview(
+        command.PreviewConfig(
+            selector='examples:/composition.toml',
+            output=output,
+            library_config=Path('examples/library.toml'),
+            duration=0.05,
+            name='Preview',
+            led_size=2.5,
+        )
+    )
+
+    data = preview_data(output.read_text())
+
+    assert result == 0
+    assert data['name'] == 'Preview'
+    assert len(data['coords']) == 250
+    assert data['ledSize'] == 2.5

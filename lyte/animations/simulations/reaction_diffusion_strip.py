@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import random
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import Field, model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State
 from .. import numerical
-from ..colors import RGB
 
 
 class ReactionDiffusionStripState(State):
@@ -18,23 +17,10 @@ class ReactionDiffusionStripState(State):
     step_credit: float = 0
 
 
-class ReactionDiffusionStrip(Animation[ReactionDiffusionStripState], frozen=True):
+class ReactionDiffusionStrip(
+    effects.ReactionDiffusionStrip, Animation[ReactionDiffusionStripState]
+):
     family: ClassVar[Family] = Family.SIMULATIONS
-
-    palette: list[RGB] = Field(default_factory=lambda: list(numerical.REACTION_PALETTE))
-    activator_diffusion: float = Field(default=0.16, gt=0)
-    inhibitor_diffusion: float = Field(default=0.08, gt=0)
-    feed_rate: float = Field(default=0.035, gt=0)
-    kill_rate: float = Field(default=0.06, gt=0)
-    steps_per_second: float = Field(default=80.0, gt=0)
-    boundary_mode: Literal['bounded', 'ring'] = 'ring'
-    speed: float = Field(default=1.0, ge=0)
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_reaction_diffusion_strip(self) -> ReactionDiffusionStrip:
-        numerical.validate_palette(self.palette)
-        return self
 
     def initial_state(self, device: Device) -> ReactionDiffusionStripState:
         generator = random.Random(self.seed)

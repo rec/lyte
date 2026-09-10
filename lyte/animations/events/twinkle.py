@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
-from ..colors import DEFAULT_PATTERN, RGB, scale_color
-from ..validators import validate_palette
+from ..colors import RGB, scale_color
 
 
 class TwinklePixel(BaseModel):
@@ -23,19 +24,8 @@ class TwinkleState(State):
     random: random.Random
 
 
-class Twinkle(Animation[TwinkleState], frozen=True):
+class Twinkle(effects.Twinkle, Animation[TwinkleState]):
     family: ClassVar[Family] = Family.EVENTS
-
-    colors: tuple[RGB, ...] = DEFAULT_PATTERN
-    density: int = 20
-    speed: int = 2
-    max_bright: int = 255
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_twinkle(self) -> Twinkle:
-        validate_palette(self.colors)
-        return self
 
     @property
     def bounded_speed(self) -> int:
@@ -77,7 +67,7 @@ class Twinkle(Animation[TwinkleState], frozen=True):
 
 def pick_twinkle_led(
     state: TwinkleState,
-    colors: tuple[RGB, ...],
+    colors: Sequence[Sequence[int]],
     density: int,
     speed: int,
 ) -> None:
@@ -85,5 +75,6 @@ def pick_twinkle_led(
     pixel = state.pixels[index]
     if state.random.randrange(0, 100) < density and pixel.direction == 0:
         pixel.direction = 1
-        pixel.color = state.random.choice(colors)
+        color = state.random.choice(colors)
+        pixel.color = color[0], color[1], color[2]
         pixel.level += speed

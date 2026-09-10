@@ -5,11 +5,11 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
 from ..colors import wheel_color
-from ..validators import resolve_end, validate_step
+from ..validators import resolve_end
 
 
 class HalvesRainbowState(State):
@@ -18,20 +18,8 @@ class HalvesRainbowState(State):
     position: int = 0
 
 
-class HalvesRainbow(Animation[HalvesRainbowState], frozen=True):
+class HalvesRainbow(effects.HalvesRainbow, Animation[HalvesRainbowState]):
     family: ClassVar[Family] = Family.FIELDS
-
-    max_led: int | None = None
-    center_out: bool = True
-    rainbow_inc: int = 4
-    step: int = 1
-
-    @model_validator(mode='after')
-    def validate_halves_rainbow(self) -> HalvesRainbow:
-        validate_step(self.step)
-        if self.rainbow_inc < 0:
-            raise ValueError('rainbow_inc must not be negative')
-        return self
 
     def initial_state(self, device: Device) -> HalvesRainbowState:
         return HalvesRainbowState(

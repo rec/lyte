@@ -5,36 +5,18 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
-from ..colors import RGB
-from ..validators import resolve_end, validate_palette, validate_span, validate_start
+from ..validators import resolve_end, validate_span
 
 
 class FireFliesState(State):
     random: random.Random
 
 
-class FireFlies(Animation[FireFliesState], frozen=True):
+class FireFlies(effects.FireFlies, Animation[FireFliesState]):
     family: ClassVar[Family] = Family.EVENTS
-
-    colors: tuple[RGB, ...] = ((255, 0, 0),)
-    width: int = 1
-    count: int = 1
-    start: int = 0
-    end: int | None = None
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_fire_flies(self) -> FireFlies:
-        validate_palette(self.colors)
-        if self.width < 1:
-            raise ValueError('width must be at least 1')
-        if self.count < 1:
-            raise ValueError('count must be at least 1')
-        validate_start(self.start)
-        return self
 
     def initial_state(self, device: Device) -> FireFliesState:
         validate_span(

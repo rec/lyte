@@ -4,34 +4,18 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
 from .. import validators
-from ..colors import RGB
 
 
 class ColorChaseState(State):
     position: int = 0
 
 
-class ColorChase(Animation[ColorChaseState], frozen=True):
+class ColorChase(effects.ColorChase, Animation[ColorChaseState]):
     family: ClassVar[Family] = Family.EVENTS
-
-    color: RGB = (255, 0, 0)
-    width: int = 1
-    start: int = 0
-    end: int | None = None
-    step: int = 1
-
-    @model_validator(mode='after')
-    def validate_color_chase(self) -> ColorChase:
-        validators.validate_rgb(self.color)
-        validators.validate_step(self.step)
-        if self.width < 1:
-            raise ValueError('width must be at least 1')
-        validators.validate_start(self.start)
-        return self
 
     def initial_state(self, device: Device) -> ColorChaseState:
         validators.validate_span(

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ... import animation
 from ...animation import Family
@@ -26,24 +27,8 @@ class SearchlightsState(animation.State):
     tail: int = 1
 
 
-class Searchlights(animation.Animation[SearchlightsState], frozen=True):
+class Searchlights(effects.Searchlights, animation.Animation[SearchlightsState]):
     family: ClassVar[Family] = Family.EVENTS
-
-    colors: tuple[RGB, ...] = SEARCHLIGHT_COLORS
-    tail: int = 5
-    start: int = 0
-    end: int | None = None
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_searchlights(self) -> Searchlights:
-        validators.validate_palette(self.colors)
-        if len(self.colors) < 3:
-            raise ValueError('colors must contain at least three colors')
-        if self.tail < 0:
-            raise ValueError('tail must not be negative')
-        validators.validate_start(self.start)
-        return self
 
     def initial_state(self, device: animation.Device) -> SearchlightsState:
         validators.validate_span(
@@ -84,7 +69,9 @@ class Searchlights(animation.Animation[SearchlightsState], frozen=True):
         return frame
 
 
-def blend_float_color(frame: NDArray[np.float32], index: int, color: RGB) -> None:
+def blend_float_color(
+    frame: NDArray[np.float32], index: int, color: Sequence[int]
+) -> None:
     if 0 <= index < len(frame):
         byte_frame = animation.byte_light_frame_from_float(frame[index : index + 1])
         blended = ((byte_frame[0].astype(np.uint16) + np.array(color)) // 2).astype(

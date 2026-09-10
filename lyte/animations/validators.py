@@ -1,8 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Protocol
-
-from .colors import RGB
 
 
 class RainbowStateLike(Protocol):
@@ -35,13 +34,13 @@ def validate_step(step: int) -> None:
         raise ValueError('step must be at least 1')
 
 
-def validate_rgb(color: RGB) -> None:
+def validate_rgb(color: Sequence[int]) -> None:
     for component in color:
         if component < 0 or component > 255:
             raise ValueError('RGB values must be between 0 and 255')
 
 
-def validate_palette(colors: tuple[RGB, ...]) -> None:
+def validate_palette(colors: Sequence[Sequence[int]]) -> None:
     if not colors:
         raise ValueError('colors must not be empty')
     for color in colors:

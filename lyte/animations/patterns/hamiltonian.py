@@ -8,6 +8,7 @@ from typing import ClassVar
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, PrivateAttr, model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State
 
@@ -82,25 +83,8 @@ class HamiltonianState(State):
     total_pixels: float = 0
 
 
-class Hamiltonian(Animation[HamiltonianState], frozen=True):
+class Hamiltonian(effects.Hamiltonian, Animation[HamiltonianState]):
     family: ClassVar[Family] = Family.PATTERNS
-
-    speed: float = 25
-    n: int = 8
-    order: str | int = 'rgb'
-    inverted: str = ''
-    pre_fill: bool = False
-
-    @model_validator(mode='after')
-    def validate_hamiltonian(self) -> Hamiltonian:
-        if self.speed < 0:
-            raise ValueError('speed must not be negative')
-        HamiltonianCounter(
-            n=self.n,
-            order=self.order,
-            inverted=self.inverted,
-        )
-        return self
 
     def initial_state(self, device: Device) -> HamiltonianState:
         counter = HamiltonianCounter(

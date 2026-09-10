@@ -4,6 +4,7 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State
 
@@ -12,10 +13,8 @@ class RandomizeState(State):
     generator: np.random.Generator
 
 
-class Randomize(Animation[RandomizeState], frozen=True):
+class Randomize(effects.Randomize, Animation[RandomizeState]):
     family: ClassVar[Family] = Family.SIMULATIONS
-
-    seed: int | None = None
 
     def initial_state(self, device: Device) -> RandomizeState:
         return RandomizeState(generator=np.random.default_rng(self.seed))

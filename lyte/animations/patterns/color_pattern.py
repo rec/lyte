@@ -4,30 +4,17 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
-from ..colors import DEFAULT_PATTERN, RGB
-from ..validators import validate_palette
 
 
 class ColorPatternState(State):
     offset: int = 0
 
 
-class ColorPattern(Animation[ColorPatternState], frozen=True):
+class ColorPattern(effects.ColorPattern, Animation[ColorPatternState]):
     family: ClassVar[Family] = Family.PATTERNS
-
-    colors: tuple[RGB, ...] = DEFAULT_PATTERN
-    width: int = 1
-    reverse: bool = False
-
-    @model_validator(mode='after')
-    def validate_color_pattern(self) -> ColorPattern:
-        validate_palette(self.colors)
-        if self.width < 1:
-            raise ValueError('width must be at least 1')
-        return self
 
     def initial_state(self, device: Device) -> ColorPatternState:
         return ColorPatternState()

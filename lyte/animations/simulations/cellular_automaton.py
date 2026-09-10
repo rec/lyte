@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import math
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import Field, model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State
 from .. import numerical
-from ..colors import RGB
 
 
 class CellularAutomatonState(State):
@@ -18,22 +17,8 @@ class CellularAutomatonState(State):
     generation_credit: float = 0
 
 
-class CellularAutomaton(Animation[CellularAutomatonState], frozen=True):
+class CellularAutomaton(effects.CellularAutomaton, Animation[CellularAutomatonState]):
     family: ClassVar[Family] = Family.SIMULATIONS
-
-    palette: list[RGB] = Field(default_factory=lambda: list(numerical.CELLULAR_PALETTE))
-    rule: int = Field(default=110, ge=0, le=255)
-    initial_density: float = Field(default=0.25, ge=0, le=1)
-    generation_rate: float = Field(default=10.0, gt=0)
-    history_decay: float = Field(default=1.8, gt=0)
-    boundary_mode: Literal['bounded', 'ring'] = 'ring'
-    speed: float = Field(default=1.0, ge=0)
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_cellular_automaton(self) -> CellularAutomaton:
-        numerical.validate_palette(self.palette)
-        return self
 
     def initial_state(self, device: Device) -> CellularAutomatonState:
         generator = np.random.default_rng(self.seed)

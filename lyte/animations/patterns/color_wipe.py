@@ -4,11 +4,10 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
 from .. import validators
-from ..colors import RGB
 
 
 class ColorWipeState(State):
@@ -16,20 +15,8 @@ class ColorWipeState(State):
     position: int = 0
 
 
-class ColorWipe(Animation[ColorWipeState], frozen=True):
+class ColorWipe(effects.ColorWipe, Animation[ColorWipeState]):
     family: ClassVar[Family] = Family.PATTERNS
-
-    color: RGB = (255, 0, 0)
-    start: int = 0
-    end: int | None = None
-    step: int = 1
-
-    @model_validator(mode='after')
-    def validate_color_wipe(self) -> ColorWipe:
-        validators.validate_rgb(self.color)
-        validators.validate_step(self.step)
-        validators.validate_start(self.start)
-        return self
 
     def initial_state(self, device: Device) -> ColorWipeState:
         validators.validate_span(

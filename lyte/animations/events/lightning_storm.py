@@ -6,11 +6,9 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import Field, model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
-from ..colors import RGB
-from ..validators import validate_rgb
 
 
 class LightningStormState(State):
@@ -20,21 +18,8 @@ class LightningStormState(State):
     burst_remaining: int = 0
 
 
-class LightningStorm(Animation[LightningStormState], frozen=True):
+class LightningStorm(effects.LightningStorm, Animation[LightningStormState]):
     family: ClassVar[Family] = Family.EVENTS
-
-    color: RGB = (200, 220, 255)
-    flash_rate: float = Field(default=0.35, gt=0)
-    maximum_burst: int = Field(default=4, gt=0)
-    branch_width: float = Field(default=5.0, gt=0)
-    afterglow: float = Field(default=8.0, gt=0)
-    speed: float = Field(default=1.0, ge=0)
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_lightning_storm(self) -> LightningStorm:
-        validate_rgb(self.color)
-        return self
 
     def initial_state(self, device: Device) -> LightningStormState:
         return LightningStormState(

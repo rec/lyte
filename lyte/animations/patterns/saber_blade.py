@@ -4,11 +4,9 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
-from ..colors import RGB
-from ..validators import validate_palette
 
 
 class SaberBladeState(State):
@@ -17,18 +15,8 @@ class SaberBladeState(State):
     speed: int
 
 
-class SaberBlade(Animation[SaberBladeState], frozen=True):
+class SaberBlade(effects.SaberBlade, Animation[SaberBladeState]):
     family: ClassVar[Family] = Family.PATTERNS
-
-    colors: tuple[RGB, ...] = ((255, 0, 0),)
-    speed: int = 1
-
-    @model_validator(mode='after')
-    def validate_saber_blade(self) -> SaberBlade:
-        validate_palette(self.colors)
-        if self.speed == 0:
-            raise ValueError('speed must not be zero')
-        return self
 
     def initial_state(self, device: Device) -> SaberBladeState:
         return SaberBladeState(speed=self.speed)

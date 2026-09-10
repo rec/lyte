@@ -8,17 +8,18 @@ Start with a read-only device check:
 lyte diagnostic
 ```
 
-Play an ordinary animation:
+Validate and play a registered Ufor light score:
 
 ```sh
-lyte animate hamiltonian --speed 80
+lyte show examples:/composition.toml --library-config examples/library.toml
+lyte animate examples:/composition.toml --library-config examples/library.toml
 ```
 
-Generate a hardware-free preview when choosing an effect:
+List registered animation scores or generate a hardware-free preview:
 
 ```sh
-lyte preview
-lyte preview rainbow preview.html
+lyte preview --library-config examples/library.toml
+lyte preview examples:/composition.toml preview.html --library-config examples/library.toml
 ```
 
 Use `lyte patch list` to inspect the wearable patch catalogue. For an
@@ -28,6 +29,12 @@ an interactive command; it requests a bounded blackout before returning.
 Direct Twinkly commands assume one discoverable device on the local network.
 Leave their host options unset unless that assumption stops being true. Mixed
 installation targets always require explicit host addresses in their TOML.
+
+The default Ufor library configuration is
+`~/.config/ufor/library.toml`. An explicit `--library-config` replaces it.
+Selectors are literal and may use a library name, score name, tags, or address.
+Lyte logs rejected and blocked library entries but can still play an unrelated
+ready score.
 
 ## Daemon Operation
 
@@ -101,6 +108,11 @@ real installation hardware. Copy it to an installation-specific file, replace
 the addresses, and replace every DMX category and pattern value with the
 fixture manual's actual profile.
 
+The file's `library_config` is resolved relative to the installation file.
+Each pixel program selects a Ufor score, named light output, public parameter
+overrides, and optional wiring order. Keep installation TOML outside registered
+score roots so Ufor does not discover it as a score.
+
 Run a configured installation in the foreground:
 
 ```sh
@@ -165,19 +177,13 @@ The two Hamiltonian checks are intentionally optional and remain skipped unless
 their opt-in environment setting is supplied.
 
 Treat the patch TOML files as executable configuration: validate them through
-`lyte patch list` or the test suite after editing. `lyte show` validates a show
-file only; it is not a command for operating lights.
+`lyte patch list` or the test suite after editing. `lyte show` resolves one
+Ufor selector and validates the complete renderer graph; it does not operate
+lights.
 
-Animation import paths now use `lyte.animations.patterns`, `fields`, `events`,
-`simulations`, and `compositions`. Update locally authored show and installation
-files that reference the former `bibliopixel`, `christmas`, or `one_d` paths.
-For example, `lyte.animations.fields.rainbow.Rainbow` names the rainbow field.
-
-`examples/composition.toml` demonstrates segments, a mirrored child, and a timed
-crossfade. Use `lyte preview composition preview.html --composition-file
-examples/composition.toml --width 250 --height 1` to render that graph without
-hardware. `lyte animate composition --composition-file examples/composition.toml
---duration 10` plays it on a 250-LED string. Compositions use seconds for timing
-and nonnegative gain/weights; existing generator colors and motion parameters
-retain their prior units. Wearable patch colors are converted from normalized
-RGB to the generator's byte color arguments when constructing each layer.
+`examples/library.toml` registers `examples/scores/`.
+`examples/scores/composition.toml` demonstrates named placement, a reversed
+child, and timed cues over an explicit 250-light layout. Use the preview and
+animate commands from Normal Operation to exercise exactly the same prepared
+graph. Score files contain Ufor descriptions and references, never Lyte Python
+implementation paths.

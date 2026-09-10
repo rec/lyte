@@ -5,11 +5,9 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
-from ..colors import RGB
-from ..validators import validate_palette
 
 
 class RainState(State):
@@ -18,19 +16,8 @@ class RainState(State):
     wait: float = 0
 
 
-class Rain(Animation[RainState], frozen=True):
+class Rain(effects.Rain, Animation[RainState]):
     family: ClassVar[Family] = Family.EVENTS
-
-    colors: tuple[RGB, ...] = ((70, 70, 70), (35, 35, 35), (80, 20, 20), (20, 80, 20))
-    rate: float = 10
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_rain(self) -> Rain:
-        validate_palette(self.colors)
-        if self.rate <= 0:
-            raise ValueError('rate must be greater than zero')
-        return self
 
     def initial_state(self, device: Device) -> RainState:
         return RainState(

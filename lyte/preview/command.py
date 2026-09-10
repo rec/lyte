@@ -1,47 +1,49 @@
-"""Render a Lyte animation to a standalone HTML preview."""
+"""Render a Ufor light score to a standalone HTML preview."""
 
 import sys
 import webbrowser
 from collections.abc import Sequence
-from typing import cast
+from pathlib import Path
 
 import tyro
+from ufor import effects, library_files
+from ufor.light_animation import AnimationScore
 
-from ..animate import build, config
-from ..animation import Family
-from .config import PREVIEW_ANIMATIONS, PreviewConfig
+from .. import show
+from .config import PreviewConfig
 from .document import render_animation_html
-from .layout import Layout
-from .validation import validate_args
 
 
 def main() -> int:
-    args = parse_args()
-    return run_preview(args)
+    return run_preview(parse_args())
 
 
 def run_preview(args: PreviewConfig) -> int:
-    if args.animation is None and args.output is None:
-        print_preview_patterns(args.family)
+    if args.selector is None and args.output is None:
+        print_preview_scores(args.library_config, args.family)
         return 0
-    if args.animation is None or args.output is None:
-        sys.exit('preview requires both animation and output')
+    if args.selector is None or args.output is None:
+        sys.exit('preview requires both selector and output')
     if args.family is not None:
-        sys.exit('--family is only used when listing animations')
-    validate_args(args)
-    layout = Layout(
-        name=args.name or args.animation,
-        dims=[args.height, args.width],
-        spacing=args.spacing,
+        sys.exit('--family is only used when listing scores')
+    if args.duration <= 0:
+        sys.exit('--duration must be greater than zero')
+    if args.led_size <= 0:
+        sys.exit('--led-size must be greater than zero')
+    prepared = show.prepare_animation(
+        show.LightProgramSpec(
+            selector=args.selector,
+            output=args.light_output,
+            parameters=args.parameters,
+        ),
+        args.library_config,
     )
-    animation = build.build_animation(args.animation_config)
     render_animation_html(
-        animation,
-        layout,
+        prepared,
         args.output,
-        fps=args.fps,
         duration=args.duration,
         led_size=args.led_size,
+        name=args.name,
     )
     if args.open:
         webbrowser.open(args.output.resolve().as_uri())
@@ -52,20 +54,21 @@ def parse_args(args: Sequence[str] | None = None) -> PreviewConfig:
     return tyro.cli(PreviewConfig, args=args)
 
 
-def print_preview_patterns(family: Family | None = None) -> None:
-    for name in PREVIEW_ANIMATIONS:
-        if family is None:
-            print(name)
-        elif name == 'composition':
-            if family == Family.COMPOSITIONS:
-                print(name)
-        elif (
-            build.build_animation(
-                config.AnimateConfig(animation=cast(config.AnimationName, name))
-            ).family
-            == family
-        ):
-            print(name)
+def print_preview_scores(
+    library_config: Path | None = None, family: str | None = None
+) -> None:
+    library = library_files.read_library(library_config)
+    show.log_diagnostics(library)
+    for entry in library.find():
+        score = entry.resolved
+        if not isinstance(score, AnimationScore):
+            continue
+        operation = score.body.operation
+        score_family = (
+            operation.family if isinstance(operation, effects.Effect) else 'composition'
+        )
+        if family is None or family == score_family:
+            print(entry.name or entry.key)
 
 
 if __name__ == '__main__':

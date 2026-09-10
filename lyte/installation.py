@@ -7,6 +7,7 @@ import time
 import tomllib
 from collections.abc import Callable
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 from typing import Annotated, Literal, Protocol, cast
 
@@ -15,8 +16,11 @@ import tyro
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, SkipValidation, ValidationError
 from reccy.runtime import logging
+from ufor import library_files
+from ufor.library import Library
+from ufor.lights import Interpretation
 
-from . import animation, artnet, dmx, show
+from . import animation, artnet, dmx, rendering, show
 from .retry import RetryConfig
 from .twinkly import track
 from .twinkly.client import TwinklyClient
@@ -53,11 +57,8 @@ class DmxTargetSpec(dmx.DmxInstrument, frozen=True):
     fps: float = Field(default=40.0, gt=0)
 
 
-class PixelProgramSpec(InstallationDefinition, frozen=True):
+class PixelProgramSpec(show.LightProgramSpec, frozen=True):
     kind: Literal['pixel'] = 'pixel'
-    impl: str = Field(min_length=1)
-    sources: list[str] = Field(default_factory=list)
-    params: dict[str, object] = Field(default_factory=dict)
 
 
 class DmxProgramSpec(dmx.DmxValues, frozen=True):
@@ -72,6 +73,7 @@ class InstallationRunSpec(InstallationDefinition, frozen=True):
 
 
 class InstallationFile(InstallationDefinition, frozen=True):
+    library_config: Path | None = None
     artnet_endpoint: artnet.ArtNetEndpoint | None = None
     twinkly_targets: dict[str, TwinklyTargetSpec] = Field(default_factory=dict)
     dmx_targets: dict[str, DmxTargetSpec] = Field(default_factory=dict)
@@ -123,20 +125,20 @@ class InstallationRuntime(BaseModel):
 
 class PixelRenderer:
     def __init__(
-        self,
-        source: animation.Animation,
-        device: animation.Device,
-        state: animation.State,
+        self, prepared: rendering.PreparedAnimation, output_fps: float
     ) -> None:
-        self.source = source
-        self.device = device
-        self.state = state
+        self.prepared = prepared
+        self.tick_ratio = prepared.rate / Fraction(str(output_fps))
+        self.frame_count = 0
+        self.current: NDArray[np.uint8] | None = None
 
     def __call__(self) -> NDArray[np.uint8]:
-        frame = animation.validate_frame(
-            self.device, self.source.render(self.device, self.state)
-        )
-        return animation.byte_light_frame_from_float(frame)
+        logical_tick = int(self.frame_count * self.tick_ratio)
+        while self.prepared.tick <= logical_tick:
+            self.current = self.prepared.byte_frame(wired=True)
+        self.frame_count += 1
+        assert self.current is not None
+        return self.current
 
 
 class DmxRenderer:
@@ -246,18 +248,27 @@ def load_installation(path: Path) -> InstallationFile:
     try:
         with path.open('rb') as source:
             data = tomllib.load(source)
-        return parse_installation(data)
+        config = parse_installation(data)
+        if (
+            config.library_config is not None
+            and not config.library_config.is_absolute()
+        ):
+            config = config.model_copy(
+                update={'library_config': path.parent / config.library_config}
+            )
+        return config
     except (OSError, tomllib.TOMLDecodeError, ValidationError, ValueError) as error:
         raise InstallationFileError(f'{path}: {error}') from error
 
 
 def parse_installation(data: dict[str, object]) -> InstallationFile:
-    allowed = {'artnet', 'twinkly', 'dmx', 'programs', 'run'}
+    allowed = {'library_config', 'artnet', 'twinkly', 'dmx', 'programs', 'run'}
     if unknown := sorted(set(data) - allowed):
         raise ValueError(f'unknown top-level sections: {", ".join(unknown)}')
     dmx_data = _table(data.get('dmx', {}), 'dmx')
     parsed = InstallationFile.model_validate(
         {
+            'library_config': data.get('library_config'),
             'artnet_endpoint': data.get('artnet'),
             'twinkly_targets': data.get('twinkly', {}),
             'dmx_targets': {
@@ -273,15 +284,7 @@ def parse_installation(data: dict[str, object]) -> InstallationFile:
 
 
 def build_runtime(config: InstallationFile) -> InstallationRuntime:
-    graph = show.build_show_graph(
-        show.ShowFile(
-            animations={
-                n: show.AnimationSpec(impl=p.impl, sources=p.sources, params=p.params)
-                for n, p in config.programs.items()
-                if isinstance(p, PixelProgramSpec)
-            }
-        )
-    )
+    library = _read_pixel_library(config)
     targets: list[InstallationTarget] = []
     drivers: list[OutputDriver] = []
     pixel_drivers = {
@@ -309,15 +312,20 @@ def build_runtime(config: InstallationFile) -> InstallationRuntime:
                 raise InstallationFileError(
                     f'Twinkly target {name!r} requires a pixel program'
                 )
-            source = graph.sources[run_spec.program]
-            device = animation.Device(led_count=target_spec.led_count)
-            state = source.initial_state(device)
-            state.fps = target_spec.fps
+            if library is None:
+                raise InstallationFileError('pixel programs require a Ufor library')
+            try:
+                prepared = show.prepare_library_animation(library, program_spec)
+            except ValueError as error:
+                raise InstallationFileError(
+                    f'pixel program {run_spec.program!r}: {error}'
+                ) from error
+            _validate_twinkly_program(name, target_spec, prepared)
             targets.append(
                 InstallationTarget(
                     name=name,
                     fps=target_spec.fps,
-                    render=PixelRenderer(source, device, state),
+                    render=PixelRenderer(prepared, target_spec.fps),
                     driver=pixel_drivers[name],
                 )
             )
@@ -342,6 +350,38 @@ def build_runtime(config: InstallationFile) -> InstallationRuntime:
                 )
             )
     return InstallationRuntime(targets=targets, drivers=drivers)
+
+
+def _read_pixel_library(config: InstallationFile) -> Library | None:
+    if not any(isinstance(p, PixelProgramSpec) for p in config.programs.values()):
+        return None
+    try:
+        library = library_files.read_library(config.library_config)
+    except (OSError, ValueError) as error:
+        raise InstallationFileError(str(error)) from error
+    show.log_diagnostics(library)
+    return library
+
+
+def _validate_twinkly_program(
+    name: str,
+    target: TwinklyTargetSpec,
+    prepared: rendering.PreparedAnimation,
+) -> None:
+    output = prepared.output
+    if output.components != ['red', 'green', 'blue']:
+        raise InstallationFileError(
+            f'Twinkly target {name!r} requires red, green, blue components'
+        )
+    if output.interpretation != Interpretation.drive:
+        raise InstallationFileError(
+            f'Twinkly target {name!r} requires drive light values'
+        )
+    if len(output.layout.lights) != target.led_count:
+        raise InstallationFileError(
+            f'Twinkly target {name!r} has {target.led_count} LEDs but score '
+            f'layout {output.layout.name!r} has {len(output.layout.lights)}'
+        )
 
 
 def run_runtime(

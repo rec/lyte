@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import math
 import random
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import Field, model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State
 from .. import numerical
-from ..colors import RGB
 
 
 class FireAndEmbersState(State):
@@ -18,22 +17,8 @@ class FireAndEmbersState(State):
     generator: random.Random
 
 
-class FireAndEmbers(Animation[FireAndEmbersState], frozen=True):
+class FireAndEmbers(effects.FireAndEmbers, Animation[FireAndEmbersState]):
     family: ClassVar[Family] = Family.SIMULATIONS
-
-    palette: list[RGB] = Field(default_factory=lambda: list(numerical.FIRE_PALETTE))
-    cooling: float = Field(default=1.4, gt=0)
-    diffusion: float = Field(default=4.0, ge=0)
-    spark_rate: float = Field(default=12.0, ge=0)
-    wind: float = 3.0
-    origin: Literal['start', 'end'] = 'start'
-    speed: float = Field(default=1.0, ge=0)
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_fire_and_embers(self) -> FireAndEmbers:
-        numerical.validate_palette(self.palette)
-        return self
 
     def initial_state(self, device: Device) -> FireAndEmbersState:
         return FireAndEmbersState(

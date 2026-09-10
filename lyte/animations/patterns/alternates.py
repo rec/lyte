@@ -4,29 +4,18 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State, float_color_from_rgb
-from ..colors import RGB
-from ..validators import resolve_end, validate_rgb
+from ..validators import resolve_end
 
 
 class AlternatesState(State):
     positive: bool = True
 
 
-class Alternates(Animation[AlternatesState], frozen=True):
+class Alternates(effects.Alternates, Animation[AlternatesState]):
     family: ClassVar[Family] = Family.PATTERNS
-
-    color1: RGB = (255, 255, 255)
-    color2: RGB = (0, 0, 0)
-    max_led: int | None = None
-
-    @model_validator(mode='after')
-    def validate_alternates(self) -> Alternates:
-        validate_rgb(self.color1)
-        validate_rgb(self.color2)
-        return self
 
     def initial_state(self, device: Device) -> AlternatesState:
         if resolve_end(device.led_count, self.max_led) < 0:

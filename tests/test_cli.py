@@ -24,19 +24,19 @@ class CliTests(unittest.TestCase):
             result = cli.main(
                 [
                     'animate',
-                    'rainbow',
+                    'examples:/composition.toml',
+                    '--library-config',
+                    'examples/library.toml',
                     '--duration',
                     '1.5',
-                    '--fps',
-                    '30',
                 ]
             )
 
         self.assertEqual(result, 0)
         config = run_animate.call_args.args[0]
-        self.assertEqual(config.animation, 'rainbow')
+        self.assertEqual(config.selector, 'examples:/composition.toml')
+        self.assertEqual(config.library_config, Path('examples/library.toml'))
         self.assertEqual(config.duration, 1.5)
-        self.assertEqual(config.fps, 30)
 
     def test_cli_daemon_command_dispatches_daemon(self) -> None:
         with patch.object(cli.daemon, 'run_daemon_command', return_value=0) as run:
@@ -50,10 +50,10 @@ class CliTests(unittest.TestCase):
             result = cli.main(
                 [
                     'preview',
-                    'rainbow',
+                    'examples:/composition.toml',
                     'preview.html',
-                    '--width',
-                    '24',
+                    '--library-config',
+                    'examples/library.toml',
                     '--duration',
                     '1.5',
                 ]
@@ -61,21 +61,20 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         config = run_preview.call_args.args[0]
-        self.assertEqual(config.animation, 'rainbow')
+        self.assertEqual(config.selector, 'examples:/composition.toml')
         self.assertEqual(config.output, Path('preview.html'))
-        self.assertEqual(config.width, 24)
+        self.assertEqual(config.library_config, Path('examples/library.toml'))
         self.assertEqual(config.duration, 1.5)
 
     def test_cli_preview_command_lists_patterns_without_arguments(self) -> None:
         output = io.StringIO()
 
         with patch('sys.stdout', output):
-            result = cli.main(['preview'])
+            result = cli.main(['preview', '--library-config', 'examples/library.toml'])
 
         self.assertEqual(result, 0)
-        self.assertIn('color_fill\n', output.getvalue())
-        self.assertIn('rainbow\n', output.getvalue())
-        self.assertNotIn('off\n', output.getvalue())
+        self.assertIn('composition\n', output.getvalue())
+        self.assertIn('aurora\n', output.getvalue())
 
     def test_cli_test_command_dispatches_fps_test(self) -> None:
         with patch.object(cli.fps_test, 'run_fps_test', return_value=0) as run_fps_test:
@@ -121,11 +120,19 @@ class CliTests(unittest.TestCase):
 
     def test_cli_show_command_dispatches_show_validation(self) -> None:
         with patch.object(cli.show, 'run_show', return_value=0) as run_show:
-            result = cli.main(['show', 'first.toml', 'second.toml'])
+            result = cli.main(
+                [
+                    'show',
+                    'examples:/composition.toml',
+                    '--library-config',
+                    'examples/library.toml',
+                ]
+            )
 
         self.assertEqual(result, 0)
         config = run_show.call_args.args[0]
-        self.assertEqual(config.files, [Path('first.toml'), Path('second.toml')])
+        self.assertEqual(config.selector, 'examples:/composition.toml')
+        self.assertEqual(config.library_config, Path('examples/library.toml'))
 
     def test_cli_installation_command_dispatches_runtime(self) -> None:
         with patch.object(

@@ -6,11 +6,10 @@ from typing import ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import Field, model_validator
+from ufor import effects
 
 from ...animation import Animation, Device, Family, State
 from .. import numerical
-from ..colors import RGB
 
 
 class ExpandingRipplesState(State):
@@ -21,26 +20,8 @@ class ExpandingRipplesState(State):
     spawn_credit: float = 0
 
 
-class ExpandingRipples(Animation[ExpandingRipplesState], frozen=True):
+class ExpandingRipples(effects.ExpandingRipples, Animation[ExpandingRipplesState]):
     family: ClassVar[Family] = Family.EVENTS
-
-    palette: list[RGB] = Field(default_factory=lambda: list(numerical.RIPPLE_PALETTE))
-    origins: list[float] = Field(default_factory=lambda: [0.5])
-    event_rate: float = Field(default=0.35, ge=0)
-    propagation_speed: float = Field(default=12.0, gt=0)
-    width: float = Field(default=1.8, gt=0)
-    decay: float = Field(default=0.7, gt=0)
-    speed: float = Field(default=1.0, ge=0)
-    seed: int | None = None
-
-    @model_validator(mode='after')
-    def validate_expanding_ripples(self) -> ExpandingRipples:
-        numerical.validate_palette(self.palette)
-        if not self.origins:
-            raise ValueError('origins must not be empty')
-        if any(v < 0 or v > 1 for v in self.origins):
-            raise ValueError('origins must be between zero and one')
-        return self
 
     def initial_state(self, device: Device) -> ExpandingRipplesState:
         generator = random.Random(self.seed)

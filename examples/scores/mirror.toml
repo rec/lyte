@@ -1,0 +1,558 @@
+format = "recs"
+version = 3
+name = "mirror"
+title = "Mirrored ripples"
+inputs = []
+parameters = []
+kind = "animation"
+
+[[timebases]]
+name = "frames"
+kind = "physical"
+
+[timebases.rate]
+numerator = 20
+denominator = 1
+
+[[outputs]]
+name = "light"
+
+[outputs.stream]
+family = "sampled"
+quantity = "light"
+timebase = "frames"
+components = ["red", "green", "blue"]
+interpretation = "drive"
+
+[outputs.stream.layout]
+name = "half"
+axes = ["x"]
+unit = "unitless"
+
+[[outputs.stream.layout.lights]]
+name = "light_0"
+position = [0.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_1"
+position = [1.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_2"
+position = [2.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_3"
+position = [3.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_4"
+position = [4.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_5"
+position = [5.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_6"
+position = [6.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_7"
+position = [7.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_8"
+position = [8.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_9"
+position = [9.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_10"
+position = [10.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_11"
+position = [11.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_12"
+position = [12.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_13"
+position = [13.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_14"
+position = [14.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_15"
+position = [15.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_16"
+position = [16.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_17"
+position = [17.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_18"
+position = [18.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_19"
+position = [19.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_20"
+position = [20.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_21"
+position = [21.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_22"
+position = [22.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_23"
+position = [23.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_24"
+position = [24.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_25"
+position = [25.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_26"
+position = [26.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_27"
+position = [27.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_28"
+position = [28.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_29"
+position = [29.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_30"
+position = [30.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_31"
+position = [31.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_32"
+position = [32.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_33"
+position = [33.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_34"
+position = [34.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_35"
+position = [35.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_36"
+position = [36.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_37"
+position = [37.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_38"
+position = [38.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_39"
+position = [39.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_40"
+position = [40.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_41"
+position = [41.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_42"
+position = [42.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_43"
+position = [43.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_44"
+position = [44.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_45"
+position = [45.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_46"
+position = [46.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_47"
+position = [47.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_48"
+position = [48.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_49"
+position = [49.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_50"
+position = [50.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_51"
+position = [51.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_52"
+position = [52.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_53"
+position = [53.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_54"
+position = [54.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_55"
+position = [55.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_56"
+position = [56.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_57"
+position = [57.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_58"
+position = [58.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_59"
+position = [59.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_60"
+position = [60.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_61"
+position = [61.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_62"
+position = [62.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_63"
+position = [63.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_64"
+position = [64.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_65"
+position = [65.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_66"
+position = [66.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_67"
+position = [67.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_68"
+position = [68.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_69"
+position = [69.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_70"
+position = [70.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_71"
+position = [71.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_72"
+position = [72.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_73"
+position = [73.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_74"
+position = [74.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_75"
+position = [75.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_76"
+position = [76.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_77"
+position = [77.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_78"
+position = [78.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_79"
+position = [79.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_80"
+position = [80.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_81"
+position = [81.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_82"
+position = [82.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_83"
+position = [83.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_84"
+position = [84.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_85"
+position = [85.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_86"
+position = [86.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_87"
+position = [87.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_88"
+position = [88.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_89"
+position = [89.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_90"
+position = [90.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_91"
+position = [91.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_92"
+position = [92.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_93"
+position = [93.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_94"
+position = [94.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_95"
+position = [95.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_96"
+position = [96.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_97"
+position = [97.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_98"
+position = [98.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_99"
+position = [99.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_100"
+position = [100.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_101"
+position = [101.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_102"
+position = [102.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_103"
+position = [103.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_104"
+position = [104.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_105"
+position = [105.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_106"
+position = [106.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_107"
+position = [107.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_108"
+position = [108.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_109"
+position = [109.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_110"
+position = [110.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_111"
+position = [111.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_112"
+position = [112.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_113"
+position = [113.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_114"
+position = [114.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_115"
+position = [115.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_116"
+position = [116.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_117"
+position = [117.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_118"
+position = [118.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_119"
+position = [119.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_120"
+position = [120.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_121"
+position = [121.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_122"
+position = [122.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_123"
+position = [123.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_124"
+position = [124.0]
+
+[outputs.stream.layout.regions]
+
+[outputs.binding]
+light = true
+
+[body]
+controls = []
+
+[body.operation]
+effect = "reverse"
+
+[body.operation.source]
+name = "ripple"
+output = "light"
+
+[[body.parts]]
+name = "ripple"
+
+[body.parts.score]
+path = "ripple.toml"
+
+[body.parts.parameters]
+
+[body.modulation]
+parameters = []
+sources = []
+routes = []
