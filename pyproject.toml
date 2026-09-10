@@ -15,6 +15,7 @@ dependencies = [
     "python-rtmidi>=1.5.8",
     "reccy",
     "tyro>=1.0.15",
+    "ufor @ https://github.com/rec/ufor/archive/0b88a111b9b02dd696716581dfa0cc68e8cf235c.tar.gz",
 ]
 
 [project.scripts]
