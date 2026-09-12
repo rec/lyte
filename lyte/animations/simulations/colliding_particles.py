@@ -1,3 +1,10 @@
+"""Move colored particles that reflect at the ends and exchange velocity on contact.
+
+Collision flashes and fading trails expose their paths. Ufor defines particle
+count, radius, trail decay, collision flash, palette, speed and seed;
+initial positions and velocities are seeded.
+"""
+
 from __future__ import annotations
 
 import math

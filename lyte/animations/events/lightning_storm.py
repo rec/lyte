@@ -1,3 +1,9 @@
+"""Generate irregular flashes with bright cores, dim branches and afterglow.
+
+Short bursts alternate with randomly spaced quiet intervals. Ufor defines
+color, flash rate, maximum burst size, branch width, afterglow, speed and seed.
+"""
+
 from __future__ import annotations
 
 import math
