@@ -1,3 +1,10 @@
+"""Send structured groups of pulses with headers, payloads and gaps.
+
+Successful packets can produce acknowledgements traveling in the opposite
+direction. Ufor defines direction, packet rate, length range, error rate,
+palette, speed and seed.
+"""
+
 from __future__ import annotations
 
 import random

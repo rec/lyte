@@ -1,3 +1,10 @@
+"""Spawn colored points into a persistent frame that fades exponentially.
+
+Existing points decay between spawns, producing sparse glitter or dense
+confetti. Ufor defines palette, spawn rate, decay, width, speed and seed.
+Lifetime follows the decay rate rather than a separate lifetime control.
+"""
+
 from __future__ import annotations
 
 import math

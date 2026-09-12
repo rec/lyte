@@ -1,3 +1,10 @@
+"""Maintain a one-dimensional heat field with sparks near a configurable origin.
+
+Heat diffuses along the string, cools over time and maps through a fire
+palette. Wind carries heat away from the origin. Ufor defines cooling,
+diffusion, spark rate, wind, origin, palette, speed and seed.
+"""
+
 from __future__ import annotations
 
 import math

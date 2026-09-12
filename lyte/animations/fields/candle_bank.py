@@ -1,3 +1,9 @@
+"""Divide the string into warm zones with independent low-frequency flicker.
+
+Random dips and flares avoid uniform whole-string brightness changes.
+Ufor defines zone size, color, base level, flicker, flare rate, speed and seed.
+"""
+
 from __future__ import annotations
 
 import math

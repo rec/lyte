@@ -1,3 +1,9 @@
+"""Combine slow color bands whose positions, widths and brightness vary.
+
+Nested sine motion makes the bands fold and drift at independently seeded
+rates. Ufor defines palette, band count, speed, softness, intensity and seed.
+"""
+
 from __future__ import annotations
 
 import math

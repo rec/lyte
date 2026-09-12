@@ -1,3 +1,9 @@
+"""Combine moving periodic fields into constructive and destructive interference.
+
+Slowly varying wavelengths create moire-like motion along the string.
+Ufor defines wavelengths, rates, phase offsets, palette, contrast and speed.
+"""
+
 from __future__ import annotations
 
 import math

@@ -1,3 +1,10 @@
+"""Evolve a one-dimensional elementary cellular automaton with fading history.
+
+Recent cell activity maps to a palette rather than only binary on/off values.
+Ufor defines rule, initial density, generation rate, history decay, boundary
+mode, palette, speed and seed.
+"""
+
 from __future__ import annotations
 
 import math

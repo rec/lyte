@@ -1,3 +1,10 @@
+"""Move a continuous color gradient along the string with interpolated stops.
+
+The cyclic palette uses linear or smooth interpolation and can reverse or
+pause at zero speed. Ufor defines palette, stop spacing, speed, reverse
+and interpolation.
+"""
+
 from __future__ import annotations
 
 from typing import ClassVar
