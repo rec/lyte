@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, SkipValidation, model_validat
 from reccy.runtime import logging
 
 from . import animation, midi
-from .animations import compositions
+from .animations import compositions, reactive
 from .animations.events import color_chase, twinkle
 from .animations.fields import rainbow
 from .animations.patterns import color_fill
@@ -148,7 +148,17 @@ class BindingSpec(BaseModel, frozen=True):
 
 
 class LayerSpec(BaseModel, frozen=True):
-    kind: Literal['solid', 'random_walk', 'twinkle', 'chase', 'rainbow']
+    kind: Literal[
+        'solid',
+        'random_walk',
+        'twinkle',
+        'chase',
+        'rainbow',
+        'velocity_splash',
+        'breath_bloom',
+        'pitch_bend_travel',
+        'note_age_constellation',
+    ]
     color: list[float] = [1.0, 1.0, 1.0]
     speed: float = 10.0
     regions: list[str] = []
@@ -333,7 +343,7 @@ class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
 def layer_supports_parameter(layer: LayerSpec, parameter: str) -> bool:
     if parameter in {'color', 'gain'}:
         return True
-    return parameter == 'speed' and layer.kind != 'solid'
+    return parameter == 'speed' and layer.kind not in {'solid', 'pitch_bend_travel'}
 
 
 def map_binding_value(mapping: LinearMapSpec, value: int) -> float:
@@ -355,6 +365,8 @@ def set_layer_speed(layer: midi.LightPatch, speed: float) -> None:
             source = source.model_copy(update={'speed': round(speed)})
         elif isinstance(source, color_chase.ColorChase | rainbow.Rainbow):
             source = source.model_copy(update={'step': max(1, round(speed))})
+        elif isinstance(source, reactive.ReactiveAnimation):
+            source = source.model_copy(update={'speed': speed})
         sources.append(source)
     layer.config = compositions.Segments(
         sources=sources, placements=layer.config.placements
@@ -705,6 +717,14 @@ def build_light_patch(library: PatchLibrary, name: str) -> midi.LightPatch:
 
 
 def build_layer_animation(layer: LayerSpec) -> animation.Animation:
+    if layer.kind == 'velocity_splash':
+        return reactive.VelocitySplash(speed=layer.speed, color=layer.color)
+    if layer.kind == 'breath_bloom':
+        return reactive.BreathBloom(speed=layer.speed, color=layer.color)
+    if layer.kind == 'pitch_bend_travel':
+        return reactive.PitchBendTravel(color=layer.color)
+    if layer.kind == 'note_age_constellation':
+        return reactive.NoteAgeConstellation(speed=layer.speed, color=layer.color)
     color = (layer.color[0], layer.color[1], layer.color[2])
     rgb = animation.rgb_from_float_color(color)
     if layer.kind == 'solid':

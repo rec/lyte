@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, SkipValidation, model_validator
 
 from . import animation
-from .animations import compositions
+from .animations import compositions, reactive
 
 
 class MidiInput(Protocol):
@@ -137,6 +137,9 @@ class LightPatch[ConfigT: BaseModel, StateT: BaseModel](Patch[ConfigT, StateT], 
 
 
 class RegionLightPatchState(BaseModel):
+    velocity: float = 1.0
+    breath: float = 0.0
+    pitch: float = 0.0
     device_led_count: int | None = None
     composition: SkipValidation[compositions.ChildrenState] | None = None
 
@@ -145,7 +148,16 @@ class RegionLightPatchState(BaseModel):
 
 class RegionLightPatch(LightPatch[compositions.Segments, RegionLightPatchState]):
     def make_state(self, msg: mido.Message) -> RegionLightPatchState:
-        return RegionLightPatchState()
+        return RegionLightPatchState(velocity=msg.velocity / 127)
+
+    def breath_control(self, msg: mido.Message) -> None:
+        if self.state is not None:
+            self.state.breath = msg.value / 127
+
+    def pitch_bend(self, msg: mido.Message) -> None:
+        if self.state is not None:
+            pitch = int(msg.__getattribute__('pitch'))
+            self.state.pitch = pitch / (8192 if pitch < 0 else 8191)
 
     def render(self, device: animation.Device) -> NDArray[np.float32]:
         if (state := self.state) is None:
@@ -157,6 +169,11 @@ class RegionLightPatch(LightPatch[compositions.Segments, RegionLightPatchState])
             state.composition = source.initial_state(device)
             state.device_led_count = device.led_count
         state.composition.fps = self.fps
+        for child in state.composition.states:
+            if isinstance(child, reactive.ReactiveState):
+                child.velocity = state.velocity
+                child.breath = state.breath
+                child.pitch = state.pitch
         return source.render(device, state.composition)
 
 

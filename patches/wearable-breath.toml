@@ -1,3 +1,57 @@
+# Reactive region patches use the same note lifecycle and physical mapping.
+
+[patches.velocity_splash]
+activation = "note"
+layers = ["velocity_splash"]
+note_palette = [[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0], [0.5, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.5], [0.0, 1.0, 1.0], [0.0, 0.5, 1.0], [0.0, 0.0, 1.0], [0.5, 0.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.5]]
+[[patches.velocity_splash.bindings]]
+source = "note"
+target = "velocity_splash.color"
+map = "pitch_class_palette"
+
+[layers.velocity_splash]
+kind = "velocity_splash"
+speed = 1.0
+
+[patches.breath_bloom]
+activation = "note"
+layers = ["breath_bloom"]
+note_palette = [[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0], [0.5, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.5], [0.0, 1.0, 1.0], [0.0, 0.5, 1.0], [0.0, 0.0, 1.0], [0.5, 0.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.5]]
+[[patches.breath_bloom.bindings]]
+source = "note"
+target = "breath_bloom.color"
+map = "pitch_class_palette"
+
+[layers.breath_bloom]
+kind = "breath_bloom"
+speed = 1.0
+
+[patches.pitch_bend_travel]
+activation = "note"
+layers = ["pitch_bend_travel"]
+note_palette = [[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0], [0.5, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.5], [0.0, 1.0, 1.0], [0.0, 0.5, 1.0], [0.0, 0.0, 1.0], [0.5, 0.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.5]]
+[[patches.pitch_bend_travel.bindings]]
+source = "note"
+target = "pitch_bend_travel.color"
+map = "pitch_class_palette"
+
+[layers.pitch_bend_travel]
+kind = "pitch_bend_travel"
+speed = 1.0
+
+[patches.note_age_constellation]
+activation = "note"
+layers = ["note_age_constellation"]
+note_palette = [[1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0], [0.5, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.5], [0.0, 1.0, 1.0], [0.0, 0.5, 1.0], [0.0, 0.0, 1.0], [0.5, 0.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.5]]
+[[patches.note_age_constellation.bindings]]
+source = "note"
+target = "note_age_constellation.color"
+map = "pitch_class_palette"
+
+[layers.note_age_constellation]
+kind = "note_age_constellation"
+speed = 1.0
+
 [wearable]
 led_count = 250
 physical_map_status = "guessed"

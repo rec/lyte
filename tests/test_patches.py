@@ -31,7 +31,7 @@ class PatchLibraryTests(unittest.TestCase):
     def test_load_wearable_library_and_map_logical_regions(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
 
-        self.assertEqual(len(library.patches), 32)
+        self.assertEqual(len(library.patches), 36)
         self.assertIn('random_walk', library.layers)
         self.assertEqual(library.wearable.physical_map_status, 'guessed')
         self.assertEqual(

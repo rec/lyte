@@ -170,40 +170,6 @@ Choose one region to display a short phrase of motion or color, then answer on
 another region with a transformed phrase. Seeded selection can vary the pairing
 while keeping previews and tests repeatable.
 
-## Input-Reactive Variants
-
-These should be implemented through the existing patch bindings and MIDI
-lifecycle. The animation still receives resolved state and never reads MIDI
-directly.
-
-### Velocity Splash
-
-A note-on creates a ripple whose brightness and width derive from note
-velocity. Pitch class selects the palette color.
-
-### Breath Bloom
-
-CC 2 controls the size and brightness of a persistent bloom. Releasing breath
-contracts the bloom smoothly instead of abruptly scaling a static frame.
-
-### Pitch-Bend Travel
-
-Pitch bend moves a focal point along a region or the whole logical string.
-Breath controls its tail or halo, allowing one continuous gesture to control
-both position and intensity.
-
-### Note-Age Constellation
-
-Represent the active note as a small set of points that separate and dim as the
-note ages. A later note replaces the current constellation, matching Lyte's
-current single-active-note MIDI contract.
-
-### Patch Transition Morph
-
-On a program change, crossfade from the current patch frame to the next patch
-instead of replacing it immediately. The selector remains responsible for the
-transition; individual animations remain independent.
-
 ## Spatial Animations Deferred
 
 Radial bursts, true spirals, gravity, body-height gradients, and nearest-point
@@ -220,7 +186,7 @@ single-LED strings. Focused tests also cover persistent confetti decay, ripple
 propagation, cellular rules, elapsed-time reaction-diffusion, and packet
 acknowledgements.
 
-The wearable-region and input-reactive sections remain possible future work.
+The wearable-region section remains possible future work.
 
 ## Additional work beyond the prompt
 
