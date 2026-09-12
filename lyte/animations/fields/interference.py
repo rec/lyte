@@ -36,4 +36,6 @@ class Interference(effects.Interference, Animation[State]):
         values = np.clip(0.5 + field / (2 * len(self.wavelengths)), 0, 1)
         values = np.clip(0.5 + (values - 0.5) * self.contrast, 0, 1)
         state.frame += 1
-        return numerical.map_palette(values, self.palette)
+        return numerical.map_palette(
+            values.astype(np.float32, copy=False), self.palette
+        )

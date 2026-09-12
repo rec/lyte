@@ -30,4 +30,6 @@ class PaletteConveyor(effects.PaletteConveyor, Animation[State]):
             fraction = values - integral
             values = integral + fraction * fraction * (3 - 2 * fraction)
         state.frame += 1
-        return numerical.map_palette(values, self.palette, cyclic=True)
+        return numerical.map_palette(
+            values.astype(np.float32, copy=False), self.palette, cyclic=True
+        )
