@@ -90,12 +90,11 @@ class ActiveLightTest(BaseModel, frozen=True):
         return np.full((device.led_count, 3), level, dtype=np.uint8)
 
 
-class LyteMidiDaemon(Reccy, frozen=True):
+class LyteMidiDaemon(Reccy):
+    name = 'lyte'
     service_spec = LYTE_SERVICE
-    daemon_module = 'lyte'
     status_model = LyteMidiStatus
     rpc_enabled = True
-    rpc_role = 'lyte'
 
     project: DaemonProject | None = None
 
