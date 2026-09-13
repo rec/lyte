@@ -36,21 +36,35 @@ right = {}
 
 [animations.foo_bar]
 selector = "show:/pair-chase.toml"
-outputs = { animation_output = ["left", "right"] }
+outputs = { animation_output = "left + right" }
 
 [animations.separate_waves_and_sparks]
 selector = "show:/separate-waves-and-sparks.toml"
-outputs = { first_output = ["left"], second_output = ["right"] }
+outputs = { first_output = "left", second_output = "right" }
+
+[animations.mirrored_sparks]
+selector = "show:/sparks.toml"
+outputs = { animation_output = "left * right" }
 
 initial_animation = "foo_bar"
 ```
 
-Each `outputs` entry maps one named animation output to an ordered list of
-physical strings. A one-item list sends that output to one string. A longer
-list makes those strings one logical output for that animation, in list order.
-The installation document attaches no parameters or other animation behavior.
-The current `[run]` table is replaced by `[animations]` because it cannot
-express a selectable collection.
+Each `outputs` entry maps one named animation output to a physical output
+expression. The installation document attaches no parameters or other animation
+behavior. The current `[run]` table is replaced by `[animations]` because it
+cannot express a selectable collection.
+
+Physical string names are identifiers: they begin with an ASCII letter and
+contain only ASCII letters, digits, `_`, and `-`. They cannot contain `+`, `*`,
+or whitespace. This keeps output expressions unambiguous.
+
+- `left + right` concatenates the strings in that order into one logical output.
+- `left * right` mirrors one logical output onto both strings.
+- `left` sends an output to one string.
+
+Mixed expressions such as `left + right * back` are invalid in the first
+implementation. Parentheses and operator precedence can be introduced only if
+a show needs them.
 
 ## Device Assignment
 
@@ -94,11 +108,11 @@ indistinguishable devices when their physical order does not matter.
 Validate the complete installation before opening any output:
 
 1. A Twinkly selector uses only supported string `gestalt` fields.
-2. An output binding names one selected RGB drive output and a non-empty,
-   ordered list of configured physical strings.
+2. An output binding names one selected RGB drive output and one valid physical
+   output expression.
 3. Each BoundAnimation binds only RGB drive outputs named by its selected score.
 4. Within one BoundAnimation, every physical string appears exactly once across
-   its output lists. This prevents two renderers from sending to the same
+   its output expressions. This prevents two renderers from sending to the same
    controller and prevents accidental dark strings.
 5. `initial_animation` names a declared animation.
 
@@ -110,11 +124,11 @@ device count. Count differences produce warnings and scaling at output time.
 Opening a physical string discovers its actual LED count. A bound output records
 the counts of its ordered physical strings and their total.
 
-For an output bound to multiple strings:
+For a concatenated output, `left + right`:
 
 1. Render one authored logical frame.
 2. Resample that frame once to the sum of the connected string counts.
-3. Split the resampled frame into contiguous slices in output-list order.
+3. Split the resampled frame into contiguous slices in expression order.
 4. Send each slice to its corresponding Twinkly connection.
 
 This makes a 250-plus-500 installation act as one 750-pixel logical strip. If
@@ -123,8 +137,11 @@ relative position across the whole pair rather than sending a complete scaled
 copy to each string.
 
 A binding with one physical string uses the same algorithm with one slice.
-Ordering is deliberately explicit in the list; it defines the logical direction
-of a multi-string output.
+
+For a mirrored output, `left * right`, render the named animation output once.
+Independently rescale that same rendered frame to each string's detected count
+and send both frames on the same scheduler boundary. It does not create a
+second renderer or advance the animation state twice.
 
 ## Animation Selection
 
@@ -150,11 +167,12 @@ Physical connection and retry behavior remains owned by `TwinklyTrack`.
 
 - In a separate-string animation, a failed string is reported independently and
   healthy strings continue.
-- In a multi-string output binding, failure of any string is reported against
-  that string and its bound animation. Its existing connection recovery remains
+- In a concatenated output, failure of any string is reported against that
+  string and its bound animation. Its existing connection recovery remains
   responsible for restoring output.
-- If recovery finds a different LED count, recompute the bound-output total and
-  slice boundaries, warn through Reccy logging, and continue scaled output.
+- In a mirrored output, each string reports and recovers independently.
+- If recovery finds a different LED count, recompute concatenated output totals
+  and slice boundaries, warn through Reccy logging, and continue scaled output.
 - A changed MAC remains an identity failure and does not silently redirect
   output to another controller.
 
@@ -167,16 +185,18 @@ Physical connection and retry behavior remains owned by `TwinklyTrack`.
    post-assignment MAC verification. Do not persist IP addresses.
 3. Separate reusable physical Twinkly connections from the active render
    assignments so no animation switch reconnects healthy devices.
-4. Add bound-output rendering that rescales one frame to each output binding's
-   discovered total, partitions it, and dispatches per-string frames.
+4. Add an output-expression parser and bound-output rendering: concatenate and
+   partition `+` expressions, and render once then independently scale `*`
+   expressions.
 5. Add animation selection to the installation scheduler and expose the
    selected animation through Reccy RPC and status.
 6. Update the installation CLI to start the service, and retain a bounded
    foreground duration option for setup tests.
 7. Add tests for selector matching, unambiguous assignment, the single
    remaining-device fallback, ambiguous-device reporting, a 250-plus-500
-   partition, count changes on recovery, same-boundary animation selection,
-   independent-output failure isolation, and multi-string failure reporting.
+   `+` partitioning, `*` mirroring with one state advance, invalid mixed
+   expressions, count changes on recovery, same-boundary animation selection,
+   and independent-output failure isolation.
 8. Add a two-string example installation that starts from automatic discovery
    and assignment without a setup action.
 
