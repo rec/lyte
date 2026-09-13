@@ -1,0 +1,11 @@
+library_config = "../examples/library.toml"
+fps = 30
+initial_animation = "tree_show"
+
+[twinkly]
+dots = { product_name = "Dots" }
+strings = {}
+
+[animations.tree_show]
+selector = "examples:/composition.toml"
+outputs = { light = "dots + strings" }
