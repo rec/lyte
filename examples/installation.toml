@@ -1,59 +1,11 @@
-# Documentation example only. Replace both TEST-NET addresses and the generic
-# DMX profile with the actual installation before running it.
-
 library_config = "library.toml"
-
-[artnet]
-host = "192.0.2.20"
-
-[twinkly.tree]
-host = "192.0.2.10"
 fps = 30
+initial_animation = "tree_show"
 
-[dmx.front_wash]
-universe = 1
-start_channel = 1
-channel_count = 8
-fps = 40
+[twinkly]
+left = { product_name = "Dots" }
+right = {}
 
-[[dmx.front_wash.categories]]
-kind = "brightness"
-channels = [1]
-
-[[dmx.front_wash.categories]]
-kind = "rgb"
-red = [2]
-green = [3]
-blue = [4]
-
-[[dmx.front_wash.categories]]
-kind = "chase_speed"
-channels = [5]
-
-[[dmx.front_wash.categories]]
-kind = "pattern_select"
-channels = [6]
-patterns = { static = 0, chase = 64, sound_active = 192 }
-
-[[dmx.front_wash.categories]]
-kind = "raw"
-name = "reserved"
-channels = [7, 8]
-
-[programs.tree_show]
-kind = "pixel"
+[animations.tree_show]
 selector = "examples:/composition.toml"
-output = "light"
-
-[programs.front_wash_chase]
-kind = "dmx"
-brightness = 0.5
-rgb = [1.0, 0.25, 0.0]
-chase_speed = 1.0
-pattern = "chase"
-
-[run.tree]
-program = "tree_show"
-
-[run.front_wash]
-program = "front_wash_chase"
+outputs = { light = "left + right" }

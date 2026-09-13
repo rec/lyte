@@ -19,15 +19,15 @@ Ufor library config -> score selection -> Composition -> PreparedAnimation
                                             |              +-> HTML preview
                                             |              +-> Twinkly bytes
                                             |
-installation TOML -> DMX program ------------------------------> Art-Net
+installation TOML -> named Twinkly selectors -> BoundAnimation -> Twinkly
 
 wearable patch TOML -> MIDI patch renderer --------------------> Twinkly
 ```
 
-`lyte show`, `lyte preview`, `lyte animate`, and installation pixel
-programs all use `show.prepare_animation()` or its already-read-library
-equivalent. The old Lyte show graph, `impl` strings, and recursive Python
-construction no longer exist.
+`lyte show`, `lyte preview`, `lyte animate`, and installation bound animations
+all use `show.prepare_animation()` or its already-read-library equivalent. The
+old Lyte show graph, `impl` strings, and recursive Python construction no
+longer exist.
 
 ## Library Preparation
 
@@ -152,7 +152,7 @@ configurable white fade test. Status includes queued and applied selections,
 queued and active tests, connection identity, output contact, frame sends,
 MIDI state, recovery counters, failures, and the latest error.
 
-## DMX and Mixed Installations
+## Installations and DMX
 
 `lyte/dmx.py` defines a DMX instrument as one universe and one contiguous
 channel range. Typed categories describe brightness, RGB, white, chase speed,
@@ -160,22 +160,27 @@ pattern selection, strobe, movement, color wheels, gobos, and named raw
 channels. The encoder produces C-contiguous 512-byte universe frames.
 
 `lyte/artnet.py` owns ArtDmx packet encoding, sequence numbers, UDP delivery,
-universe conversion, and blackout. Installation DMX programs are currently
-static semantic values.
+universe conversion, and blackout.
 
-`lyte/installation.py` runs Twinkly and DMX targets on one monotonic
-scheduler. Pixel programs are Ufor selectors. Each target records failures
-independently, and shutdown attempts blackout and close for every opened
-driver. Target FPS controls delivery; the Ufor score rate controls logical
-animation ticks.
+`lyte/installation.py` discovers Twinkly controllers and assigns them to named
+installation strings with global one-to-one `gestalt` matching. A
+`BoundAnimation` maps each authored score output to a string expression. `+`
+resamples once across a concatenated strip and partitions contiguous output;
+`*` renders once and independently scales mirrored copies. The Reccy service
+queues animation selection for the next frame boundary and retains physical
+connections across selections. MAC addresses are discovered for recovery
+identity but never configured by the user.
+
+DMX and Art-Net remain independent output primitives. Dynamic DMX animation
+selection is not implemented by the Twinkly installation runner.
 
 ## Testing Boundary
 
 Automated tests cover score preparation, diagnostics, all effect registrations,
 generic one- through five-component composition, exact cue behavior, state
 ownership, presets, live gain, wiring, authored preview geometry, deterministic
-renderer fixtures, Twinkly recovery, MIDI, DMX bytes, Art-Net packets, mixed
-scheduling, and shutdown.
+renderer fixtures, Twinkly recovery, selector assignment, string-expression
+fan-out, MIDI, DMX bytes, and Art-Net packets.
 
 They do not prove visible output, Wi-Fi recovery on a specific controller,
 wearable routing, fixture addressing, or physical blackout. Those remain
