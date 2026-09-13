@@ -10,14 +10,15 @@ Extend one installation document so the same physical strings can run either:
 Patch selection must not require a process restart or a second installation
 file.
 
-The initial show has two Twinkly strings. The design must not depend on their
-configured LED counts: device discovery remains authoritative and all logical
-frames scale to the connected outputs.
+The initial show has two Twinkly strings. The design must not depend on IP
+addresses, user-entered hardware identifiers, or configured LED counts. Device
+discovery remains authoritative and all logical frames scale to the connected
+outputs.
 
 ## Terms
 
-- A **physical string** is one configured Twinkly target with one host and one
-  realtime output connection.
+- A **physical string** is one named Twinkly target selected from discovered
+  devices and connected through one realtime output connection.
 - A **string group** is an ordered list of physical strings. It is a virtual
   output, never a network device.
 - A **patch** is one selectable assignment of pixel programs to physical
@@ -26,16 +27,14 @@ frames scale to the connected outputs.
 
 ## Installation Model
 
-Keep `[twinkly.<name>]` as the definition of each physical device. Add
-`[strings.<name>]` for virtual groups and `[patches.<name>]` for the selectable
-patches.
+Keep `[twinkly]` as the definition of named physical strings. Its values are
+`gestalt` selectors, not network addresses. Add `[strings.<name>]` for virtual
+groups and `[patches.<name>]` for the selectable patches.
 
 ```toml
-[twinkly.left]
-host = "192.168.1.17"
-
-[twinkly.right]
-host = "192.168.1.18"
+[twinkly]
+left = { product_name = "Dots" }
+right = {}
 
 [strings.pair]
 members = ["left", "right"]
@@ -71,19 +70,57 @@ table. A group patch and a separate-string patch are peers in one patch list.
 The current `[run]` table is replaced by patches because it cannot express a
 selectable patch collection.
 
+## Device Assignment
+
+At startup, Lyte repeatedly broadcasts for Twinkly devices, obtains `gestalt`
+from every response, and assigns discovered devices to the names under
+`[twinkly]`. An IP address exists only for the duration of that connection and
+is never written to the installation document.
+
+A selector may contain any supported string `gestalt` field:
+
+- `device_name`
+- `product_name`
+- `product_code`
+- `hardware_id`
+- `firmware_family`
+- `led_profile`
+
+Each selector value is a case-insensitive substring match. Multiple fields in
+one selector are combined with AND. The example assigns `left` to the only
+device whose `product_name` contains `Dots`; the empty `right` selector then
+receives the one remaining discovered device.
+
+Assignment is a one-to-one global match, not a first-match loop. Lyte starts
+only when every configured name has exactly one complete assignment and no
+device is assigned twice. While strings are still being plugged in or Wi-Fi is
+settling, it keeps discovering and logs the unmatched names and safe device
+descriptions. It never selects an arbitrary device to resolve ambiguity.
+
+After an assignment succeeds, the connection retains the discovered MAC and
+uses it to verify recovery. The MAC is discovered and retained by Lyte; the
+user never enters or copies it.
+
+There is one unavoidable limit: two devices with indistinguishable `gestalt`
+data cannot be given meaningful different names automatically. Separate
+left/right patches require at least one observed distinction, such as product
+name, product code, or LED profile. A group patch can still use indistinguishable
+devices when their physical order does not matter.
+
 ## Validation
 
 Validate the complete installation before opening any output:
 
-1. A string group has at least one member, names only configured Twinkly
+1. A Twinkly selector uses only supported string `gestalt` fields.
+2. A string group has at least one member, names only configured Twinkly
    targets, and does not repeat a member.
-2. A patch names only physical targets or groups and assigns only pixel programs
+3. A patch names only physical targets or groups and assigns only pixel programs
    to them.
-3. Within one patch, every physical string appears exactly once, either directly
+4. Within one patch, every physical string appears exactly once, either directly
    or through one group. This prevents two renderers from sending to the same
    controller and prevents accidental dark strings.
-4. `initial_patch` names a declared patch.
-5. A group program has RGB drive components, as existing Twinkly programs do.
+5. `initial_patch` names a declared patch.
+6. A group program has RGB drive components, as existing Twinkly programs do.
 
 No validation compares an authored layout count with a configured or detected
 device count. Count differences produce warnings and scaling at output time.
@@ -148,27 +185,31 @@ Physical connection and retry behavior remains owned by `TwinklyTrack`.
 
 ## Implementation Steps
 
-1. Replace `InstallationFile.run` with `initial_patch`, string-group, and patch
-   data classes. Update TOML parsing and validation.
-2. Separate reusable physical Twinkly connections from the active render
+1. Replace host-based `TwinklyTargetSpec` and `InstallationFile.run` with
+   `gestalt` selector, `initial_patch`, string-group, and patch data classes.
+   Update TOML parsing and validation.
+2. Add discovery-and-assignment with one-to-one matching, retry logging, and
+   post-assignment MAC verification. Do not persist IP addresses.
+3. Separate reusable physical Twinkly connections from the active render
    assignments so no patch switch reconnects healthy devices.
-3. Add a group renderer that rescales one frame to the discovered group total,
+4. Add a group renderer that rescales one frame to the discovered group total,
    partitions it, and dispatches per-member frames.
-4. Add patch selection to the installation scheduler and expose the selected
+5. Add patch selection to the installation scheduler and expose the selected
    patch through Reccy RPC and status.
-5. Update the installation CLI to start the service, and retain a bounded
+6. Update the installation CLI to start the service, and retain a bounded
    foreground duration option for setup tests.
-6. Add tests for group validation, a 250-plus-500 partition, count changes on
-   recovery, same-boundary patch selection, independent-patch failure isolation,
-   and group failure reporting.
-7. Add a two-string example installation and document the physical verification
-   procedure: locator each string, verify group direction, and test both
-   patches.
+7. Add tests for selector matching, unambiguous assignment, the single
+   remaining-device fallback, ambiguous-device reporting, a 250-plus-500
+   partition, count changes on recovery, same-boundary patch selection,
+   independent-patch failure isolation, and group failure reporting.
+8. Add a two-string example installation that starts from automatic discovery
+   and assignment without a setup action.
 
 ## Non-Goals
 
 - Concatenating strings at the Twinkly protocol level.
-- Dynamic discovery of unnamed show devices.
+- Selecting between indistinguishable physical strings without an observable
+  `gestalt` difference.
 - Crossfades between patches in the first implementation.
 - DMX patch selection. This plan defines the pixel-string model first; DMX can
   join the same patch selection mechanism only after its dynamic-program model
