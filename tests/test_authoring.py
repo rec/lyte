@@ -37,3 +37,18 @@ def test_author_document_contains_animation_catalogue() -> None:
 
     assert 'examples:/aurora.toml' in document
     assert 'Lyte Author' in document
+
+
+def test_authoring_session_previews_built_in_reactive_effects() -> None:
+    library = library_files.read_library(Path('examples/library.toml'))
+    session = authoring.AuthoringSession(
+        library,
+        authoring.AuthorConfig(
+            library_config=Path('examples/library.toml'), duration=0.1
+        ),
+    )
+
+    preview = session.preview('builtin:audio-scan', {'speed': 1})
+
+    assert preview['fps'] == 30
+    assert len(preview['frames']) == 3

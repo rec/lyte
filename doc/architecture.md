@@ -113,6 +113,13 @@ It lists animation scores, derives sliders from their declared public parameter
 contracts, and regenerates the shared HTML preview for each edit. It is a
 parameter authoring surface, not a timeline or a two-dimensional editor.
 
+`lyte.reactive_effects` supplies independently designed one-dimensional
+audio-reactive animations: scan, spectrum, bass pulse, spotlights, waterfall,
+flame, and beat strobe. `lyte author` lists them alongside Ufor scores under
+the `builtin:` selector prefix and previews them with a deterministic synthetic
+feature stream. Live callers create the effect, analyze samples with
+`AudioAnalyzer`, and update its state with `update_features()` before rendering.
+
 ## Built-In RGB Effects
 
 `lyte/animate/build.py` is the explicit registry from all 41
@@ -216,8 +223,9 @@ selection is not implemented by the Twinkly installation runner.
 Automated tests cover score preparation, diagnostics, all effect registrations,
 generic one- through five-component composition, exact cue behavior, state
 ownership, presets, live gain, wiring, authored preview geometry, deterministic
-renderer fixtures, Twinkly recovery, selector assignment, string-expression
-fan-out, MIDI, DMX bytes, and Art-Net packets.
+renderer fixtures, reactive feature processing and effects, Twinkly recovery,
+selector assignment, string-expression fan-out, MIDI, DMX bytes, and Art-Net
+packets.
 
 They do not prove visible output, Wi-Fi recovery on a specific controller,
 wearable routing, fixture addressing, or physical blackout. Those remain
