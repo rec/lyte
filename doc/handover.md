@@ -141,6 +141,10 @@ factory string to make the logical layout fit the file.
 LED count in the document. For example, `{ product_name = "Dots" }` assigns the
 Dots string; `{}` receives the only remaining discovered string.
 
+`patches/showco-installation.toml` is the service configuration for Showco's
+two-string installation. It assigns the Dots controller explicitly and the
+only remaining discovered controller to `strings`.
+
 Each `[animations.NAME]` entry selects a Ufor score and binds its named RGB
 drive outputs to strings. `left + right` makes the strings one long logical
 strip. `left * right` mirrors one rendered frame, independently scaled to each
