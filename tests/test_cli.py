@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from lyte import cli, installation, patches
+from lyte import cli, installation, patches, wled
 
 
 class CliTests(unittest.TestCase):
@@ -90,6 +90,21 @@ class CliTests(unittest.TestCase):
         self.assertEqual(config.output, Path('movies'))
         self.assertEqual(config.diameter, 24)
         self.assertEqual(config.shape, 'rect')
+
+    def test_cli_wled_command_dispatches_snapshot_import(self) -> None:
+        with patch.object(cli.wled, 'run_wled_command', return_value=0) as run:
+            result = cli.main(
+                ['wled', 'import', 'wled-backup', '--output', 'snapshot.json']
+            )
+
+        self.assertEqual(result, 0)
+        config = run.call_args.args[0]
+        self.assertEqual(
+            config,
+            wled.WledCommandConfig(
+                'import', Path('wled-backup'), Path('snapshot.json')
+            ),
+        )
 
     def test_cli_preview_command_lists_patterns_without_arguments(self) -> None:
         output = io.StringIO()

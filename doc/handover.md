@@ -33,6 +33,24 @@ Omit selectors to render every animation score in the selected library.
 `ffmpeg` must be on `PATH`. Use `--diameter`, `--padding`, `--shape`,
 `--layout COLUMNS ROWS`, and `--background-color` to control the grid image.
 
+Import an offline WLED backup directory containing `presets.json`,
+`eff.json`, `fxdata.json`, `pal.json`, and `info.json` (or a
+`metadata.json` containing `effects`, `fxdata`, `palettes`, and `info`):
+
+```sh
+lyte wled import wled-backup --output wled-snapshot.json
+lyte wled list wled-snapshot.json
+lyte wled export wled-snapshot.json --output presets.json
+lyte wled translate wled-snapshot.json --output generated-wled-scores
+```
+
+Snapshot JSON excludes network identity and preserves the original WLED JSON,
+apart from excluded identity fields, under `raw`. Translation generates only
+declared approximations for supported single-segment effects; other presets stay
+native and appear in the manifest with a reason. The DDP encoder is tested but
+not exposed as a live controller command until WLED discovery is integrated with
+installation output selection.
+
 Use `lyte patch list` to inspect the wearable patch catalogue. For an
 interactive wearable session, use `lyte patch play NAME`. Use `Ctrl-C` to stop
 an interactive command; it requests a bounded blackout before returning.

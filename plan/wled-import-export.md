@@ -43,8 +43,8 @@ an address in a Lyte document and makes source content reviewable and
 repeatable.
 
 The importer writes one canonical Lyte WLED snapshot document. Preserve the
-original JSON objects verbatim under `raw` alongside parsed fields. The parsed
-model contains:
+original JSON objects under `raw`, excluding network identity fields, alongside
+parsed fields. The parsed model contains:
 
 - WLED firmware version, controller name, LED count, and reported capabilities;
 - effect names and the per-effect metadata needed to interpret sliders;
@@ -117,10 +117,10 @@ does not need device discovery.
 ## Command Design
 
 ```sh
-lyte wled import snapshot-input/ --output wled-show.toml
-lyte wled export wled-show.toml --output presets.json
-lyte wled translate wled-show.toml --output ufor-scores/
-lyte wled list wled-show.toml
+lyte wled import snapshot-input/ --output wled-snapshot.json
+lyte wled export wled-snapshot.json --output presets.json
+lyte wled translate wled-snapshot.json --output ufor-scores/
+lyte wled list wled-snapshot.json
 ```
 
 `import` accepts a directory so the source backup files remain together.
