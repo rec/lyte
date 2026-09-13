@@ -5,11 +5,13 @@
 from __future__ import annotations
 
 import json
+import math
 import webbrowser
+from base64 import b64encode
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field
@@ -17,7 +19,7 @@ from ufor import library_files
 from ufor.library import Library
 from ufor.light_animation import AnimationScore
 
-from . import show
+from . import animation, reactive_effects, reactivity, show
 from .preview.document import encoded_frames
 
 
@@ -52,12 +54,14 @@ class AuthorAnimation:
     selector: str
     title: str
     parameters: list[AuthorParameter]
+    renderer: Literal['ufor', 'builtin'] = 'ufor'
 
     def document(self) -> dict[str, object]:
         return {
             'selector': self.selector,
             'title': self.title,
             'parameters': [parameter.document() for parameter in self.parameters],
+            'renderer': self.renderer,
         }
 
 
@@ -65,11 +69,18 @@ class AuthoringSession:
     def __init__(self, library: Library, config: AuthorConfig) -> None:
         self.library = library
         self.config = config
-        self.animations = _author_animations(library)
+        self.animations = [*_author_animations(library), *_builtin_animations()]
 
     def preview(self, selector: str, parameters: dict[str, float]) -> dict[str, object]:
         if selector not in {animation.selector for animation in self.animations}:
             raise ValueError(f'unknown animation {selector!r}')
+        selected = next(
+            animation for animation in self.animations if animation.selector == selector
+        )
+        if selected.renderer == 'builtin':
+            return _builtin_preview(
+                selector.removeprefix('builtin:'), parameters, self.config.duration
+            )
         prepared = show.prepare_library_animation(
             self.library,
             show.LightProgramSpec(
@@ -144,6 +155,87 @@ def _author_animations(library: Library) -> list[AuthorAnimation]:
             )
         )
     return animations
+
+
+def _builtin_animations() -> list[AuthorAnimation]:
+    controls = {
+        'audio-scan': [
+            AuthorParameter('width', 0.02, 0.5, 0.12, 'ratio'),
+            AuthorParameter('speed', 0, 2, 0.4, 'ratio'),
+            AuthorParameter('sensitivity', 0, 4, 1.5, 'ratio'),
+        ],
+        'audio-spectrum': [
+            AuthorParameter('gain', 0, 4, 1.5, 'ratio'),
+            AuthorParameter('smoothing', 0, 30, 10, 'ratio'),
+        ],
+        'bass-pulse': [
+            AuthorParameter('speed', 0.05, 2, 0.55, 'ratio'),
+            AuthorParameter('decay', 0.1, 12, 3.5, 'ratio'),
+        ],
+        'audio-spotlights': [
+            AuthorParameter('density', 0, 15, 4, 'ratio'),
+            AuthorParameter('width', 0.01, 0.3, 0.08, 'ratio'),
+            AuthorParameter('decay', 0.1, 10, 2.4, 'ratio'),
+        ],
+        'audio-waterfall': [AuthorParameter('speed', 0, 3, 0.7, 'ratio')],
+        'audio-flame': [
+            AuthorParameter('cooling', 0.1, 5, 1.2, 'ratio'),
+            AuthorParameter('sparks', 0, 10, 2.5, 'ratio'),
+        ],
+        'beat-strobe': [AuthorParameter('decay', 0.1, 20, 8, 'ratio')],
+    }
+    return [
+        AuthorAnimation(
+            selector=f'builtin:{name}',
+            title=name.replace('-', ' ').title(),
+            parameters=parameters,
+            renderer='builtin',
+        )
+        for name, parameters in controls.items()
+    ]
+
+
+def _builtin_preview(
+    name: str, parameters: dict[str, float], duration: float
+) -> dict[str, object]:
+    renderer = reactive_effects.EFFECTS.get(name)
+    if renderer is None:
+        raise ValueError(f'unknown built-in animation {name!r}')
+    source = cast(
+        animation.Animation[reactive_effects.AudioState],
+        renderer.model_validate(parameters),
+    )
+    device = animation.Device(led_count=128)
+    state = source.initial_state(device)
+    state.fps = 30
+    frame_count = max(1, round(duration * state.fps))
+    frames = []
+    for index in range(frame_count):
+        reactive_effects.update_features(state, _demo_features(index, frame_count))
+        frame = animation.byte_light_frame_from_float(source.render(device, state))
+        frames.append(b64encode(memoryview(frame).cast('B')).decode('ascii'))
+    return {
+        'coords': [[index, 0] for index in range(device.led_count)],
+        'fps': state.fps,
+        'frames': frames,
+    }
+
+
+def _demo_features(index: int, frame_count: int) -> reactivity.AudioFeatures:
+    phase = index / max(1, frame_count - 1)
+    level = 0.25 + 0.5 * (0.5 + 0.5 * math.sin(phase * math.tau * 3))
+    onset = max(0, math.sin(phase * math.tau * 6)) ** 4
+    return reactivity.AudioFeatures(
+        level=level,
+        bass=0.2 + onset * 0.8,
+        mid=0.25 + 0.5 * (0.5 + 0.5 * math.sin(phase * math.tau * 2)),
+        treble=0.3 + 0.4 * (0.5 + 0.5 * math.sin(phase * math.tau * 5)),
+        onset=onset,
+        beat=1 if onset > 0.9 else 0,
+        spectrum=[
+            max(0, math.sin(phase * math.tau * (band + 1) + band)) for band in range(16)
+        ],
+    )
 
 
 def _handler(session: AuthoringSession) -> type[BaseHTTPRequestHandler]:
