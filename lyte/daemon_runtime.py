@@ -6,8 +6,6 @@ import datetime
 import enum
 import threading
 import time
-from math import isfinite
-from pathlib import Path
 
 import mido
 import numpy as np
@@ -16,16 +14,14 @@ from pydantic import BaseModel, ConfigDict, PrivateAttr, SkipValidation
 from reccy.protocol import ipc, rpc
 from reccy.reccy import Reccy, ReccyStatus
 from reccy.runtime import logging
-from reccy.services import spec
 
-from . import animation, midi, patches
+from . import animation, midi, patches, runtime_control, service
 from .animations import compositions
 from .daemon_config import DaemonProject
 from .retry import RetryConfig
 from .twinkly import realtime, track
 from .twinkly.client import TwinklyClient
 
-LYTE_SERVICE = spec.load(Path(__file__).with_name('service.toml'))
 LOGGER = logging.get_logger(__name__)
 
 
@@ -53,8 +49,8 @@ class LyteMidiStatus(ReccyStatus):
         realtime.PlaybackConnectionState.UNKNOWN
     )
     recovery_count: int = 0
-    queued_test: LightTestCommand | None = None
-    active_test: LightTestCommand | None = None
+    queued_test: runtime_control.LightTestCommand | None = None
+    active_test: runtime_control.LightTestCommand | None = None
     frame_send_count: int = 0
     last_frame_sent_at: datetime.datetime | None = None
     output_error: str | None = None
@@ -68,31 +64,9 @@ class LyteMidiStatus(ReccyStatus):
     applied_selection_generation: int = 0
 
 
-class LightTestCommand(BaseModel, frozen=True):
-    level: float = 50.0
-    duration: float = 2.0
-
-
-class ActiveLightTest(BaseModel, frozen=True):
-    command: LightTestCommand
-    started_at: float
-
-    def render(self, device: animation.Device, now: float) -> NDArray[np.uint8] | None:
-        elapsed = now - self.started_at
-        if elapsed > self.command.duration:
-            return None
-        half_duration = self.command.duration / 2
-        if elapsed <= half_duration:
-            fraction = elapsed / half_duration
-        else:
-            fraction = (self.command.duration - elapsed) / half_duration
-        level = round(255 * self.command.level / 100 * max(0.0, fraction))
-        return np.full((device.led_count, 3), level, dtype=np.uint8)
-
-
 class LyteMidiDaemon(Reccy):
     name = 'lyte'
-    service_spec = LYTE_SERVICE
+    service_spec = service.LYTE_SERVICE
     status_model = LyteMidiStatus
     rpc_enabled = True
 
@@ -100,8 +74,8 @@ class LyteMidiDaemon(Reccy):
 
     _patch_name: str = PrivateAttr()
     _selected_patch: tuple[str, int] | None = PrivateAttr(default=None)
-    _selected_test: LightTestCommand | None = PrivateAttr(default=None)
-    _active_test: ActiveLightTest | None = PrivateAttr(default=None)
+    _selected_test: runtime_control.LightTestCommand | None = PrivateAttr(default=None)
+    _active_test: runtime_control.ActiveLightTest | None = PrivateAttr(default=None)
     _selection_generation: int = PrivateAttr(default=0)
     _applied_selection_generation: int = PrivateAttr(default=0)
     _state: DaemonState = PrivateAttr(default=DaemonState.STARTING)
@@ -158,7 +132,7 @@ class LyteMidiDaemon(Reccy):
                 object.__setattr__(self, '_selected_patch', (patch, generation))
                 return {'state': 'queued', 'generation': generation}
             if request.command == 'test':
-                test = _light_test_command(request.params)
+                test = runtime_control.light_test_command(request.params)
                 if isinstance(test, ipc.Error):
                     return test
                 object.__setattr__(self, '_selected_test', test)
@@ -286,7 +260,7 @@ class LyteMidiDaemon(Reccy):
                         object.__setattr__(
                             self,
                             '_active_test',
-                            ActiveLightTest(
+                            runtime_control.ActiveLightTest(
                                 command=selected_test, started_at=time.monotonic()
                             ),
                         )
@@ -461,63 +435,12 @@ class LyteMidiDaemon(Reccy):
         return self.status_snapshot().model_dump(mode='json')
 
 
-class MidiPerformance(BaseModel):
-    note: int | None = None
-    velocity: int = 0
-    channel: int = 0
-    breath: int | None = None
-    pitch: int | None = None
-
-    def receive(self, msg: mido.Message) -> None:
-        match msg.type:
-            case 'note_on' if msg.velocity:
-                self.note = msg.note
-                self.velocity = msg.velocity
-                self.channel = msg.channel
-                self.breath = None
-                self.pitch = None
-            case 'note_on' | 'note_off' if self.note == msg.note:
-                self.note = None
-                self.velocity = 0
-                self.breath = None
-                self.pitch = None
-            case 'control_change' if self.note is not None and msg.control == 2:
-                self.breath = msg.value
-            case 'pitchwheel' if self.note is not None:
-                self.pitch = int(msg.__getattribute__('pitch'))
-
-    def replay(self, patch: midi.LightPatch) -> None:
-        if self.note is None:
-            return
-        patch.receive(
-            mido.Message(
-                'note_on',
-                channel=self.channel,
-                note=self.note,
-                velocity=self.velocity,
-            )
-        )
-        if self.breath is not None:
-            patch.receive(
-                mido.Message(
-                    'control_change',
-                    channel=self.channel,
-                    control=2,
-                    value=self.breath,
-                )
-            )
-        if self.pitch is not None:
-            patch.receive(
-                mido.Message('pitchwheel', channel=self.channel, pitch=self.pitch)
-            )
-
-
 class PatchSelector(BaseModel):
     library: SkipValidation[patches.PatchLibrary]
     patch_names: list[str]
     index: int = 0
     patch: SkipValidation[midi.LightPatch]
-    performance: MidiPerformance = MidiPerformance()
+    performance: runtime_control.MidiPerformance = runtime_control.MidiPerformance()
     previous: SkipValidation[midi.LightPatch] | None = None
     transition_duration: float = 0.25
     transition_elapsed: float = 0.0
@@ -564,7 +487,7 @@ class PatchSelector(BaseModel):
         self.transition_elapsed = 0.0
         self.index = self.patch_names.index(name)
         self.patch = patches.build_light_patch(self.library, name)
-        self.performance.replay(self.patch)
+        self.performance.replay(self.patch.receive)
 
     def render(self, device: animation.Device, fps: float) -> NDArray[np.float32]:
         self.patch.fps = fps
@@ -591,36 +514,7 @@ class PatchSelector(BaseModel):
                     velocity=0,
                 )
             )
-        self.performance = MidiPerformance()
+        self.performance = runtime_control.MidiPerformance()
         self.previous = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
-
-def _light_test_command(params: dict[str, object]) -> LightTestCommand | ipc.Error:
-    level = _number_param(params, 'level', 50.0)
-    duration = _number_param(params, 'duration', 2.0)
-    if isinstance(level, ipc.Error):
-        return level
-    if isinstance(duration, ipc.Error):
-        return duration
-    if not isfinite(level) or level < 0 or level > 100:
-        return ipc.Error(type='error', message='test level must be between 0 and 100')
-    if not isfinite(duration) or duration <= 0:
-        return ipc.Error(type='error', message='test duration must be greater than 0')
-    return LightTestCommand(level=level, duration=duration)
-
-
-def _number_param(
-    params: dict[str, object], name: str, default: float
-) -> float | ipc.Error:
-    value = params.get(name, default)
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        return ipc.Error(type='error', message=f'test {name} must be a number')
-    return float(value)
-
-
-def _light_test_data(test: LightTestCommand | None) -> dict[str, float] | None:
-    if test is None:
-        return None
-    return {'level': test.level, 'duration': test.duration}

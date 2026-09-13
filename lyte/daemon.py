@@ -9,7 +9,7 @@ from typing import Annotated, Literal
 import tyro
 from reccy.services import controller
 
-from . import daemon_config, daemon_runtime
+from . import daemon_config, daemon_runtime, service
 
 
 @dataclass(frozen=True)
@@ -35,5 +35,5 @@ def run_daemon_command(config: DaemonCommandConfig) -> int:
         result = daemon.service_status()
     else:
         result = getattr(daemon, f'{config.action}_service')()
-    controller.print_service_status(daemon_runtime.LYTE_SERVICE.name, result)
+    controller.print_service_status(service.LYTE_SERVICE.name, result)
     return 0 if result.running is not False else 1

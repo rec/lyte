@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from reccy.protocol import ipc, rpc
 from reccy.reccy import Reccy
 
-from lyte import daemon_config, daemon_runtime, midi, patches
+from lyte import daemon_config, daemon_runtime, midi, patches, runtime_control
 
 
 def test_reccy_daemon_handles_commands(tmp_path: Path) -> None:
@@ -120,8 +120,8 @@ def test_reccy_daemon_rejects_invalid_test_command(tmp_path: Path) -> None:
 
 def test_active_light_test_fades_to_configured_white_level_then_black() -> None:
     device = daemon_runtime.animation.Device(led_count=2)
-    test = daemon_runtime.ActiveLightTest(
-        command=daemon_runtime.LightTestCommand(level=50.0, duration=2.0),
+    test = runtime_control.ActiveLightTest(
+        command=runtime_control.LightTestCommand(level=50.0, duration=2.0),
         started_at=10.0,
     )
 
