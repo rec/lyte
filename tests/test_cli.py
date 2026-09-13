@@ -66,6 +66,31 @@ class CliTests(unittest.TestCase):
         self.assertEqual(config.library_config, Path('examples/library.toml'))
         self.assertEqual(config.duration, 1.5)
 
+    def test_cli_render_command_dispatches_movie_export(self) -> None:
+        with patch.object(cli.render, 'run_render', return_value=0) as run_render:
+            result = cli.main(
+                [
+                    'render',
+                    'examples:/composition.toml',
+                    'examples:/aurora.toml',
+                    '--output',
+                    'movies',
+                    '--diameter',
+                    '24',
+                    '--shape',
+                    'rect',
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        config = run_render.call_args.args[0]
+        self.assertEqual(
+            config.selectors, ['examples:/composition.toml', 'examples:/aurora.toml']
+        )
+        self.assertEqual(config.output, Path('movies'))
+        self.assertEqual(config.diameter, 24)
+        self.assertEqual(config.shape, 'rect')
+
     def test_cli_preview_command_lists_patterns_without_arguments(self) -> None:
         output = io.StringIO()
 

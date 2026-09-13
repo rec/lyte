@@ -10,7 +10,7 @@ from typing import Annotated
 import tyro
 from reccy.runtime import logging
 
-from . import daemon, fps_test, installation
+from . import daemon, fps_test, installation, render
 from . import patches
 from . import show
 from .animate.config import AnimateConfig
@@ -151,6 +151,7 @@ def main(args: Sequence[str] | None = None) -> int:
             'patch': patches.PatchCommandConfig,
             'playlist': PlaylistConfig,
             'preview': PreviewConfig,
+            'render': render.RenderConfig,
             'saturation': SaturationConfig,
             'show': show.ShowConfig,
             'test': fps_test.FpsTestConfig,
@@ -219,6 +220,8 @@ def run_command(config: object) -> int:
         return media.run_playlist_control(config.diagnostic_config(), config.action)
     if isinstance(config, patches.PatchCommandConfig):
         return patches.run_patch_command(config)
+    if isinstance(config, render.RenderConfig):
+        return render.run_render(config)
     if isinstance(config, PreviewConfig):
         return run_preview(config)
     if isinstance(config, show.ShowConfig):

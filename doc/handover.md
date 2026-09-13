@@ -22,6 +22,17 @@ lyte preview --library-config examples/library.toml
 lyte preview examples:/composition.toml preview.html --library-config examples/library.toml
 ```
 
+Render MP4 demonstrations without hardware:
+
+```sh
+lyte render examples:/composition.toml --library-config examples/library.toml \
+  --output movies
+```
+
+Omit selectors to render every animation score in the selected library.
+`ffmpeg` must be on `PATH`. Use `--diameter`, `--padding`, `--shape`,
+`--layout COLUMNS ROWS`, and `--background-color` to control the grid image.
+
 Use `lyte patch list` to inspect the wearable patch catalogue. For an
 interactive wearable session, use `lyte patch play NAME`. Use `Ctrl-C` to stop
 an interactive command; it requests a bounded blackout before returning.
