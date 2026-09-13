@@ -1,0 +1,9 @@
+format = "recs"
+version = 3
+name = "note_age_constellation"
+title = "Note Age Constellation"
+tags = ["#wearable"]
+kind = "preset"
+
+[score]
+path = "wearable.py"

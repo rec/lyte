@@ -1,0 +1,9 @@
+format = "recs"
+version = 3
+name = "mix_rainbow_black"
+title = "Mix Rainbow Black"
+tags = ["#wearable"]
+kind = "preset"
+
+[score]
+path = "wearable.py"

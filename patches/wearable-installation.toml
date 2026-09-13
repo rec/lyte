@@ -1,0 +1,175 @@
+library_config = "wearable-library.toml"
+fps = 60
+initial_animation = "prism_limbs"
+
+[midi]
+channel = 1
+
+[twinkly]
+wearable = {}
+
+[animation_defaults]
+activation = "note"
+
+[[animation_defaults.controls]]
+source = "note"
+parameter = "note"
+
+[[animation_defaults.controls]]
+source = "velocity"
+parameter = "velocity"
+output = [0, 127]
+
+[[animation_defaults.controls]]
+source = "breath"
+parameter = "breath"
+output = [0, 127]
+
+[[animation_defaults.controls]]
+source = "pitch_bend"
+parameter = "pitch_bend"
+output = [-8192, 8191]
+
+[animations.velocity_splash]
+selector = "wearable:/velocity_splash.toml"
+outputs = { light = "wearable" }
+
+[animations.breath_bloom]
+selector = "wearable:/breath_bloom.toml"
+outputs = { light = "wearable" }
+
+[animations.pitch_bend_travel]
+selector = "wearable:/pitch_bend_travel.toml"
+outputs = { light = "wearable" }
+
+[animations.note_age_constellation]
+selector = "wearable:/note_age_constellation.toml"
+outputs = { light = "wearable" }
+
+[animations.prism_limbs]
+selector = "wearable:/prism_limbs.toml"
+outputs = { light = "wearable" }
+
+[animations.opposite_steps]
+selector = "wearable:/opposite_steps.toml"
+outputs = { light = "wearable" }
+
+[animations.chest_orbit]
+selector = "wearable:/chest_orbit.toml"
+outputs = { light = "wearable" }
+
+[animations.limb_rainbow]
+selector = "wearable:/limb_rainbow.toml"
+outputs = { light = "wearable" }
+
+[animations.note_twinkle]
+selector = "wearable:/note_twinkle.toml"
+outputs = { light = "wearable" }
+
+[animations.note_searchlight]
+selector = "wearable:/note_searchlight.toml"
+outputs = { light = "wearable" }
+
+[animations.note_chase]
+selector = "wearable:/note_chase.toml"
+outputs = { light = "wearable" }
+
+[animations.note_pulse]
+selector = "wearable:/note_pulse.toml"
+outputs = { light = "wearable" }
+
+[animations.breath_walker]
+selector = "wearable:/breath_walker.toml"
+outputs = { light = "wearable" }
+
+[animations.breath_hamiltonian]
+selector = "wearable:/breath_hamiltonian.toml"
+outputs = { light = "wearable" }
+
+[animations.breath_counter]
+selector = "wearable:/breath_counter.toml"
+outputs = { light = "wearable" }
+
+[animations.breath_wave]
+selector = "wearable:/breath_wave.toml"
+outputs = { light = "wearable" }
+
+[animations.breath_mix_walk_twinkle]
+selector = "wearable:/breath_mix_walk_twinkle.toml"
+outputs = { light = "wearable" }
+
+[animations.breath_mix_chase_rain]
+selector = "wearable:/breath_mix_chase_rain.toml"
+outputs = { light = "wearable" }
+
+[animations.breath_mix_pulse_gradient]
+selector = "wearable:/breath_mix_pulse_gradient.toml"
+outputs = { light = "wearable" }
+
+[animations.breath_mix_searchlights]
+selector = "wearable:/breath_mix_searchlights.toml"
+outputs = { light = "wearable" }
+
+[animations.mix_mirror_split]
+selector = "wearable:/mix_mirror_split.toml"
+outputs = { light = "wearable" }
+
+[animations.mix_fire_ice]
+selector = "wearable:/mix_fire_ice.toml"
+outputs = { light = "wearable" }
+
+[animations.mix_sparkle_solid]
+selector = "wearable:/mix_sparkle_solid.toml"
+outputs = { light = "wearable" }
+
+[animations.mix_rainbow_black]
+selector = "wearable:/mix_rainbow_black.toml"
+outputs = { light = "wearable" }
+
+[animations.pitch_turbo_chase]
+selector = "wearable:/pitch_turbo_chase.toml"
+outputs = { light = "wearable" }
+
+[animations.pitch_turbo_walk]
+selector = "wearable:/pitch_turbo_walk.toml"
+outputs = { light = "wearable" }
+
+[animations.pitch_turbo_hamiltonian]
+selector = "wearable:/pitch_turbo_hamiltonian.toml"
+outputs = { light = "wearable" }
+
+[animations.pitch_turbo_searchlights]
+selector = "wearable:/pitch_turbo_searchlights.toml"
+outputs = { light = "wearable" }
+
+[animations.pitch_turbo_wave]
+selector = "wearable:/pitch_turbo_wave.toml"
+outputs = { light = "wearable" }
+
+[animations.pitch_turbo_twinkle]
+selector = "wearable:/pitch_turbo_twinkle.toml"
+outputs = { light = "wearable" }
+
+[animations.pitch_turbo_rain]
+selector = "wearable:/pitch_turbo_rain.toml"
+outputs = { light = "wearable" }
+
+[animations.pitch_turbo_counter]
+selector = "wearable:/pitch_turbo_counter.toml"
+outputs = { light = "wearable" }
+
+[animations.static_body_flag]
+selector = "wearable:/static_body_flag.toml"
+outputs = { light = "wearable" }
+
+[animations.static_chest_beacon]
+selector = "wearable:/static_chest_beacon.toml"
+outputs = { light = "wearable" }
+
+[animations.static_warm_gradient]
+selector = "wearable:/static_warm_gradient.toml"
+outputs = { light = "wearable" }
+
+[animations.static_cool_gradient]
+selector = "wearable:/static_cool_gradient.toml"
+outputs = { light = "wearable" }

@@ -1,0 +1,9 @@
+format = "recs"
+version = 3
+name = "static_chest_beacon"
+title = "Static Chest Beacon"
+tags = ["#wearable"]
+kind = "preset"
+
+[score]
+path = "wearable.py"

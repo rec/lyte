@@ -66,10 +66,10 @@ ready score.
 
 ## Daemon Operation
 
-The daemon is the legacy single-string wearable runner. New multi-string and
-MIDI-controlled configurations should use the installation service below. Keep
-the daemon only while the existing wearable catalogue is being converted to
-Ufor scores.
+The daemon is the legacy single-string wearable runner. The full wearable
+catalogue is also exposed as Ufor presets through the installation service.
+Keep the daemon for direct legacy operation and comparison while validating the
+converted path on the physical garment.
 
 The default daemon configuration is
 `patches/wearable-daemon.toml`. Run it in the foreground while setting up:
@@ -119,6 +119,18 @@ power or Wi-Fi and allow the daemon to reconnect before intervening further.
 current physical mapping. It currently declares `physical_map_status =
 "guessed"`. Do not change that to `"measured"` until the physical string has
 been checked on the garment.
+
+`patches/wearable-library.toml` exposes all 36 catalogue entries as Ufor
+presets. `patches/wearable-installation.toml` binds those presets to one
+wearable Twinkly string and applies common note, velocity, breath, and pitch
+bend controls. Run it with:
+
+```sh
+lyte installation run patches/wearable-installation.toml
+```
+
+The adapter deliberately continues to read `wearable-breath.toml`; it does not
+duplicate the algorithms or wiring map in the Ufor preset files.
 
 The wearable count is derived from its region map unless a planning count is
 declared. Lyte warns and scales the runtime layout when the attached string

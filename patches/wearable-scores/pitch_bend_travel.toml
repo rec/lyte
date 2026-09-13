@@ -1,0 +1,9 @@
+format = "recs"
+version = 3
+name = "pitch_bend_travel"
+title = "Pitch Bend Travel"
+tags = ["#wearable"]
+kind = "preset"
+
+[score]
+path = "wearable.py"

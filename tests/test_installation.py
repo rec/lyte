@@ -34,6 +34,29 @@ def test_controlled_animation_requires_midi_configuration() -> None:
         installation.parse_installation(data)
 
 
+def test_animation_defaults_are_applied_unless_overridden() -> None:
+    data = example_installation() | {
+        'midi': {'channel': 1},
+        'animation_defaults': {
+            'activation': 'note',
+            'controls': [{'source': 'breath', 'parameter': 'brightness'}],
+        },
+    }
+    animations = data['animations']
+    assert isinstance(animations, dict)
+    separate = animations['separate']
+    assert isinstance(separate, dict)
+    separate['activation'] = 'always'
+    separate['controls'] = []
+
+    config = installation.parse_installation(data)
+
+    assert config.animations['across'].activation == 'note'
+    assert config.animations['across'].controls[0].parameter == 'brightness'
+    assert config.animations['separate'].activation == 'always'
+    assert config.animations['separate'].controls == []
+
+
 def test_midi_controls_map_canonical_and_table_values() -> None:
     performance = runtime_control.MidiPerformance(note=61, velocity=64, breath=32)
 

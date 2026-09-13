@@ -110,6 +110,8 @@ class PreparedAnimation:
                 previous_score, light_animation.AnimationScore
             ):
                 continue
+            if isinstance(self.renderers.get(path), PythonAnimationScore):
+                continue
             current_operation = light_animation.operation_at(
                 previous_score.body,
                 Fraction(0),

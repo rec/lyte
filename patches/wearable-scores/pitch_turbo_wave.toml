@@ -1,0 +1,9 @@
+format = "recs"
+version = 3
+name = "pitch_turbo_wave"
+title = "Pitch Turbo Wave"
+tags = ["#wearable"]
+kind = "preset"
+
+[score]
+path = "wearable.py"

@@ -1,0 +1,9 @@
+format = "recs"
+version = 3
+name = "mix_fire_ice"
+title = "Mix Fire Ice"
+tags = ["#wearable"]
+kind = "preset"
+
+[score]
+path = "wearable.py"

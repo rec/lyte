@@ -1,0 +1,9 @@
+format = "recs"
+version = 3
+name = "opposite_steps"
+title = "Opposite Steps"
+tags = ["#wearable"]
+kind = "preset"
+
+[score]
+path = "wearable.py"

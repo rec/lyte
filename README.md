@@ -114,6 +114,22 @@ Patch changes during an active note crossfade for 0.25 seconds. Set
 `transition_duration` in `[daemon]` to change this, or to zero for immediate
 switching. Note-off cancels an active transition.
 
+The same 36-patch catalogue is available through Ufor selectors and the
+installation runner. `patches/wearable-library.toml` registers the presets, and
+`patches/wearable-installation.toml` configures the single wearable string and
+shared MIDI controls:
+
+```sh
+lyte show wearable:/prism_limbs.toml \
+  --library-config patches/wearable-library.toml
+lyte installation run patches/wearable-installation.toml
+```
+
+The Ufor adapter preserves the legacy algorithms and guessed physical map. The
+wearable hardware is not currently available, so this path has automated
+rendering coverage but still requires a physical mapping and MIDI check before
+performance use.
+
 ## Twinkly Installations
 
 `lyte installation` discovers named Twinkly strings and starts selectable

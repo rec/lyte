@@ -1,0 +1,9 @@
+format = "recs"
+version = 3
+name = "static_body_flag"
+title = "Static Body Flag"
+tags = ["#wearable"]
+kind = "preset"
+
+[score]
+path = "wearable.py"
