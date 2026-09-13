@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import mido
 import numpy as np
 import pytest
 from numpy.typing import NDArray
 from pydantic import ValidationError
 from reccy.protocol import ipc, rpc
+from reccy.services.models import StatusResult
 
-from lyte import installation
+from lyte import installation, runtime_control
 from lyte.twinkly import diagnostic
 
 
@@ -18,6 +20,32 @@ def test_parse_installation_accepts_selectable_animations() -> None:
     assert config.twinkly['left'].product_name == 'Dots'
     assert config.animations['across'].outputs == {'light': 'left + right'}
     assert config.initial_animation == 'across'
+
+
+def test_controlled_animation_requires_midi_configuration() -> None:
+    data = example_installation()
+    animations = data['animations']
+    assert isinstance(animations, dict)
+    across = animations['across']
+    assert isinstance(across, dict)
+    across['activation'] = 'note'
+
+    with pytest.raises(ValidationError, match='require MIDI'):
+        installation.parse_installation(data)
+
+
+def test_midi_controls_map_canonical_and_table_values() -> None:
+    performance = runtime_control.MidiPerformance(note=61, velocity=64, breath=32)
+
+    velocity = installation.ParameterControl(
+        source='velocity', parameter='gain', output=[0.0, 2.0]
+    )
+    note = installation.ParameterControl(
+        source='note', parameter='red', values=[0.25, 0.75]
+    )
+
+    assert velocity.map(performance) == pytest.approx(128 / 127)
+    assert note.map(performance) == 0.75
 
 
 def test_example_installation_is_valid() -> None:
@@ -100,6 +128,11 @@ def test_mirrored_binding_renders_once() -> None:
         'left': Output(led_count=2),
         'right': Output(led_count=3),
     }
+    active.definition = installation.BoundAnimation(
+        selector='examples:/composition.toml',
+        outputs={'light': 'left * right'},
+    )
+    active.performance = runtime_control.MidiPerformance()
     active.bindings = [
         installation.PreparedBinding(
             output_name='light',
@@ -114,6 +147,31 @@ def test_mirrored_binding_renders_once() -> None:
 
     assert prepared.render_count == 1
     assert [frame.shape for _, frame in frames] == [(2, 3), (3, 3)]
+
+
+def test_active_animation_applies_midi_controls() -> None:
+    prepared = CountingPrepared()
+    active = object.__new__(installation.ActiveAnimation)
+    active.definition = installation.BoundAnimation(
+        selector='examples:/composition.toml',
+        outputs={'light': 'left'},
+        controls=[
+            installation.ParameterControl(
+                source='breath', parameter='brightness', output=[0.0, 2.0]
+            )
+        ],
+    )
+    active.bindings = [
+        installation.PreparedBinding(
+            output_name='light',
+            expression=installation.OutputExpression(['left'], 'single'),
+            prepared=prepared,
+        )
+    ]
+
+    active.apply_performance(runtime_control.MidiPerformance(note=60, breath=64))
+
+    assert prepared.parameters['brightness'] == pytest.approx(128 / 127)
 
 
 def test_assignment_uses_single_remaining_device() -> None:
@@ -165,6 +223,111 @@ def test_service_queues_animation_selection(tmp_path: Path) -> None:
     assert status['queued_animation'] == 'separate'
     assert not isinstance(response, ipc.Error)
 
+    test = service.rpc_response(
+        rpc.Request(command='test', params={'level': 30, 'duration': 1})
+    )
+    stop = service.rpc_response(rpc.Request(command='stop'))
+
+    assert test == {'state': 'queued', 'level': 30.0, 'duration': 1.0}
+    assert stop == 'ok'
+    assert service._stop_requested.is_set()
+
+
+def test_installation_service_uses_shared_lyte_identity(tmp_path: Path) -> None:
+    service = installation.InstallationService.model_construct(home=tmp_path)
+
+    assert service.name == 'lyte'
+    assert service.control_endpoint == tmp_path / '.local/state/lyte/gui.sock'
+
+
+def test_service_maps_midi_into_the_active_animation(tmp_path: Path) -> None:
+    class Active:
+        name = 'across'
+
+        def __init__(self) -> None:
+            self.calls: list[tuple[runtime_control.MidiPerformance, bool]] = []
+
+        def apply_performance(
+            self,
+            performance: runtime_control.MidiPerformance,
+            *,
+            restart: bool = False,
+        ) -> None:
+            self.calls.append((performance.model_copy(deep=True), restart))
+
+    active = Active()
+    service = installation.InstallationService.model_construct(
+        config=installation.parse_installation(
+            example_installation()
+            | {
+                'midi': {'channel': 1},
+                'animations': {
+                    'across': {
+                        'selector': 'examples:/composition.toml',
+                        'outputs': {'light': 'left + right'},
+                        'activation': 'note',
+                    },
+                    'separate': {
+                        'selector': 'examples:/composition.toml',
+                        'outputs': {'light': 'left * right'},
+                    },
+                },
+            }
+        ),
+        library=None,
+        outputs={},
+        home=tmp_path,
+    )
+    service._active = active
+
+    service._receive_midi(mido.Message('note_on', note=64, velocity=96))
+    service._receive_midi(mido.Message('control_change', control=2, value=80))
+    service._receive_midi(mido.Message('pitchwheel', pitch=-4096))
+
+    status = service.status_snapshot()
+    assert status.note == 64
+    assert status.breath == 80
+    assert status.pitch_bend == -4096
+    assert [restart for _, restart in active.calls] == [True, False, False]
+
+
+def test_installation_command_installs_reccy_service(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class Service:
+        argv: list[str] | None = None
+
+        @classmethod
+        def model_construct(cls) -> Service:
+            return cls()
+
+        def install_service(self, argv: list[str]) -> StatusResult:
+            self.argv = argv
+            return StatusResult(installed=True, running=True)
+
+    service = Service()
+    monkeypatch.setattr(
+        installation.InstallationService,
+        'model_construct',
+        lambda: service,
+    )
+    monkeypatch.setattr(
+        installation.controller, 'print_service_status', lambda name, result: None
+    )
+
+    result = installation.run_installation_command(
+        installation.InstallationCommandConfig(
+            action='install', config=tmp_path / 'installation.toml'
+        )
+    )
+
+    assert result == 0
+    assert service.argv == [
+        'installation',
+        'run',
+        str((tmp_path / 'installation.toml').resolve()),
+    ]
+
 
 def discovered(host: str, **values: object) -> installation.DiscoveredTwinkly:
     return installation.DiscoveredTwinkly(
@@ -181,11 +344,15 @@ class Output:
 class CountingPrepared:
     def __init__(self) -> None:
         self.render_count = 0
+        self.parameters: dict[str, float] = {}
 
     def byte_frame(self, wired: bool) -> NDArray[np.uint8]:
         assert wired
         self.render_count += 1
         return np.array([[0, 0, 0], [255, 0, 0]], dtype=np.uint8)
+
+    def set_parameters(self, values: dict[str, float]) -> None:
+        self.parameters = values
 
 
 def example_installation() -> dict[str, object]:

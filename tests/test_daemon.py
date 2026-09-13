@@ -4,13 +4,13 @@ from pathlib import Path
 
 from reccy.services import models, paths, renderers
 
-from lyte import daemon, daemon_runtime
+from lyte import daemon, daemon_runtime, service
 
 
 def test_midi_daemon_service_has_a_stable_identity() -> None:
-    assert daemon_runtime.LYTE_SERVICE.name == 'lyte'
-    assert daemon_runtime.LYTE_SERVICE.launchd_label == 'com.swirly.lyte'
-    assert daemon_runtime.LYTE_SERVICE.daemon_env_var == 'LYTE_DAEMON'
+    assert service.LYTE_SERVICE.name == 'lyte'
+    assert service.LYTE_SERVICE.launchd_label == 'com.swirly.lyte'
+    assert service.LYTE_SERVICE.daemon_env_var == 'LYTE_DAEMON'
 
 
 def test_reccy_daemon_metadata_uses_the_foreground_daemon_command(
@@ -70,9 +70,7 @@ def test_daemon_status_uses_reccy_service_status(monkeypatch: object) -> None:
 
 def test_reccy_service_definitions_start_the_foreground_daemon(tmp_path: Path) -> None:
     for platform in [models.Platform.linux, models.Platform.macos]:
-        service_paths = paths.service_paths(
-            daemon_runtime.LYTE_SERVICE, platform, tmp_path
-        )
+        service_paths = paths.service_paths(service.LYTE_SERVICE, platform, tmp_path)
         metadata = renderers.service_metadata(
             platform,
             'lyte',
@@ -80,12 +78,10 @@ def test_reccy_service_definitions_start_the_foreground_daemon(tmp_path: Path) -
             service_paths,
         )
         definition = (
-            renderers.linux_systemd_unit(
-                metadata, service_paths, daemon_runtime.LYTE_SERVICE
-            )
+            renderers.linux_systemd_unit(metadata, service_paths, service.LYTE_SERVICE)
             if platform is models.Platform.linux
             else renderers.macos_launch_agent(
-                metadata, service_paths, daemon_runtime.LYTE_SERVICE
+                metadata, service_paths, service.LYTE_SERVICE
             )
         )
 

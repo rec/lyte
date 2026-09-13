@@ -20,6 +20,7 @@ Ufor library config -> score selection -> Composition -> PreparedAnimation
                                             |              +-> Twinkly bytes
                                             |
 installation TOML -> named Twinkly selectors -> BoundAnimation -> Twinkly
+                         MIDI controls -> Ufor public parameters ----^
 
 wearable patch TOML -> MIDI patch renderer --------------------> Twinkly
 ```
@@ -179,6 +180,13 @@ resamples once across a concatenated strip and partitions contiguous output;
 queues animation selection for the next frame boundary and retains physical
 connections across selections. MAC addresses are discovered for recovery
 identity but never configured by the user.
+
+The installation service optionally owns a reconnecting MIDI input. Its
+configuration maps note gate, note number, velocity, CC 2 breath, and pitch
+bend into public numeric Ufor parameters. Ufor remains independent of MIDI;
+Lyte performs the mapping and applies live parameter updates to prepared
+animations. Note activation can suppress an animation while no note is held,
+and program changes select the next configured animation.
 
 DMX and Art-Net remain independent output primitives. Dynamic DMX animation
 selection is not implemented by the Twinkly installation runner.
