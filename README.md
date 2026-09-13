@@ -30,6 +30,19 @@ Generate a hardware-free preview from the same score:
 lyte preview examples:/composition.toml preview.html --library-config examples/library.toml
 ```
 
+Render browser- and desktop-playable MP4 files from selected scores, or omit
+the selectors to render every animation score in the library:
+
+```sh
+lyte render examples:/composition.toml examples:/aurora.toml \
+  --library-config examples/library.toml --output movies
+lyte render --library-config examples/library.toml --output movies
+```
+
+`lyte render` lays out LEDs in a grid. `--diameter`, `--padding`, `--shape`,
+`--layout COLUMNS ROWS`, and `--background-color` control the movie image.
+It requires `ffmpeg` on `PATH` and writes one H.264 MP4 per score.
+
 Direct Twinkly playback discovers a single device when no host is supplied. It
 authenticates the device, enters realtime mode, probes the HTTP connection while
 streaming UDP frames, recovers after connection failures, and requests blackout
