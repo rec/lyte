@@ -63,6 +63,8 @@ class TwinklyTrack(BaseModel):
     configured_host: str | None
     discovery_timeout: float | None
     device: animation.Device
+    logical_led_count: int | None = None
+    planned_led_count: int | None = None
     expected_mac: str | None = None
     stop_event: SkipValidation[threading.Event] | None = None
     on_connection_state: (
@@ -79,6 +81,13 @@ class TwinklyTrack(BaseModel):
 
     def prepare(self) -> bool:
         self._set_connection_state(realtime.PlaybackConnectionState.CONNECTING)
+        led_count = realtime.read_led_count(
+            self.client, self.retry, self.planned_led_count, self.host
+        )
+        if led_count is None:
+            return False
+        self.device = animation.Device(led_count=led_count)
+        self._warn_if_scaling()
         if not realtime.prepare_device(
             self.client, self.retry, self.host, stop_event=self.stop_event
         ):
@@ -122,9 +131,7 @@ class TwinklyTrack(BaseModel):
                         continue
                     if before_frame is not None:
                         before_frame()
-                    frame = animation.validate_byte_rgb_frame(
-                        self.device, render_frame()
-                    )
+                    frame = self._device_frame(render_frame())
                     recovery_duration = self._send_frame(name, frame, output)
                     elapsed = time.monotonic() - started_at
                     report.record_frame(elapsed, frame_delay)
@@ -145,12 +152,7 @@ class TwinklyTrack(BaseModel):
     ) -> bool:
         if not self._check_health(time.monotonic()):
             return False
-        return (
-            self._send_frame(
-                name, animation.validate_byte_rgb_frame(self.device, frame), output
-            )
-            is None
-        )
+        return self._send_frame(name, self._device_frame(frame), output) is None
 
     def _check_health(self, started_at: float) -> bool:
         if self.last_health_check is None:
@@ -202,23 +204,41 @@ class TwinklyTrack(BaseModel):
     def _recover(self) -> bool:
         self.connection.begin_recovery()
         self._notify_connection_state()
-        host = realtime.recover_streaming_device(
+        result = realtime.recover_streaming_device(
             self.client,
             self.retry,
             self.configured_host,
             self.discovery_timeout,
-            self.device.led_count,
+            self.planned_led_count,
             self.expected_mac,
             self.stop_event,
         )
-        if host is None:
+        if result is None:
             return False
+        host, led_count = result
         self.host = host
+        self.device = animation.Device(led_count=led_count)
+        self._warn_if_scaling()
         self.connection.resume_streaming()
         self._notify_connection_state()
         self._notify_device_connected()
         self._notify_health_check()
         return True
+
+    def _device_frame(self, frame: NDArray[np.uint8]) -> NDArray[np.uint8]:
+        return animation.validate_byte_rgb_frame(
+            self.device, animation.scale_byte_rgb_frame(frame, self.device.led_count)
+        )
+
+    def _warn_if_scaling(self) -> None:
+        if (
+            self.logical_led_count is not None
+            and self.logical_led_count != self.device.led_count
+        ):
+            LOGGER.warning(
+                f'[warn] {self.host}: score has {self.logical_led_count} LEDs, '
+                f'but device has {self.device.led_count}; scaling output.'
+            )
 
     def _set_connection_state(self, state: realtime.PlaybackConnectionState) -> None:
         self.connection.set_state(state)

@@ -45,7 +45,7 @@ class InstallationDefinition(BaseModel, frozen=True):
 
 class TwinklyTargetSpec(InstallationDefinition, frozen=True):
     host: str = Field(min_length=1)
-    led_count: int = Field(gt=0)
+    led_count: int | None = Field(default=None, gt=0)
     fps: float = Field(default=30.0, gt=0)
     timeout: float = Field(default=5.0, gt=0)
     attempts: int = Field(default=10, gt=0)
@@ -160,7 +160,9 @@ class DmxRenderer:
 
 
 class TwinklyOutputDriver:
-    def __init__(self, name: str, spec: TwinklyTargetSpec) -> None:
+    def __init__(
+        self, name: str, spec: TwinklyTargetSpec, logical_led_count: int
+    ) -> None:
         self.name = name
         self.spec = spec
         client = TwinklyClient(host=spec.host, timeout=spec.timeout)
@@ -174,7 +176,9 @@ class TwinklyOutputDriver:
             host=spec.host,
             configured_host=spec.host,
             discovery_timeout=None,
-            device=animation.Device(led_count=spec.led_count),
+            device=animation.Device(led_count=logical_led_count),
+            logical_led_count=logical_led_count,
+            planned_led_count=spec.led_count,
             expected_mac=None,
         )
         self._socket: socket.socket | None = None
@@ -287,12 +291,6 @@ def build_runtime(config: InstallationFile) -> InstallationRuntime:
     library = _read_pixel_library(config)
     targets: list[InstallationTarget] = []
     drivers: list[OutputDriver] = []
-    pixel_drivers = {
-        name: TwinklyOutputDriver(name, config.twinkly_targets[name])
-        for name in config.run
-        if name in config.twinkly_targets
-    }
-    drivers.extend(pixel_drivers.values())
     artnet_driver = None
     if config.dmx_targets:
         if config.artnet_endpoint is None:
@@ -321,12 +319,16 @@ def build_runtime(config: InstallationFile) -> InstallationRuntime:
                     f'pixel program {run_spec.program!r}: {error}'
                 ) from error
             _validate_twinkly_program(name, target_spec, prepared)
+            driver = TwinklyOutputDriver(
+                name, target_spec, len(prepared.output.layout.lights)
+            )
+            drivers.append(driver)
             targets.append(
                 InstallationTarget(
                     name=name,
                     fps=target_spec.fps,
                     render=PixelRenderer(prepared, target_spec.fps),
-                    driver=pixel_drivers[name],
+                    driver=driver,
                 )
             )
         else:
@@ -376,11 +378,6 @@ def _validate_twinkly_program(
     if output.interpretation != Interpretation.drive:
         raise InstallationFileError(
             f'Twinkly target {name!r} requires drive light values'
-        )
-    if len(output.layout.lights) != target.led_count:
-        raise InstallationFileError(
-            f'Twinkly target {name!r} has {target.led_count} LEDs but score '
-            f'layout {output.layout.name!r} has {len(output.layout.lights)}'
         )
 
 

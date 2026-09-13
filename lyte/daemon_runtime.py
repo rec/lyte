@@ -224,7 +224,7 @@ class LyteMidiDaemon(Reccy):
             client = TwinklyClient(
                 host=config.twinkly.host or '0.0.0.0', timeout=config.twinkly.timeout
             )
-            host = realtime.recover_streaming_device(
+            connection = realtime.recover_streaming_device(
                 client,
                 retry,
                 config.twinkly.host,
@@ -232,12 +232,9 @@ class LyteMidiDaemon(Reccy):
                 None,
                 stop_event=self._stop_requested,
             )
-            if host is None:
+            if connection is None:
                 return 0
-            actual_led_count = realtime.read_led_count(client, retry, None, host)
-            if actual_led_count is None:
-                self._set_state(DaemonState.UNKNOWN)
-                return 1
+            host, actual_led_count = connection
             runtime_library = patches.scale_patch_library(
                 project.library, actual_led_count
             )

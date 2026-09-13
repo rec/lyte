@@ -53,7 +53,6 @@ kind = "note_age_constellation"
 speed = 1.0
 
 [wearable]
-led_count = 250
 physical_map_status = "guessed"
 
 [wearable.segments]

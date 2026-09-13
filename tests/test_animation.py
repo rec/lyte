@@ -82,6 +82,21 @@ class SegmentTests(unittest.TestCase):
 
 
 class AnimationFrameTests(unittest.TestCase):
+    def test_scale_byte_rgb_frame_maps_authored_positions_to_device_positions(
+        self,
+    ) -> None:
+        frame = np.array([[10, 0, 0], [20, 0, 0], [30, 0, 0]], dtype=np.uint8)
+
+        scaled = animation.scale_byte_rgb_frame(frame, 5)
+
+        npt.assert_array_equal(
+            scaled,
+            np.array(
+                [[10, 0, 0], [10, 0, 0], [20, 0, 0], [20, 0, 0], [30, 0, 0]],
+                dtype=np.uint8,
+            ),
+        )
+
     def test_solid_rgb_frame(self) -> None:
         npt.assert_array_equal(
             solid_rgb_frame(3, 230, 85, 0),

@@ -74,17 +74,23 @@ class PhysicalRegionSpec(BaseModel, frozen=True):
 
 
 class WearableSpec(BaseModel, frozen=True):
-    led_count: int
+    led_count: int | None = None
     physical_map_status: Literal['provisional', 'guessed', 'measured']
     segments: dict[str, RegionSpec]
     physical_map: dict[str, PhysicalRegionSpec]
 
     @model_validator(mode='after')
     def validate_layout(self) -> WearableSpec:
-        if self.led_count <= 0:
-            raise ValueError('wearable led_count must be greater than zero')
         if set(self.segments) != set(self.physical_map):
             raise ValueError('physical map names must match wearable segments')
+        if not self.segments:
+            raise ValueError('wearable must contain at least one segment')
+
+        led_count = self.led_count or max(
+            segment.start + segment.led_count for segment in self.segments.values()
+        )
+        if led_count <= 0:
+            raise ValueError('wearable led_count must be greater than zero')
 
         logical_indexes = []
         physical_indexes = []
@@ -105,19 +111,20 @@ class WearableSpec(BaseModel, frozen=True):
                     )
                 )
 
-        expected_indexes = set(range(self.led_count))
+        expected_indexes = set(range(led_count))
         if (
             set(logical_indexes) != expected_indexes
-            or len(logical_indexes) != self.led_count
+            or len(logical_indexes) != led_count
         ):
             raise ValueError(
                 'wearable segments must cover each logical LED exactly once'
             )
         if (
             set(physical_indexes) != expected_indexes
-            or len(physical_indexes) != self.led_count
+            or len(physical_indexes) != led_count
         ):
             raise ValueError('physical map must cover each physical LED exactly once')
+        object.__setattr__(self, 'led_count', led_count)
         return self
 
     model_config = ConfigDict(extra='forbid')
@@ -385,17 +392,19 @@ def load_patch_library(path: Path) -> PatchLibrary:
 def scale_wearable_layout(wearable: WearableSpec, led_count: int) -> WearableSpec:
     if led_count <= 0:
         raise ValueError('runtime LED count must be greater than zero')
-    if led_count == wearable.led_count:
+    planned_led_count = wearable.led_count
+    assert planned_led_count is not None
+    if led_count == planned_led_count:
         return wearable
     LOGGER.warning(
-        f'[warn] Scaling wearable layout from {wearable.led_count} LEDs to '
+        f'[warn] Scaling wearable layout from {planned_led_count} LEDs to '
         f'{led_count} LEDs.'
     )
     physical_map = {
         name: PhysicalRegionSpec(
             ranges=[
                 _scaled_physical_range(
-                    physical_range, wearable.led_count, led_count, name
+                    physical_range, planned_led_count, led_count, name
                 )
                 for physical_range in physical_region.ranges
             ]
@@ -466,7 +475,9 @@ def map_logical_frame(
     wearable: WearableSpec,
     logical_frame: NDArray[np.float32],
 ) -> NDArray[np.float32]:
-    device = animation.Device(led_count=wearable.led_count)
+    led_count = wearable.led_count
+    assert led_count is not None
+    device = animation.Device(led_count=led_count)
     animation.validate_frame(device, logical_frame)
     physical_frame = np.zeros_like(logical_frame)
     for name, logical_region in wearable.segments.items():
@@ -498,7 +509,9 @@ def locator_frame(
 ) -> NDArray[np.float32]:
     if region not in wearable.segments:
         raise ValueError(f'unknown wearable region: {region}')
-    device = animation.Device(led_count=wearable.led_count)
+    led_count = wearable.led_count
+    assert led_count is not None
+    device = animation.Device(led_count=led_count)
     logical_frame = np.zeros((device.led_count, 3), dtype=np.float32)
     segment = wearable.segments[region]
     logical_frame[segment.start : segment.start + segment.led_count] = color

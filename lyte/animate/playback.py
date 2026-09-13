@@ -46,27 +46,22 @@ def run_animate(args: AnimateConfig) -> int:
         backoff=args.retry_backoff,
     )
     client = TwinklyClient(host=host, timeout=args.timeout)
-    led_count = realtime.read_led_count(client, retry, args.led_count, host)
-    if led_count is None:
-        return 1
-    if len(prepared.output.layout.lights) != led_count:
-        raise ValueError(
-            f'score layout has {len(prepared.output.layout.lights)} lights, '
-            f'but the Twinkly has {led_count} LEDs'
-        )
     twinkly_track = track.TwinklyTrack(
         client=client,
         retry=retry,
         host=host,
         configured_host=args.host,
         discovery_timeout=args.discovery_timeout,
-        device=animation.Device(led_count=led_count),
+        device=animation.Device(led_count=len(prepared.output.layout.lights)),
+        logical_led_count=len(prepared.output.layout.lights),
+        planned_led_count=args.led_count,
     )
     try:
         if not twinkly_track.prepare():
             return 1
         LOGGER.debug(
-            f'[ok] Streaming {args.selector} to {host} for {led_count} LEDs '
+            f'[ok] Streaming {args.selector} to {host} for '
+            f'{twinkly_track.device.led_count} LEDs '
             f'at {prepared.fps:g} FPS'
         )
         twinkly_track.stream_frames(

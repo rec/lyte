@@ -269,7 +269,7 @@ def test_daemon_reopens_an_unavailable_midi_input(tmp_path: Path) -> None:
     with (
         patch(
             'lyte.daemon_runtime.realtime.recover_streaming_device',
-            return_value='192.168.1.23',
+            return_value=('192.168.1.23', 200),
         ),
         patch('lyte.daemon_runtime.realtime.read_led_count', return_value=200),
         patch('lyte.daemon_runtime.realtime.prepare_device', return_value=True),
@@ -352,7 +352,7 @@ def test_daemon_test_command_overrides_patch_frames(tmp_path: Path) -> None:
     with (
         patch(
             'lyte.daemon_runtime.realtime.recover_streaming_device',
-            return_value='192.168.1.23',
+            return_value=('192.168.1.23', 250),
         ),
         patch('lyte.daemon_runtime.realtime.read_led_count', return_value=250),
         patch('lyte.daemon_runtime.midi.open_input', return_value=Port()),

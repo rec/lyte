@@ -66,6 +66,19 @@ def test_parse_installation_accepts_mixed_targets() -> None:
     assert set(config.run) == {'tree', 'front_wash'}
 
 
+def test_parse_installation_accepts_twinkly_target_without_led_count() -> None:
+    data = example_installation()
+    twinkly_targets = data['twinkly']
+    assert isinstance(twinkly_targets, dict)
+    tree = twinkly_targets['tree']
+    assert isinstance(tree, dict)
+    del tree['led_count']
+
+    config = installation.parse_installation(data)
+
+    assert config.twinkly_targets['tree'].led_count is None
+
+
 def test_load_installation_reports_source_path(tmp_path: Path) -> None:
     path = tmp_path / 'invalid.toml'
     path.write_text('[run.missing]\nprogram = "unknown"\n')
