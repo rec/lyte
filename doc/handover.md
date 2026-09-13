@@ -27,8 +27,7 @@ interactive wearable session, use `lyte patch play NAME`. Use `Ctrl-C` to stop
 an interactive command; it requests a bounded blackout before returning.
 
 Direct Twinkly commands assume one discoverable device on the local network.
-Leave their host options unset unless that assumption stops being true. Mixed
-installation targets always require explicit host addresses in their TOML.
+Leave their host options unset unless that assumption stops being true.
 
 The default Ufor library configuration is
 `~/.config/ufor/library.toml`. An explicit `--library-config` replaces it.
@@ -101,20 +100,21 @@ lyte patch locator
 Record the observed mapping and update the TOML deliberately. Do not alter the
 factory string to make the logical layout fit the file.
 
-## Mixed Installation Operation
+## Twinkly Installation Operation
 
-`examples/installation.toml` documents one Twinkly target and one generic
-eight-channel DMX instrument. Its TEST-NET addresses deliberately do not name
-real installation hardware. Copy it to an installation-specific file, replace
-the addresses, and replace every DMX category and pattern value with the
-fixture manual's actual profile.
+`examples/installation.toml` documents two semantic Twinkly string names. A
+`[twinkly]` entry matches discovered `gestalt` text, with no address, MAC, or
+LED count in the document. For example, `{ product_name = "Dots" }` assigns the
+Dots string; `{}` receives the only remaining discovered string.
 
-The file's `library_config` is resolved relative to the installation file.
-Each pixel program selects a Ufor score, named light output, public parameter
-overrides, and optional wiring order. A Twinkly `led_count`, when present, is a
-planning hint only; runtime discovery determines the output frame size and
-warns before scaling a mismatch. Keep installation TOML outside registered
-score roots so Ufor does not discover it as a score.
+Each `[animations.NAME]` entry selects a Ufor score and binds its named RGB
+drive outputs to strings. `left + right` makes the strings one long logical
+strip. `left * right` mirrors one rendered frame, independently scaled to each
+detected count. Every string must appear exactly once in each animation.
+
+The file's `library_config` is resolved relative to the installation file. Keep
+installation TOML outside registered score roots so Ufor does not discover it
+as a score.
 
 Run a configured installation in the foreground:
 
@@ -123,23 +123,16 @@ lyte installation run installation.toml
 ```
 
 Use `--duration SECONDS` for a bounded setup test. Normal completion and
-`Ctrl-C` attempt Twinkly and DMX blackout before closing output sockets. A
-target failure is logged and counted without stopping other targets; the
-command returns failure after bounded playback if any target failed.
+`Ctrl-C` attempt Twinkly blackout before closing output sockets. The Reccy
+service accepts `select_animation` with a configured name. It applies the
+selection on the next frame boundary without reconnecting healthy strings.
+`status` reports the selected and queued animation and each string's connection
+state, detected count, frame count, and failures.
 
-DMX universe numbers are one-based in the installation file. Category channel
-numbers are one-based offsets within the instrument's contiguous channel
-range. Art-Net subtracts one from the configured universe by default when it
-constructs the Art-Net port address.
-
-Automated tests verify DMX profile validation, exact universe bytes, ArtDmx
-packet bytes, mixed scheduling, independent failures, and shutdown calls. They
-do not verify a fixture manual, network route, node configuration, visible
-output, or physical blackout.
-
-The current installation runner supports Art-Net output only. DMX programs are
-static values in the installation file; dynamic DMX effects, DMX input, sACN,
-and USB DMX are not implemented.
+Automated tests verify selector matching, unambiguous assignment, output
+expression validation, concatenated partitioning, mirrored scaling, and queued
+selection. They do not verify visible output, Wi-Fi recovery, or physical
+blackout.
 
 ## Safety and Recovery Expectations
 
@@ -162,8 +155,8 @@ machine and record the result:
    promptly.
 4. Run `lyte patch locator` on the assembled garment and verify every named
    region.
-5. Run a bounded mixed installation test, verify the DMX fixture's address and
-   mode against its manual, and confirm visible Art-Net output and blackout.
+5. Run a bounded installation test, verify each string's visible response, and
+   confirm that both strings black out on exit.
 
 ## Development Maintenance
 

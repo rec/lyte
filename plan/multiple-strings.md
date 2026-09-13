@@ -34,6 +34,8 @@ selectable bound animations.
 left = { product_name = "Dots" }
 right = {}
 
+initial_animation = "foo_bar"
+
 [animations.foo_bar]
 selector = "show:/pair-chase.toml"
 outputs = { animation_output = "left + right" }
@@ -45,8 +47,6 @@ outputs = { first_output = "left", second_output = "right" }
 [animations.mirrored_sparks]
 selector = "show:/sparks.toml"
 outputs = { animation_output = "left * right" }
-
-initial_animation = "foo_bar"
 ```
 
 Each `outputs` entry maps one named animation output to a physical output

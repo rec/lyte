@@ -2,274 +2,208 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pytest
+from numpy.typing import NDArray
 from pydantic import ValidationError
+from reccy.protocol import ipc, rpc
 
-from lyte import dmx, installation, show
-
-
-class FakeClock:
-    def __init__(self) -> None:
-        self.now = 0.0
-
-    def monotonic(self) -> float:
-        return self.now
-
-    def sleep(self, duration: float) -> None:
-        self.now += duration
+from lyte import installation
+from lyte.twinkly import diagnostic
 
 
-class FakeDriver:
-    def __init__(self, fail_first_send: bool = False) -> None:
-        self.fail_first_send = fail_first_send
-        self.sent: list[tuple[str, object]] = []
-        self.opened = False
-        self.blacked_out = False
-        self.closed = False
-
-    def open(self) -> bool:
-        self.opened = True
-        return True
-
-    def send(self, name: str, payload: object) -> bool:
-        self.sent.append((name, payload))
-        if self.fail_first_send:
-            self.fail_first_send = False
-            return False
-        return True
-
-    def blackout(self) -> None:
-        self.blacked_out = True
-
-    def close(self) -> None:
-        self.closed = True
-
-
-class Renderer:
-    def __init__(self, payload: object) -> None:
-        self.payload = payload
-        self.frame = 0
-
-    def __call__(self) -> object:
-        self.frame += 1
-        return self.payload
-
-
-def test_parse_installation_accepts_mixed_targets() -> None:
+def test_parse_installation_accepts_selectable_animations() -> None:
     config = installation.parse_installation(example_installation())
 
-    assert set(config.twinkly_targets) == {'tree'}
-    assert config.twinkly_targets['tree'].led_count == 250
-    assert set(config.dmx_targets) == {'front_wash'}
-    assert config.dmx_targets['front_wash'].name == 'front_wash'
-    assert isinstance(config.dmx_targets['front_wash'].categories[1], dmx.RgbChannels)
-    assert set(config.run) == {'tree', 'front_wash'}
-
-
-def test_parse_installation_accepts_twinkly_target_without_led_count() -> None:
-    data = example_installation()
-    twinkly_targets = data['twinkly']
-    assert isinstance(twinkly_targets, dict)
-    tree = twinkly_targets['tree']
-    assert isinstance(tree, dict)
-    del tree['led_count']
-
-    config = installation.parse_installation(data)
-
-    assert config.twinkly_targets['tree'].led_count is None
-
-
-def test_load_installation_reports_source_path(tmp_path: Path) -> None:
-    path = tmp_path / 'invalid.toml'
-    path.write_text('[run.missing]\nprogram = "unknown"\n')
-
-    with pytest.raises(installation.InstallationFileError, match=str(path)):
-        installation.load_installation(path)
+    assert config.twinkly['left'].product_name == 'Dots'
+    assert config.animations['across'].outputs == {'light': 'left + right'}
+    assert config.initial_animation == 'across'
 
 
 def test_example_installation_is_valid() -> None:
     config = installation.load_installation(Path('examples/installation.toml'))
 
-    assert set(config.run) == {'tree', 'front_wash'}
+    assert config.initial_animation == 'tree_show'
 
 
-def test_installation_rejects_program_for_wrong_target_family() -> None:
+def test_installation_rejects_legacy_network_configuration() -> None:
     data = example_installation()
-    data['run'] = {'tree': {'program': 'wash'}}
+    twinkly = data['twinkly']
+    assert isinstance(twinkly, dict)
+    left = twinkly['left']
+    assert isinstance(left, dict)
+    left['host'] = '192.168.1.23'
 
-    with pytest.raises(ValueError, match='requires a pixel program'):
+    with pytest.raises(ValidationError, match='host'):
         installation.parse_installation(data)
 
 
-def test_installation_rejects_unknown_fixture_fields() -> None:
+def test_installation_rejects_missing_string_binding() -> None:
     data = example_installation()
-    dmx_targets = data['dmx']
-    assert isinstance(dmx_targets, dict)
-    fixture = dmx_targets['front_wash']
-    assert isinstance(fixture, dict)
-    fixture['adress'] = 1
+    animations = data['animations']
+    assert isinstance(animations, dict)
+    across = animations['across']
+    assert isinstance(across, dict)
+    across['outputs'] = {'light': 'left'}
 
-    with pytest.raises(ValidationError, match='adress'):
+    with pytest.raises(ValueError, match="does not bind string 'right'"):
         installation.parse_installation(data)
 
 
-def test_build_runtime_constructs_both_target_families() -> None:
-    runtime = installation.build_runtime(
-        installation.parse_installation(example_installation())
-    )
-
-    assert [target.name for target in runtime.targets] == ['tree', 'front_wash']
-    assert isinstance(runtime.targets[0].render, installation.PixelRenderer)
-    assert isinstance(runtime.targets[1].render, installation.DmxRenderer)
-    assert len(runtime.drivers) == 2
-
-
-def test_build_runtime_identifies_invalid_pixel_program() -> None:
-    data = example_installation()
-    programs = data['programs']
-    assert isinstance(programs, dict)
-    pixel = programs['rainbow']
-    assert isinstance(pixel, dict)
-    pixel['selector'] = 'missing'
-
-    with pytest.raises(
-        installation.InstallationFileError, match="pixel program 'rainbow'"
-    ):
-        installation.build_runtime(installation.parse_installation(data))
+@pytest.mark.parametrize(
+    ('value', 'message'),
+    [
+        ('left+right', 'spaces around'),
+        ('left + right * back', 'cannot mix'),
+        (' left', 'leading or trailing'),
+        ('left + left', 'more than once'),
+        ('other', 'unknown string'),
+    ],
+)
+def test_output_expression_rejects_ambiguous_syntax(value: str, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        installation.parse_output_expression(value, {'left', 'right', 'back'})
 
 
-def test_pixel_renderer_keeps_logical_rate_independent_of_output_rate() -> None:
-    prepared = show.prepare_animation(
-        show.LightProgramSpec(selector='examples:/composition.toml'),
-        Path('examples/library.toml'),
-    )
-    renderer = installation.PixelRenderer(prepared, output_fps=40)
+def test_concatenated_output_scales_then_partitions() -> None:
+    source = np.array([[0, 0, 0], [100, 0, 0], [200, 0, 0]], dtype=np.uint8)
+    expression = installation.parse_output_expression('left + right', {'left', 'right'})
 
-    frames = [renderer() for _ in range(4)]
+    frames = installation.distribute_frame(source, expression, {'left': 2, 'right': 3})
 
-    assert prepared.tick == 2
-    assert (frames[0] == frames[1]).all()
-    assert (frames[2] == frames[3]).all()
+    assert [name for name, _ in frames] == ['left', 'right']
+    assert frames[0][1].tolist() == [[0, 0, 0], [0, 0, 0]]
+    assert frames[1][1].tolist() == [[100, 0, 0], [100, 0, 0], [200, 0, 0]]
 
 
-def test_preview_and_device_preparation_render_the_same_logical_frame() -> None:
-    program = show.LightProgramSpec(selector='examples:/composition.toml')
-    preview = show.prepare_animation(program, Path('examples/library.toml'))
-    device = show.prepare_animation(program, Path('examples/library.toml'))
+def test_mirrored_output_scales_each_copy() -> None:
+    source = np.array([[0, 0, 0], [255, 0, 0]], dtype=np.uint8)
+    expression = installation.parse_output_expression('left * right', {'left', 'right'})
 
-    expected = preview.byte_frame()
-    actual = installation.PixelRenderer(device, output_fps=20)()
+    frames = installation.distribute_frame(source, expression, {'left': 3, 'right': 5})
 
-    assert (actual == expected).all()
+    assert [frame.shape for _, frame in frames] == [(3, 3), (5, 3)]
+    assert frames[0][1].tolist() == [[0, 0, 0], [0, 0, 0], [255, 0, 0]]
+    assert frames[1][1].tolist() == [
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        [255, 0, 0],
+        [255, 0, 0],
+    ]
 
 
-def test_scheduler_runs_pixel_and_dmx_targets_on_one_clock() -> None:
-    clock = FakeClock()
-    pixel_driver = FakeDriver()
-    dmx_driver = FakeDriver()
-    runtime = installation.InstallationRuntime(
-        targets=[
-            installation.InstallationTarget(
-                name='tree',
-                fps=2,
-                render=Renderer('pixels'),
-                driver=pixel_driver,
+def test_mirrored_binding_renders_once() -> None:
+    prepared = CountingPrepared()
+    active = object.__new__(installation.ActiveAnimation)
+    active.outputs = {
+        'left': Output(led_count=2),
+        'right': Output(led_count=3),
+    }
+    active.bindings = [
+        installation.PreparedBinding(
+            output_name='light',
+            expression=installation.parse_output_expression(
+                'left * right', active.outputs
             ),
-            installation.InstallationTarget(
-                name='wash',
-                fps=1,
-                render=Renderer('dmx'),
-                driver=dmx_driver,
-            ),
-        ],
-        drivers=[pixel_driver, dmx_driver],
+            prepared=prepared,
+        )
+    ]
+
+    frames = active.render()
+
+    assert prepared.render_count == 1
+    assert [frame.shape for _, frame in frames] == [(2, 3), (3, 3)]
+
+
+def test_assignment_uses_single_remaining_device() -> None:
+    dots = discovered('192.168.1.10', product_name='Twinkly Dots')
+    strings = discovered('192.168.1.11', product_name='Twinkly Strings')
+
+    assignment = installation.assign_twinkly_devices(
+        {
+            'left': installation.TwinklySelector(product_name='dots'),
+            'right': installation.TwinklySelector(),
+        },
+        [dots, strings],
     )
 
-    status = installation.run_runtime(
-        runtime, duration=1, clock=clock.monotonic, sleep=clock.sleep
+    assert assignment == {'left': dots, 'right': strings}
+
+
+def test_assignment_rejects_indistinguishable_devices() -> None:
+    devices = [
+        discovered('192.168.1.10', product_name='Twinkly Dots'),
+        discovered('192.168.1.11', product_name='Twinkly Dots'),
+    ]
+
+    with pytest.raises(installation.InstallationFileError, match='ambiguous'):
+        installation.assign_twinkly_devices(
+            {
+                'left': installation.TwinklySelector(),
+                'right': installation.TwinklySelector(),
+            },
+            devices,
+        )
+
+
+def test_service_queues_animation_selection(tmp_path: Path) -> None:
+    service = installation.InstallationService.model_construct(
+        config=installation.parse_installation(example_installation()),
+        library=None,
+        outputs={},
+        home=tmp_path,
     )
 
-    assert pixel_driver.sent == [('tree', 'pixels'), ('tree', 'pixels')]
-    assert dmx_driver.sent == [('wash', 'dmx')]
-    assert status.targets['tree'].frame_count == 2
-    assert status.targets['wash'].frame_count == 1
-    assert pixel_driver.blacked_out and pixel_driver.closed
-    assert dmx_driver.blacked_out and dmx_driver.closed
-
-
-def test_scheduler_reports_failure_and_continues_other_targets() -> None:
-    clock = FakeClock()
-    failing_driver = FakeDriver(fail_first_send=True)
-    healthy_driver = FakeDriver()
-    runtime = installation.InstallationRuntime(
-        targets=[
-            installation.InstallationTarget(
-                name='failing',
-                fps=2,
-                render=Renderer('first'),
-                driver=failing_driver,
-            ),
-            installation.InstallationTarget(
-                name='healthy',
-                fps=2,
-                render=Renderer('second'),
-                driver=healthy_driver,
-            ),
-        ],
-        drivers=[failing_driver, healthy_driver],
+    response = service.rpc_response(
+        rpc.Request(command='select_animation', params={'name': 'separate'})
     )
 
-    status = installation.run_runtime(
-        runtime, duration=1, clock=clock.monotonic, sleep=clock.sleep
+    assert response == {'state': 'queued', 'name': 'separate'}
+    status = service.rpc_response(rpc.Request(command='status'))
+    assert isinstance(status, dict)
+    assert status['queued_animation'] == 'separate'
+    assert not isinstance(response, ipc.Error)
+
+
+def discovered(host: str, **values: object) -> installation.DiscoveredTwinkly:
+    return installation.DiscoveredTwinkly(
+        host=host,
+        device=diagnostic.TwinklyDeviceInfo(raw=values, **values),
     )
 
-    assert len(failing_driver.sent) == 2
-    assert len(healthy_driver.sent) == 2
-    assert status.targets['failing'].failure_count == 1
-    assert status.targets['failing'].frame_count == 1
-    assert status.targets['healthy'].failure_count == 0
-    assert not status.successful
+
+class Output:
+    def __init__(self, led_count: int) -> None:
+        self.led_count = led_count
+
+
+class CountingPrepared:
+    def __init__(self) -> None:
+        self.render_count = 0
+
+    def byte_frame(self, wired: bool) -> NDArray[np.uint8]:
+        assert wired
+        self.render_count += 1
+        return np.array([[0, 0, 0], [255, 0, 0]], dtype=np.uint8)
 
 
 def example_installation() -> dict[str, object]:
     return {
         'library_config': 'examples/library.toml',
-        'artnet': {'host': '192.168.1.50'},
-        'twinkly': {'tree': {'host': '192.168.1.23', 'led_count': 250, 'fps': 30}},
-        'dmx': {
-            'front_wash': {
-                'universe': 1,
-                'start_channel': 1,
-                'channel_count': 8,
-                'fps': 40,
-                'categories': [
-                    {'kind': 'brightness', 'channels': [1]},
-                    {'kind': 'rgb', 'red': [2], 'green': [3], 'blue': [4]},
-                    {'kind': 'chase_speed', 'channels': [5]},
-                    {
-                        'kind': 'pattern_select',
-                        'channels': [6],
-                        'patterns': {'static': 0, 'chase': 64},
-                    },
-                    {'kind': 'raw', 'name': 'reserved', 'channels': [7, 8]},
-                ],
-            }
+        'twinkly': {
+            'left': {'product_name': 'Dots'},
+            'right': {},
         },
-        'programs': {
-            'rainbow': {
-                'kind': 'pixel',
+        'animations': {
+            'across': {
                 'selector': 'examples:/composition.toml',
+                'outputs': {'light': 'left + right'},
             },
-            'wash': {
-                'kind': 'dmx',
-                'brightness': 0.5,
-                'rgb': [1.0, 0.25, 0.0],
-                'chase_speed': 1.0,
-                'pattern': 'chase',
+            'separate': {
+                'selector': 'examples:/composition.toml',
+                'outputs': {'light': 'left * right'},
             },
         },
-        'run': {
-            'tree': {'program': 'rainbow'},
-            'front_wash': {'program': 'wash'},
-        },
+        'initial_animation': 'across',
     }

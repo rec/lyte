@@ -101,37 +101,33 @@ Patch changes during an active note crossfade for 0.25 seconds. Set
 `transition_duration` in `[daemon]` to change this, or to zero for immediate
 switching. Note-off cancels an active transition.
 
-## Mixed Installations
+## Twinkly Installations
 
-`lyte installation run` loads Twinkly targets, DMX instruments, programs, and a
-run map from one TOML file. Start with the example:
+`lyte installation run` discovers named Twinkly strings and starts selectable
+bound Ufor animations. Start with the example:
 
 ```sh
 cp examples/installation.toml installation.toml
 lyte installation run installation.toml --duration 10
 ```
 
-The example uses non-routable TEST-NET addresses and a generic fixture profile.
-Replace both addresses and define the DMX channels from the fixture manual
-before running it.
+Each `[twinkly]` entry is a case-insensitive `gestalt` selector, such as
+`{ product_name = "Dots" }`; the empty selector is useful for the one remaining
+device. No address, MAC, or LED count is configured. `[animations.NAME]` maps
+score output names to string expressions: `left + right` treats two strings as
+one long strip, and `left * right` mirrors one rendered frame to both strings.
+The Reccy RPC command `select_animation` queues a declared animation for the
+next frame boundary. `status` reports the active and queued animation plus
+per-string connection, count, frame, and failure status.
 
-DMX output currently uses Art-Net. Universe numbers and instrument
-`start_channel` values are one-based. Category channel numbers are one-based
-offsets within an instrument. Available categories are `brightness`, `rgb`,
-`white`, `chase_speed`, `pattern_select`, `strobe`, `pan`, `tilt`,
-`color_wheel`, `gobo_select`, and named `raw` channels.
-
-Installation DMX programs are static semantic values. Each pixel program names
-a Ufor selector, light output, public parameter overrides, and optional wiring.
 The installation's `library_config` is resolved relative to its TOML file.
-Lyte validates score resolution, renderer support, component meaning, layout
-size, and wiring before opening output. The scheduler runs each target at its
-configured delivery rate while preserving the score's logical simulation rate,
-records failures independently, and requests blackout from every opened output
-at shutdown.
+Lyte validates every selected score output before opening hardware. It discovers
+the actual LED count for each string and scales at output time, logging any
+authored-layout mismatch. Shutdown requests blackout from each opened string.
 
-`lyte show` performs the same Ufor selection and renderer preflight without
-connecting to hardware or running an installation.
+`lyte show` performs Ufor selection and renderer preflight without connecting
+to hardware or running an installation. DMX and Art-Net remain available as
+separate output primitives; dynamic DMX bindings are not part of this runner.
 
 ## Documentation
 
