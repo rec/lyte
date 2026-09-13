@@ -115,10 +115,12 @@ must author an explicit `ComponentMap` where conversion is intended. Lyte
 does not infer RGBW, dimmer, warm/cool, or linear-sRGB conversion.
 
 `lyte/animations/` groups implementation code into `patterns`, `fields`,
-`events`, and `simulations`. The older composition classes remain an
-internal part of the wearable patch engine; Ufor operations are the only
-composition format accepted by show, preview, animate, and installation pixel
-programs.
+`events`, and `simulations`. The older composition classes remain an internal
+part of the wearable patch engine. The wearable Ufor library uses one explicit
+`PythonAnimationScore` adapter to retain those stateful algorithms and the
+physical map while exposing each patch as a normal preset. Ufor
+`renderer_parameters` carry host-renderer scalar controls without encoding
+Lyte or MIDI behavior in Ufor.
 
 ## Layout and Wiring
 
@@ -187,6 +189,13 @@ bend into public numeric Ufor parameters. Ufor remains independent of MIDI;
 Lyte performs the mapping and applies live parameter updates to prepared
 animations. Note activation can suppress an animation while no note is held,
 and program changes select the next configured animation.
+
+`patches/wearable-library.toml` registers 36 presets backed by
+`patches/wearable-scores/wearable.py`. Each preset name selects the matching
+entry in `patches/wearable-breath.toml`; the adapter applies the catalogue's
+logical-to-physical mapping before output. `patches/wearable-installation.toml`
+uses installation-level defaults so the shared MIDI bindings are declared
+once.
 
 DMX and Art-Net remain independent output primitives. Dynamic DMX animation
 selection is not implemented by the Twinkly installation runner.

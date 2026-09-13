@@ -1,0 +1,9 @@
+format = "recs"
+version = 3
+name = "pitch_turbo_hamiltonian"
+title = "Pitch Turbo Hamiltonian"
+tags = ["#wearable"]
+kind = "preset"
+
+[score]
+path = "wearable.py"

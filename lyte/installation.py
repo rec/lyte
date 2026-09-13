@@ -112,6 +112,11 @@ class ParameterControl(InstallationDefinition, frozen=True):
         return self.output[0] + progress * (self.output[1] - self.output[0])
 
 
+class AnimationDefaults(InstallationDefinition, frozen=True):
+    activation: Literal['always', 'note'] = 'always'
+    controls: list[ParameterControl] = Field(default_factory=list)
+
+
 class BoundAnimation(InstallationDefinition, frozen=True):
     selector: str = Field(min_length=1)
     outputs: dict[str, str] = Field(min_length=1)
@@ -129,6 +134,7 @@ class BoundAnimation(InstallationDefinition, frozen=True):
 class InstallationFile(InstallationDefinition, frozen=True):
     library_config: Path | None = None
     twinkly: dict[str, TwinklySelector] = Field(min_length=1)
+    animation_defaults: AnimationDefaults = Field(default_factory=AnimationDefaults)
     animations: dict[str, BoundAnimation] = Field(min_length=1)
     initial_animation: str
     fps: float = Field(default=30.0, gt=0)
@@ -141,8 +147,26 @@ class InstallationFile(InstallationDefinition, frozen=True):
 
     @model_validator(mode='after')
     def controls_require_midi(self) -> InstallationFile:
+        animations = {
+            name: animation.model_copy(
+                update={
+                    **(
+                        {'activation': self.animation_defaults.activation}
+                        if 'activation' not in animation.model_fields_set
+                        else {}
+                    ),
+                    **(
+                        {'controls': self.animation_defaults.controls}
+                        if 'controls' not in animation.model_fields_set
+                        else {}
+                    ),
+                }
+            )
+            for name, animation in self.animations.items()
+        }
+        object.__setattr__(self, 'animations', animations)
         if self.midi is None and any(
-            a.activation == 'note' or a.controls for a in self.animations.values()
+            a.activation == 'note' or a.controls for a in animations.values()
         ):
             raise ValueError('controlled animations require MIDI configuration')
         return self
@@ -665,6 +689,7 @@ def parse_installation(data: dict[str, object]) -> InstallationFile:
     allowed = {
         'library_config',
         'twinkly',
+        'animation_defaults',
         'animations',
         'initial_animation',
         'fps',

@@ -9,8 +9,9 @@ import mido
 import numpy as np
 from numpy import testing as npt
 from pydantic import BaseModel
+from ufor import library_files
 
-from lyte import animation, midi, patches
+from lyte import animation, installation, midi, patches, show
 from lyte.retry import RetryConfig
 from lyte.twinkly import realtime, track
 from lyte.twinkly.client import TwinklyClient
@@ -28,6 +29,52 @@ def make_track(led_count: int = 250) -> track.TwinklyTrack:
 
 
 class PatchLibraryTests(unittest.TestCase):
+    def test_wearable_catalog_is_available_as_ufor_scores(self) -> None:
+        catalog = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        config = installation.load_installation(
+            Path('patches/wearable-installation.toml')
+        )
+        library = library_files.read_library(config.library_config)
+
+        self.assertEqual(set(config.animations), set(catalog.patches))
+        self.assertEqual(
+            {e.name for e in library.find('#wearable')}, set(catalog.patches)
+        )
+        self.assertEqual(config.initial_animation, 'prism_limbs')
+        for definition in config.animations.values():
+            prepared = show.prepare_library_animation(
+                library,
+                show.LightProgramSpec(
+                    selector=definition.selector,
+                    output='light',
+                ),
+            )
+            self.assertEqual(
+                set(prepared.output.layout.regions), set(catalog.wearable.segments)
+            )
+
+    def test_ufor_wearable_score_preserves_legacy_rendering(self) -> None:
+        catalog = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        legacy = patches.build_light_patch(catalog, 'prism_limbs')
+        legacy.receive(mido.Message('note_on', note=61, velocity=100))
+        legacy.receive(mido.Message('control_change', control=2, value=127))
+        legacy.receive(mido.Message('pitchwheel', pitch=-4096))
+        expected = patches.map_logical_frame(
+            catalog.wearable,
+            legacy.render(animation.Device(led_count=250)),
+        )
+
+        library = library_files.read_library(Path('patches/wearable-library.toml'))
+        prepared = show.prepare_library_animation(
+            library,
+            show.LightProgramSpec(selector='wearable:/prism_limbs.toml'),
+        )
+        prepared.set_parameters(
+            {'note': 61, 'velocity': 100, 'breath': 127, 'pitch_bend': -4096}
+        )
+
+        npt.assert_array_equal(prepared.render(), expected)
+
     def test_load_wearable_library_and_map_logical_regions(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
 
