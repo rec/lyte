@@ -102,6 +102,17 @@ updates are reported as construction-only because some effect fields determine
 state shape or random initialization; generic scalar operations such as
 `Gain` can update without resetting children.
 
+`lyte.reactivity` provides the separate one-dimensional reactive substrate:
+timestamp-local normalized audio features, FFT bands, envelope/onset analysis,
+gradient sampling, smoothing, blur, mirroring, masking, and explicit layer
+blend modes. It accepts caller-provided sample blocks and has no dependency on
+an audio device, MIDI, output transport, or two-dimensional geometry.
+
+`lyte author` runs a loopback-only browser editor for a selected Ufor library.
+It lists animation scores, derives sliders from their declared public parameter
+contracts, and regenerates the shared HTML preview for each edit. It is a
+parameter authoring surface, not a timeline or a two-dimensional editor.
+
 ## Built-In RGB Effects
 
 `lyte/animate/build.py` is the explicit registry from all 41

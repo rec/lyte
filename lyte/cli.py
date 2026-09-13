@@ -10,7 +10,7 @@ from typing import Annotated
 import tyro
 from reccy.runtime import logging
 
-from . import daemon, fps_test, installation, render, wled
+from . import authoring, daemon, fps_test, installation, render, wled
 from . import patches
 from . import show
 from .animate.config import AnimateConfig
@@ -133,6 +133,7 @@ def main(args: Sequence[str] | None = None) -> int:
     config = tyro.extras.subcommand_cli_from_dict(
         {
             'animate': AnimateConfig,
+            'author': authoring.AuthorConfig,
             'black-floor': fps_test.BlackFloorTestConfig,
             'brightness': BrightnessConfig,
             'color': ColorConfig,
@@ -169,6 +170,8 @@ def main(args: Sequence[str] | None = None) -> int:
 def run_command(config: object) -> int:
     if isinstance(config, AnimateConfig):
         return run_animate(config)
+    if isinstance(config, authoring.AuthorConfig):
+        return authoring.run_author(config)
     if isinstance(config, fps_test.BlackFloorTestConfig):
         return fps_test.run_black_floor_test(config)
     if isinstance(config, BrightnessConfig):
