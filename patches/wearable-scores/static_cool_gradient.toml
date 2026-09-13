@@ -1,0 +1,9 @@
+format = "recs"
+version = 3
+name = "static_cool_gradient"
+title = "Static Cool Gradient"
+tags = ["#wearable"]
+kind = "preset"
+
+[score]
+path = "wearable.py"

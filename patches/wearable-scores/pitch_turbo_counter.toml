@@ -1,0 +1,9 @@
+format = "recs"
+version = 3
+name = "pitch_turbo_counter"
+title = "Pitch Turbo Counter"
+tags = ["#wearable"]
+kind = "preset"
+
+[score]
+path = "wearable.py"
