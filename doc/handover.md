@@ -40,8 +40,11 @@ lyte author --library-config examples/library.toml
 ```
 
 It listens only on `127.0.0.1:8765`, opens the browser by default, and previews
-the selected score again whenever a declared public parameter changes. Use
-`--no-open` when starting it remotely or `--port` to select another local port.
+the selected score again whenever a declared public parameter changes. The
+catalogue also includes built-in one-dimensional audio-reactive effects under
+the `builtin:` selector prefix; their editor previews use a synthetic feature
+stream rather than opening an audio device. Use `--no-open` when starting it
+remotely or `--port` to select another local port.
 
 Import an offline WLED backup directory containing `presets.json`,
 `eff.json`, `fxdata.json`, `pal.json`, and `info.json` (or a
