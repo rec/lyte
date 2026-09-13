@@ -116,12 +116,15 @@ switching. Note-off cancels an active transition.
 
 ## Twinkly Installations
 
-`lyte installation run` discovers named Twinkly strings and starts selectable
-bound Ufor animations. Start with the example:
+`lyte installation` discovers named Twinkly strings and starts selectable
+bound Ufor animations. It can run in the foreground or own the normal `lyte`
+per-user service:
 
 ```sh
 cp examples/installation.toml installation.toml
 lyte installation run installation.toml --duration 10
+lyte installation install installation.toml
+lyte installation status installation.toml
 ```
 
 Each `[twinkly]` entry is a case-insensitive `gestalt` selector, such as
@@ -131,7 +134,24 @@ score output names to string expressions: `left + right` treats two strings as
 one long strip, and `left * right` mirrors one rendered frame to both strings.
 The Reccy RPC command `select_animation` queues a declared animation for the
 next frame boundary. `status` reports the active and queued animation plus
-per-string connection, count, frame, and failure status.
+per-string connection, count, frame, and failure status. The same endpoint
+supports `test`, `blackout`, and `stop`.
+
+An optional `[midi]` table enables MIDI input and reconnection. An animation may
+set `activation = "note"` and map `gate`, `note`, `velocity`, CC 2 `breath`, or
+`pitch_bend` into public Ufor score parameters:
+
+```toml
+[[animations.reactive.controls]]
+source = "breath"
+parameter = "brightness"
+output = [0.0, 1.0]
+```
+
+`velocity` and `breath` are normalized to 0 through 1, and `pitch_bend` to -1
+through 1. `output` linearly maps that range. A `note` control can instead use
+`values = [...]` as a cyclic lookup table. Program changes select the next
+configured animation.
 
 The installation's `library_config` is resolved relative to its TOML file.
 Lyte validates every selected score output before opening hardware. It discovers

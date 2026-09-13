@@ -66,6 +66,11 @@ ready score.
 
 ## Daemon Operation
 
+The daemon is the legacy single-string wearable runner. New multi-string and
+MIDI-controlled configurations should use the installation service below. Keep
+the daemon only while the existing wearable catalogue is being converted to
+Ufor scores.
+
 The default daemon configuration is
 `patches/wearable-daemon.toml`. Run it in the foreground while setting up:
 
@@ -151,12 +156,32 @@ Run a configured installation in the foreground:
 lyte installation run installation.toml
 ```
 
+Install and manage it as the `lyte` per-user service:
+
+```sh
+lyte installation install installation.toml
+lyte installation status installation.toml
+lyte installation restart installation.toml
+lyte installation stop installation.toml
+```
+
 Use `--duration SECONDS` for a bounded setup test. Normal completion and
 `Ctrl-C` attempt Twinkly blackout before closing output sockets. The Reccy
 service accepts `select_animation` with a configured name. It applies the
 selection on the next frame boundary without reconnecting healthy strings.
 `status` reports the selected and queued animation and each string's connection
-state, detected count, frame count, and failures.
+state, detected count, frame count, and failures. It also reports queued and
+active light tests and, when MIDI is configured, connection errors and the
+current note, breath, and pitch-bend values.
+
+Add `[midi]` using the same channel and device fields as the wearable daemon.
+Each animation may set `activation = "note"`. Its
+`[[animations.NAME.controls]]` entries map `gate`, `note`, `velocity`,
+`breath`, or `pitch_bend` to a public Ufor parameter. Use `output = [MIN, MAX]`
+for a linear mapping, or `values = [...]` for a cyclic note lookup. Lyte
+validates every target parameter before opening hardware. MIDI disconnects
+clear the live controls; the service retries the configured input without a
+restart. Program changes select the next animation in file order.
 
 Automated tests verify selector matching, unambiguous assignment, output
 expression validation, concatenated partitioning, mirrored scaling, and queued

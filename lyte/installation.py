@@ -12,18 +12,28 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Literal
 
+import mido
 import numpy as np
 import tyro
 from numpy.typing import NDArray
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    ValidationError,
+    model_validator,
+)
 from reccy.protocol import ipc, rpc
 from reccy.reccy import Reccy, ReccyStatus
 from reccy.runtime import logging
+from reccy.services import controller
 from ufor import library_files
 from ufor.library import Library
 from ufor.lights import Interpretation
 
-from . import animation, rendering, show
+from . import animation, rendering, runtime_control, service, show
+from .midi import MidiIn, MidiInput, input_messages, open_input
 from .retry import RetryConfig
 from .twinkly import diagnostic, discovery, realtime, session, track
 from .twinkly.client import TwinklyClient
@@ -42,7 +52,10 @@ _GESTALT_FIELDS = (
 
 @dataclass(frozen=True)
 class InstallationCommandConfig:
-    action: Annotated[Literal['run'], tyro.conf.Positional] = 'run'
+    action: Annotated[
+        Literal['run', 'install', 'uninstall', 'start', 'stop', 'restart', 'status'],
+        tyro.conf.Positional,
+    ] = 'run'
     config: Annotated[Path, tyro.conf.Positional] = Path('installation.toml')
     duration: float | None = None
 
@@ -72,9 +85,45 @@ class TwinklySelector(InstallationDefinition, frozen=True):
         )
 
 
+class ParameterControl(InstallationDefinition, frozen=True):
+    source: Literal['gate', 'note', 'velocity', 'breath', 'pitch_bend']
+    parameter: str = Field(min_length=1)
+    output: list[float] | None = None
+    values: list[float] = Field(default_factory=list)
+
+    @model_validator(mode='after')
+    def mapping(self) -> ParameterControl:
+        if self.output is not None and len(self.output) != 2:
+            raise ValueError('control output must contain minimum and maximum')
+        if self.values and self.source != 'note':
+            raise ValueError('control value tables require the note source')
+        if self.values and self.output is not None:
+            raise ValueError('control cannot define both output and values')
+        return self
+
+    def map(self, performance: runtime_control.MidiPerformance) -> float:
+        value = performance.value(self.source)
+        if self.values:
+            return self.values[int(value) % len(self.values)]
+        if self.output is None:
+            return value
+        minimum, maximum = _CONTROL_RANGES[self.source]
+        progress = (value - minimum) / (maximum - minimum)
+        return self.output[0] + progress * (self.output[1] - self.output[0])
+
+
 class BoundAnimation(InstallationDefinition, frozen=True):
     selector: str = Field(min_length=1)
     outputs: dict[str, str] = Field(min_length=1)
+    activation: Literal['always', 'note'] = 'always'
+    controls: list[ParameterControl] = Field(default_factory=list)
+
+    @model_validator(mode='after')
+    def distinct_controls(self) -> BoundAnimation:
+        parameters = [c.parameter for c in self.controls]
+        if len(parameters) != len(set(parameters)):
+            raise ValueError('animation controls must target distinct parameters')
+        return self
 
 
 class InstallationFile(InstallationDefinition, frozen=True):
@@ -88,6 +137,15 @@ class InstallationFile(InstallationDefinition, frozen=True):
     retry_delay: float = Field(default=0.5, ge=0)
     retry_backoff: float = Field(default=2.0, ge=1)
     discovery_timeout: float = Field(default=5.0, gt=0)
+    midi: MidiIn | None = None
+
+    @model_validator(mode='after')
+    def controls_require_midi(self) -> InstallationFile:
+        if self.midi is None and any(
+            a.activation == 'note' or a.controls for a in self.animations.values()
+        ):
+            raise ValueError('controlled animations require MIDI configuration')
+        return self
 
 
 @dataclass(frozen=True)
@@ -124,6 +182,13 @@ class InstallationStatus(ReccyStatus):
     queued_animation: str | None = None
     strings: dict[str, StringStatus] = Field(default_factory=dict)
     bindings: dict[str, str] = Field(default_factory=dict)
+    midi_connected: bool = False
+    midi_error: str | None = None
+    note: int | None = None
+    breath: int | None = None
+    pitch_bend: int | None = None
+    queued_test: runtime_control.LightTestCommand | None = None
+    active_test: runtime_control.LightTestCommand | None = None
 
 
 def parse_output_expression(value: str, strings: Iterable[str]) -> OutputExpression:
@@ -279,20 +344,45 @@ class ActiveAnimation:
         outputs: dict[str, TwinklyOutput],
     ) -> None:
         self.name = name
+        self.definition = definition
+        self.library = library
         self.outputs = outputs
+        self.performance = runtime_control.MidiPerformance()
+        self.bindings: list[PreparedBinding] = []
+        self._prepare()
+
+    def _prepare(self) -> None:
         self.bindings = [
             PreparedBinding(
                 output_name,
-                parse_output_expression(expression, outputs),
-                _prepare_output(library, definition.selector, output_name),
+                parse_output_expression(expression, self.outputs),
+                _prepare_output(self.library, self.definition.selector, output_name),
             )
-            for output_name, expression in definition.outputs.items()
+            for output_name, expression in self.definition.outputs.items()
         ]
+
+    def apply_performance(
+        self, performance: runtime_control.MidiPerformance, *, restart: bool = False
+    ) -> None:
+        self.performance = performance.model_copy(deep=True)
+        if restart:
+            self._prepare()
+        values = {c.parameter: c.map(performance) for c in self.definition.controls}
+        if values:
+            for binding in self.bindings:
+                binding.prepared.set_parameters(values)
 
     def render(self) -> list[tuple[str, NDArray[np.uint8]]]:
         frames: list[tuple[str, NDArray[np.uint8]]] = []
         for binding in self.bindings:
-            source = binding.prepared.byte_frame(wired=True)
+            source = (
+                binding.prepared.byte_frame(wired=True)
+                if self.definition.activation == 'always'
+                or self.performance.note is not None
+                else np.zeros(
+                    (len(binding.prepared.output.layout.lights), 3), dtype=np.uint8
+                )
+            )
             frames.extend(
                 distribute_frame(
                     source,
@@ -325,7 +415,8 @@ def distribute_frame(
 
 
 class InstallationService(Reccy):
-    name = 'lyte-installation'
+    name = 'lyte'
+    service_spec = service.LYTE_SERVICE
     status_model = InstallationStatus
     rpc_enabled = True
 
@@ -337,6 +428,15 @@ class InstallationService(Reccy):
 
     _active: ActiveAnimation | None = PrivateAttr(default=None)
     _queued_name: str | None = PrivateAttr(default=None)
+    _performance: runtime_control.MidiPerformance = PrivateAttr(
+        default_factory=runtime_control.MidiPerformance
+    )
+    _midi_port: MidiInput | None = PrivateAttr(default=None)
+    _next_midi_open_at: float = PrivateAttr(default=0.0)
+    _midi_connected: bool = PrivateAttr(default=False)
+    _midi_error: str | None = PrivateAttr(default=None)
+    _selected_test: runtime_control.LightTestCommand | None = PrivateAttr(default=None)
+    _active_test: runtime_control.ActiveLightTest | None = PrivateAttr(default=None)
     _stop_requested: threading.Event = PrivateAttr(default_factory=threading.Event)
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
 
@@ -354,6 +454,20 @@ class InstallationService(Reccy):
                 self._queued_name = name
                 self.publish_status()
                 return {'state': 'queued', 'name': name}
+            if request.command == 'test':
+                test = runtime_control.light_test_command(request.params)
+                if isinstance(test, ipc.Error):
+                    return test
+                self._selected_test = test
+                self.publish_status()
+                return {
+                    'state': 'queued',
+                    'level': test.level,
+                    'duration': test.duration,
+                }
+            if request.command in {'blackout', 'stop'}:
+                self._stop_requested.set()
+                return 'ok'
         return ipc.Error(type='error', message=f'unknown command {request.command}')
 
     def status_snapshot(self) -> InstallationStatus:
@@ -371,6 +485,15 @@ class InstallationService(Reccy):
                 queued_animation=self._queued_name,
                 strings={name: output.status for name, output in self.outputs.items()},
                 bindings=bindings,
+                midi_connected=self._midi_connected,
+                midi_error=self._midi_error,
+                note=self._performance.note,
+                breath=self._performance.breath,
+                pitch_bend=self._performance.pitch,
+                queued_test=self._selected_test,
+                active_test=(
+                    None if self._active_test is None else self._active_test.command
+                ),
             )
 
     def run(self, duration: float | None = None) -> int:
@@ -399,8 +522,11 @@ class InstallationService(Reccy):
                     time.sleep(next_frame - now)
                     continue
                 self._apply_queued_selection()
+                self._process_midi(now)
+                self._apply_queued_test(now)
                 assert self._active is not None
-                for name, frame in self._active.render():
+                frames = self._test_frames(now) or self._active.render()
+                for name, frame in frames:
                     output = self.outputs[name]
                     try:
                         if not output.send(self._active.name, frame):
@@ -414,6 +540,7 @@ class InstallationService(Reccy):
         except KeyboardInterrupt:
             LOGGER.info('[installation] Interrupted.')
         finally:
+            self._close_midi()
             for output in opened:
                 output.close()
             self.close()
@@ -433,8 +560,89 @@ class InstallationService(Reccy):
         )
         with self._lock:
             self._active = active
+            active.apply_performance(self._performance)
         LOGGER.info(f'[installation] Selected animation: {name}')
         self.publish_status()
+
+    def _process_midi(self, now: float) -> None:
+        if self.config.midi is None:
+            return
+        if self._midi_port is None:
+            if now < self._next_midi_open_at:
+                return
+            try:
+                self._midi_port = open_input(self.config.midi)
+            except (OSError, ValueError) as error:
+                self._next_midi_open_at = now + 1
+                self._set_midi_status(False, str(error))
+                return
+            self._set_midi_status(True, None)
+        try:
+            for message in input_messages(self._midi_port, self.config.midi):
+                self._receive_midi(message)
+        except (OSError, ValueError) as error:
+            self._close_midi()
+            self._next_midi_open_at = now + 1
+            self._performance = runtime_control.MidiPerformance()
+            if self._active is not None:
+                self._active.apply_performance(self._performance)
+            self._set_midi_status(False, str(error))
+
+    def _receive_midi(self, message: mido.Message) -> None:
+        if message.type == 'program_change':
+            names = list(self.config.animations)
+            current = self._active.name if self._active is not None else names[0]
+            self._queued_name = names[(names.index(current) + 1) % len(names)]
+            self.publish_status()
+            return
+        restart = message.type == 'note_on' and bool(message.velocity)
+        self._performance.receive(message)
+        if self._active is not None:
+            self._active.apply_performance(self._performance, restart=restart)
+        self.publish_status()
+
+    def _set_midi_status(self, connected: bool, error: str | None) -> None:
+        changed = self._midi_connected != connected or self._midi_error != error
+        self._midi_connected = connected
+        self._midi_error = error
+        if changed:
+            self.publish_status()
+
+    def _close_midi(self) -> None:
+        if self._midi_port is None:
+            return
+        try:
+            self._midi_port.close()
+        except (OSError, ValueError) as error:
+            LOGGER.warning(f'[warn] Could not close MIDI input: {error}')
+        self._midi_port = None
+
+    def _apply_queued_test(self, now: float) -> None:
+        if self._selected_test is None:
+            return
+        self._active_test = runtime_control.ActiveLightTest(
+            command=self._selected_test, started_at=now
+        )
+        self._selected_test = None
+        self.publish_status()
+
+    def _test_frames(self, now: float) -> list[tuple[str, NDArray[np.uint8]]]:
+        if self._active_test is None:
+            return []
+        frames = []
+        for name, output in self.outputs.items():
+            frame = self._active_test.render(
+                animation.Device(led_count=output.led_count), now
+            )
+            if frame is None:
+                self._active_test = None
+                self._stop_requested.set()
+                return [
+                    (n, np.zeros((o.led_count, 3), dtype=np.uint8))
+                    for n, o in self.outputs.items()
+                ]
+            frames.append((name, frame))
+        return frames
 
 
 def load_installation(path: Path) -> InstallationFile:
@@ -465,6 +673,7 @@ def parse_installation(data: dict[str, object]) -> InstallationFile:
         'retry_delay',
         'retry_backoff',
         'discovery_timeout',
+        'midi',
     }
     if unknown := sorted(set(data) - allowed):
         raise ValueError(f'unknown top-level sections: {", ".join(unknown)}')
@@ -517,7 +726,11 @@ def build_service(
     show.log_diagnostics(library)
     for definition in config.animations.values():
         for output_name in definition.outputs:
-            _prepare_output(library, definition.selector, output_name)
+            prepared = _prepare_output(library, definition.selector, output_name)
+            for control in definition.controls:
+                prepared.composition.parameter_contract(
+                    prepared.composition.root, control.parameter
+                )
     resolved = discover_assignments(config) if assignments is None else assignments
     if set(resolved) != set(config.twinkly):
         raise InstallationFileError(
@@ -533,7 +746,19 @@ def build_service(
 
 
 def run_installation_command(config: InstallationCommandConfig) -> int:
-    return build_service(load_installation(config.config)).run(config.duration)
+    if config.action == 'run':
+        return build_service(load_installation(config.config)).run(config.duration)
+    runtime = InstallationService.model_construct()
+    if config.action == 'install':
+        result = runtime.install_service(
+            ['installation', 'run', str(config.config.resolve())]
+        )
+    elif config.action == 'status':
+        result = runtime.service_status()
+    else:
+        result = getattr(runtime, f'{config.action}_service')()
+    controller.print_service_status(service.LYTE_SERVICE.name, result)
+    return 0 if result.running is not False else 1
 
 
 def _prepare_output(
@@ -579,6 +804,15 @@ def _validate_installation(config: InstallationFile) -> None:
             )
     if config.initial_animation not in config.animations:
         raise ValueError('initial_animation names an unknown animation')
+
+
+_CONTROL_RANGES = {
+    'gate': (0.0, 1.0),
+    'note': (0.0, 127.0),
+    'velocity': (0.0, 1.0),
+    'breath': (0.0, 1.0),
+    'pitch_bend': (-1.0, 1.0),
+}
 
 
 def _describe_device(device: diagnostic.TwinklyDeviceInfo) -> str:
