@@ -54,6 +54,13 @@ def test_example_installation_is_valid() -> None:
     assert config.initial_animation == 'tree_show'
 
 
+def test_showco_installation_is_valid() -> None:
+    config = installation.load_installation(Path('patches/showco-installation.toml'))
+
+    assert list(config.twinkly) == ['dots', 'strings']
+    assert config.animations['tree_show'].outputs == {'light': 'dots + strings'}
+
+
 def test_installation_rejects_legacy_network_configuration() -> None:
     data = example_installation()
     twinkly = data['twinkly']
