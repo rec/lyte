@@ -33,6 +33,16 @@ Omit selectors to render every animation score in the selected library.
 `ffmpeg` must be on `PATH`. Use `--diameter`, `--padding`, `--shape`,
 `--layout COLUMNS ROWS`, and `--background-color` to control the grid image.
 
+Open the local parameter editor for a Ufor library:
+
+```sh
+lyte author --library-config examples/library.toml
+```
+
+It listens only on `127.0.0.1:8765`, opens the browser by default, and previews
+the selected score again whenever a declared public parameter changes. Use
+`--no-open` when starting it remotely or `--port` to select another local port.
+
 Import an offline WLED backup directory containing `presets.json`,
 `eff.json`, `fxdata.json`, `pal.json`, and `info.json` (or a
 `metadata.json` containing `effects`, `fxdata`, `palettes`, and `info`):

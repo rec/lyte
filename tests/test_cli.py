@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from lyte import cli, installation, patches, wled
+from lyte import authoring, cli, installation, patches, wled
 
 
 class CliTests(unittest.TestCase):
@@ -37,6 +37,20 @@ class CliTests(unittest.TestCase):
         self.assertEqual(config.selector, 'examples:/composition.toml')
         self.assertEqual(config.library_config, Path('examples/library.toml'))
         self.assertEqual(config.duration, 1.5)
+
+    def test_cli_author_command_dispatches_browser_editor(self) -> None:
+        with patch.object(cli.authoring, 'run_author', return_value=0) as run:
+            result = cli.main(
+                ['author', '--library-config', 'examples/library.toml', '--no-open']
+            )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            run.call_args.args[0],
+            authoring.AuthorConfig(
+                library_config=Path('examples/library.toml'), open=False
+            ),
+        )
 
     def test_cli_daemon_command_dispatches_daemon(self) -> None:
         with patch.object(cli.daemon, 'run_daemon_command', return_value=0) as run:
