@@ -96,7 +96,7 @@ requires-dist = [
     { name = "python-rtmidi", specifier = ">=1.5.8" },
     { name = "reccy", git = "https://github.com/rec/reccy.git?branch=main" },
     { name = "tyro", specifier = ">=1.0.15" },
-    { name = "ufor", url = "https://github.com/rec/ufor/archive/0b88a111b9b02dd696716581dfa0cc68e8cf235c.tar.gz" },
+    { name = "ufor", url = "https://github.com/rec/ufor/archive/38469868953750513cb01c375823e36eb851bd14.tar.gz" },
 ]
 
 [package.metadata.requires-dev]
@@ -475,12 +475,12 @@ wheels = [
 [[package]]
 name = "ufor"
 version = "0.1.0"
-source = { url = "https://github.com/rec/ufor/archive/0b88a111b9b02dd696716581dfa0cc68e8cf235c.tar.gz" }
+source = { url = "https://github.com/rec/ufor/archive/38469868953750513cb01c375823e36eb851bd14.tar.gz" }
 dependencies = [
     { name = "pydantic" },
     { name = "tomlkit" },
 ]
-sdist = { hash = "sha256:bfaaf1dbdb20b8fc97d899a3d4022e8017aaee2825b1513cf019dab3c14320ba" }
+sdist = { hash = "sha256:6b78b45bb20bb61bf8c2dc25eff962fcc052e9cf86b0d24a2727b85d2fb589cb" }
 
 [package.metadata]
 requires-dist = [
