@@ -79,6 +79,19 @@ def validate_byte_rgb_frame(
     return frame
 
 
+def scale_byte_rgb_frame(frame: NDArray[np.uint8], led_count: int) -> NDArray[np.uint8]:
+    if led_count <= 0:
+        raise ValueError('led_count must be greater than zero')
+    if frame.dtype != np.uint8:
+        raise ValueError('Byte RGB frames must have dtype uint8')
+    if frame.ndim != 2 or frame.shape[1] != 3 or frame.shape[0] <= 0:
+        raise ValueError('Byte RGB frames must have shape light_count x 3')
+    if frame.shape[0] == led_count:
+        return np.ascontiguousarray(frame)
+    indexes = np.arange(led_count, dtype=np.intp) * frame.shape[0] // led_count
+    return np.ascontiguousarray(frame[indexes])
+
+
 def validate_float_light_frame(
     light_count: int,
     light_channel_count: int,

@@ -116,7 +116,7 @@ class RealtimeTransportTests(unittest.TestCase):
                 3,
             )
 
-        self.assertEqual(host, '192.168.1.23')
+        self.assertEqual(host, ('192.168.1.23', 3))
         self.assertEqual(client.host, '192.168.1.23')
         self.assertIsNone(client.mac)
 
@@ -147,24 +147,23 @@ class RealtimeTransportTests(unittest.TestCase):
                 'expected',
             )
 
-        assert host == '192.168.1.4'
+        assert host == ('192.168.1.4', 3)
         prepare.assert_called_once()
         log_error.assert_called_once_with(
             '[failed] 192.168.1.3 MAC changed: expected expected, found other.'
         )
 
-    def test_recovery_reports_changed_led_count(self) -> None:
+    def test_recovery_warns_and_accepts_changed_led_count(self) -> None:
         client = TwinklyClient(host='192.168.1.2')
 
         with (
             patch(
                 'lyte.twinkly.realtime.discover_host',
-                side_effect=['192.168.1.3', '192.168.1.4'],
+                side_effect=['192.168.1.3'],
             ),
-            patch('lyte.twinkly.realtime.read_led_count', side_effect=[100, 250]),
+            patch('lyte.twinkly.realtime.read_led_count', return_value=100),
             patch('lyte.twinkly.realtime.prepare_device', return_value=True),
-            patch('lyte.twinkly.realtime.time.sleep'),
-            patch('lyte.twinkly.realtime.LOGGER.error') as log_error,
+            patch('lyte.twinkly.realtime.LOGGER.warning') as log_warning,
         ):
             host = realtime.recover_streaming_device(
                 client,
@@ -174,9 +173,9 @@ class RealtimeTransportTests(unittest.TestCase):
                 250,
             )
 
-        assert host == '192.168.1.4'
-        log_error.assert_called_once_with(
-            '[failed] 192.168.1.3 LED count changed: expected 250, found 100.'
+        assert host == ('192.168.1.3', 100)
+        log_warning.assert_called_once_with(
+            '[warn] 192.168.1.3: expected 250 LEDs, found 100; scaling output.'
         )
 
     def test_recovery_stops_when_requested(self) -> None:
@@ -227,7 +226,7 @@ class RealtimeTransportTests(unittest.TestCase):
 
 
 class RuntimeTests(unittest.TestCase):
-    def test_read_device_led_count_uses_configured_count_after_reading_gestalt(
+    def test_read_device_led_count_uses_gestalt_when_a_count_is_planned(
         self,
     ) -> None:
         client = TwinklyClient(host='192.168.1.23')
@@ -239,11 +238,10 @@ class RuntimeTests(unittest.TestCase):
             led_count, gestalt = session.read_device_led_count(
                 client,
                 RetryConfig(attempts=1, delay=0, backoff=1),
-                100,
                 'read',
             )
 
-        self.assertEqual(led_count, 100)
+        self.assertEqual(led_count, 250)
         self.assertEqual(gestalt, {'mac': 'AA', 'number_of_led': 250})
         self.assertEqual(client.mac, 'AA')
 
@@ -257,7 +255,6 @@ class RuntimeTests(unittest.TestCase):
             led_count, _gestalt = session.read_device_led_count(
                 client,
                 RetryConfig(attempts=1, delay=0, backoff=1),
-                None,
                 'read',
             )
 

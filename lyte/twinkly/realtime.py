@@ -93,7 +93,7 @@ def send_realtime_frame(
 def read_led_count(
     client: TwinklyClient,
     retry: RetryConfig,
-    configured_led_count: int | None,
+    planned_led_count: int | None,
     host: str,
     deadline: float | None = None,
     stop_event: threading.Event | None = None,
@@ -102,7 +102,6 @@ def read_led_count(
     led_count, gestalt = session.read_device_led_count(
         client,
         retry,
-        configured_led_count,
         f'HTTP device info read from {host}',
         deadline,
         stop_event,
@@ -110,12 +109,14 @@ def read_led_count(
     if gestalt is None:
         LOGGER.error(f'[failed] Could not read device info from {host}.')
         return None
-    if configured_led_count is not None:
-        LOGGER.info(f'[connected] {host}: using {configured_led_count} LEDs')
-        return configured_led_count
     if led_count is None:
         LOGGER.error('[failed] Device did not report number_of_led.')
         return None
+    if planned_led_count is not None and planned_led_count != led_count:
+        LOGGER.warning(
+            f'[warn] {host}: configured for {planned_led_count} LEDs, '
+            f'but device reports {led_count}; scaling output.'
+        )
     LOGGER.info(f'[connected] {host}: {led_count} LEDs')
     return led_count
 
@@ -163,10 +164,10 @@ def recover_streaming_device(
     retry: RetryConfig,
     configured_host: str | None,
     discovery_timeout: float | None,
-    expected_led_count: int | None,
+    planned_led_count: int | None,
     expected_mac: str | None = None,
     stop_event: threading.Event | None = None,
-) -> str | None:
+) -> tuple[str, int] | None:
     while True:
         if stop_event is not None and stop_event.is_set():
             return None
@@ -182,20 +183,19 @@ def recover_streaming_device(
         client.token = None
         deadline = time.monotonic() + RECOVERY_ATTEMPT_TIMEOUT
         led_count = read_led_count(client, retry, None, host, deadline, stop_event)
-        if led_count is None:
-            pass
-        elif expected_led_count is not None and led_count != expected_led_count:
-            LOGGER.error(
-                f'[failed] {host} LED count changed: expected {expected_led_count}, '
-                f'found {led_count}.'
-            )
-        elif expected_mac is not None and client.mac != expected_mac:
-            LOGGER.error(
-                f'[failed] {host} MAC changed: expected {expected_mac}, '
-                f'found {client.mac}.'
-            )
-        elif prepare_device(client, retry, host, deadline, stop_event):
-            return host
+        if led_count is not None:
+            if planned_led_count is not None and led_count != planned_led_count:
+                LOGGER.warning(
+                    f'[warn] {host}: expected {planned_led_count} LEDs, found '
+                    f'{led_count}; scaling output.'
+                )
+            if expected_mac is not None and client.mac != expected_mac:
+                LOGGER.error(
+                    f'[failed] {host} MAC changed: expected {expected_mac}, '
+                    f'found {client.mac}.'
+                )
+            elif prepare_device(client, retry, host, deadline, stop_event):
+                return host, led_count
         if stop_event is not None and stop_event.wait(retry.delay):
             return None
         if stop_event is None:

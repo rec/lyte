@@ -119,9 +119,9 @@ authored coordinates and never apply physical wiring.
 
 `Wiring.indexes(layout)` is computed during preparation and applied once,
 immediately before physical byte output. It changes light order only, not
-component order. A score layout count must match the installation target count;
-Lyte does not stretch authored score geometry to hide a mismatch. Wearable
-patch scaling is a separate, explicit host policy for the guessed garment map.
+component order. Device output rescales the authored frame to the connected LED
+count after wiring. A declared target count is an optional planning hint: Lyte
+warns when it differs from the device, but never rejects output for that reason.
 
 ## Twinkly Output
 
@@ -132,7 +132,7 @@ established LED count and MAC address. Shutdown attempts off-mode blackout
 within three seconds.
 
 Successful UDP writes are not health evidence. Connection, disconnection,
-probe, send, recovery, MAC mismatch, LED-count mismatch, and blackout failures
+probe, send, recovery, MAC mismatch, LED-count scaling, and blackout failures
 are recorded through Reccy logging.
 
 ## Wearable Patches and Daemon
@@ -144,7 +144,8 @@ in `lyte/daemon_runtime.py` combines MIDI input, patch selection,
 
 The current wearable map is guessed and authored for 250 lights. Its explicit
 host policy warns and scales region and physical-map boundaries when the
-attached string count differs. This does not alter Ufor score layouts.
+attached string count differs. Ufor score frames are likewise rescaled at the
+physical output boundary.
 
 The daemon RPC supports status, blackout, stop, named patch selection, and a
 configurable white fade test. Status includes queued and applied selections,

@@ -73,6 +73,15 @@ class PatchLibraryTests(unittest.TestCase):
             '[warn] Scaling wearable layout from 250 LEDs to 200 LEDs.'
         )
 
+    def test_wearable_layout_derives_count_from_regions_when_omitted(self) -> None:
+        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+
+        wearable = patches.WearableSpec.model_validate(
+            library.wearable.model_dump(exclude={'led_count'})
+        )
+
+        assert wearable.led_count == 250
+
     def test_library_uses_validated_control_bindings(self) -> None:
         library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
         patch = library.patches['breath_mix_walk_twinkle']
@@ -368,7 +377,7 @@ class PatchLibraryTests(unittest.TestCase):
             ) as send,
             patch(
                 'lyte.patches.realtime.recover_streaming_device',
-                return_value='192.168.1.23',
+                return_value=('192.168.1.23', 250),
             ) as recover,
             patch('lyte.patches.realtime.turn_off_streaming_device', return_value=True),
             patch('lyte.patches.midi.open_input', return_value=port),

@@ -134,7 +134,6 @@ def send_frame_with_retry(
 def read_device_led_count(
     client: TwinklyClient,
     retry: RetryConfig,
-    configured_led_count: int | None,
     label: str,
     deadline: float | None = None,
     stop_event: threading.Event | None = None,
@@ -143,8 +142,6 @@ def read_device_led_count(
     if gestalt is None:
         return None, None
     set_mac_from_gestalt(client, gestalt)
-    if configured_led_count is not None:
-        return configured_led_count, gestalt
     return led_count_from_gestalt(gestalt), gestalt
 
 

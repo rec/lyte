@@ -87,9 +87,10 @@ current physical mapping. It currently declares `physical_map_status =
 "guessed"`. Do not change that to `"measured"` until the physical string has
 been checked on the garment.
 
-The wearable LED count is the authored layout count. Lyte warns and scales the
-runtime layout when the attached string reports a different count. Verify the
-result with the locator before performance use.
+The wearable count is derived from its region map unless a planning count is
+declared. Lyte warns and scales the runtime layout when the attached string
+reports a different count. Verify the result with the locator before performance
+use.
 
 Run the locator before a performance with a changed garment or string routing:
 
@@ -110,7 +111,9 @@ fixture manual's actual profile.
 
 The file's `library_config` is resolved relative to the installation file.
 Each pixel program selects a Ufor score, named light output, public parameter
-overrides, and optional wiring order. Keep installation TOML outside registered
+overrides, and optional wiring order. A Twinkly `led_count`, when present, is a
+planning hint only; runtime discovery determines the output frame size and
+warns before scaling a mismatch. Keep installation TOML outside registered
 score roots so Ufor does not discover it as a score.
 
 Run a configured installation in the foreground:

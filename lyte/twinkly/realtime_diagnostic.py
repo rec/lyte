@@ -257,7 +257,6 @@ def detect_led_count(client: TwinklyClient, retry: RetryConfig) -> int | None:
     led_count, gestalt = session.read_device_led_count(
         client,
         retry,
-        None,
         'HTTP gestalt read for LED count',
     )
     if gestalt is None:
