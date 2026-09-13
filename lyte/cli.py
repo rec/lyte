@@ -10,7 +10,7 @@ from typing import Annotated
 import tyro
 from reccy.runtime import logging
 
-from . import daemon, fps_test, installation, render
+from . import daemon, fps_test, installation, render, wled
 from . import patches
 from . import show
 from .animate.config import AnimateConfig
@@ -158,6 +158,7 @@ def main(args: Sequence[str] | None = None) -> int:
             'test2': fps_test.TemporalDitherTestConfig,
             'timer': TimerConfig,
             'verify': fps_test.VerifyConfig,
+            'wled': wled.WledCommandConfig,
         },
         prog='lyte',
         args=args,
@@ -242,4 +243,6 @@ def run_command(config: object) -> int:
         )
     if isinstance(config, fps_test.VerifyConfig):
         return fps_test.run_verify_test(config)
+    if isinstance(config, wled.WledCommandConfig):
+        return wled.run_wled_command(config)
     raise TypeError(f'unsupported command config {type(config).__name__}')

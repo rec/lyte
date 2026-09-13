@@ -29,6 +29,15 @@ all use `show.prepare_animation()` or its already-read-library equivalent. The
 old Lyte show graph, `impl` strings, and recursive Python construction no
 longer exist.
 
+`lyte wled` is a separate interchange boundary. It imports offline WLED source
+documents into lossless Lyte snapshot JSON, exports the original native preset
+JSON, lists translation support, and generates Ufor scores only for explicitly
+mapped one-dimensional WLED effects. It does not treat native WLED effects as
+portable Ufor scores. `lyte.wled.encode_ddp_frame()` and `WledDdpOutput` own
+WLED DDP RGB packet encoding and transient network delivery; WLED device
+discovery and installation selection are not yet connected to the Twinkly
+installation runner.
+
 ## Library Preparation
 
 `lyte/show.py` calls `ufor.library_files.read_library()`. With no explicit
