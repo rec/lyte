@@ -200,7 +200,13 @@ def test_authoring_session_edits_cue_timing_without_mutating_its_library(
     for source in Path('examples/scores').glob('*.toml'):
         (scores / source.name).write_text(source.read_text())
     composition = scores / 'composition.toml'
-    composition.write_text('# preserved comment\n' + composition.read_text())
+    composition.write_text(
+        '# preserved comment\n'
+        + composition.read_text().replace(
+            '[[body.operation.cues]]',
+            '# preserved timing comment\n[[body.operation.cues]]',
+        )
+    )
     config = tmp_path / 'library.toml'
     config.write_text('[[libraries]]\nname = "example"\nroot = "scores"\n')
     session = authoring.AuthoringSession(
@@ -221,6 +227,7 @@ def test_authoring_session_edits_cue_timing_without_mutating_its_library(
     edited = codec.parse_score(document)
 
     assert '# preserved comment' in document
+    assert '# preserved timing comment' in document
     assert isinstance(edited, light_animation.AnimationScore)
     assert isinstance(edited.body.operation, light_animation.Cues)
     assert [(cue.start, cue.duration) for cue in edited.body.operation.cues] == [
@@ -239,6 +246,22 @@ def test_authoring_session_edits_cue_timing_without_mutating_its_library(
             },
         )
     assert session.preview('composition', {})['frames']
+
+
+def test_authoring_session_rejects_unknown_score_fields(tmp_path: Path) -> None:
+    scores = tmp_path / 'scores'
+    scores.mkdir()
+    source = 'unknown = true\n' + Path('examples/scores/aurora.toml').read_text()
+    (scores / 'aurora.toml').write_text(source)
+    config = tmp_path / 'library.toml'
+    config.write_text('[[libraries]]\nname = "example"\nroot = "scores"\n')
+
+    session = authoring.AuthoringSession(
+        library_files.read_library(config),
+        authoring.AuthorConfig(library_config=config),
+    )
+
+    assert not [item for item in session.animations if item.renderer == 'ufor']
 
 
 def test_authoring_session_round_trips_comments_when_replacing_operation(

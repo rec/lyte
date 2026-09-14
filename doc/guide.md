@@ -155,9 +155,9 @@ keyframe editor.
 
 Direct TOML animation scores can replace a selected operation with one of the
 offered score-aware templates and download the edited source. Lyte validates
-and prepares the replacement before download. The edited copy preserves source
-comments and unknown fields outside the replaced operation; presets and Python
-scores remain read-only.
+and prepares the replacement before download. Source comments survive direct
+edits. Ufor rejects unknown score fields before authoring, so there are no
+unknown fields to round-trip. Presets and Python scores remain read-only.
 
 Use **Download TOML preset** to save the selected Ufor score's current public
 parameter values as a new `kind = "preset"` file. The browser downloads the
