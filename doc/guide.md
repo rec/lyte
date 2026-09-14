@@ -153,6 +153,10 @@ cue starts and durations or a crossfade duration, then download the validated
 result. It is a view and editor for declared Ufor operations, not a generic
 keyframe editor.
 
+The **Operation fields** panel edits a direct TOML operation's top-level scalar
+fields and downloads a validated result. Nested arrays and tables stay
+read-only, preserving their source structure and comments.
+
 The example library was manually checked in the loopback browser on 2026-09-14:
 animation selection, reactive parameter sliders, transport pause and seeking,
 the composition tree, and cue timeline all worked. Its layouts are
