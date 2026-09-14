@@ -1,15 +1,15 @@
 # Animation Editor Next Steps
 
-## Browser Check
-
-Manually verify a ring or other two-dimensional layout in `lyte author`,
-including parameter edits, transport controls, pause, seeking, and the timeline.
-
 ## Further Editing
 
 Offer direct field editing for operations only after its save behaviour has the
 same round-trip guarantees as timing edits. Preserve the Ufor operation model;
 do not add a universal keyframe system.
+
+## Two-Dimensional Layout
+
+When a Ufor score supplies a two-dimensional layout, manually verify its
+coordinate projection in `lyte author`.
 
 ## Boundaries
 
