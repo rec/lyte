@@ -144,6 +144,10 @@ scores and the reactive built-ins under `builtin:`, derives sliders from public
 parameters, and regenerates the shared HTML preview after each edit. It is a
 parameter-authoring surface, not a timeline or spatial editor.
 
+For a Ufor score, the **Composition** panel follows the selected output's
+declared operation tree and the parts it references. Selecting an operation
+shows its declared fields in the read-only inspector.
+
 Use **Download TOML preset** to save the selected Ufor score's current public
 parameter values as a new `kind = "preset"` file. The browser downloads the
 file only after Lyte validates and prepares it; source scores are never

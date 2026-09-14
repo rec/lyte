@@ -45,6 +45,9 @@ def test_author_document_contains_animation_catalogue() -> None:
     assert 'preview.coords' in document
     assert 'id="preset-name"' in document
     assert '/api/preset' in document
+    assert 'id="composition"' in document
+    assert 'id="inspector"' in document
+    assert 'compositionNode' in document
 
 
 def test_authoring_session_previews_built_in_reactive_effects() -> None:
@@ -85,3 +88,19 @@ def test_authoring_session_rejects_reactive_preset() -> None:
 
     with pytest.raises(ValueError, match='cannot be saved'):
         session.preset_document('builtin:audio-scan', {}, 'preset-audio-scan')
+
+
+def test_authoring_session_exposes_composition_operations_and_sources() -> None:
+    library = library_files.read_library(Path('examples/library.toml'))
+    session = authoring.AuthoringSession(library, authoring.AuthorConfig())
+
+    selected = next(
+        item for item in session.animations if item.selector == 'composition'
+    )
+
+    assert selected.composition is not None
+    assert selected.composition['effect'] == 'cues'
+    assert [child['source'] for child in selected.composition['children']] == [
+        'limbs',
+        'aurora',
+    ]
