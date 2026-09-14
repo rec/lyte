@@ -1,18 +1,18 @@
 # Animation Editor Next Steps
 
-## Cue Timeline
+## Cue Editing
 
-Represent existing Ufor cues and crossfades on a timeline after composition
-editing works. Preserve exact rational positions and durations while offering
-seconds or beats only where the score timebase makes them unambiguous. The
-timeline is a view of Ufor operations, not a universal keyframe system.
+Edit `Cues` starts and durations, and `Crossfade` durations, as rational-second
+values. Validate the entire score and prepare the result before offering a
+round-tripped TOML download. Keep the timeline a view of Ufor operations, not
+a universal keyframe system.
 
 ## Validation
 
 Add save round-trip fixtures, including unknown-field retention and rejected
-edits that leave the previous score usable. Test composition diagnostics and
-cue timing. Manually verify a ring or other two-dimensional layout in `lyte
-author`, including parameter edits, transport controls, pause, and seeking.
+cue edits that leave the previous score usable. Test composition diagnostics.
+Manually verify a ring or other two-dimensional layout in `lyte author`,
+including parameter edits, transport controls, pause, seeking, and the timeline.
 
 ## Boundaries
 

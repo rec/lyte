@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from ufor import codec, library_files, light_animation
+from ufor.interface import OutputSelection
 from ufor.preset import PresetScore
 
 from lyte import authoring
@@ -50,6 +51,8 @@ def test_author_document_contains_animation_catalogue() -> None:
     assert 'compositionNode' in document
     assert 'id="operation-template"' in document
     assert '/api/operation' in document
+    assert 'id="timeline"' in document
+    assert 'rebuildTimeline' in document
 
 
 def test_authoring_session_previews_built_in_reactive_effects() -> None:
@@ -106,6 +109,77 @@ def test_authoring_session_exposes_composition_operations_and_sources() -> None:
         'limbs',
         'aurora',
     ]
+    assert selected.composition['timeline'] == {
+        'effect': 'cues',
+        'duration': '10',
+        'events': [
+            {
+                'name': 'limbs',
+                'output': 'light',
+                'start': '0',
+                'duration': '6',
+                'end': '6',
+            },
+            {
+                'name': 'aurora',
+                'output': 'light',
+                'start': '4',
+                'duration': '6',
+                'end': '10',
+            },
+        ],
+    }
+
+
+def test_authoring_session_exposes_exact_crossfade_timeline(tmp_path: Path) -> None:
+    scores = tmp_path / 'scores'
+    scores.mkdir()
+    for source in Path('examples/scores').glob('*.toml'):
+        (scores / source.name).write_text(source.read_text())
+    composition = codec.parse_score(
+        Path('examples/scores/composition.toml').read_text()
+    )
+    assert isinstance(composition, light_animation.AnimationScore)
+    operation = light_animation.Crossfade(
+        outgoing=OutputSelection(name='limbs', output='light'),
+        incoming=OutputSelection(name='aurora', output='light'),
+        fade=light_animation.Fade(duration='3/2'),
+    )
+    edited = composition.model_copy(
+        update={'body': composition.body.model_copy(update={'operation': operation})}
+    )
+    (scores / 'composition.toml').write_text(codec.score_toml(edited))
+    config = tmp_path / 'library.toml'
+    config.write_text('[[libraries]]\nname = "example"\nroot = "scores"\n')
+
+    session = authoring.AuthoringSession(
+        library_files.read_library(config), authoring.AuthorConfig()
+    )
+    selected = next(
+        item for item in session.animations if item.selector == 'composition'
+    )
+
+    assert selected.composition is not None
+    assert selected.composition['timeline'] == {
+        'effect': 'crossfade',
+        'duration': '3/2',
+        'events': [
+            {
+                'name': 'limbs',
+                'output': 'light',
+                'start': '0',
+                'duration': '3/2',
+                'end': '3/2',
+            },
+            {
+                'name': 'aurora',
+                'output': 'light',
+                'start': '0',
+                'duration': '3/2',
+                'end': '3/2',
+            },
+        ],
+    }
 
 
 def test_authoring_session_round_trips_comments_when_replacing_operation(
