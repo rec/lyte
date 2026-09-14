@@ -1,13 +1,8 @@
 # Animation Editor Next Steps
 
-## Composition Inspector and Editing
+## Composition Editing
 
-Add a read-only composition tree for the selected output. It should show Ufor
-effects, fills, sources, placements, mixes, reverses, gains, crossfades, cues,
-and component maps. Selecting a node should show its declared fields and
-diagnostics.
-
-After score save round trips are reliable, add structure editing through
+Add structure editing through
 score-aware templates. Every edit must pass Ufor validation, retain the last
 valid preview on failure, and show the diagnostic beside the responsible field
 or node. Do not introduce a separate node-graph format.
