@@ -1,11 +1,5 @@
 # Animation Editor Next Steps
 
-## Save Verification
-
-Add round-trip fixtures that prove comments and unknown fields survive every
-save path. Check rejected edits leave the source file and the original loaded
-score usable. Test composition diagnostics.
-
 ## Browser Check
 
 Manually verify a ring or other two-dimensional layout in `lyte author`,
