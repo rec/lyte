@@ -15,7 +15,8 @@ from typing import Literal, cast
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field
-from ufor import codec, library_files
+from ufor import codec, library_files, light_animation
+from ufor.composition import Composition
 from ufor.interface import ScoreVersion
 from ufor.library import Entry, Library, State
 from ufor.light_animation import AnimationScore
@@ -57,6 +58,7 @@ class AuthorAnimation:
     title: str
     parameters: list[AuthorParameter]
     renderer: Literal['ufor', 'builtin'] = 'ufor'
+    composition: dict[str, object] | None = None
 
     def document(self) -> dict[str, object]:
         return {
@@ -64,6 +66,7 @@ class AuthorAnimation:
             'title': self.title,
             'parameters': [parameter.document() for parameter in self.parameters],
             'renderer': self.renderer,
+            'composition': self.composition,
         }
 
 
@@ -71,7 +74,10 @@ class AuthoringSession:
     def __init__(self, library: Library, config: AuthorConfig) -> None:
         self.library = library
         self.config = config
-        self.animations = [*_author_animations(library), *_builtin_animations()]
+        self.animations = [
+            *_author_animations(library, config.light_output),
+            *_builtin_animations(),
+        ]
 
     def preview(self, selector: str, parameters: dict[str, float]) -> dict[str, object]:
         selected = self._animation(selector)
@@ -171,7 +177,7 @@ def author_document(animations: list[AuthorAnimation]) -> str:
     return _AUTHOR_TEMPLATE.replace('__LYTE_AUTHOR_CATALOG__', catalog)
 
 
-def _author_animations(library: Library) -> list[AuthorAnimation]:
+def _author_animations(library: Library, output: str) -> list[AuthorAnimation]:
     animations = []
     for entry in library.find():
         if not isinstance(entry.resolved, AnimationScore):
@@ -196,9 +202,38 @@ def _author_animations(library: Library) -> list[AuthorAnimation]:
                 selector=selector,
                 title=entry.resolved.title or selector,
                 parameters=parameters,
+                composition=_composition_tree(composition, output),
             )
         )
     return animations
+
+
+def _composition_tree(composition: Composition, output: str) -> dict[str, object]:
+    def node(path: str, output_name: str) -> dict[str, object]:
+        part = composition.parts[path]
+        score = composition.scores[part.score].score
+        if not isinstance(score, AnimationScore):
+            raise ValueError(f'{path}: score is not an animation')
+        operation = score.body.operation
+        children = []
+        for source in light_animation.sources(operation):
+            child = part.children[source.name]
+            children.append(
+                {
+                    'source': source.name,
+                    'output': source.output,
+                    'node': node(child, source.output),
+                }
+            )
+        return {
+            'path': path,
+            'output': output_name,
+            'effect': operation.effect,
+            'fields': operation.model_dump(mode='json'),
+            'children': children,
+        }
+
+    return node('root', output)
 
 
 def _builtin_animations() -> list[AuthorAnimation]:
@@ -369,12 +404,12 @@ html,body{height:100%;margin:0;background:#111417;color:#e5e7eb;font:14px -apple
 main{height:100%;display:grid;grid-template-columns:minmax(260px,340px) 1fr}
 aside{border-right:1px solid #343a40;padding:16px;overflow:auto}canvas{width:100%;height:100%;display:block}
 h1{font-size:17px;margin:0 0 16px}h2{font-size:13px;margin:24px 0 8px;color:#cbd5e1}label{display:grid;gap:6px;margin:14px 0;color:#cbd5e1}
-select,input{width:100%;box-sizing:border-box}output,#status{font-variant-numeric:tabular-nums;color:#94a3b8}.transport{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.transport button:last-child{grid-column:span 3}button{padding:7px;border:1px solid #475569;border-radius:4px;background:#1e293b;color:#e5e7eb}.transport label{display:flex;align-items:center;gap:6px;margin:10px 0}.transport label input{width:auto}#frame{margin:4px 0}#status{display:block;min-height:20px}
+select,input{width:100%;box-sizing:border-box}output,#status{font-variant-numeric:tabular-nums;color:#94a3b8}.transport{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.transport button:last-child{grid-column:span 3}button{padding:7px;border:1px solid #475569;border-radius:4px;background:#1e293b;color:#e5e7eb}.transport label{display:flex;align-items:center;gap:6px;margin:10px 0}.transport label input{width:auto}#frame{margin:4px 0}#status{display:block;min-height:20px}.tree{margin:0;padding-left:16px}.tree li{margin:4px 0}.tree button{width:100%;text-align:left;padding:4px 6px}.tree button.selected{background:#334155}pre{margin:8px 0;max-height:220px;overflow:auto;padding:8px;background:#0b0f14;border:1px solid #343a40;border-radius:4px;font-size:12px;white-space:pre-wrap}
 @media(max-width:700px){main{grid-template-columns:1fr;grid-template-rows:auto 1fr}aside{border-right:0;border-bottom:1px solid #343a40}}
 </style>
 </head>
 <body>
-<main><aside><h1>Lyte Author</h1><label>Animation<select id="animation"></select></label><section id="controls"></section><h2>Save preset</h2><label>Name<input id="preset-name"></label><button id="save" type="button">Download TOML preset</button><output id="save-status"></output><h2>Preview</h2><div class="transport"><button id="previous" type="button" aria-label="Previous frame">Previous</button><button id="play" type="button">Pause</button><button id="next" type="button" aria-label="Next frame">Next</button><label><input id="loop" type="checkbox" checked>Loop</label></div><input id="frame" type="range" min="0" max="0" value="0" aria-label="Preview frame"><output id="status"></output></aside><canvas id="preview"></canvas></main>
+<main><aside><h1>Lyte Author</h1><label>Animation<select id="animation"></select></label><section id="controls"></section><h2>Composition</h2><section id="composition"></section><h2>Inspector</h2><pre id="inspector">Select an operation</pre><h2>Save preset</h2><label>Name<input id="preset-name"></label><button id="save" type="button">Download TOML preset</button><output id="save-status"></output><h2>Preview</h2><div class="transport"><button id="previous" type="button" aria-label="Previous frame">Previous</button><button id="play" type="button">Pause</button><button id="next" type="button" aria-label="Next frame">Next</button><label><input id="loop" type="checkbox" checked>Loop</label></div><input id="frame" type="range" min="0" max="0" value="0" aria-label="Preview frame"><output id="status"></output></aside><canvas id="preview"></canvas></main>
 <script>
 const catalog=__LYTE_AUTHOR_CATALOG__;
 const select=document.getElementById('animation');
@@ -387,6 +422,8 @@ const next=document.getElementById('next');
 const loop=document.getElementById('loop');
 const frameControl=document.getElementById('frame');
 const status=document.getElementById('status');
+const composition=document.getElementById('composition');
+const inspector=document.getElementById('inspector');
 const presetName=document.getElementById('preset-name');
 const save=document.getElementById('save');
 const saveStatus=document.getElementById('save-status');
@@ -401,7 +438,10 @@ function active(){return catalog.find(animation=>animation.selector===select.val
 function values(){return Object.fromEntries([...controls.querySelectorAll('input')].map(input=>[input.name,Number(input.value)]))}
 function control(parameter){const label=document.createElement('label');label.textContent=parameter.name;const input=document.createElement('input');input.type='range';input.name=parameter.name;input.min=parameter.minimum;input.max=parameter.maximum;input.step=(parameter.maximum-parameter.minimum)/200||1;input.value=parameter.default;const output=document.createElement('output');output.textContent=`${parameter.default} ${parameter.unit}`;input.oninput=()=>{output.textContent=`${input.value} ${parameter.unit}`;requestPreview()};label.append(input,output);controls.append(label)}
 function defaultPresetName(){return `preset-${select.value.replace(/[^A-Za-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'')||'animation'}`}
-function rebuild(){controls.replaceChildren();for(const parameter of active().parameters){control(parameter)}presetName.value=defaultPresetName();saveStatus.textContent='';requestPreview()}
+function inspect(node,button){inspector.textContent=JSON.stringify(node.fields,null,2);for(const item of composition.querySelectorAll('button')){item.classList.remove('selected')}button.classList.add('selected')}
+function compositionNode(node){const item=document.createElement('li');const button=document.createElement('button');button.type='button';button.textContent=`${node.path} · ${node.effect}`;button.onclick=()=>inspect(node,button);item.append(button);if(node.children.length){const children=document.createElement('ul');children.className='tree';for(const child of node.children){const branch=document.createElement('li');branch.textContent=`${child.source}:${child.output}`;const nested=document.createElement('ul');nested.className='tree';nested.append(compositionNode(child.node));branch.append(nested);children.append(branch)}item.append(children)}return item}
+function rebuildComposition(){composition.replaceChildren();const tree=active().composition;if(!tree){inspector.textContent='This animation has no Ufor composition.';return}const nodes=document.createElement('ul');nodes.className='tree';nodes.append(compositionNode(tree));composition.append(nodes);const first=composition.querySelector('button');if(first){first.click()}}
+function rebuild(){controls.replaceChildren();for(const parameter of active().parameters){control(parameter)}rebuildComposition();presetName.value=defaultPresetName();saveStatus.textContent='';requestPreview()}
 function decodeFrame(text){const binary=atob(text);const bytes=new Uint8Array(binary.length);for(let index=0;index<binary.length;index+=1){bytes[index]=binary.charCodeAt(index)}return bytes}
 async function requestPreview(){const request=++previewRequest;const response=await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values()})});if(request!==previewRequest){return}if(!response.ok){const error=await response.json();status.textContent=error.error;return}preview=await response.json();frames=preview.frames.map(decodeFrame);frame=0;frameControl.max=Math.max(0,frames.length-1);frameControl.value=frame;updateStatus()}
 async function savePreset(){const response=await fetch('/api/preset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values(),name:presetName.value})});const result=await response.json();if(!response.ok){saveStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);saveStatus.textContent=`Downloaded ${result.filename}`}
