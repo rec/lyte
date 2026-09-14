@@ -148,6 +148,12 @@ For a Ufor score, the **Composition** panel follows the selected output's
 declared operation tree and the parts it references. Selecting an operation
 shows its declared fields in the read-only inspector.
 
+Direct TOML animation scores can replace a selected operation with one of the
+offered score-aware templates and download the edited source. Lyte validates
+and prepares the replacement before download. The edited copy preserves source
+comments and unknown fields outside the replaced operation; presets and Python
+scores remain read-only.
+
 Use **Download TOML preset** to save the selected Ufor score's current public
 parameter values as a new `kind = "preset"` file. The browser downloads the
 file only after Lyte validates and prepares it; source scores are never

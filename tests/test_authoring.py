@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from ufor import codec, library_files
+from ufor import codec, library_files, light_animation
 from ufor.preset import PresetScore
 
 from lyte import authoring
@@ -48,6 +48,8 @@ def test_author_document_contains_animation_catalogue() -> None:
     assert 'id="composition"' in document
     assert 'id="inspector"' in document
     assert 'compositionNode' in document
+    assert 'id="operation-template"' in document
+    assert '/api/operation' in document
 
 
 def test_authoring_session_previews_built_in_reactive_effects() -> None:
@@ -104,3 +106,25 @@ def test_authoring_session_exposes_composition_operations_and_sources() -> None:
         'limbs',
         'aurora',
     ]
+
+
+def test_authoring_session_round_trips_comments_when_replacing_operation(
+    tmp_path: Path,
+) -> None:
+    scores = tmp_path / 'scores'
+    scores.mkdir()
+    source = Path('examples/scores/aurora.toml').read_text()
+    (scores / 'aurora.toml').write_text('# preserved comment\n' + source)
+    config = tmp_path / 'library.toml'
+    config.write_text('[[libraries]]\nname = "example"\nroot = "scores"\n')
+    library = library_files.read_library(config)
+    session = authoring.AuthoringSession(
+        library, authoring.AuthorConfig(library_config=config)
+    )
+
+    document = session.operation_document('example:/aurora.toml', 'light', 'fill')
+
+    edited = codec.parse_score(document)
+    assert '# preserved comment' in document
+    assert isinstance(edited, light_animation.AnimationScore)
+    assert isinstance(edited.body.operation, light_animation.Fill)

@@ -14,13 +14,18 @@ from pathlib import Path
 from typing import Literal, cast
 from urllib.parse import urlparse
 
+import tomlkit
 from pydantic import BaseModel, Field
-from ufor import codec, library_files, light_animation
+from tomlkit.items import Table
+from ufor import codec, effects, library_files, light_animation
+from ufor.base import Model
 from ufor.composition import Composition
 from ufor.interface import ScoreVersion
 from ufor.library import Entry, Library, State
 from ufor.light_animation import AnimationScore
+from ufor.lights import LightType
 from ufor.preset import PresetScore
+from ufor.selector import LibraryConfig
 
 from . import animation, reactive_effects, reactivity, show
 from .preview.document import encoded_frames
@@ -145,11 +150,52 @@ class AuthoringSession:
         )
         return codec.score_toml(preset)
 
+    def operation_document(self, entry_key: str, output: str, template: str) -> str:
+        entry = self.library.entries.get(entry_key)
+        if entry is None or not isinstance(entry.score, AnimationScore):
+            raise ValueError(
+                'selected operation is not backed by a TOML animation score'
+            )
+        source = self._source_path(entry)
+        if source.suffix != '.toml':
+            raise ValueError(
+                'selected operation is not backed by a TOML animation score'
+            )
+        document = tomlkit.parse(source.read_text())
+        operation = _operation_template(template, entry.score)
+        body = document.get('body')
+        if not isinstance(body, Table):
+            raise ValueError(f'{source}: animation body is missing')
+        body['operation'] = tomlkit.item(operation.model_dump(mode='json'))
+        text = tomlkit.dumps(document)
+        edited = codec.parse_score(text)
+        if not isinstance(edited, AnimationScore):
+            raise ValueError(f'{source}: edited score is not an animation')
+        validation_library = _validation_library(self.library, entry_key, edited)
+        show.prepare_library_animation(
+            validation_library,
+            show.LightProgramSpec(selector=entry_key, output=output),
+        )
+        return text
+
     def _animation(self, selector: str) -> AuthorAnimation:
         for item in self.animations:
             if item.selector == selector:
                 return item
         raise ValueError(f'unknown animation {selector!r}')
+
+    def _source_path(self, entry: Entry) -> Path:
+        config_path = library_files.configuration_path(self.config.library_config)
+        config = LibraryConfig.model_validate(tomlkit.parse(config_path.read_text()))
+        registration = next(
+            (item for item in config.libraries if item.name == entry.library), None
+        )
+        if registration is None:
+            raise ValueError(f'{entry.library}: library registration is missing')
+        root = library_files.expanded_path(registration.root)
+        if not root.is_absolute():
+            root = config_path.parent / root
+        return root / entry.address.removeprefix('/')
 
 
 def run_author(config: AuthorConfig) -> int:
@@ -202,19 +248,22 @@ def _author_animations(library: Library, output: str) -> list[AuthorAnimation]:
                 selector=selector,
                 title=entry.resolved.title or selector,
                 parameters=parameters,
-                composition=_composition_tree(composition, output),
+                composition=_composition_tree(library, composition, output),
             )
         )
     return animations
 
 
-def _composition_tree(composition: Composition, output: str) -> dict[str, object]:
+def _composition_tree(
+    library: Library, composition: Composition, output: str
+) -> dict[str, object]:
     def node(path: str, output_name: str) -> dict[str, object]:
         part = composition.parts[path]
         score = composition.scores[part.score].score
         if not isinstance(score, AnimationScore):
             raise ValueError(f'{path}: score is not an animation')
         operation = score.body.operation
+        entry = library.entries[part.score]
         children = []
         for source in light_animation.sources(operation):
             child = part.children[source.name]
@@ -230,10 +279,58 @@ def _composition_tree(composition: Composition, output: str) -> dict[str, object
             'output': output_name,
             'effect': operation.effect,
             'fields': operation.model_dump(mode='json'),
+            'entry': entry.key,
+            'editable': isinstance(entry.score, AnimationScore),
+            'templates': _operation_templates(score),
             'children': children,
         }
 
     return node('root', output)
+
+
+def _operation_templates(score: AnimationScore) -> list[str]:
+    stream = score.outputs[0].stream
+    assert isinstance(stream, LightType)
+    templates = ['fill']
+    if stream.components == ['red', 'green', 'blue']:
+        templates.extend(['aurora', 'color_fill', 'color_chase'])
+    return templates
+
+
+def _operation_template(template: str, score: AnimationScore) -> Model:
+    stream = score.outputs[0].stream
+    assert isinstance(stream, LightType)
+    if template == 'fill':
+        return light_animation.Fill(values=[0.0] * len(stream.components))
+    if stream.components != ['red', 'green', 'blue']:
+        raise ValueError(f'{template!r} requires red, green, blue components')
+    effect_types = {
+        'aurora': effects.Aurora,
+        'color_fill': effects.ColorFill,
+        'color_chase': effects.ColorChase,
+    }
+    effect_type = effect_types.get(template)
+    if effect_type is None:
+        raise ValueError(f'unknown operation template {template!r}')
+    return effect_type()
+
+
+def _validation_library(
+    library: Library, entry_key: str, edited: AnimationScore
+) -> Library:
+    entries = [
+        entry.model_copy(
+            update={
+                'score': edited if entry.key == entry_key else entry.score,
+                'state': State.pending,
+                'dependencies': {},
+                'resolved': None,
+                'content_origin': None,
+            }
+        )
+        for entry in library.entries.values()
+    ]
+    return Library(entries)
 
 
 def _builtin_animations() -> list[AuthorAnimation]:
@@ -332,23 +429,43 @@ def _handler(session: AuthoringSession) -> type[BaseHTTPRequestHandler]:
 
         def do_POST(self) -> None:
             path = urlparse(self.path).path
-            if path not in {'/api/preview', '/api/preset'}:
+            if path not in {'/api/preview', '/api/preset', '/api/operation'}:
                 self.send_error(404)
                 return
             try:
                 payload = _request_json(self)
-                selector, parameters = _preview_request(payload)
                 response: dict[str, object]
-                if path == '/api/preview':
-                    response = session.preview(selector, parameters)
-                else:
-                    name = payload.get('name')
-                    if not isinstance(name, str):
-                        raise ValueError('preset requires a name')
+                if path == '/api/operation':
+                    entry = payload.get('entry')
+                    output = payload.get('output')
+                    template = payload.get('template')
+                    if not all(
+                        isinstance(value, str) for value in (entry, output, template)
+                    ):
+                        raise ValueError(
+                            'operation requires entry, output, and template'
+                        )
+                    assert isinstance(entry, str)
+                    assert isinstance(output, str)
+                    assert isinstance(template, str)
                     response = {
-                        'filename': f'{name}.toml',
-                        'document': session.preset_document(selector, parameters, name),
+                        'filename': Path(entry).name,
+                        'document': session.operation_document(entry, output, template),
                     }
+                else:
+                    selector, parameters = _preview_request(payload)
+                    if path == '/api/preview':
+                        response = session.preview(selector, parameters)
+                    else:
+                        name = payload.get('name')
+                        if not isinstance(name, str):
+                            raise ValueError('preset requires a name')
+                        response = {
+                            'filename': f'{name}.toml',
+                            'document': session.preset_document(
+                                selector, parameters, name
+                            ),
+                        }
             except (ValueError, json.JSONDecodeError) as error:
                 self._json(400, {'error': str(error)})
                 return
@@ -409,7 +526,7 @@ select,input{width:100%;box-sizing:border-box}output,#status{font-variant-numeri
 </style>
 </head>
 <body>
-<main><aside><h1>Lyte Author</h1><label>Animation<select id="animation"></select></label><section id="controls"></section><h2>Composition</h2><section id="composition"></section><h2>Inspector</h2><pre id="inspector">Select an operation</pre><h2>Save preset</h2><label>Name<input id="preset-name"></label><button id="save" type="button">Download TOML preset</button><output id="save-status"></output><h2>Preview</h2><div class="transport"><button id="previous" type="button" aria-label="Previous frame">Previous</button><button id="play" type="button">Pause</button><button id="next" type="button" aria-label="Next frame">Next</button><label><input id="loop" type="checkbox" checked>Loop</label></div><input id="frame" type="range" min="0" max="0" value="0" aria-label="Preview frame"><output id="status"></output></aside><canvas id="preview"></canvas></main>
+<main><aside><h1>Lyte Author</h1><label>Animation<select id="animation"></select></label><section id="controls"></section><h2>Composition</h2><section id="composition"></section><h2>Inspector</h2><pre id="inspector">Select an operation</pre><label>Replace selected operation<select id="operation-template" disabled></select></label><button id="download-operation" type="button" disabled>Download edited score</button><output id="operation-status"></output><h2>Save preset</h2><label>Name<input id="preset-name"></label><button id="save" type="button">Download TOML preset</button><output id="save-status"></output><h2>Preview</h2><div class="transport"><button id="previous" type="button" aria-label="Previous frame">Previous</button><button id="play" type="button">Pause</button><button id="next" type="button" aria-label="Next frame">Next</button><label><input id="loop" type="checkbox" checked>Loop</label></div><input id="frame" type="range" min="0" max="0" value="0" aria-label="Preview frame"><output id="status"></output></aside><canvas id="preview"></canvas></main>
 <script>
 const catalog=__LYTE_AUTHOR_CATALOG__;
 const select=document.getElementById('animation');
@@ -424,6 +541,9 @@ const frameControl=document.getElementById('frame');
 const status=document.getElementById('status');
 const composition=document.getElementById('composition');
 const inspector=document.getElementById('inspector');
+const operationTemplate=document.getElementById('operation-template');
+const downloadOperation=document.getElementById('download-operation');
+const operationStatus=document.getElementById('operation-status');
 const presetName=document.getElementById('preset-name');
 const save=document.getElementById('save');
 const saveStatus=document.getElementById('save-status');
@@ -433,23 +553,25 @@ let frame=0;
 let playing=true;
 let lastTime=0;
 let previewRequest=0;
+let selectedOperation=null;
 for(const animation of catalog){const option=document.createElement('option');option.value=animation.selector;option.textContent=animation.title;select.append(option)}
 function active(){return catalog.find(animation=>animation.selector===select.value)}
 function values(){return Object.fromEntries([...controls.querySelectorAll('input')].map(input=>[input.name,Number(input.value)]))}
 function control(parameter){const label=document.createElement('label');label.textContent=parameter.name;const input=document.createElement('input');input.type='range';input.name=parameter.name;input.min=parameter.minimum;input.max=parameter.maximum;input.step=(parameter.maximum-parameter.minimum)/200||1;input.value=parameter.default;const output=document.createElement('output');output.textContent=`${parameter.default} ${parameter.unit}`;input.oninput=()=>{output.textContent=`${input.value} ${parameter.unit}`;requestPreview()};label.append(input,output);controls.append(label)}
 function defaultPresetName(){return `preset-${select.value.replace(/[^A-Za-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'')||'animation'}`}
-function inspect(node,button){inspector.textContent=JSON.stringify(node.fields,null,2);for(const item of composition.querySelectorAll('button')){item.classList.remove('selected')}button.classList.add('selected')}
+function inspect(node,button){selectedOperation=node;inspector.textContent=JSON.stringify(node.fields,null,2);operationTemplate.replaceChildren();operationStatus.textContent='';const placeholder=document.createElement('option');placeholder.textContent='Choose a template';placeholder.value='';operationTemplate.append(placeholder);for(const name of node.templates){const option=document.createElement('option');option.value=name;option.textContent=name;operationTemplate.append(option)}operationTemplate.disabled=!node.editable;downloadOperation.disabled=!node.editable;for(const item of composition.querySelectorAll('button')){item.classList.remove('selected')}button.classList.add('selected')}
 function compositionNode(node){const item=document.createElement('li');const button=document.createElement('button');button.type='button';button.textContent=`${node.path} · ${node.effect}`;button.onclick=()=>inspect(node,button);item.append(button);if(node.children.length){const children=document.createElement('ul');children.className='tree';for(const child of node.children){const branch=document.createElement('li');branch.textContent=`${child.source}:${child.output}`;const nested=document.createElement('ul');nested.className='tree';nested.append(compositionNode(child.node));branch.append(nested);children.append(branch)}item.append(children)}return item}
 function rebuildComposition(){composition.replaceChildren();const tree=active().composition;if(!tree){inspector.textContent='This animation has no Ufor composition.';return}const nodes=document.createElement('ul');nodes.className='tree';nodes.append(compositionNode(tree));composition.append(nodes);const first=composition.querySelector('button');if(first){first.click()}}
 function rebuild(){controls.replaceChildren();for(const parameter of active().parameters){control(parameter)}rebuildComposition();presetName.value=defaultPresetName();saveStatus.textContent='';requestPreview()}
 function decodeFrame(text){const binary=atob(text);const bytes=new Uint8Array(binary.length);for(let index=0;index<binary.length;index+=1){bytes[index]=binary.charCodeAt(index)}return bytes}
 async function requestPreview(){const request=++previewRequest;const response=await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values()})});if(request!==previewRequest){return}if(!response.ok){const error=await response.json();status.textContent=error.error;return}preview=await response.json();frames=preview.frames.map(decodeFrame);frame=0;frameControl.max=Math.max(0,frames.length-1);frameControl.value=frame;updateStatus()}
 async function savePreset(){const response=await fetch('/api/preset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values(),name:presetName.value})});const result=await response.json();if(!response.ok){saveStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);saveStatus.textContent=`Downloaded ${result.filename}`}
+async function saveOperation(){if(!selectedOperation||!operationTemplate.value){operationStatus.textContent='Choose an operation template';return}const response=await fetch('/api/operation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:selectedOperation.entry,output:selectedOperation.output,template:operationTemplate.value})});const result=await response.json();if(!response.ok){operationStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);operationStatus.textContent=`Downloaded ${result.filename}`}
 function updateStatus(){if(!preview){status.textContent='Loading preview';return}status.textContent=`${active().title} · frame ${frame+1} of ${frames.length} · ${preview.fps} FPS`}
 function setFrame(value){if(!frames.length){return}if(value<0){frame=loop.checked?frames.length-1:0}else if(value>=frames.length){frame=loop.checked?0:frames.length-1;playing=loop.checked}else{frame=value}frameControl.value=frame;updateStatus()}
 function resize(){const scale=devicePixelRatio||1;const rect=canvas.getBoundingClientRect();canvas.width=Math.max(1,Math.round(rect.width*scale));canvas.height=Math.max(1,Math.round(rect.height*scale))}
 function projectedPoints(){const bounds=preview.coords.reduce((value,point)=>({minX:Math.min(value.minX,point[0]),minY:Math.min(value.minY,point[1]),maxX:Math.max(value.maxX,point[0]),maxY:Math.max(value.maxY,point[1])}),{minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity});const pad=Math.max(24,Math.min(canvas.width,canvas.height)*0.08);const spanX=Math.max(1e-9,bounds.maxX-bounds.minX);const spanY=Math.max(1e-9,bounds.maxY-bounds.minY);const scale=Math.min((canvas.width-pad*2)/spanX,(canvas.height-pad*2)/spanY);const offsetX=(canvas.width-spanX*scale)/2;const offsetY=(canvas.height-spanY*scale)/2;return preview.coords.map(point=>[offsetX+(point[0]-bounds.minX)*scale,offsetY+(point[1]-bounds.minY)*scale])}
 function draw(){context.fillStyle='#050506';context.fillRect(0,0,canvas.width,canvas.height);if(!preview||!frames.length){return}const points=projectedPoints();const values=frames[frame];const radius=Math.max(3,Math.min(canvas.width,canvas.height)/140);for(let index=0;index<points.length;index+=1){const offset=index*3;context.fillStyle=`rgb(${values[offset]},${values[offset+1]},${values[offset+2]})`;context.beginPath();context.arc(points[index][0],points[index][1],radius,0,Math.PI*2);context.fill()}}
 function animate(time){if(playing&&preview&&frames.length){const elapsed=time-lastTime;const advance=Math.floor(elapsed*preview.fps/1000);if(advance>0){setFrame(frame+advance);lastTime=time}}else{lastTime=time}draw();requestAnimationFrame(animate)}
-select.onchange=rebuild;save.onclick=savePreset;previous.onclick=()=>{playing=false;play.textContent='Play';setFrame(frame-1)};next.onclick=()=>{playing=false;play.textContent='Play';setFrame(frame+1)};play.onclick=()=>{playing=!playing;play.textContent=playing?'Pause':'Play'};frameControl.oninput=()=>{playing=false;play.textContent='Play';setFrame(Number(frameControl.value))};addEventListener('resize',resize);resize();rebuild();requestAnimationFrame(animate);
+select.onchange=rebuild;save.onclick=savePreset;downloadOperation.onclick=saveOperation;previous.onclick=()=>{playing=false;play.textContent='Play';setFrame(frame-1)};next.onclick=()=>{playing=false;play.textContent='Play';setFrame(frame+1)};play.onclick=()=>{playing=!playing;play.textContent=playing?'Pause':'Play'};frameControl.oninput=()=>{playing=false;play.textContent='Play';setFrame(Number(frameControl.value))};addEventListener('resize',resize);resize();rebuild();requestAnimationFrame(animate);
 </script></body></html>"""
