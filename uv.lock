@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-09-05T17:12:00.606027Z"
+exclude-newer = "2026-09-07T12:43:55.545127Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -76,6 +76,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-rtmidi" },
     { name = "reccy" },
+    { name = "tomlkit" },
     { name = "tyro" },
     { name = "ufor" },
 ]
@@ -95,6 +96,7 @@ requires-dist = [
     { name = "pydantic" },
     { name = "python-rtmidi", specifier = ">=1.5.8" },
     { name = "reccy", git = "https://github.com/rec/reccy.git?branch=main" },
+    { name = "tomlkit", specifier = ">=0.15.1" },
     { name = "tyro", specifier = ">=1.0.15" },
     { name = "ufor", url = "https://github.com/rec/ufor/archive/38469868953750513cb01c375823e36eb851bd14.tar.gz" },
 ]
