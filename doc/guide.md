@@ -144,6 +144,11 @@ scores and the reactive built-ins under `builtin:`, derives sliders from public
 parameters, and regenerates the shared HTML preview after each edit. It is a
 parameter-authoring surface, not a timeline or spatial editor.
 
+Use **Download TOML preset** to save the selected Ufor score's current public
+parameter values as a new `kind = "preset"` file. The browser downloads the
+file only after Lyte validates and prepares it; source scores are never
+overwritten. Reactive built-ins remain preview-only.
+
 ## WLED Interchange
 
 WLED support has three separate boundaries. It does not claim that WLED's
