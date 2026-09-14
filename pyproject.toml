@@ -14,6 +14,7 @@ dependencies = [
     "pydantic",
     "python-rtmidi>=1.5.8",
     "reccy",
+    "tomlkit>=0.15.1",
     "tyro>=1.0.15",
     "ufor @ https://github.com/rec/ufor/archive/38469868953750513cb01c375823e36eb851bd14.tar.gz",
 ]
