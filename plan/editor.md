@@ -1,133 +1,49 @@
-# Animation Editor
+# Animation Editor Next Steps
 
-## Goal
+## Save-As
 
-Turn `lyte author` into a local visual editor for Ufor animation scores. It
-must edit the same declared score model that Lyte prepares and previews: no
-second animation format, no hidden renderer state, and no implicit hardware
-output.
+Investigate the Ufor API for a lossless TOML representation. Add an explicit
+save-as workflow only when it can write a new human-readable Ufor score without
+discarding unknown source fields. The server must validate and prepare the
+candidate before reporting success, and it must never overwrite a source score
+by default.
 
-The editor is for authors, not show operators. Its job is to make a score
-understandable, adjustable, and safe to inspect before a deliberate playback
-or installation selection.
+If lossless score serialization is unavailable, begin by saving a small,
+separate parameter-preset document with an explicit Ufor selector. Built-in
+reactive effects remain preview-only until they have a declared Ufor score
+representation.
 
-## Product Shape
+## Composition Inspector and Editing
 
-Keep the existing loopback-only browser application. It already loads a Ufor
-library, obtains parameter contracts, and renders frames with the production
-Lyte pipeline. A browser keeps it portable and makes no desktop framework or
-new dependency necessary.
+Add a read-only composition tree for the selected output. It should show Ufor
+effects, fills, sources, placements, mixes, reverses, gains, crossfades, cues,
+and component maps. Selecting a node should show its declared fields and
+diagnostics.
 
-The completed editor has four coordinated views:
+After score save round trips are reliable, add structure editing through
+score-aware templates. Every edit must pass Ufor validation, retain the last
+valid preview on failure, and show the diagnostic beside the responsible field
+or node. Do not introduce a separate node-graph format.
 
-1. **Visualizer.** Draw authored light coordinates and the selected preview
-   frame. It falls back to a horizontal logical strip when a layout has only
-   one coordinate. Transport controls play, pause, step, loop, and seek the
-   finite preview frame sequence.
-2. **Composition.** Show the selected output as an editable Ufor operation
-   tree: effects, fills, sources, placements, mixes, reverses, gains,
-   crossfades, cues, and component maps. Selecting a node selects its
-   inspector.
-3. **Inspector.** Show the selected score or operation's declared values.
-   Numeric controls use the actual Ufor parameter contracts, including limits,
-   defaults, and units. Invalid edits remain visible with their exact
-   validation diagnostic and never replace the last valid preview.
-4. **Cue editor.** Represent Ufor cues and crossfades on a timeline. It edits
-   their existing exact rational timing rather than inventing a generic
-   keyframe format.
+## Cue Timeline
 
-The browser receives only a catalog and prepared-preview responses. The server
-continues to own library loading, Ufor validation, and NumPy rendering.
-
-## First Useful Version
-
-Improve the existing parameter-authoring page without changing score files:
-
-- keep the animation selector and contract-derived parameter sliders;
-- redraw LEDs at the score's authored two-dimensional coordinates;
-- provide play/pause, previous-frame, next-frame, loop, and frame scrubber
-  controls;
-- render the selected frame immediately after a parameter change;
-- display the selected animation title, frame number, frame count, and FPS;
-- preserve the loopback-only server and hardware-free preview boundary.
-
-This is useful before persistence exists because authors can inspect the exact
-prepared score and tune public parameters with deterministic, frame-level
-feedback. It does not claim to edit score structure or save a score.
-
-## Score Editing and Saving
-
-After the first version, add a deliberate save workflow. It must write a new
-human-readable Ufor TOML file, never overwrite a source score by default, and
-make the destination explicit in the UI. The server validates the candidate
-document by loading and preparing it before reporting success.
-
-The save model should preserve unknown source fields where possible. If Ufor
-does not expose a lossless TOML source representation, the editor should first
-save a small parameter-preset document rather than manufacture incomplete
-score TOML. That decision must be based on the available Ufor API and covered
-by a round-trip fixture.
-
-Built-in reactive effects remain preview-only until they have a declared Ufor
-score representation. They must not be serialized as fake Ufor effects.
-
-## Composition Editing
-
-Add structure editing only after saving has a lossless representation:
-
-- expose one selected output and its composition tree;
-- add and remove nodes through score-aware templates;
-- permit only valid named references, output names, component contracts, and
-  layout regions;
-- apply every proposed edit through Ufor validation, retaining the last valid
-  tree and preview on failure;
-- show diagnostics beside the field or node that caused them.
-
-The editor should model Ufor operations directly. A separate free-form node
-graph would duplicate semantics and make round-tripping harder.
-
-## Timeline Editing
-
-Cue and crossfade editing follows composition editing. The timeline is a view
-of existing `Cues` and `Crossfade` operations, not the primary representation
-of every animation. It displays exact rational positions and durations while
-allowing conventional user-facing units such as seconds and beats when the
-score's timebase makes them unambiguous.
-
-## Explicit Boundaries
-
-- The editor never opens a Twinkly, WLED, DMX, or Art-Net output.
-- Hardware playback remains a separate `lyte animate` or installation action.
-- Wiring is never applied in the visualizer; it is a physical output concern.
-- The editor does not infer component conversion, geometry, regions, or effect
-  behavior that the score does not declare.
-- The editor must not expose arbitrary Python imports or execute score text
-  supplied by the browser.
+Represent existing Ufor cues and crossfades on a timeline after composition
+editing works. Preserve exact rational positions and durations while offering
+seconds or beats only where the score timebase makes them unambiguous. The
+timeline is a view of Ufor operations, not a universal keyframe system.
 
 ## Validation
 
-Add focused tests for:
+Add save round-trip fixtures, including unknown-field retention and rejected
+edits that leave the previous score usable. Test composition diagnostics and
+cue timing. Manually verify a ring or other two-dimensional layout in `lyte
+author`, including parameter edits, transport controls, pause, and seeking.
 
-1. an authored two-dimensional layout reaching the preview response unchanged;
-2. the browser document containing transport controls, coordinate projection,
-   and contract-derived controls;
-3. parameter edits returning prepared frames with the selected values;
-4. malformed preview requests returning a concise JSON diagnostic;
-5. later save and structure-edit round trips, including unknown-field retention
-   and rejection that leaves the previous score usable.
+## Boundaries
 
-Manual validation for the first version: open `lyte author`, select a score,
-move a parameter slider, pause and seek a frame, and confirm that a ring or
-other non-strip layout is drawn according to its authored coordinates.
-
-## Remaining Work After the First Useful Version
-
-1. Investigate a lossless Ufor TOML save API and add explicit save-as.
-2. Add a composition tree and read-only operation inspector.
-3. Add validated structural editing and save round trips.
-4. Add cue and crossfade timeline editing.
-5. Add optional, deliberate handoff from a saved score to preview rendering or
-   an installation selection, without embedding hardware control in the editor.
+The editor remains loopback-only and hardware-free. Twinkly, WLED, DMX, and
+Art-Net output stay separate deliberate playback actions. Wiring remains a
+physical output concern and is never applied to the editor visualizer.
 
 ## Additional work beyond the prompt
 
