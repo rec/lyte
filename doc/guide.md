@@ -153,6 +153,12 @@ cue starts and durations or a crossfade duration, then download the validated
 result. It is a view and editor for declared Ufor operations, not a generic
 keyframe editor.
 
+The example library was manually checked in the loopback browser on 2026-09-14:
+animation selection, reactive parameter sliders, transport pause and seeking,
+the composition tree, and cue timeline all worked. Its layouts are
+one-dimensional, so a two-dimensional projection still needs a score with a
+two-dimensional layout.
+
 Direct TOML animation scores can replace a selected operation with one of the
 offered score-aware templates and download the edited source. Lyte validates
 and prepares the replacement before download. Source comments survive direct
