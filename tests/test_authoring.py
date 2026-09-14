@@ -4,7 +4,7 @@ from fractions import Fraction
 from pathlib import Path
 
 import pytest
-from ufor import codec, library_files, light_animation
+from ufor import codec, effects, library_files, light_animation
 from ufor.interface import OutputSelection
 from ufor.preset import PresetScore
 
@@ -54,6 +54,8 @@ def test_author_document_contains_animation_catalogue() -> None:
     assert '/api/operation' in document
     assert 'id="timeline"' in document
     assert 'rebuildTimeline' in document
+    assert 'id="operation-fields"' in document
+    assert '/api/fields' in document
 
 
 def test_authoring_session_previews_built_in_reactive_effects() -> None:
@@ -284,3 +286,38 @@ def test_authoring_session_round_trips_comments_when_replacing_operation(
     assert '# preserved comment' in document
     assert isinstance(edited, light_animation.AnimationScore)
     assert isinstance(edited.body.operation, light_animation.Fill)
+
+
+def test_authoring_session_edits_operation_scalar_fields(tmp_path: Path) -> None:
+    scores = tmp_path / 'scores'
+    scores.mkdir()
+    source = Path('examples/scores/aurora.toml').read_text()
+    (scores / 'aurora.toml').write_text('# preserved comment\n' + source)
+    config = tmp_path / 'library.toml'
+    config.write_text('[[libraries]]\nname = "example"\nroot = "scores"\n')
+    session = authoring.AuthoringSession(
+        library_files.read_library(config),
+        authoring.AuthorConfig(library_config=config),
+    )
+
+    document = session.field_document(
+        'example:/aurora.toml',
+        'light',
+        {
+            'band_count': 6,
+            'softness': 0.2,
+            'intensity': 0.6,
+            'speed': 1.25,
+            'seed': 8,
+        },
+    )
+    edited = codec.parse_score(document)
+
+    assert '# preserved comment' in document
+    assert isinstance(edited, light_animation.AnimationScore)
+    assert isinstance(edited.body.operation, effects.Aurora)
+    assert edited.body.operation.speed == 1.25
+    assert edited.body.operation.seed == 8
+    with pytest.raises(ValueError, match='operation fields do not match'):
+        session.field_document('example:/aurora.toml', 'light', {})
+    assert session.preview('aurora', {})['frames']
