@@ -309,29 +309,45 @@ _AUTHOR_TEMPLATE = """<!doctype html>
 <title>Lyte Author</title>
 <style>
 html,body{height:100%;margin:0;background:#111417;color:#e5e7eb;font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-main{height:100%;display:grid;grid-template-columns:minmax(230px,320px) 1fr}
+main{height:100%;display:grid;grid-template-columns:minmax(260px,340px) 1fr}
 aside{border-right:1px solid #343a40;padding:16px;overflow:auto}canvas{width:100%;height:100%;display:block}
-h1{font-size:17px;margin:0 0 16px}label{display:grid;gap:6px;margin:14px 0;color:#cbd5e1}
-select,input{width:100%;box-sizing:border-box}output{font-variant-numeric:tabular-nums;color:#94a3b8}
+h1{font-size:17px;margin:0 0 16px}h2{font-size:13px;margin:24px 0 8px;color:#cbd5e1}label{display:grid;gap:6px;margin:14px 0;color:#cbd5e1}
+select,input{width:100%;box-sizing:border-box}output,#status{font-variant-numeric:tabular-nums;color:#94a3b8}.transport{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.transport button:last-child{grid-column:span 3}button{padding:7px;border:1px solid #475569;border-radius:4px;background:#1e293b;color:#e5e7eb}.transport label{display:flex;align-items:center;gap:6px;margin:10px 0}.transport label input{width:auto}#frame{margin:4px 0}#status{display:block;min-height:20px}
 @media(max-width:700px){main{grid-template-columns:1fr;grid-template-rows:auto 1fr}aside{border-right:0;border-bottom:1px solid #343a40}}
 </style>
 </head>
 <body>
-<main><aside><h1>Lyte Author</h1><label>Animation<select id="animation"></select></label><section id="controls"></section></aside><canvas id="preview"></canvas></main>
+<main><aside><h1>Lyte Author</h1><label>Animation<select id="animation"></select></label><section id="controls"></section><h2>Preview</h2><div class="transport"><button id="previous" type="button" aria-label="Previous frame">Previous</button><button id="play" type="button">Pause</button><button id="next" type="button" aria-label="Next frame">Next</button><label><input id="loop" type="checkbox" checked>Loop</label></div><input id="frame" type="range" min="0" max="0" value="0" aria-label="Preview frame"><output id="status"></output></aside><canvas id="preview"></canvas></main>
 <script>
 const catalog=__LYTE_AUTHOR_CATALOG__;
 const select=document.getElementById('animation');
 const controls=document.getElementById('controls');
 const canvas=document.getElementById('preview');
 const context=canvas.getContext('2d');
+const previous=document.getElementById('previous');
+const play=document.getElementById('play');
+const next=document.getElementById('next');
+const loop=document.getElementById('loop');
+const frameControl=document.getElementById('frame');
+const status=document.getElementById('status');
 let preview=null;
+let frames=[];
+let frame=0;
+let playing=true;
+let lastTime=0;
+let previewRequest=0;
 for(const animation of catalog){const option=document.createElement('option');option.value=animation.selector;option.textContent=animation.title;select.append(option)}
 function active(){return catalog.find(animation=>animation.selector===select.value)}
 function values(){return Object.fromEntries([...controls.querySelectorAll('input')].map(input=>[input.name,Number(input.value)]))}
 function control(parameter){const label=document.createElement('label');label.textContent=parameter.name;const input=document.createElement('input');input.type='range';input.name=parameter.name;input.min=parameter.minimum;input.max=parameter.maximum;input.step=(parameter.maximum-parameter.minimum)/200||1;input.value=parameter.default;const output=document.createElement('output');output.textContent=`${parameter.default} ${parameter.unit}`;input.oninput=()=>{output.textContent=`${input.value} ${parameter.unit}`;requestPreview()};label.append(input,output);controls.append(label)}
 function rebuild(){controls.replaceChildren();for(const parameter of active().parameters){control(parameter)}requestPreview()}
-async function requestPreview(){const response=await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values()})});if(response.ok){preview=await response.json()}}
+function decodeFrame(text){const binary=atob(text);const bytes=new Uint8Array(binary.length);for(let index=0;index<binary.length;index+=1){bytes[index]=binary.charCodeAt(index)}return bytes}
+async function requestPreview(){const request=++previewRequest;const response=await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values()})});if(request!==previewRequest){return}if(!response.ok){const error=await response.json();status.textContent=error.error;return}preview=await response.json();frames=preview.frames.map(decodeFrame);frame=0;frameControl.max=Math.max(0,frames.length-1);frameControl.value=frame;updateStatus()}
+function updateStatus(){if(!preview){status.textContent='Loading preview';return}status.textContent=`${active().title} · frame ${frame+1} of ${frames.length} · ${preview.fps} FPS`}
+function setFrame(value){if(!frames.length){return}if(value<0){frame=loop.checked?frames.length-1:0}else if(value>=frames.length){frame=loop.checked?0:frames.length-1;playing=loop.checked}else{frame=value}frameControl.value=frame;updateStatus()}
 function resize(){const scale=devicePixelRatio||1;const rect=canvas.getBoundingClientRect();canvas.width=Math.max(1,Math.round(rect.width*scale));canvas.height=Math.max(1,Math.round(rect.height*scale))}
-function draw(time){if(preview){const frame=atob(preview.frames[Math.floor(time/1000*preview.fps)%preview.frames.length]);context.fillStyle='#050506';context.fillRect(0,0,canvas.width,canvas.height);for(let index=0;index<preview.coords.length;index+=1){const x=(index+0.5)*canvas.width/preview.coords.length;const offset=index*3;context.fillStyle=`rgb(${frame.charCodeAt(offset)},${frame.charCodeAt(offset+1)},${frame.charCodeAt(offset+2)})`;context.beginPath();context.arc(x,canvas.height/2,Math.max(4,canvas.height/12),0,Math.PI*2);context.fill()}}requestAnimationFrame(draw)}
-select.onchange=rebuild;addEventListener('resize',resize);resize();rebuild();requestAnimationFrame(draw);
+function projectedPoints(){const bounds=preview.coords.reduce((value,point)=>({minX:Math.min(value.minX,point[0]),minY:Math.min(value.minY,point[1]),maxX:Math.max(value.maxX,point[0]),maxY:Math.max(value.maxY,point[1])}),{minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity});const pad=Math.max(24,Math.min(canvas.width,canvas.height)*0.08);const spanX=Math.max(1e-9,bounds.maxX-bounds.minX);const spanY=Math.max(1e-9,bounds.maxY-bounds.minY);const scale=Math.min((canvas.width-pad*2)/spanX,(canvas.height-pad*2)/spanY);const offsetX=(canvas.width-spanX*scale)/2;const offsetY=(canvas.height-spanY*scale)/2;return preview.coords.map(point=>[offsetX+(point[0]-bounds.minX)*scale,offsetY+(point[1]-bounds.minY)*scale])}
+function draw(){context.fillStyle='#050506';context.fillRect(0,0,canvas.width,canvas.height);if(!preview||!frames.length){return}const points=projectedPoints();const values=frames[frame];const radius=Math.max(3,Math.min(canvas.width,canvas.height)/140);for(let index=0;index<points.length;index+=1){const offset=index*3;context.fillStyle=`rgb(${values[offset]},${values[offset+1]},${values[offset+2]})`;context.beginPath();context.arc(points[index][0],points[index][1],radius,0,Math.PI*2);context.fill()}}
+function animate(time){if(playing&&preview&&frames.length){const elapsed=time-lastTime;const advance=Math.floor(elapsed*preview.fps/1000);if(advance>0){setFrame(frame+advance);lastTime=time}}else{lastTime=time}draw();requestAnimationFrame(animate)}
+select.onchange=rebuild;previous.onclick=()=>{playing=false;play.textContent='Play';setFrame(frame-1)};next.onclick=()=>{playing=false;play.textContent='Play';setFrame(frame+1)};play.onclick=()=>{playing=!playing;play.textContent=playing?'Pause':'Play'};frameControl.oninput=()=>{playing=false;play.textContent='Play';setFrame(Number(frameControl.value))};addEventListener('resize',resize);resize();rebuild();requestAnimationFrame(animate);
 </script></body></html>"""

@@ -37,6 +37,10 @@ def test_author_document_contains_animation_catalogue() -> None:
 
     assert 'examples:/aurora.toml' in document
     assert 'Lyte Author' in document
+    assert 'id="previous"' in document
+    assert 'id="frame"' in document
+    assert 'projectedPoints' in document
+    assert 'preview.coords' in document
 
 
 def test_authoring_session_previews_built_in_reactive_effects() -> None:
