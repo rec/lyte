@@ -180,6 +180,6 @@ separate output primitives; dynamic DMX bindings are not part of this runner.
 
 ## Documentation
 
-- `doc/architecture.md` describes the code and runtime boundaries.
-- `doc/handover.md` contains operation, configuration, recovery, and physical
-  validation procedures.
+- `doc/guide.md` explains the current system, its commands, output boundaries,
+  and hardware validation limits.
+- `doc/handover.md` records the current handover state.
