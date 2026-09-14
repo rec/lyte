@@ -1,18 +1,21 @@
 # Animation Editor Next Steps
 
-## Cue Editing
+## Save Verification
 
-Edit `Cues` starts and durations, and `Crossfade` durations, as rational-second
-values. Validate the entire score and prepare the result before offering a
-round-tripped TOML download. Keep the timeline a view of Ufor operations, not
-a universal keyframe system.
+Add round-trip fixtures that prove comments and unknown fields survive every
+save path. Check rejected edits leave the source file and the original loaded
+score usable. Test composition diagnostics.
 
-## Validation
+## Browser Check
 
-Add save round-trip fixtures, including unknown-field retention and rejected
-cue edits that leave the previous score usable. Test composition diagnostics.
 Manually verify a ring or other two-dimensional layout in `lyte author`,
 including parameter edits, transport controls, pause, seeking, and the timeline.
+
+## Further Editing
+
+Offer direct field editing for operations only after its save behaviour has the
+same round-trip guarantees as timing edits. Preserve the Ufor operation model;
+do not add a universal keyframe system.
 
 ## Boundaries
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -153,7 +154,8 @@ def test_authoring_session_exposes_exact_crossfade_timeline(tmp_path: Path) -> N
     config.write_text('[[libraries]]\nname = "example"\nroot = "scores"\n')
 
     session = authoring.AuthoringSession(
-        library_files.read_library(config), authoring.AuthorConfig()
+        library_files.read_library(config),
+        authoring.AuthorConfig(library_config=config),
     )
     selected = next(
         item for item in session.animations if item.selector == 'composition'
@@ -180,6 +182,63 @@ def test_authoring_session_exposes_exact_crossfade_timeline(tmp_path: Path) -> N
             },
         ],
     }
+    document = session.timeline_document(
+        'example:/composition.toml', 'light', {'duration': '5/4'}
+    )
+    edited = codec.parse_score(document)
+
+    assert isinstance(edited, light_animation.AnimationScore)
+    assert isinstance(edited.body.operation, light_animation.Crossfade)
+    assert edited.body.operation.fade.duration == Fraction(5, 4)
+
+
+def test_authoring_session_edits_cue_timing_without_mutating_its_library(
+    tmp_path: Path,
+) -> None:
+    scores = tmp_path / 'scores'
+    scores.mkdir()
+    for source in Path('examples/scores').glob('*.toml'):
+        (scores / source.name).write_text(source.read_text())
+    composition = scores / 'composition.toml'
+    composition.write_text('# preserved comment\n' + composition.read_text())
+    config = tmp_path / 'library.toml'
+    config.write_text('[[libraries]]\nname = "example"\nroot = "scores"\n')
+    session = authoring.AuthoringSession(
+        library_files.read_library(config),
+        authoring.AuthorConfig(library_config=config),
+    )
+
+    document = session.timeline_document(
+        'example:/composition.toml',
+        'light',
+        {
+            'events': [
+                {'start': '0', 'duration': '9/2'},
+                {'start': '4', 'duration': '5'},
+            ]
+        },
+    )
+    edited = codec.parse_score(document)
+
+    assert '# preserved comment' in document
+    assert isinstance(edited, light_animation.AnimationScore)
+    assert isinstance(edited.body.operation, light_animation.Cues)
+    assert [(cue.start, cue.duration) for cue in edited.body.operation.cues] == [
+        (Fraction(0), Fraction(9, 2)),
+        (Fraction(4), Fraction(5)),
+    ]
+    with pytest.raises(ValueError, match='cues require increasing starts and ends'):
+        session.timeline_document(
+            'example:/composition.toml',
+            'light',
+            {
+                'events': [
+                    {'start': '0', 'duration': '6'},
+                    {'start': '4', 'duration': '1'},
+                ]
+            },
+        )
+    assert session.preview('composition', {})['frames']
 
 
 def test_authoring_session_round_trips_comments_when_replacing_operation(

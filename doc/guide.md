@@ -142,14 +142,16 @@ lyte author --library-config examples/library.toml --open
 `lyte author` serves a loopback-only browser editor. It lists Ufor animation
 scores and the reactive built-ins under `builtin:`, derives sliders from public
 parameters, and regenerates the shared HTML preview after each edit. It does
-not edit spatial layouts or cue timings.
+not edit spatial layouts.
 
 For a Ufor score, the **Composition** panel follows the selected output's
 declared operation tree and the parts it references. Selecting an operation
 shows its declared fields in the read-only inspector. The **Timeline** shows
 each selected `Cues` or `Crossfade` operation as exact rational-second ranges;
-overlapping bars show simultaneous cue playback. It is a visualisation of the
-declared Ufor operation, not a generic keyframe editor.
+overlapping bars show simultaneous cue playback. Direct TOML scores can edit
+cue starts and durations or a crossfade duration, then download the validated
+result. It is a view and editor for declared Ufor operations, not a generic
+keyframe editor.
 
 Direct TOML animation scores can replace a selected operation with one of the
 offered score-aware templates and download the edited source. Lyte validates
