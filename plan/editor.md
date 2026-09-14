@@ -1,12 +1,5 @@
 # Animation Editor Next Steps
 
-## Composition Editing
-
-Add structure editing through
-score-aware templates. Every edit must pass Ufor validation, retain the last
-valid preview on failure, and show the diagnostic beside the responsible field
-or node. Do not introduce a separate node-graph format.
-
 ## Cue Timeline
 
 Represent existing Ufor cues and crossfades on a timeline after composition
