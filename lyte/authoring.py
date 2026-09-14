@@ -15,9 +15,11 @@ from typing import Literal, cast
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field
-from ufor import library_files
-from ufor.library import Library
+from ufor import codec, library_files
+from ufor.interface import ScoreVersion
+from ufor.library import Entry, Library, State
 from ufor.light_animation import AnimationScore
+from ufor.preset import PresetScore
 
 from . import animation, reactive_effects, reactivity, show
 from .preview.document import encoded_frames
@@ -72,11 +74,7 @@ class AuthoringSession:
         self.animations = [*_author_animations(library), *_builtin_animations()]
 
     def preview(self, selector: str, parameters: dict[str, float]) -> dict[str, object]:
-        if selector not in {animation.selector for animation in self.animations}:
-            raise ValueError(f'unknown animation {selector!r}')
-        selected = next(
-            animation for animation in self.animations if animation.selector == selector
-        )
+        selected = self._animation(selector)
         if selected.renderer == 'builtin':
             return _builtin_preview(
                 selector.removeprefix('builtin:'), parameters, self.config.duration
@@ -100,6 +98,52 @@ class AuthoringSession:
             'fps': prepared.fps,
             'frames': encoded_frames(prepared, self.config.duration),
         }
+
+    def preset_document(
+        self, selector: str, parameters: dict[str, float], name: str
+    ) -> str:
+        selected = self._animation(selector)
+        if selected.renderer != 'ufor':
+            raise ValueError(
+                'built-in reactive effects cannot be saved as Ufor presets'
+            )
+        preset = PresetScore(
+            name=name,
+            title=f'{selected.title} preset',
+            score=ScoreVersion(selector=selector),
+            parameters=parameters,
+        )
+        entries = [
+            entry.model_copy(
+                update={
+                    'state': State.pending,
+                    'dependencies': {},
+                    'resolved': None,
+                    'content_origin': None,
+                }
+            )
+            for entry in self.library.entries.values()
+        ]
+        address = f'/{name}.toml'
+        validation_library = Library(
+            [
+                *entries,
+                Entry(library='author', address=address, name=name, score=preset),
+            ]
+        )
+        show.prepare_library_animation(
+            validation_library,
+            show.LightProgramSpec(
+                selector=f'author:{address}', output=self.config.light_output
+            ),
+        )
+        return codec.score_toml(preset)
+
+    def _animation(self, selector: str) -> AuthorAnimation:
+        for item in self.animations:
+            if item.selector == selector:
+                return item
+        raise ValueError(f'unknown animation {selector!r}')
 
 
 def run_author(config: AuthorConfig) -> int:
@@ -252,30 +296,28 @@ def _handler(session: AuthoringSession) -> type[BaseHTTPRequestHandler]:
             self.wfile.write(document)
 
         def do_POST(self) -> None:
-            if urlparse(self.path).path != '/api/preview':
+            path = urlparse(self.path).path
+            if path not in {'/api/preview', '/api/preset'}:
                 self.send_error(404)
                 return
             try:
                 payload = _request_json(self)
-                selector = payload.get('selector')
-                parameters = payload.get('parameters', {})
-                if not isinstance(selector, str):
-                    raise ValueError('preview requires a selector')
-                if not isinstance(parameters, dict) or any(
-                    not isinstance(name, str)
-                    or isinstance(value, bool)
-                    or not isinstance(value, (int, float))
-                    for name, value in parameters.items()
-                ):
-                    raise ValueError('preview parameters must map names to numbers')
-                preview = session.preview(
-                    selector,
-                    cast(dict[str, float], parameters),
-                )
+                selector, parameters = _preview_request(payload)
+                response: dict[str, object]
+                if path == '/api/preview':
+                    response = session.preview(selector, parameters)
+                else:
+                    name = payload.get('name')
+                    if not isinstance(name, str):
+                        raise ValueError('preset requires a name')
+                    response = {
+                        'filename': f'{name}.toml',
+                        'document': session.preset_document(selector, parameters, name),
+                    }
             except (ValueError, json.JSONDecodeError) as error:
                 self._json(400, {'error': str(error)})
                 return
-            self._json(200, preview)
+            self._json(200, response)
 
         def log_message(self, format: str, *args: object) -> None:
             return
@@ -301,6 +343,21 @@ def _request_json(handler: BaseHTTPRequestHandler) -> dict[str, object]:
     return data
 
 
+def _preview_request(payload: dict[str, object]) -> tuple[str, dict[str, float]]:
+    selector = payload.get('selector')
+    parameters = payload.get('parameters', {})
+    if not isinstance(selector, str):
+        raise ValueError('preview requires a selector')
+    if not isinstance(parameters, dict) or any(
+        not isinstance(name, str)
+        or isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        for name, value in parameters.items()
+    ):
+        raise ValueError('preview parameters must map names to numbers')
+    return selector, cast(dict[str, float], parameters)
+
+
 _AUTHOR_TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
@@ -317,7 +374,7 @@ select,input{width:100%;box-sizing:border-box}output,#status{font-variant-numeri
 </style>
 </head>
 <body>
-<main><aside><h1>Lyte Author</h1><label>Animation<select id="animation"></select></label><section id="controls"></section><h2>Preview</h2><div class="transport"><button id="previous" type="button" aria-label="Previous frame">Previous</button><button id="play" type="button">Pause</button><button id="next" type="button" aria-label="Next frame">Next</button><label><input id="loop" type="checkbox" checked>Loop</label></div><input id="frame" type="range" min="0" max="0" value="0" aria-label="Preview frame"><output id="status"></output></aside><canvas id="preview"></canvas></main>
+<main><aside><h1>Lyte Author</h1><label>Animation<select id="animation"></select></label><section id="controls"></section><h2>Save preset</h2><label>Name<input id="preset-name"></label><button id="save" type="button">Download TOML preset</button><output id="save-status"></output><h2>Preview</h2><div class="transport"><button id="previous" type="button" aria-label="Previous frame">Previous</button><button id="play" type="button">Pause</button><button id="next" type="button" aria-label="Next frame">Next</button><label><input id="loop" type="checkbox" checked>Loop</label></div><input id="frame" type="range" min="0" max="0" value="0" aria-label="Preview frame"><output id="status"></output></aside><canvas id="preview"></canvas></main>
 <script>
 const catalog=__LYTE_AUTHOR_CATALOG__;
 const select=document.getElementById('animation');
@@ -330,6 +387,9 @@ const next=document.getElementById('next');
 const loop=document.getElementById('loop');
 const frameControl=document.getElementById('frame');
 const status=document.getElementById('status');
+const presetName=document.getElementById('preset-name');
+const save=document.getElementById('save');
+const saveStatus=document.getElementById('save-status');
 let preview=null;
 let frames=[];
 let frame=0;
@@ -340,14 +400,16 @@ for(const animation of catalog){const option=document.createElement('option');op
 function active(){return catalog.find(animation=>animation.selector===select.value)}
 function values(){return Object.fromEntries([...controls.querySelectorAll('input')].map(input=>[input.name,Number(input.value)]))}
 function control(parameter){const label=document.createElement('label');label.textContent=parameter.name;const input=document.createElement('input');input.type='range';input.name=parameter.name;input.min=parameter.minimum;input.max=parameter.maximum;input.step=(parameter.maximum-parameter.minimum)/200||1;input.value=parameter.default;const output=document.createElement('output');output.textContent=`${parameter.default} ${parameter.unit}`;input.oninput=()=>{output.textContent=`${input.value} ${parameter.unit}`;requestPreview()};label.append(input,output);controls.append(label)}
-function rebuild(){controls.replaceChildren();for(const parameter of active().parameters){control(parameter)}requestPreview()}
+function defaultPresetName(){return `preset-${select.value.replace(/[^A-Za-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'')||'animation'}`}
+function rebuild(){controls.replaceChildren();for(const parameter of active().parameters){control(parameter)}presetName.value=defaultPresetName();saveStatus.textContent='';requestPreview()}
 function decodeFrame(text){const binary=atob(text);const bytes=new Uint8Array(binary.length);for(let index=0;index<binary.length;index+=1){bytes[index]=binary.charCodeAt(index)}return bytes}
 async function requestPreview(){const request=++previewRequest;const response=await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values()})});if(request!==previewRequest){return}if(!response.ok){const error=await response.json();status.textContent=error.error;return}preview=await response.json();frames=preview.frames.map(decodeFrame);frame=0;frameControl.max=Math.max(0,frames.length-1);frameControl.value=frame;updateStatus()}
+async function savePreset(){const response=await fetch('/api/preset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values(),name:presetName.value})});const result=await response.json();if(!response.ok){saveStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);saveStatus.textContent=`Downloaded ${result.filename}`}
 function updateStatus(){if(!preview){status.textContent='Loading preview';return}status.textContent=`${active().title} · frame ${frame+1} of ${frames.length} · ${preview.fps} FPS`}
 function setFrame(value){if(!frames.length){return}if(value<0){frame=loop.checked?frames.length-1:0}else if(value>=frames.length){frame=loop.checked?0:frames.length-1;playing=loop.checked}else{frame=value}frameControl.value=frame;updateStatus()}
 function resize(){const scale=devicePixelRatio||1;const rect=canvas.getBoundingClientRect();canvas.width=Math.max(1,Math.round(rect.width*scale));canvas.height=Math.max(1,Math.round(rect.height*scale))}
 function projectedPoints(){const bounds=preview.coords.reduce((value,point)=>({minX:Math.min(value.minX,point[0]),minY:Math.min(value.minY,point[1]),maxX:Math.max(value.maxX,point[0]),maxY:Math.max(value.maxY,point[1])}),{minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity});const pad=Math.max(24,Math.min(canvas.width,canvas.height)*0.08);const spanX=Math.max(1e-9,bounds.maxX-bounds.minX);const spanY=Math.max(1e-9,bounds.maxY-bounds.minY);const scale=Math.min((canvas.width-pad*2)/spanX,(canvas.height-pad*2)/spanY);const offsetX=(canvas.width-spanX*scale)/2;const offsetY=(canvas.height-spanY*scale)/2;return preview.coords.map(point=>[offsetX+(point[0]-bounds.minX)*scale,offsetY+(point[1]-bounds.minY)*scale])}
 function draw(){context.fillStyle='#050506';context.fillRect(0,0,canvas.width,canvas.height);if(!preview||!frames.length){return}const points=projectedPoints();const values=frames[frame];const radius=Math.max(3,Math.min(canvas.width,canvas.height)/140);for(let index=0;index<points.length;index+=1){const offset=index*3;context.fillStyle=`rgb(${values[offset]},${values[offset+1]},${values[offset+2]})`;context.beginPath();context.arc(points[index][0],points[index][1],radius,0,Math.PI*2);context.fill()}}
 function animate(time){if(playing&&preview&&frames.length){const elapsed=time-lastTime;const advance=Math.floor(elapsed*preview.fps/1000);if(advance>0){setFrame(frame+advance);lastTime=time}}else{lastTime=time}draw();requestAnimationFrame(animate)}
-select.onchange=rebuild;previous.onclick=()=>{playing=false;play.textContent='Play';setFrame(frame-1)};next.onclick=()=>{playing=false;play.textContent='Play';setFrame(frame+1)};play.onclick=()=>{playing=!playing;play.textContent=playing?'Pause':'Play'};frameControl.oninput=()=>{playing=false;play.textContent='Play';setFrame(Number(frameControl.value))};addEventListener('resize',resize);resize();rebuild();requestAnimationFrame(animate);
+select.onchange=rebuild;save.onclick=savePreset;previous.onclick=()=>{playing=false;play.textContent='Play';setFrame(frame-1)};next.onclick=()=>{playing=false;play.textContent='Play';setFrame(frame+1)};play.onclick=()=>{playing=!playing;play.textContent=playing?'Pause':'Play'};frameControl.oninput=()=>{playing=false;play.textContent='Play';setFrame(Number(frameControl.value))};addEventListener('resize',resize);resize();rebuild();requestAnimationFrame(animate);
 </script></body></html>"""

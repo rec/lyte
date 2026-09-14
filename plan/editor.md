@@ -1,18 +1,5 @@
 # Animation Editor Next Steps
 
-## Save-As
-
-Investigate the Ufor API for a lossless TOML representation. Add an explicit
-save-as workflow only when it can write a new human-readable Ufor score without
-discarding unknown source fields. The server must validate and prepare the
-candidate before reporting success, and it must never overwrite a source score
-by default.
-
-If lossless score serialization is unavailable, begin by saving a small,
-separate parameter-preset document with an explicit Ufor selector. Built-in
-reactive effects remain preview-only until they have a declared Ufor score
-representation.
-
 ## Composition Inspector and Editing
 
 Add a read-only composition tree for the selected output. It should show Ufor
