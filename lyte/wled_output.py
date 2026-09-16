@@ -44,7 +44,7 @@ def encode_ddp_frame(
 
 
 class WledDdpOutput:
-    """A transient realtime WLED output. Its host is never persisted."""
+    """Realtime WLED output using unacknowledged DDP datagrams."""
 
     def __init__(
         self,
