@@ -10,6 +10,9 @@ PANEL_TEMPLATE = r"""<!doctype html>
 <p>This controls the running installation. Commands take effect on physical outputs.</p>
 <fieldset id="controls" disabled><legend>Controls</legend>
 <select id="animation" aria-label="Animation"></select><button id="select">Select animation</button>
+<label>Fade (s) <input id="fade" type="number" min="0" step="0.1" value="0"></label>
+<label>Master (%) <input id="master" type="number" min="0" max="100" value="100"></label><button id="set-master">Set master</button>
+<output id="fade-status"></output>
 <button id="blackout">Blackout</button><button id="stop">Stop installation</button>
 <label>Test level (%) <input id="level" type="number" min="0" max="100" value="50"></label>
 <label>Duration (s) <input id="duration" type="number" min="0.01" step="0.1" value="2"></label><button id="test">Test lights</button>
@@ -23,6 +26,7 @@ function displayStatus(data){
   connected=data.running===true;
   element('connection').textContent=connected?'Connected to lyte':'lyte reports stopped';
   element('controls').disabled=!connected||busy;
+  element('fade-status').textContent=`Master ${Math.round(data.master_level*100)}% · fade ${data.transition_duration||0}s${data.transition_from_snapshot?' from displayed snapshot':data.outgoing_animation?' from '+data.outgoing_animation:''}`;
   const selected=element('animation').value;
   element('animation').replaceChildren(...data.animations.map(name=>new Option(name,name)));
   element('animation').value=data.animations.includes(selected)?selected:data.active_animation||data.animations[0]||'';
@@ -60,7 +64,8 @@ async function sendCommand(command,params={}){
   finally{busy=false;await refresh();}
 }
 async function poll(){if(!busy){await refresh();}setTimeout(poll,1000);}
-element('select').onclick=()=>sendCommand('select_animation',{name:element('animation').value});
+element('select').onclick=()=>sendCommand('select_animation',{name:element('animation').value,duration:Number(element('fade').value)});
+element('set-master').onclick=()=>sendCommand('master_level',{level:Number(element('master').value)/100});
 element('blackout').onclick=()=>sendCommand('blackout');
 element('stop').onclick=()=>sendCommand('stop');
 element('test').onclick=()=>sendCommand('test',{level:Number(element('level').value),duration:Number(element('duration').value)});

@@ -254,6 +254,13 @@ initial interface local to the machine operating the installation.
 
 ### 11. Smooth animation transitions and a master level
 
+**Completed 2026-09-16.** Selection accepts an explicit fade duration; zero cuts
+immediately. Interrupted fades restart from the last displayed blend. Both live
+animations receive MIDI and obey their own note gates; a frozen interruption
+snapshot has no running animation. Master level applies after mixing and mapping,
+including test output. Blackout cancels fades. Rehearsal and the operator panel
+expose the controls, and render diagnostics account for both live animations.
+
 Animation selection currently starts fresh state at a frame boundary. Offer
 intentional transitions between named installation animations.
 
