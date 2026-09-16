@@ -1,7 +1,7 @@
 """Layer long, low-contrast waves moving at different speeds and directions.
 
 Rare bright crests and turbulence give the field a water-like appearance.
-Ufor defines palette, wave count, speed, crest rate, turbulence and seed;
+uFor defines palette, wave count, speed, crest rate, turbulence and seed;
 per-wave rates and wavelengths are seeded at startup.
 """
 

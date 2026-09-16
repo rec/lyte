@@ -1,4 +1,4 @@
-"""Small HTTP client for Lyte devices."""
+"""Small HTTP client for lyte devices."""
 
 from __future__ import annotations
 

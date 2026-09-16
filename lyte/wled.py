@@ -85,7 +85,7 @@ TRANSLATIONS = {
         'Solid', 'color_fill', 'WLED segment and transition state is not retained.'
     ),
     'breathe': Translation(
-        'Breathe', 'color_fade', 'Lyte uses its own symmetric brightness curve.'
+        'Breathe', 'color_fade', 'lyte uses its own symmetric brightness curve.'
     ),
     'chase': Translation(
         'Chase', 'color_chase', 'WLED background and secondary colors are not retained.'
@@ -93,23 +93,23 @@ TRANSLATIONS = {
     'chase rainbow': Translation(
         'Chase Rainbow',
         'rainbow',
-        'Lyte renders a moving rainbow rather than WLED chase blocks.',
+        'lyte renders a moving rainbow rather than WLED chase blocks.',
     ),
     'candle': Translation(
-        'Candle', 'candle_bank', 'Lyte uses deterministic seeded candle zones.'
+        'Candle', 'candle_bank', 'lyte uses deterministic seeded candle zones.'
     ),
     'color wipe': Translation(
         'Color Wipe', 'color_wipe', 'WLED transition state is not retained.'
     ),
-    'comet': Translation('Comet', 'larson_scanner', 'Lyte reflects at strip ends.'),
+    'comet': Translation('Comet', 'larson_scanner', 'lyte reflects at strip ends.'),
     'rainbow': Translation(
         'Rainbow', 'rainbow', 'WLED palette and segment options are not retained.'
     ),
     'scan': Translation(
-        'Scan', 'larson_scanner', 'Lyte tail and bounce behavior differ.'
+        'Scan', 'larson_scanner', 'lyte tail and bounce behavior differ.'
     ),
     'twinkle': Translation(
-        'Twinkle', 'twinkle', 'Lyte random timing is independently seeded.'
+        'Twinkle', 'twinkle', 'lyte random timing is independently seeded.'
     ),
 }
 
@@ -143,7 +143,7 @@ def import_snapshot(path: Path) -> WledSnapshot:
 def read_snapshot(path: Path) -> WledSnapshot:
     document = _read_json_object(path)
     if document.get('format') != 'lyte-wled-snapshot' or document.get('version') != 1:
-        raise WledError(f'{path}: not a Lyte WLED snapshot')
+        raise WledError(f'{path}: not a lyte WLED snapshot')
     raw = document.get('raw')
     hashes = document.get('source_hashes')
     if not isinstance(raw, dict) or not isinstance(hashes, dict):
@@ -358,7 +358,7 @@ def _translation_failure(preset: WledPreset) -> str:
     if preset.effect is None:
         return 'preset has no resolvable WLED effect'
     if preset.effect.casefold() not in TRANSLATIONS:
-        return f'WLED effect {preset.effect!r} has no declared Lyte translation'
+        return f'WLED effect {preset.effect!r} has no declared lyte translation'
     segments = preset.raw.get('seg')
     if not isinstance(segments, list) or len(segments) != 1:
         return 'translation currently requires exactly one WLED segment'

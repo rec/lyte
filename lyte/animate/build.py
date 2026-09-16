@@ -1,4 +1,4 @@
-"""Installed renderers for Ufor's built-in RGB effect descriptions."""
+"""Installed renderers for uFor's built-in RGB effect descriptions."""
 
 from typing import cast
 
@@ -64,7 +64,7 @@ def build_effect(effect: effects.EffectValue) -> Animation:
     renderer_type = EFFECT_RENDERERS.get(effect.effect)
     if renderer_type is None:
         raise RendererCapabilityError(
-            f'Lyte has no installed renderer for effect {effect.effect!r}'
+            f'lyte has no installed renderer for effect {effect.effect!r}'
         )
     renderer_model = cast(type[effects.Effect], renderer_type)
     return cast(Animation, renderer_model.model_validate(effect.model_dump()))

@@ -1,4 +1,4 @@
-"""Prepare and render Ufor light compositions with Lyte's NumPy effects."""
+"""Prepare and render uFor light compositions with lyte's NumPy effects."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from .animate.build import RendererCapabilityError, build_effect
 
 
 class PythonAnimationScore(light_animation.AnimationScore):
-    """Explicit runtime contract for a Python-defined Ufor animation score."""
+    """Explicit runtime contract for a Python-defined uFor animation score."""
 
     def initial_lyte_state(self, output: LightType) -> animation.State:
         return animation.State()
@@ -310,7 +310,7 @@ def compose_frame(
         )
     else:
         raise RendererCapabilityError(
-            f'Lyte cannot compose operation {type(operation).__name__}'
+            f'lyte cannot compose operation {type(operation).__name__}'
         )
     return np.ascontiguousarray(frame, dtype=np.float32)
 

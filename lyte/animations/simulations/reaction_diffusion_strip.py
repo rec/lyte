@@ -1,7 +1,7 @@
 """Simulate interacting activator and inhibitor concentrations on a line or ring.
 
 Inhibitor concentration maps to color, producing evolving spots and bands.
-Ufor defines feed and kill rates, diffusion rates, steps per second, boundary
+uFor defines feed and kill rates, diffusion rates, steps per second, boundary
 mode, palette, speed and seed. Fractional step credit preserves simulation
 rate across render frame rates.
 """

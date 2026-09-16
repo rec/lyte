@@ -1,6 +1,6 @@
 """Move colored particles that reflect at the ends and exchange velocity on contact.
 
-Collision flashes and fading trails expose their paths. Ufor defines particle
+Collision flashes and fading trails expose their paths. uFor defines particle
 count, radius, trail decay, collision flash, palette, speed and seed;
 initial positions and velocities are seeded.
 """

@@ -1,4 +1,4 @@
-"""Retry helpers for transient Lyte network operations."""
+"""Retry helpers for transient lyte network operations."""
 
 from __future__ import annotations
 

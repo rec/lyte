@@ -1,6 +1,6 @@
 """Generate irregular flashes with bright cores, dim branches and afterglow.
 
-Short bursts alternate with randomly spaced quiet intervals. Ufor defines
+Short bursts alternate with randomly spaced quiet intervals. uFor defines
 color, flash rate, maximum burst size, branch width, afterglow, speed and seed.
 """
 
