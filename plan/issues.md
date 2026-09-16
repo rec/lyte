@@ -137,15 +137,11 @@ verify that every export receives the same library instance.
 
 ### 17. Editor downloads do not form a cumulative editing session
 
-The operation, timing, and field endpoints in [authoring.py](../lyte/authoring.py)
-each read the original source; successful downloads do not update the session's
-library, tree, or preview. Editing timing and then fields produces independent
-files, not one combined edit. Replacement templates likewise are not previewed
-as pending changes.
-
-This is a documented download-based boundary, but a significant trap for an
-app presented as an editor. Make it explicit in the UI or plan a coherent
-working-document model. Do not silently add persistence as part of another fix.
+**Fixed.** Validated edits accumulate in memory. Every edit rebuilds the working
+library and catalogue before committing it, and the browser refreshes its tree
+and preview. Invalid edits leave the previous working copy intact. Downloads
+retain comments and combine prior edits; source files remain unchanged. The UI
+explains session lifetime and the need to download each changed score.
 
 ### 18. Spatial preview coverage remains incomplete
 

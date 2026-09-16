@@ -81,6 +81,7 @@ class AuthoringSession:
     def __init__(self, library: Library, config: AuthorConfig) -> None:
         self.library = library
         self.config = config
+        self.documents: dict[str, str] = {}
         self.animations = [
             *_author_animations(library, config.light_output),
             *_builtin_animations(),
@@ -163,22 +164,18 @@ class AuthoringSession:
             raise ValueError(
                 'selected operation is not backed by a TOML animation score'
             )
-        document = tomlkit.parse(source.read_text())
+        document = tomlkit.parse(
+            self.documents[entry_key]
+            if entry_key in self.documents
+            else source.read_text()
+        )
         operation = _operation_template(template, entry.score)
         body = document.get('body')
         if not isinstance(body, Table):
             raise ValueError(f'{source}: animation body is missing')
         body['operation'] = tomlkit.item(operation.model_dump(mode='json'))
         text = tomlkit.dumps(document)
-        edited = codec.parse_score(text)
-        if not isinstance(edited, AnimationScore):
-            raise ValueError(f'{source}: edited score is not an animation')
-        validation_library = _validation_library(self.library, entry_key, edited)
-        show.prepare_library_animation(
-            validation_library,
-            show.LightProgramSpec(selector=entry_key, output=output),
-        )
-        return text
+        return self._apply_document(entry_key, output, text)
 
     def timeline_document(
         self, entry_key: str, output: str, timing: dict[str, object]
@@ -189,7 +186,11 @@ class AuthoringSession:
         source = self._source_path(entry)
         if source.suffix != '.toml':
             raise ValueError('selected timing is not backed by a TOML animation score')
-        document = tomlkit.parse(source.read_text())
+        document = tomlkit.parse(
+            self.documents[entry_key]
+            if entry_key in self.documents
+            else source.read_text()
+        )
         body = document.get('body')
         if not isinstance(body, Table):
             raise ValueError(f'{source}: animation body is missing')
@@ -220,15 +221,7 @@ class AuthoringSession:
                 'selected operation has no editable cue or crossfade timing'
             )
         text = tomlkit.dumps(document)
-        edited = codec.parse_score(text)
-        if not isinstance(edited, AnimationScore):
-            raise ValueError(f'{source}: edited score is not an animation')
-        validation_library = _validation_library(self.library, entry_key, edited)
-        show.prepare_library_animation(
-            validation_library,
-            show.LightProgramSpec(selector=entry_key, output=output),
-        )
-        return text
+        return self._apply_document(entry_key, output, text)
 
     def field_document(
         self, entry_key: str, output: str, fields: dict[str, object]
@@ -246,7 +239,11 @@ class AuthoringSession:
         source = self._source_path(entry)
         if source.suffix != '.toml':
             raise ValueError('selected fields are not backed by a TOML animation score')
-        document = tomlkit.parse(source.read_text())
+        document = tomlkit.parse(
+            self.documents[entry_key]
+            if entry_key in self.documents
+            else source.read_text()
+        )
         body = document.get('body')
         if not isinstance(body, Table):
             raise ValueError(f'{source}: animation body is missing')
@@ -256,14 +253,23 @@ class AuthoringSession:
         for name, value in _operation_fields(edited_operation).items():
             document_operation[name] = tomlkit.item(value)
         text = tomlkit.dumps(document)
+        return self._apply_document(entry_key, output, text)
+
+    def _apply_document(self, entry_key: str, output: str, text: str) -> str:
         edited = codec.parse_score(text)
         if not isinstance(edited, AnimationScore):
-            raise ValueError(f'{source}: edited score is not an animation')
-        validation_library = _validation_library(self.library, entry_key, edited)
+            raise ValueError('edited score is not an animation')
+        library = _validation_library(self.library, entry_key, edited)
         show.prepare_library_animation(
-            validation_library,
-            show.LightProgramSpec(selector=entry_key, output=output),
+            library, show.LightProgramSpec(selector=entry_key, output=output)
         )
+        animations = [
+            *_author_animations(library, self.config.light_output),
+            *_builtin_animations(),
+        ]
+        self.library = library
+        self.animations = animations
+        self.documents[entry_key] = text
         return text
 
     def _animation(self, selector: str) -> AuthorAnimation:
@@ -568,7 +574,7 @@ def _demo_features(index: int, frame_count: int) -> reactivity.AudioFeatures:
 
 
 def _handler(session: AuthoringSession) -> type[BaseHTTPRequestHandler]:
-    preview_lock = Lock()
+    session_lock = Lock()
 
     class AuthorHandler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
@@ -592,6 +598,14 @@ def _handler(session: AuthoringSession) -> type[BaseHTTPRequestHandler]:
                 '/api/fields',
             }:
                 self.send_error(404)
+                return
+            if not session_lock.acquire(blocking=False):
+                self._json(
+                    429,
+                    {
+                        'error': 'Another editor request is running; try again when it finishes.'
+                    },
+                )
                 return
             try:
                 payload = _request_json(self)
@@ -631,21 +645,11 @@ def _handler(session: AuthoringSession) -> type[BaseHTTPRequestHandler]:
                             'filename': Path(entry).name,
                             'document': session.field_document(entry, output, fields),
                         }
+                    response['catalog'] = [a.document() for a in session.animations]
                 else:
                     selector, parameters = _preview_request(payload)
                     if path == '/api/preview':
-                        if not preview_lock.acquire(blocking=False):
-                            self._json(
-                                429,
-                                {
-                                    'error': 'Another preview is rendering; try again when it finishes.'
-                                },
-                            )
-                            return
-                        try:
-                            response = session.preview(selector, parameters)
-                        finally:
-                            preview_lock.release()
+                        response = session.preview(selector, parameters)
                     else:
                         name = payload.get('name')
                         if not isinstance(name, str):
@@ -659,6 +663,8 @@ def _handler(session: AuthoringSession) -> type[BaseHTTPRequestHandler]:
             except (ValueError, json.JSONDecodeError) as error:
                 self._json(400, {'error': str(error)})
                 return
+            finally:
+                session_lock.release()
             self._json(200, response)
 
         def log_message(self, format: str, *args: object) -> None:
@@ -718,9 +724,9 @@ select,input{width:100%;box-sizing:border-box}output,#status{font-variant-numeri
 </style>
 </head>
 <body>
-<main><aside><h1>Lyte Author</h1><label>Animation<select id="animation"></select></label><section id="controls"></section><h2>Composition</h2><section id="composition"></section><h2>Inspector</h2><pre id="inspector">Select an operation</pre><h2>Operation fields</h2><section id="operation-fields">Select an operation</section><button id="download-fields" type="button" disabled>Download edited fields</button><output id="fields-status"></output><h2>Timeline</h2><section id="timeline">Select a timed operation</section><button id="download-timing" type="button" disabled>Download edited timing</button><output id="timing-status"></output><label>Replace selected operation<select id="operation-template" disabled></select></label><button id="download-operation" type="button" disabled>Download edited score</button><output id="operation-status"></output><h2>Save preset</h2><label>Name<input id="preset-name"></label><button id="save" type="button">Download TOML preset</button><output id="save-status"></output><h2>Preview</h2><div class="transport"><button id="previous" type="button" aria-label="Previous frame">Previous</button><button id="play" type="button">Pause</button><button id="next" type="button" aria-label="Next frame">Next</button><label><input id="loop" type="checkbox" checked>Loop</label></div><input id="frame" type="range" min="0" max="0" value="0" aria-label="Preview frame"><output id="status"></output></aside><canvas id="preview"></canvas></main>
+<main><aside><h1>Lyte Author</h1><p>Edits accumulate in memory and update the preview. Download every edited score to keep your work. Source files are unchanged; restarting the editor discards unsaved work.</p><label>Animation<select id="animation"></select></label><section id="controls"></section><h2>Composition</h2><section id="composition"></section><h2>Inspector</h2><pre id="inspector">Select an operation</pre><h2>Operation fields</h2><section id="operation-fields">Select an operation</section><button id="download-fields" type="button" disabled>Apply and download fields</button><output id="fields-status"></output><h2>Timeline</h2><section id="timeline">Select a timed operation</section><button id="download-timing" type="button" disabled>Apply and download timing</button><output id="timing-status"></output><label>Replace selected operation<select id="operation-template" disabled></select></label><button id="download-operation" type="button" disabled>Apply and download score</button><output id="operation-status"></output><h2>Save preset</h2><label>Name<input id="preset-name"></label><button id="save" type="button">Download TOML preset</button><output id="save-status"></output><h2>Preview</h2><div class="transport"><button id="previous" type="button" aria-label="Previous frame">Previous</button><button id="play" type="button">Pause</button><button id="next" type="button" aria-label="Next frame">Next</button><label><input id="loop" type="checkbox" checked>Loop</label></div><input id="frame" type="range" min="0" max="0" value="0" aria-label="Preview frame"><output id="status"></output></aside><canvas id="preview"></canvas></main>
 <script>
-const catalog=__LYTE_AUTHOR_CATALOG__;
+let catalog=__LYTE_AUTHOR_CATALOG__;
 const select=document.getElementById('animation');
 const controls=document.getElementById('controls');
 const canvas=document.getElementById('preview');
@@ -805,12 +811,12 @@ async function sendPreview(){
     if(pendingPreview){clearTimeout(previewTimer);previewTimer=setTimeout(sendPreview,150)}
   }
 }
-async function savePreset(){const response=await fetch('/api/preset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values(),name:presetName.value})});const result=await response.json();if(!response.ok){saveStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);saveStatus.textContent=`Downloaded ${result.filename}`}
-async function saveOperation(){if(!selectedOperation||!operationTemplate.value){operationStatus.textContent='Choose an operation template';return}const response=await fetch('/api/operation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:selectedOperation.entry,output:selectedOperation.output,template:operationTemplate.value})});const result=await response.json();if(!response.ok){operationStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);operationStatus.textContent=`Downloaded ${result.filename}`}
+async function savePreset(){const response=await fetch('/api/preset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values(),name:presetName.value})});const result=await response.json();if(!response.ok){saveStatus.textContent=result.error;return}if(result.catalog){catalog=result.catalog;rebuildComposition();requestPreview()}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);saveStatus.textContent=`Downloaded ${result.filename}`}
+async function saveOperation(){if(!selectedOperation||!operationTemplate.value){operationStatus.textContent='Choose an operation template';return}const response=await fetch('/api/operation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:selectedOperation.entry,output:selectedOperation.output,template:operationTemplate.value})});const result=await response.json();if(!response.ok){operationStatus.textContent=result.error;return}if(result.catalog){catalog=result.catalog;rebuildComposition();requestPreview()}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);operationStatus.textContent=`Downloaded ${result.filename}`}
 function fieldValues(){return Object.fromEntries([...operationFields.querySelectorAll('[data-field]')].map(input=>[input.dataset.field,input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value]))}
-async function saveFields(){if(!selectedOperation){return}const response=await fetch('/api/fields',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:selectedOperation.entry,output:selectedOperation.output,fields:fieldValues()})});const result=await response.json();if(!response.ok){fieldsStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);fieldsStatus.textContent=`Downloaded ${result.filename}`}
+async function saveFields(){if(!selectedOperation){return}const response=await fetch('/api/fields',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:selectedOperation.entry,output:selectedOperation.output,fields:fieldValues()})});const result=await response.json();if(!response.ok){fieldsStatus.textContent=result.error;return}if(result.catalog){catalog=result.catalog;rebuildComposition();requestPreview()}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);fieldsStatus.textContent=`Downloaded ${result.filename}`}
 function timingValues(){if(selectedOperation.timeline.effect==='crossfade'){return {duration:timeline.querySelector('[data-timing="duration"]').value}}return {events:[...timeline.querySelectorAll('.timeline-row')].map(row=>Object.fromEntries([...row.querySelectorAll('[data-timing]')].map(input=>[input.dataset.timing,input.value])))} }
-async function saveTiming(){if(!selectedOperation||!selectedOperation.timeline){return}const response=await fetch('/api/timeline',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:selectedOperation.entry,output:selectedOperation.output,timing:timingValues()})});const result=await response.json();if(!response.ok){timingStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);timingStatus.textContent=`Downloaded ${result.filename}`}
+async function saveTiming(){if(!selectedOperation||!selectedOperation.timeline){return}const response=await fetch('/api/timeline',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:selectedOperation.entry,output:selectedOperation.output,timing:timingValues()})});const result=await response.json();if(!response.ok){timingStatus.textContent=result.error;return}if(result.catalog){catalog=result.catalog;rebuildComposition();requestPreview()}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);timingStatus.textContent=`Downloaded ${result.filename}`}
 function updateStatus(){if(!preview){return}status.textContent=`${active().title} · frame ${frame+1} of ${frames.length} · ${preview.fps} FPS`}
 function setFrame(value){if(!frames.length){return}if(value<0){frame=loop.checked?frames.length-1:0}else if(value>=frames.length){frame=loop.checked?0:frames.length-1;playing=loop.checked}else{frame=value}frameControl.value=frame;updateStatus()}
 function resize(){const scale=devicePixelRatio||1;const rect=canvas.getBoundingClientRect();canvas.width=Math.max(1,Math.round(rect.width*scale));canvas.height=Math.max(1,Math.round(rect.height*scale))}
