@@ -200,6 +200,12 @@ pre{
 <label>Animation<select id="animation">
 </select>
 </label>
+<p id="score-source"></p>
+<h2>Session edits</h2>
+<button id="undo" type="button" disabled>Undo</button>
+<button id="redo" type="button" disabled>Redo</button>
+<output id="history-status"></output>
+<ul id="changed-scores"></ul>
 <section id="controls">
 </section>
 <h2>Composition</h2>
@@ -246,6 +252,7 @@ pre{
 </main>
 <script>
 let catalog=__LYTE_AUTHOR_CATALOG__;
+let history=__LYTE_AUTHOR_HISTORY__;
 const select=document.getElementById('animation');
 const controls=document.getElementById('controls');
 const canvas=document.getElementById('preview');
@@ -413,7 +420,7 @@ function rebuildTimeline(node){
 }
 function inspect(node,button){
   selectedOperation=node;
-  inspector.textContent=JSON.stringify(node.fields,null,2);
+  inspector.textContent=`${node.entry} · ${node.source_kind}\n${JSON.stringify(node.fields,null,2)}`;
   rebuildOperationFields(node);
   rebuildTimeline(node);
   operationTemplate.replaceChildren();
@@ -474,7 +481,38 @@ function rebuildComposition(){
     first.click()
   }
 }
+function updateHistory(value){
+  history=value;
+  document.getElementById('undo').disabled=!history.can_undo;
+  document.getElementById('redo').disabled=!history.can_redo;
+  const changed=document.getElementById('changed-scores');
+  changed.replaceChildren();
+  for(const entry of history.changed||[]){
+    const item=document.createElement('li');
+    item.textContent=entry;
+    changed.append(item);
+  }
+  if(!changed.children.length){changed.textContent='No changed scores';}
+}
+async function changeHistory(action){
+  const message=document.getElementById('history-status');
+  try{
+    const response=await fetch(`/api/${action}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},body:'{}'
+    });
+    const result=await response.json();
+    if(!response.ok){message.textContent=result.error;return;}
+    catalog=result.catalog;
+    updateHistory(result.history);
+    rebuildComposition();
+    requestPreview();
+    message.textContent=action==='undo'?'Edit undone':'Edit redone';
+  }catch(error){message.textContent=`Could not ${action}: ${error.message}`;}
+}
 function rebuild(){
+  const selected=active();
+  document.getElementById('score-source').textContent=
+    `${selected.source||selected.selector} · ${selected.source_kind}`;
   controls.replaceChildren();
   for(const parameter of active().parameters){
     control(parameter)
@@ -576,6 +614,7 @@ async function savePreset(){
   }
   if(result.catalog){
     catalog=result.catalog;
+    updateHistory(result.history);
     rebuildComposition();
     requestPreview()
   }
@@ -611,6 +650,7 @@ async function saveOperation(){
   }
   if(result.catalog){
     catalog=result.catalog;
+    updateHistory(result.history);
     rebuildComposition();
     requestPreview()
   }
@@ -648,6 +688,7 @@ async function saveFields(){
   }
   if(result.catalog){
     catalog=result.catalog;
+    updateHistory(result.history);
     rebuildComposition();
     requestPreview()
   }
@@ -692,6 +733,7 @@ async function saveTiming(){
   }
   if(result.catalog){
     catalog=result.catalog;
+    updateHistory(result.history);
     rebuildComposition();
     requestPreview()
   }
@@ -784,6 +826,9 @@ function animate(time){
   draw();
   requestAnimationFrame(animate)
 }
+updateHistory(history);
+document.getElementById('undo').onclick=()=>changeHistory('undo');
+document.getElementById('redo').onclick=()=>changeHistory('redo');
 select.onchange=rebuild;
 save.onclick=savePreset;
 downloadOperation.onclick=saveOperation;

@@ -349,3 +349,73 @@ def test_authoring_session_edits_operation_scalar_fields(tmp_path: Path) -> None
     with pytest.raises(ValueError, match='operation fields do not match'):
         session.field_document('example:/aurora.toml', 'light', {})
     assert session.preview('aurora', {})['frames']
+
+
+@pytest.fixture
+def editable_session(tmp_path: Path) -> authoring.AuthoringSession:
+    scores = tmp_path / 'scores'
+    scores.mkdir()
+    for p in Path('examples/scores').glob('*.toml'):
+        (scores / p.name).write_text('# retained comment\n' + p.read_text())
+    config = tmp_path / 'library.toml'
+    config.write_text('[[libraries]]\nname = "example"\nroot = "scores"\n')
+    return authoring.AuthoringSession(
+        library_files.read_library(config),
+        authoring.AuthorConfig(library_config=config, duration=0.1),
+    )
+
+
+def test_history_restores_referenced_scores_and_clears_changed_markers(
+    editable_session: authoring.AuthoringSession,
+    tmp_path: Path,
+) -> None:
+    session = editable_session
+    aurora = 'example:/aurora.toml'
+    limbs = 'example:/limbs.toml'
+    original = {p.name: p.read_text() for p in (tmp_path / 'scores').glob('*.toml')}
+    before = session.preview('composition', {})
+    first = session.operation_document(aurora, 'light', 'color_fill')
+    after_first = session.preview('composition', {})
+    second = session.operation_document(limbs, 'light', 'fill')
+    after_second = session.preview('composition', {})
+    assert session.history_state()['changed'] == [aurora, limbs]
+    assert '# retained comment' in first and '# retained comment' in second
+
+    session.undo()
+    assert session.preview('composition', {}) == after_first
+    assert session.history_state()['changed'] == [aurora]
+    session.undo()
+    assert session.preview('composition', {}) == before
+    assert session.documents[aurora] == original['aurora.toml']
+    assert session.documents[limbs] == original['limbs.toml']
+    assert session.history_state() == {
+        'can_undo': False,
+        'can_redo': True,
+        'changed': [],
+    }
+    session.redo()
+    assert session.documents[aurora] == first
+    session.redo()
+    assert session.documents[limbs] == second
+    assert session.preview('composition', {}) == after_second
+    assert not session.history_state()['can_redo']
+    assert {
+        p.name: p.read_text() for p in (tmp_path / 'scores').glob('*.toml')
+    } == original
+
+
+def test_rejected_edit_and_preview_leave_redo_available(
+    editable_session: authoring.AuthoringSession,
+) -> None:
+    session = editable_session
+    session.operation_document('example:/aurora.toml', 'light', 'color_fill')
+    session.undo()
+    with pytest.raises(ValueError):
+        session.operation_document('example:/aurora.toml', 'light', 'missing')
+    session.preview('aurora', {})
+    session.preset_document('aurora', {}, 'copy')
+    assert session.history_state()['can_redo']
+    session.operation_document('example:/limbs.toml', 'light', 'fill')
+    assert not session.history_state()['can_redo']
+    with pytest.raises(ValueError, match='no edit to redo'):
+        session.redo()
