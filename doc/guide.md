@@ -197,12 +197,12 @@ declared operation tree and the parts it references. Selecting an operation
 shows its declared fields in the read-only inspector. The **Timeline** shows
 each selected `Cues` or `Crossfade` operation as exact rational-second ranges;
 overlapping bars show simultaneous cue playback. Direct TOML scores can edit
-cue starts and durations or a crossfade duration, then download the validated
+cue starts and durations or a crossfade duration, then apply and download the validated
 result. It is a view and editor for declared Ufor operations, not a generic
 keyframe editor.
 
 The **Operation fields** panel edits a direct TOML operation's top-level scalar
-fields and downloads a validated result. Nested arrays and tables stay
+fields and applies and downloads a validated result. Nested arrays and tables stay
 read-only, preserving their source structure and comments.
 
 The example library was manually checked in the loopback browser on 2026-09-14:
@@ -213,14 +213,16 @@ two-dimensional layout.
 
 Direct TOML animation scores can replace a selected operation with one of the
 offered score-aware templates and download the edited source. Lyte validates
-and prepares the replacement before download. Source comments survive direct
-edits. Ufor rejects unknown score fields before authoring, so there are no
+and prepares the replacement before download. Edits accumulate in the running editor, and the composition tree and preview
+refresh after each accepted edit. Source comments survive direct edits. Ufor rejects unknown score fields before authoring, so there are no
 unknown fields to round-trip. Presets and Python scores remain read-only.
 
 Use **Download TOML preset** to save the selected Ufor score's current public
 parameter values as a new `kind = "preset"` file. The browser downloads the
 file only after Lyte validates and prepares it; source scores are never
-overwritten. Reactive built-ins remain preview-only.
+overwritten. Download every changed score to retain the working document;
+restarting the editor discards its in-memory changes. Presets referring to edited
+scores require those edited score files as well. Reactive built-ins remain preview-only.
 
 ## WLED Interchange
 
