@@ -15,6 +15,7 @@ from ufor.library import Library
 from ufor.lights import Interpretation
 
 from . import animation, installation_config, rendering, runtime_control, show
+from .metrics import RenderCost
 
 
 class InstallationPlayback:
@@ -34,6 +35,7 @@ class InstallationPlayback:
         self.active_test: runtime_control.ActiveLightTest | None = None
         self.blackout = False
         self.revision = 0
+        self.render_costs: dict[str, dict[str, RenderCost]] = {}
 
     def command(self, command: str, params: dict[str, object]) -> rpc.Result:
         if command == 'select_animation':
@@ -71,6 +73,11 @@ class InstallationPlayback:
         active = ActiveAnimation(
             name, self.config.animations[name], self.library, self.led_counts
         )
+        active.costs = self.render_costs.setdefault(name, {})
+        for binding in active.bindings:
+            binding.prepared.timing = active.costs.setdefault(
+                binding.output_name, binding.prepared.timing
+            )
         active.apply_performance(self.performance)
         self.active = active
         self.blackout = False
@@ -156,6 +163,7 @@ class ActiveAnimation:
         self.led_counts = led_counts
         self.performance = runtime_control.MidiPerformance()
         self.bindings: list[PreparedBinding] = []
+        self.costs: dict[str, RenderCost] = {}
         self._prepare()
 
     def _prepare(self) -> None:
@@ -170,6 +178,10 @@ class ActiveAnimation:
             )
             for output_name, expression in self.definition.outputs.items()
         ]
+        for binding in self.bindings:
+            binding.prepared.timing = self.costs.setdefault(
+                binding.output_name, binding.prepared.timing
+            )
 
     def apply_performance(
         self, performance: runtime_control.MidiPerformance, *, restart: bool = False
@@ -194,6 +206,9 @@ class ActiveAnimation:
                 or self.performance.note is not None
             ):
                 tick = int(elapsed * binding.prepared.rate)
+                binding.prepared.timing.catch_up_ticks += max(
+                    0, tick - binding.prepared.tick
+                )
                 while binding.prepared.tick <= tick:
                     binding.frame = binding.prepared.byte_frame(wired=True)
                 assert binding.frame is not None

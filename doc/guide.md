@@ -49,6 +49,21 @@ after encoding succeeds.
 
 ## Frames and Rendering
 
+`lyte benchmark aurora --library-config examples/library.toml --duration 10`
+reports score rendering time as JSON: frame count, declared rate, light count,
+mean/maximum seconds, and frames exceeding one score-frame budget. It renders
+offline without encoding, sleeping, or opening devices. Initialization is excluded.
+An isolated score benchmark does not include mapping, transport, or the combined
+cost of other installation outputs.
+
+Installation status includes cumulative render costs by animation/output,
+including catch-up ticks beyond the first tick needed for a delivery. These
+counters survive note restarts and reselection during the process lifetime.
+Delivery diagnostics separately report scheduled and actual intervals, maximum
+lateness, total output time, and failed sends. Costs are aggregates, so normal
+playback emits no per-frame diagnostic log. The scheduler and logical score ticks
+are unchanged; diagnostics never skip work to improve reported performance.
+
 A logical light frame is a finite, C-contiguous `numpy.float32` array shaped
 `(light_count, component_count)`. Generic uFor operations work with any
 positive component count. lyte's built-in pixel effects require `red`,
