@@ -1,5 +1,5 @@
 $ lyte --help
-usage: lyte [-h] {animate,author,black-floor,brightness,color,daemon,diagnostic,effects,layout,installation,led-config,mic,mode,movie,mqtt,music,network,patch,playlist,preview,render,saturation,show,test,test2,timer,verify,wled}
+usage: lyte [-h] {animate,author,black-floor,brightness,color,diagnostic,effects,layout,installation,led-config,mic,mode,movie,mqtt,music,network,patch,playlist,preview,render,saturation,show,test,test2,timer,verify,wled}
 
  options
  ---------------------------------------------------
@@ -13,7 +13,6 @@ usage: lyte [-h] {animate,author,black-floor,brightness,color,daemon,diagnostic,
     - black-floor
     - brightness
     - color
-    - daemon
     - diagnostic
     - effects
     - layout
@@ -150,20 +149,6 @@ usage: lyte color [-h] [COLOR OPTIONS] [{get,set}] [{None}|INT] [{None}|INT] [{N
                    (default: 0.5)
   --retry-backoff FLOAT
                    (default: 2.0)
-
-
-$ lyte daemon --help
-usage: lyte daemon [-h] [{run,install,uninstall,start,stop,restart,status}] [--config PATH]
-
- positional arguments
- --------------------------------------------------------
-  [{run,install,uninstall,start,stop,restart,status}]
-                 action (default: run)
-
- options
- --------------------------------------------------------
-  -h, --help     show this help message and exit
-  --config PATH  (default: patches/wearable-daemon.toml)
 
 
 $ lyte diagnostic --help

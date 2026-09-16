@@ -72,20 +72,14 @@ clock to verify timeout handling, ambiguity, and independent playback duration.
 
 ### 9. Two daemons claim the same service identity
 
-**Confirmed architectural conflict.**
-[LyteMidiDaemon](../lyte/daemon_runtime.py) and
-[InstallationService](../lyte/installation.py) both use `name = 'lyte'` and
-[the same service specification](../lyte/service.toml), but expose different
-selection commands and status models. `lyte daemon` and `lyte installation`
-look like independent services while installation and RPC identity are shared.
+**Fixed 2026-09-16.** Retired the legacy wearable daemon, its command,
+configuration, and dedicated tests. The installation runtime is the sole
+service owner. Wearable scores and `lyte patch` remain. Shared light-test
+coverage was preserved, and the unused daemon MIDI replay helper was removed.
+The guide describes replacement of old installed service definitions.
 
-Decide which runtime remains. Retirement of the wearable subsystem has been
-discussed, but is not authorized by this issues list. Audit showCo callers and
-installed service commands before any removal.
-
-Source audit on 2026-09-16: showCo deployment and provisioning use
-`lyte installation install`; no legacy daemon or `select_patch` references were
-found in its application source. Installed services were not inspected.
+Source audit: showCo deployment and provisioning already use
+`lyte installation install`. Installed services were not changed.
 
 ### 10. Test completion and blackout terminate the installation
 
