@@ -4,10 +4,11 @@ from collections.abc import Callable
 
 import numpy as np
 import pytest
+from ufor.audio_features import AudioFeatures
 
-from lyte import animation, reactive_effects, reactivity
+from lyte import animation, reactive_effects
 
-FEATURES = reactivity.AudioFeatures(
+FEATURES = AudioFeatures(
     level=0.7,
     bass=0.9,
     mid=0.5,

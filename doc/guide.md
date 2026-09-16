@@ -6,6 +6,41 @@ data: layouts, composition, timing, presets, and public scalar parameters.
 lyte owns NumPy rendering, output transport, local services, MIDI mapping, and
 the supplied wearable catalogue.
 
+## Audio-driven scores
+
+The portable `audio_spectrum` effect uses the existing spectrum analyzer. Try
+`examples/audio/spectrum.toml` with an 8, 16, 24 or 32-bit integer PCM WAV file:
+
+```sh
+lyte author --library-config examples/audio/library.toml --audio song.wav
+lyte preview audio:/spectrum.toml --library-config examples/audio/library.toml \
+  --audio song.wav --output spectrum.html
+lyte render audio:/spectrum.toml --library-config examples/audio/library.toml \
+  --audio song.wav --projection xy
+```
+
+These commands generate lighting visuals, without playing or embedding a
+soundtrack. Audio-backed scores run to audio EOF, overriding `--duration`.
+The editor disables looping for these previews; you can turn it on explicitly.
+Standalone HTML holds its final frame. Movies end at the audio duration.
+
+Analysis starts at sample zero. At root score tick `k`, the analyzer receives
+samples from `floor(k * sample_rate / fps)` to
+`floor((k + 1) * sample_rate / fps)`, with the end excluded. Channels are averaged
+to mono. The last window is zero-padded; there is no extra tail or silent loop.
+All audio-reactive parts receive the root timeline's observation, including
+parts activated by later cues. Frame boundaries use the exact rational score
+rate. Analysis is repeated from its initial state for each preview or export.
+WAV data is read a window at a time; analyzed features are retained in memory.
+HTML and editor previews retain their 10000-frame/32 MiB frame-data limits.
+
+uFor declares normalized audio features and spectrum effect settings. Scores
+contain no audio path or device I/O; select the WAV again when reopening a
+score. The existing built-in reactive demonstrations still use synthetic inputs.
+This milestone makes spectrum scores editable and exportable; other reactive
+effects and live audio input remain future work. Physical playback rejects
+audio-driven scores before opening devices.
+
 ## Start Here
 
 Use a uFor library configuration to name score roots. With no

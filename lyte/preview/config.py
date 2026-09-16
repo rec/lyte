@@ -11,6 +11,7 @@ class PreviewConfig(BaseModel, frozen=True):
     selector: Annotated[str | None, tyro.conf.Positional] = None
     output: Path | None = None
     library_config: Path | None = None
+    audio: Path | None = None
     light_output: str = 'light'
     parameters: dict[str, float] = Field(default_factory=dict)
     family: str | None = None

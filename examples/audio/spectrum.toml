@@ -1,0 +1,88 @@
+format = "recs"
+version = 3
+name = "spectrum"
+title = "Audio spectrum"
+tags = []
+inputs = []
+parameters = []
+kind = "animation"
+
+[[timebases]]
+name = "frames"
+kind = "physical"
+
+[timebases.rate]
+numerator = 30000
+denominator = 1001
+
+[[outputs]]
+name = "light"
+
+[outputs.stream]
+family = "sampled"
+quantity = "light"
+timebase = "frames"
+components = ["red", "green", "blue"]
+interpretation = "drive"
+
+[outputs.stream.layout]
+name = "matrix"
+axes = ["x", "y"]
+unit = "unitless"
+frame = "local"
+
+[[outputs.stream.layout.lights]]
+name = "light_0"
+position = [0.0, 0.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_1"
+position = [1.0, 0.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_2"
+position = [2.0, 0.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_3"
+position = [0.0, 1.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_4"
+position = [1.0, 1.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_5"
+position = [2.0, 1.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_6"
+position = [0.0, 2.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_7"
+position = [1.0, 2.0]
+
+[[outputs.stream.layout.lights]]
+name = "light_8"
+position = [2.0, 2.0]
+
+[outputs.stream.layout.regions]
+
+[outputs.binding]
+light = true
+
+[body]
+parts = []
+renderer_parameters = []
+controls = []
+
+[body.operation]
+effect = "audio_spectrum"
+gain = 1.5
+smoothing = 10
+
+[body.modulation]
+parameters = []
+sources = []
+routes = []

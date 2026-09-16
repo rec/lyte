@@ -373,6 +373,10 @@ def prepare_output(
         raise installation_config.InstallationFileError(
             f'animation output {output_name!r}: {error}'
         ) from error
+    if prepared.requires_audio:
+        raise installation_config.InstallationFileError(
+            'audio-driven scores currently support offline preview and export only'
+        )
     if prepared.output.components != ['red', 'green', 'blue']:
         raise installation_config.InstallationFileError(
             f'animation output {output_name!r} requires red, green, blue components'

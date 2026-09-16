@@ -309,6 +309,15 @@ do not invent a parallel event format before that review.
 
 ### 13. Audio-driven scores
 
+**Completed first offline version 2026-09-16.** uFor declares normalized audio
+observations and the spectrum effect; lyte analyzes PCM WAV files with its
+existing analyzer. `author`, `preview` and `render` accept `--audio` and use the
+same prepared renderer. Root-clock windows preserve fractional frame rates;
+channels are averaged, final windows padded and rendering ends at audio EOF.
+Tests compare editor, HTML and encoder-input frames and cover PCM widths,
+truncation and preview limits. Audio playback, live capture and porting the
+remaining synthetic reactive demonstrations are outside this first version.
+
 The audio analyzer and reactive effects exist, but the editor's built-ins use
 synthetic features and remain preview-only.
 

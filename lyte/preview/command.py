@@ -11,7 +11,7 @@ from ufor.light_animation import AnimationScore
 
 from .. import show
 from .config import PreviewConfig
-from .document import render_animation_html
+from .document import attach_preview_audio, render_animation_html
 
 
 def main() -> int:
@@ -38,6 +38,8 @@ def run_preview(args: PreviewConfig) -> int:
         ),
         args.library_config,
     )
+    if args.audio is not None:
+        attach_preview_audio(prepared, args.audio)
     render_animation_html(
         prepared,
         args.output,
