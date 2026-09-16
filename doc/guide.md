@@ -201,6 +201,15 @@ cue starts and durations or a crossfade duration, then apply and download the va
 result. It is a view and editor for declared uFor operations, not a generic
 keyframe editor.
 
+**Composition structure** edits named parts and the selected score's cues,
+mix, placement, gain, reversal, or crossfade. Choose **Review composition
+changes** to validate a draft and inspect its diff before applying it. Moving
+cue contents exchanges references between the existing time slots, preserving
+starts, durations, gaps, and overlaps. Timing fields remain explicitly editable;
+adding or removing a slot never shifts the other slots. Shared source edits
+affect every use, and the panel lists referring scores. Rejected drafts leave
+the working score and history unchanged.
+
 The **Operation fields** panel edits a direct TOML operation's top-level scalar
 fields and applies and downloads a validated result. Nested arrays and tables stay
 read-only, preserving their source structure and comments.

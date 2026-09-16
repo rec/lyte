@@ -74,6 +74,11 @@ copy of the library and pass validation. Build on feature 1's changed-score list
 
 ### 3. Composition structure editing
 
+**Completed 2026-09-16.** Parts and composition operations can be drafted,
+validated, reviewed as a diff, applied, and downloaded. Cue reordering exchanges
+references between existing time slots; starts, durations, gaps, and overlaps
+are preserved. Invalid drafts do not change the session or its history.
+
 The editor can inspect composition and change timing or scalar fields, but
 cannot yet conveniently build a composition from existing scores.
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from base64 import b64encode
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from fractions import Fraction
 from hashlib import sha256
 from io import BytesIO
@@ -25,7 +25,7 @@ from ufor.lights import LightType
 from ufor.preset import PresetScore
 from ufor.selector import LibraryConfig
 
-from . import animation, reactive_effects, reactivity, show
+from . import animation, authoring_composition, reactive_effects, reactivity, show
 from .authoring_template import AUTHOR_TEMPLATE
 from .preview.document import encoded_frames, preview_frame_count, safe_json
 
@@ -65,6 +65,7 @@ class AuthorAnimation:
     composition: dict[str, object] | None = None
     source: str | None = None
     source_kind: str = 'Built-in preview'
+    outputs: list[str] = field(default_factory=list)
 
     def document(self) -> dict[str, object]:
         return {
@@ -75,6 +76,7 @@ class AuthorAnimation:
             'composition': self.composition,
             'source': self.source,
             'source_kind': self.source_kind,
+            'outputs': self.outputs,
         }
 
 
@@ -266,6 +268,32 @@ class AuthoringSession:
         text = tomlkit.dumps(document)
         return self._apply_document(entry_key, output, text)
 
+    def source_document(self, entry_key: str) -> str:
+        if entry_key in self.documents:
+            return self.documents[entry_key]
+        return self._source_path(self.library.entries[entry_key]).read_text()
+
+    def structure_document(
+        self, entry_key: str, output: str, structure: dict[str, object], *, apply: bool
+    ) -> str:
+        entry = self.library.entries.get(entry_key)
+        if (
+            entry is None
+            or not isinstance(entry.score, AnimationScore)
+            or not entry.address.endswith('.toml')
+        ):
+            raise ValueError('composition editing requires a direct TOML animation')
+        source = self.documents.get(entry_key)
+        if source is None:
+            source = self._source_path(entry).read_text()
+        text = authoring_composition.composition_document(
+            source, entry.score, structure
+        )
+        if apply:
+            return self._apply_document(entry_key, output, text)
+        self._prepare_document(entry_key, output, text)
+        return text
+
     def changed_documents(self) -> dict[str, str]:
         return {
             k: v
@@ -333,10 +361,28 @@ class AuthoringSession:
         return text
 
     def _restore_document(self, entry_key: str, output: str, text: str) -> None:
+        library, animations = self._prepare_document(entry_key, output, text)
+        self.library = library
+        self.animations = animations
+        self.documents[entry_key] = text
+
+    def _prepare_document(
+        self, entry_key: str, output: str, text: str
+    ) -> tuple[Library, list[AuthorAnimation]]:
         edited = codec.parse_score(text)
         if not isinstance(edited, AnimationScore):
             raise ValueError('edited score is not an animation')
         library = _validation_library(self.library, entry_key, edited)
+        broken = [
+            e.key
+            for e in self.library.entries.values()
+            if e.state == State.ready and library.entries[e.key].state != State.ready
+        ]
+        if broken:
+            details = '; '.join(
+                f'{d.library}:{d.address}: {d.message}' for d in library.diagnostics
+            )
+            raise ValueError(details or f'edit makes scores unavailable: {broken}')
         show.prepare_library_animation(
             library, show.LightProgramSpec(selector=entry_key, output=output)
         )
@@ -344,9 +390,7 @@ class AuthoringSession:
             *_author_animations(library, self.config.light_output),
             *_builtin_animations(),
         ]
-        self.library = library
-        self.animations = animations
-        self.documents[entry_key] = text
+        return library, animations
 
     def _animation(self, selector: str) -> AuthorAnimation:
         for item in self.animations:
@@ -411,6 +455,7 @@ def _author_animations(library: Library, output: str) -> list[AuthorAnimation]:
                 composition=_composition_tree(library, composition, output),
                 source=entry.key,
                 source_kind=_source_kind(entry),
+                outputs=[o.name for o in entry.resolved.outputs],
             )
         )
     return animations
@@ -444,6 +489,8 @@ def _composition_tree(
                     'node': node(child, source.output),
                 }
             )
+        stream = score.outputs[0].stream
+        assert isinstance(stream, LightType)
         return {
             'path': path,
             'output': output_name,
@@ -456,6 +503,16 @@ def _composition_tree(
             'source_kind': _source_kind(entry),
             'templates': _operation_templates(score),
             'children': children,
+            'parts': [
+                p.model_dump(mode='json', exclude_none=True) for p in score.body.parts
+            ],
+            'dependencies': entry.dependencies,
+            'used_by': sorted(
+                e.key
+                for e in library.entries.values()
+                if entry.key in e.dependencies.values()
+            ),
+            'lights': [p.name for p in stream.layout.lights],
         }
 
     return node('root', output)
