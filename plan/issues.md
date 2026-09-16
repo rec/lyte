@@ -122,15 +122,12 @@ and ambiguous matches.
 
 ### 15. Slider movement starts overlapping full renders
 
-Every slider input in [authoring.py](../lyte/authoring.py) sends a new request.
-The threaded server renders the entire preview for each request; request IDs
-only discard some browser results and do not prevent server work. A long
-preview or rapid drag can create substantial CPU and memory pressure.
-
-Coalesce slider updates and bound concurrent preview work. Both authoring and
-[encoded_frames](../lyte/preview/document.py) materialize every base64 frame;
-preview size grows with duration, FPS, and light count, with additional decoded
-copies in the browser. Expose or bound the intended preview workload.
+**Fixed 2026-09-16.** Slider updates debounce for 150 ms and keep at most one
+browser request in flight, with only the latest pending values retained. The
+server rejects concurrent preview renders from other tabs with a visible busy
+response. Preview generation rejects more than 10000 frames or 32 MiB of raw
+frame data before rendering. Python checks cover workload limits; focused
+JavaScript checks cover debounce, single-flight requests, and stale results.
 
 ### 16. Batch export repeatedly reloads the same library
 
