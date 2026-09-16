@@ -12,7 +12,7 @@ from ufor.interface import (
     OutputSelection,
     ParameterExport,
     Part,
-    ScoreVersion,
+    ScoreReference,
 )
 from ufor.library import Entry, Library
 from ufor.lights import LightType, Wiring, matrix, serpentine, strip
@@ -85,7 +85,7 @@ def test_generic_fill_supports_one_through_five_components() -> None:
 
 
 def test_numpy_composition_matches_ufor_operation_semantics() -> None:
-    child = OutputSelection(name='child', output='light')
+    child = OutputSelection(part='child', output='light')
     output = light_type(['warm', 'cool'])
     source = frame([[0.75, 0.25], [0.25, 0.75]])
 
@@ -111,8 +111,8 @@ def test_numpy_composition_matches_ufor_operation_semantics() -> None:
 
 
 def test_crossfade_and_component_map_preserve_unclipped_values() -> None:
-    left = OutputSelection(name='left', output='light')
-    right = OutputSelection(name='right', output='light')
+    left = OutputSelection(part='left', output='light')
+    right = OutputSelection(part='right', output='light')
     mono = light_type(['white'])
     crossfade = light_animation.Crossfade(
         outgoing=left,
@@ -146,16 +146,16 @@ def test_repeated_source_is_rendered_once_per_tick() -> None:
         light_animation.Mix(
             sources=[
                 light_animation.WeightedSource(
-                    source=OutputSelection(name='counter', output='light'),
+                    source=OutputSelection(part='counter', output='light'),
                     weight=0.5,
                 ),
                 light_animation.WeightedSource(
-                    source=OutputSelection(name='counter', output='light'),
+                    source=OutputSelection(part='counter', output='light'),
                     weight=0.5,
                 ),
             ]
         ),
-        [Part(name='counter', score=ScoreVersion(path='counter.py'))],
+        [Part(name='counter', score=ScoreReference(path='counter.py'))],
     )
     library = Library(
         [
@@ -180,7 +180,7 @@ def test_repeated_source_is_rendered_once_per_tick() -> None:
 def test_separate_parts_have_independent_state() -> None:
     child = CounterScore()
     selections = [
-        OutputSelection(name=name, output='light') for name in ('left', 'right')
+        OutputSelection(part=name, output='light') for name in ('left', 'right')
     ]
     root = animation_score(
         'root',
@@ -191,7 +191,7 @@ def test_separate_parts_have_independent_state() -> None:
             ]
         ),
         [
-            Part(name=name, score=ScoreVersion(path='counter.py'))
+            Part(name=name, score=ScoreReference(path='counter.py'))
             for name in ('left', 'right')
         ],
     )
@@ -220,7 +220,7 @@ def test_separate_parts_have_independent_state() -> None:
 
 def test_delayed_cue_starts_child_at_local_tick_zero() -> None:
     child = CounterScore()
-    selection = OutputSelection(name='counter', output='light')
+    selection = OutputSelection(part='counter', output='light')
     root = animation_score(
         'root',
         light_animation.Cues(
@@ -230,7 +230,7 @@ def test_delayed_cue_starts_child_at_local_tick_zero() -> None:
                 )
             ]
         ),
-        [Part(name='counter', score=ScoreVersion(path='counter.py'))],
+        [Part(name='counter', score=ScoreReference(path='counter.py'))],
     )
     library = Library(
         [
@@ -255,11 +255,11 @@ def test_delayed_cue_starts_child_at_local_tick_zero() -> None:
 
 def test_preset_defaults_caller_overrides_and_live_gain_preserve_state() -> None:
     child = CounterScore()
-    selection = OutputSelection(name='counter', output='light')
+    selection = OutputSelection(part='counter', output='light')
     root = animation_score(
         'brightness',
         light_animation.Gain(source=selection, amount=1.0),
-        [Part(name='counter', score=ScoreVersion(path='counter.py'))],
+        [Part(name='counter', score=ScoreReference(path='counter.py'))],
     ).model_copy(
         update={
             'parameters': [
@@ -270,7 +270,7 @@ def test_preset_defaults_caller_overrides_and_live_gain_preserve_state() -> None
             ],
             'body': light_animation.Animation(
                 operation=light_animation.Gain(source=selection, amount=1.0),
-                parts=[Part(name='counter', score=ScoreVersion(path='counter.py'))],
+                parts=[Part(name='counter', score=ScoreReference(path='counter.py'))],
                 modulation=Modulation(
                     parameters=[
                         Parameter(
@@ -289,7 +289,7 @@ def test_preset_defaults_caller_overrides_and_live_gain_preserve_state() -> None
     preset = PresetScore(
         name='dim',
         title='Dim',
-        score=ScoreVersion(path='brightness.toml'),
+        score=ScoreReference(path='brightness.toml'),
         parameters={'brightness': 0.25},
     )
     library = Library(

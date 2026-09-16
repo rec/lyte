@@ -58,10 +58,10 @@ function partTarget(part){
   return reference.selector||structureNode.dependencies[reference.path]||'';
 }
 function sourceControls(parent,source){
-  structureSelect(parent,'Part',source.name,structureDraft.parts.map(part=>({
+  structureSelect(parent,'Part',source.part,structureDraft.parts.map(part=>({
     value:part.name,label:part.name
-  })),value=>{source.name=value;drawStructure();});
-  const part=structureDraft.parts.find(part=>part.name===source.name);
+  })),value=>{source.part=value;drawStructure();});
+  const part=structureDraft.parts.find(part=>part.name===source.part);
   const score=part&&catalog.find(score=>score.source===partTarget(part));
   structureSelect(parent,'Light output',source.output,(score?.outputs||[]).map(name=>({
     value:name,label:name
@@ -70,7 +70,7 @@ function sourceControls(parent,source){
 function newSource(){
   const part=structureDraft.parts[0];
   const score=part&&catalog.find(score=>score.source===partTarget(part));
-  return {name:part?.name||'',output:score?.outputs[0]||'light'};
+  return {part:part?.name||'',output:score?.outputs[0]||'light'};
 }
 function rationalPair(value){
   const text=String(value);
