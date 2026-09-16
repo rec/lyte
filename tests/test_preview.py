@@ -64,7 +64,7 @@ def test_animation_document_uses_authored_ring_coordinates() -> None:
     assert base64.b64decode(frames[0]) == bytes([1, 2, 3] * 12)
 
 
-def test_one_dimensional_layout_is_padded_for_canvas_projection() -> None:
+def test_preview_retains_native_dimensions_for_selectable_projection() -> None:
     prepared = show.prepare_animation(
         show.LightProgramSpec(selector='examples:/ripple.toml'),
         Path('examples/library.toml'),
@@ -72,8 +72,8 @@ def test_one_dimensional_layout_is_padded_for_canvas_projection() -> None:
 
     data = preview_data(document.animation_document(prepared, duration=0.05))
 
-    assert data['coords'][0] == [0.0, 0.0]
-    assert data['coords'][-1] == [124.0, 0.0]
+    assert data['coords'][0] == [0.0]
+    assert data['coords'][-1] == [124.0]
 
 
 def test_preview_size_limit_rejects_work_before_rendering() -> None:

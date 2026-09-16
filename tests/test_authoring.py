@@ -17,6 +17,8 @@ from ufor.preset import PresetScore
 
 from lyte import authoring
 from lyte.rendering import PreparedAnimation
+from lyte.spatial import SpatialView
+from tests.test_preview import preview_data
 
 
 def test_authoring_session_lists_and_previews_animation_scores() -> None:
@@ -781,3 +783,21 @@ def test_layout_rejects_changed_count_dimensions_and_nonfinite_coordinates(
             session.layout_document(key, 'light', invalid)
         assert session.source_document(key) == original
     assert not session.history_state()['can_undo']
+
+
+def test_standalone_download_includes_edits_without_marking_sources_saved(
+    editable_session: authoring.AuthoringSession,
+) -> None:
+    session = editable_session
+    key = 'example:/grid.toml'
+    session.color_document(key, 'light', {'values': [0, 1, 0]})
+    view = SpatialView(plane='xz', zoom=1.5, led_size=2, background='#123456')
+    result = session.preview_download(key, {}, view)
+    data = preview_data(result['document'])
+    assert data['frames'] == session.preview(key, {})['frames']
+    assert data['plane'] == 'xz'
+    assert data['zoom'] == 1.5
+    assert data['ledSize'] == 2
+    assert data['background'] == '#123456'
+    assert 'revisions' not in result
+    assert session.history_state()['changed'] == [key]

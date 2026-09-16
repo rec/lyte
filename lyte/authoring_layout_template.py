@@ -17,19 +17,6 @@ let selectedLight=0;
 let layoutCamera=null;
 let layoutDrag=null;
 function viewAxes(){return projection.value.split(',').map(Number);}
-function projectionTransform(coords,width,height,axes=[0,1],magnification=1){
-  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-  for(const point of coords){
-    const x=point[axes[0]]||0,y=point[axes[1]]||0;
-    minX=Math.min(minX,x);maxX=Math.max(maxX,x);
-    minY=Math.min(minY,y);maxY=Math.max(maxY,y);
-  }
-  if(!coords.length){minX=minY=maxX=maxY=0;}
-  const spanX=maxX-minX,spanY=maxY-minY;
-  const pad=Math.max(24,Math.min(width,height)*0.08);
-  const scale=Math.min((width-pad*2)/(spanX||1),(height-pad*2)/(spanY||1))*magnification;
-  return {minX,minY,scale,offsetX:(width-spanX*scale)/2,offsetY:(height-spanY*scale)/2};
-}
 function moveLayoutPoint(position,point,axes,transform){
   const result=[...position];
   if(axes[0]<result.length){result[axes[0]]=transform.minX+(point[0]-transform.offsetX)/transform.scale;}
@@ -145,4 +132,24 @@ zoom.oninput=()=>{layoutCamera=null;};
 document.getElementById('fit-layout').onclick=()=>{zoom.value=1;layoutCamera=null;};
 layoutDetails.ontoggle=coordinateTable;
 applyLayout.onclick=saveLayout;
+document.getElementById('download-preview').onclick=async()=>{
+  const status=document.getElementById('preview-download-status');
+  if(layoutDraft&&JSON.stringify(draftPositions())!==originalPositions){
+    status.textContent='Apply the layout draft before downloading its preview';return;
+  }
+  try{
+    const response=await fetch('/api/preview-download',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        selector:select.value,parameters:values(),view:{
+          plane:{'0,1':'xy','0,2':'xz','1,2':'yz'}[projection.value],
+          zoom:Number(zoom.value),led_size:Number(document.getElementById('light-size').value),
+          background:document.getElementById('preview-background').value
+        }
+      })
+    });
+    const result=await response.json();
+    if(!response.ok){status.textContent=result.error;return;}
+    offerDownload(result);status.textContent='Offered standalone visual preview; editable sources are separate downloads';
+  }catch(error){status.textContent=`Could not download preview: ${error.message}`;}
+};
 """

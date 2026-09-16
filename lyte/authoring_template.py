@@ -6,6 +6,7 @@ from .authoring_browser_template import BROWSER_SCRIPT
 from .authoring_colors_template import COLORS_SCRIPT
 from .authoring_layout_template import LAYOUT_SCRIPT
 from .authoring_structure_template import STRUCTURE_SCRIPT
+from .spatial_template import PROJECTION_SCRIPT
 
 AUTHOR_TEMPLATE = (
     """<!doctype html>
@@ -270,6 +271,10 @@ pre{
 <p id="axis-labels"></p>
 <label>Zoom<input id="zoom" type="range" min="0.25" max="4" step="0.05" value="1"></label>
 <button id="fit-layout" type="button">Fit layout</button>
+<label>Light size <input id="light-size" type="number" value="1" min="0.1" step="0.1"></label>
+<label>Background <input id="preview-background" type="color" value="#050506"></label>
+<button id="download-preview" type="button">Download standalone HTML preview</button>
+<output id="preview-download-status"></output>
 <label><input id="show-light-names" type="checkbox">Show light names and indexes</label>
 <label><input id="drag-lights" type="checkbox">Drag lights in this plane</label>
 <p id="selected-light"></p>
@@ -546,7 +551,7 @@ function hasUnofferedChanges(){
 }
 function offerDownload(result){
   const content=result.archive?decodeFrame(result.archive):result.document;
-  const type=result.archive?'application/zip':'application/toml';
+  const type=result.mime||(result.archive?'application/zip':'application/toml');
   const link=document.createElement('a');
   link.href=URL.createObjectURL(new Blob([content],{type}));
   link.download=result.filename;
@@ -837,19 +842,12 @@ function resize(){
   canvas.width=Math.max(1,Math.round(rect.width*scale));
   canvas.height=Math.max(1,Math.round(rect.height*scale))
 }
-function projectedPoints(coords,width,height,axes=[0,1],magnification=1,transform=null){
-  const view=transform||projectionTransform(coords,width,height,axes,magnification);
-  return coords.map(point=>[
-    view.offsetX+((point[axes[0]]||0)-view.minX)*view.scale,
-    view.offsetY+((point[axes[1]]||0)-view.minY)*view.scale
-  ]);
-}
 function drawFrame(target,coords,values,axes=[0,1],magnification=1,transform=null){
   const context=target.getContext('2d');
-  context.fillStyle='#050506';
+  context.fillStyle=document.getElementById('preview-background').value;
   context.fillRect(0,0,target.width,target.height);
   const points=projectedPoints(coords,target.width,target.height,axes,magnification,transform);
-  const radius=Math.max(3,Math.min(target.width,target.height)/140);
+  const radius=Math.max(3,Math.min(target.width,target.height)/140)*Number(document.getElementById('light-size').value||1);
   for(let index=0;index<points.length;index++){
     const offset=index*3;
     context.fillStyle=`rgb(${values[offset]},${values[offset+1]},${values[offset+2]})`;
@@ -891,6 +889,7 @@ function animate(time){
 __LYTE_STRUCTURE_SCRIPT__
 __LYTE_BROWSER_SCRIPT__
 __LYTE_COLORS_SCRIPT__
+__PROJECTION_SCRIPT__
 __LYTE_LAYOUT_SCRIPT__
 addEventListener('beforeunload',event=>{
   if(hasUnofferedChanges()){event.preventDefault();event.returnValue='';}
@@ -935,4 +934,5 @@ requestAnimationFrame(animate);
     .replace('__LYTE_BROWSER_SCRIPT__', BROWSER_SCRIPT)
     .replace('__LYTE_COLORS_SCRIPT__', COLORS_SCRIPT)
     .replace('__LYTE_LAYOUT_SCRIPT__', LAYOUT_SCRIPT)
+    .replace('__PROJECTION_SCRIPT__', PROJECTION_SCRIPT)
 )

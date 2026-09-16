@@ -488,49 +488,60 @@ $ lyte preview --help
 usage: lyte preview [-h] [PREVIEW OPTIONS] [{None}|STR]
 
  positional arguments
- ------------------------------------------------------
-  [{None}|STR]         selector (default: None)
+ -----------------------------------------------------
+  [{None}|STR]        selector (default: None)
 
  options
- ------------------------------------------------------
-  -h, --help           show this help message and exit
+ -----------------------------------------------------
+  -h, --help          show this help message and exit
   --output {None}|PATH
-                       (default: None)
+                      (default: None)
   --library-config {None}|PATH
-                       (default: None)
-  --light-output STR   (default: light)
+                      (default: None)
+  --light-output STR  (default: light)
   --parameters [STR FLOAT [STR FLOAT ...]]
-                       (default: )
-  --family {None}|STR  (default: None)
-  --open, --no-open    (default: False)
-  --name {None}|STR    (default: None)
-  --led-size FLOAT     (default: 1.0)
-  --duration FLOAT     (default: 10.0)
+                      (default: )
+  --family {None}|STR
+                      (default: None)
+  --open, --no-open   (default: False)
+  --name {None}|STR   (default: None)
+  --led-size FLOAT    (default: 1.0)
+  --plane {xy,xz,yz}  (default: xy)
+  --zoom FLOAT        (default: 1)
+  --background STR    (default: '#050506')
+  --duration FLOAT    (default: 10.0)
 
 
 $ lyte render --help
 usage: lyte render [-h] [RENDER OPTIONS] [[STR [STR ...]]]
 
  positional arguments
- -----------------------------------------------------
-  [[STR [STR ...]]]   selectors (default: )
+ ----------------------------------------------------
+  [[STR [STR ...]]]  selectors (default: )
 
  options
- -----------------------------------------------------
-  -h, --help          show this help message and exit
-  --output PATH       (default: rendered)
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --output PATH      (default: rendered)
   --library-config {None}|PATH
-                      (default: None)
-  --light-output STR  (default: light)
-  --duration FLOAT    (default: 10.0)
-  --diameter FLOAT    (default: 20.0)
-  --padding FLOAT     (default: 5.0)
+                     (default: None)
+  --light-output STR
+                     (default: light)
+  --duration FLOAT   (default: 10.0)
+  --diameter FLOAT   (default: 20.0)
+  --padding FLOAT    (default: 5.0)
   --shape {circle,rect}
-                      (default: circle)
+                     (default: circle)
   --layout {None}|{[INT [INT ...]]}
-                      (default: None)
+                     (default: None)
   --background-color STR
-                      (default: white)
+                     (default: white)
+  --projection {grid,xy,xz,yz}
+                     (default: grid)
+  --width INT        (default: 960)
+  --height INT       (default: 540)
+  --led-size FLOAT   (default: 1)
+  --zoom FLOAT       (default: 1)
 
 
 $ lyte saturation --help

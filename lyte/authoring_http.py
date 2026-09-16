@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from ufor import library_files
 
 from . import authoring, show
+from .spatial import SpatialView
 
 
 def run_author(config: authoring.AuthorConfig) -> int:
@@ -55,6 +56,7 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
             path = urlparse(self.path).path
             if path not in {
                 '/api/preview',
+                '/api/preview-download',
                 '/api/thumbnail',
                 '/api/preset',
                 '/api/operation',
@@ -179,7 +181,13 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                         }
                 else:
                     selector, parameters = _preview_request(payload)
-                    if path == '/api/thumbnail':
+                    if path == '/api/preview-download':
+                        response = session.preview_download(
+                            selector,
+                            parameters,
+                            SpatialView.model_validate(payload.get('view')),
+                        )
+                    elif path == '/api/thumbnail':
                         response = session.thumbnail(selector)
                     elif path == '/api/preview':
                         response = session.preview(selector, parameters)
@@ -203,7 +211,12 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                     response['revisions'] = {
                         entry: authoring.document_revision(session.documents[entry])
                     }
-                if path not in {'/api/preview', '/api/preset', '/api/thumbnail'}:
+                if path not in {
+                    '/api/preview',
+                    '/api/preset',
+                    '/api/thumbnail',
+                    '/api/preview-download',
+                }:
                     response['catalog'] = [a.document() for a in session.animations]
                     response['history'] = session.history_state()
             except (ValueError, json.JSONDecodeError) as error:

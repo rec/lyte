@@ -1,3 +1,5 @@
+from ..spatial_template import PROJECTION_SCRIPT
+
 HTML_TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
@@ -61,42 +63,18 @@ function decodeFrame(text) {
 }
 
 const frames = data.frames.map(decodeFrame);
-const bounds = data.coords.reduce((acc, point) => ({
-  minX: Math.min(acc.minX, point[0]),
-  minY: Math.min(acc.minY, point[1]),
-  maxX: Math.max(acc.maxX, point[0]),
-  maxY: Math.max(acc.maxY, point[1]),
-}), {
-  minX: Infinity,
-  minY: Infinity,
-  maxX: -Infinity,
-  maxY: -Infinity,
-});
-
-function projectedPoints() {
-  const width = canvas.width;
-  const height = canvas.height;
-  const pad = Math.max(24, Math.min(width, height) * 0.08);
-  const spanX = Math.max(1e-9, bounds.maxX - bounds.minX);
-  const spanY = Math.max(1e-9, bounds.maxY - bounds.minY);
-  const scale = Math.min((width - pad * 2) / spanX, (height - pad * 2) / spanY);
-  const offsetX = (width - spanX * scale) / 2;
-  const offsetY = (height - spanY * scale) / 2;
-  return data.coords.map(point => [
-    offsetX + (point[0] - bounds.minX) * scale,
-    offsetY + (point[1] - bounds.minY) * scale,
-  ]);
-}
+__PROJECTION_SCRIPT__
 
 function draw(time) {
   if (canvas.width === 0 || canvas.height === 0) {
     resize();
   }
   const frame = frames[Math.floor(time / 1000 * data.fps) % frames.length];
-  const points = projectedPoints();
+  const axes = {xy:[0,1],xz:[0,2],yz:[1,2]}[data.plane];
+  const points = projectedPoints(data.coords,canvas.width,canvas.height,axes,data.zoom);
   const radius = Math.max(3, Math.min(canvas.width, canvas.height) / 140)
     * data.ledSize;
-  context.fillStyle = "#050506";
+  context.fillStyle = data.background;
   context.fillRect(0, 0, canvas.width, canvas.height);
   for (let i = 0; i < points.length; i += 1) {
     const offset = i * 3;
@@ -115,4 +93,4 @@ requestAnimationFrame(draw);
 </script>
 </body>
 </html>
-"""
+""".replace('__PROJECTION_SCRIPT__', PROJECTION_SCRIPT)

@@ -18,6 +18,7 @@ from ufor.library import Library
 from ufor.light_animation import AnimationScore
 
 from . import animation, show
+from .spatial import SpatialView, projected_points
 
 _COLORS = {
     'black': (0, 0, 0),
@@ -43,6 +44,11 @@ class RenderConfig(BaseModel, frozen=True):
     shape: Literal['circle', 'rect'] = 'circle'
     layout: list[int] | None = None
     background_color: str = 'white'
+    projection: Literal['grid', 'xy', 'xz', 'yz'] = 'grid'
+    width: int = Field(default=960, ge=64)
+    height: int = Field(default=540, ge=64)
+    led_size: float = Field(default=1, gt=0, allow_inf_nan=False)
+    zoom: float = Field(default=1, gt=0, allow_inf_nan=False)
 
     @model_validator(mode='after')
     def validate_layout(self) -> RenderConfig:
@@ -51,6 +57,8 @@ class RenderConfig(BaseModel, frozen=True):
         ):
             raise ValueError('layout must contain positive column and row counts')
         parse_color(self.background_color)
+        if self.projection != 'grid' and self.layout is not None:
+            raise ValueError('layout columns and rows only apply to grid projection')
         return self
 
 
@@ -58,7 +66,7 @@ class RenderError(ValueError):
     pass
 
 
-class GridRenderer:
+class FrameRenderer:
     def __init__(
         self,
         led_count: int,
@@ -67,6 +75,11 @@ class GridRenderer:
         shape: Literal['circle', 'rect'],
         layout: list[int] | None,
         background_color: str,
+        *,
+        positions: list[list[float]] | None = None,
+        view: SpatialView | None = None,
+        width: int = 960,
+        height: int = 540,
     ) -> None:
         if led_count <= 0:
             raise ValueError('led_count must be greater than zero')
@@ -92,6 +105,16 @@ class GridRenderer:
             )
             for index in range(led_count)
         ]
+        if positions is not None:
+            view = view or SpatialView()
+            self.width, self.height = _even(width), _even(height)
+            self.diameter = max(
+                1, round(2 * max(3, min(self.width, self.height) / 140) * view.led_size)
+            )
+            self.origins = [
+                (round(p[0] - self.diameter / 2), round(p[1] - self.diameter / 2))
+                for p in projected_points(positions, self.width, self.height, view)
+            ]
         indexes = np.indices((self.diameter, self.diameter))
         radius = self.diameter / 2
         self.circle_mask = (indexes[0] + 0.5 - radius) ** 2 + (
@@ -105,9 +128,18 @@ class GridRenderer:
         frame = np.empty((self.height, self.width, 3), dtype=np.uint8)
         frame[:] = self.background
         for color, (left, top) in zip(values, self.origins, strict=True):
-            region = frame[top : top + self.diameter, left : left + self.diameter]
+            x0, y0 = max(0, left), max(0, top)
+            x1, y1 = (
+                min(self.width, left + self.diameter),
+                min(self.height, top + self.diameter),
+            )
+            if x1 <= x0 or y1 <= y0:
+                continue
+            region = frame[y0:y1, x0:x1]
             if self.shape == 'circle':
-                region[self.circle_mask] = color
+                region[self.circle_mask[y0 - top : y1 - top, x0 - left : x1 - left]] = (
+                    color
+                )
             else:
                 region[:] = color
         return frame
@@ -160,13 +192,25 @@ def render_animation(
         raise RenderError(f'{selector}: {error}') from error
     if prepared.output.components != ['red', 'green', 'blue']:
         raise RenderError(f'{selector}: render requires red, green, blue components')
-    renderer = GridRenderer(
+    renderer = FrameRenderer(
         len(prepared.output.layout.lights),
         config.diameter,
         config.padding,
         config.shape,
         config.layout,
         config.background_color,
+        positions=(
+            [p.position for p in prepared.output.layout.lights]
+            if config.projection != 'grid'
+            else None
+        ),
+        view=SpatialView(
+            plane=config.projection if config.projection != 'grid' else 'xy',
+            zoom=config.zoom,
+            led_size=config.led_size,
+        ),
+        width=config.width,
+        height=config.height,
     )
     output = config.output / f'{safe_name(selector)}.mp4'
     frame_count = max(1, round(prepared.fps * config.duration))
