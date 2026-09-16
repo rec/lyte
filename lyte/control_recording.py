@@ -1,5 +1,6 @@
 """A delivery journal using uFor MIDI events and reccy command requests."""
 
+from hashlib import sha256
 from pathlib import Path
 from typing import Annotated, Literal, TextIO
 
@@ -45,7 +46,7 @@ class ControlRecorder:
             return
         try:
             self.write(recording_header(config, library).model_dump_json())
-        except ValueError as error:
+        except (OSError, ValueError) as error:
             self.fail(error)
 
     def midi(self, message: mido.Message) -> None:
@@ -115,5 +116,9 @@ def recording_header(config: InstallationFile, library: Library) -> RecordingHea
             e.key: {'sha256': e.sha256, 'score': e.resolved.model_dump(mode='json')}
             for e in library.entries.values()
             if e.resolved is not None
+        }
+        | {
+            f'fixture:{n}': {'sha256': sha256(f.profile.read_bytes()).hexdigest()}
+            for n, f in config.dmx.items()
         },
     )

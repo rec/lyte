@@ -19,6 +19,7 @@ PANEL_TEMPLATE = r"""<!doctype html>
 <label>Duration (s) <input id="duration" type="number" min="0.01" step="0.1" value="2"></label><button id="test">Test lights</button>
 </fieldset><output id="error" role="alert"></output><button id="clear-error">Clear command error</button>
 <output id="status"></output><table><thead><tr><th>String</th><th>Transport</th><th>State</th><th>Lights</th><th>Sent</th><th>Failures</th><th>Last error</th></tr></thead><tbody id="strings"></tbody></table>
+<output id="fixture-status"></output>
 <details><summary>Timing diagnostics</summary><pre id="diagnostics"></pre></details>
 <script>
 const element=id=>document.getElementById(id);
@@ -40,6 +41,7 @@ function displayStatus(data){
     }
     return row;
   }));
+  element('fixture-status').textContent=data.artnet ? `DMX fixtures cut on selection; master, fades and pixel tests do not alter them. Blackout applies to all outputs.\nArt-Net ${data.artnet.host}: ${data.artnet.state} · sent ${data.artnet.frame_count} · failures ${data.artnet.failure_count} · ${data.artnet.last_error||''}\n${JSON.stringify(data.fixtures,null,2)}` : '';
   element('diagnostics').textContent=JSON.stringify({render_costs:data.render_costs,delivery:data.delivery},null,2);
 }
 async function refresh(){

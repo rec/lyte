@@ -18,6 +18,7 @@ from pydantic import (
 )
 
 from . import runtime_control
+from .artnet import ArtNetEndpoint
 from .midi import MidiIn
 from .twinkly import diagnostic
 
@@ -62,7 +63,16 @@ class WledTarget(InstallationDefinition, frozen=True):
     led_count: int = Field(gt=0, strict=True)
 
 
+class DmxFixture(InstallationDefinition, frozen=True):
+    profile: Path
+    universe: int = Field(default=1, ge=1, le=32768)
+    start_channel: int = Field(ge=1, le=512)
+    defaults: dict[str, float | str] = Field(min_length=1)
+    blackout: dict[str, float | str] = Field(min_length=1)
+
+
 class ParameterControl(InstallationDefinition, frozen=True):
+    fixture: str | None = None
     source: Literal['gate', 'note', 'velocity', 'breath', 'pitch_bend']
     parameter: str = Field(min_length=1)
     output: list[float] | None = None
@@ -95,14 +105,21 @@ class AnimationDefaults(InstallationDefinition, frozen=True):
 
 
 class BoundAnimation(InstallationDefinition, frozen=True):
-    selector: str = Field(min_length=1)
-    outputs: dict[str, str] = Field(min_length=1)
+    selector: str | None = Field(default=None, min_length=1)
+    outputs: dict[str, str] = Field(default_factory=dict)
+    fixtures: dict[str, dict[str, float | str]] = Field(default_factory=dict)
     activation: Literal['always', 'note'] = 'always'
     controls: list[ParameterControl] = Field(default_factory=list)
 
     @model_validator(mode='after')
     def distinct_controls(self) -> BoundAnimation:
-        parameters = [c.parameter for c in self.controls]
+        if bool(self.outputs) != (self.selector is not None):
+            raise ValueError(
+                'pixel outputs and a score selector must be supplied together'
+            )
+        if not self.outputs and not self.fixtures:
+            raise ValueError('animation requires pixel outputs or fixture values')
+        parameters = [(c.fixture, c.parameter) for c in self.controls]
         if len(parameters) != len(set(parameters)):
             raise ValueError('animation controls must target distinct parameters')
         return self
@@ -112,6 +129,8 @@ class InstallationFile(InstallationDefinition, frozen=True):
     library_config: Path | None = None
     twinkly: dict[str, TwinklySelector] = Field(default_factory=dict)
     wled: dict[str, WledTarget] = Field(default_factory=dict)
+    dmx: dict[str, DmxFixture] = Field(default_factory=dict)
+    artnet: ArtNetEndpoint | None = None
     animation_defaults: AnimationDefaults = Field(default_factory=AnimationDefaults)
     animations: dict[str, BoundAnimation] = Field(min_length=1)
     initial_animation: str
@@ -197,7 +216,16 @@ def load_installation(path: Path) -> InstallationFile:
             config = config.model_copy(
                 update={'library_config': path.parent / config.library_config}
             )
-        return config
+        return config.model_copy(
+            update={
+                'dmx': {
+                    n: f.model_copy(update={'profile': path.parent / f.profile})
+                    if not f.profile.is_absolute()
+                    else f
+                    for n, f in config.dmx.items()
+                }
+            }
+        )
     except (OSError, tomllib.TOMLDecodeError, ValidationError, ValueError) as error:
         raise InstallationFileError(f'{path}: {error}') from error
 
@@ -207,6 +235,8 @@ def parse_installation(data: dict[str, object]) -> InstallationFile:
         'library_config',
         'twinkly',
         'wled',
+        'dmx',
+        'artnet',
         'animation_defaults',
         'animations',
         'initial_animation',
@@ -228,17 +258,32 @@ def parse_installation(data: dict[str, object]) -> InstallationFile:
 
 def _validate_installation(config: InstallationFile) -> None:
     strings = [*config.twinkly, *config.wled]
-    if not strings:
-        raise ValueError('installation requires at least one Twinkly or WLED output')
+    if not strings and not config.dmx:
+        raise ValueError('installation requires at least one pixel or DMX output')
+    if bool(config.dmx) != (config.artnet is not None):
+        raise ValueError('DMX fixtures require exactly one Art-Net endpoint')
     if set(config.twinkly).intersection(config.wled):
         raise ValueError('Twinkly and WLED output names must be distinct')
     hosts = [t.host.casefold() for t in config.wled.values()]
     if len(set(hosts)) != len(hosts):
         raise ValueError('WLED targets must have distinct hosts')
-    for name in strings:
+    for name in [*strings, *config.dmx]:
         if not _STRING_NAME.fullmatch(name):
             raise ValueError(f'output string name {name!r} is not an identifier')
     for name, definition in config.animations.items():
+        if set(definition.fixtures) != set(config.dmx):
+            raise ValueError(
+                f'animation {name!r} must bind every DMX fixture exactly once'
+            )
+        if any(
+            c.fixture is not None and c.fixture not in config.dmx
+            for c in definition.controls
+        ):
+            raise ValueError('control references an unknown DMX fixture')
+        if not definition.outputs and any(
+            c.fixture is None for c in definition.controls
+        ):
+            raise ValueError('pixel controls require pixel outputs')
         used: set[str] = set()
         for expression in definition.outputs.values():
             parsed = parse_output_expression(expression, strings)

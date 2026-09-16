@@ -34,7 +34,7 @@ Each step advances one delivery tick. Play advances the simulated clock; browser
 <button id="program">Next animation</button>
 <p>Controls apply to the note-owning channel and the installation's configured channel filter.</p></fieldset>
 <output id="error" role="alert"></output><output id="status"></output><pre id="bindings"></pre><section id="strings"></section>
-<output id="recording-status"></output>
+<output id="recording-status"></output><pre id="fixtures"></pre>
 <script>
 const element=id=>document.getElementById(id), number=id=>Number(element(id).value);
 let playing=false, rate=30, queue=Promise.resolve(), timer=null, initial=true, generation=0;
@@ -44,6 +44,7 @@ function show(data){
   element('midi').disabled=data.replay||data.midi===null;
   element('recording-status').textContent=[...data.warnings,data.recording_error?'Recording failed; playback continues: '+data.recording_error:'',data.finished?'Replay finished':''].filter(Boolean).join('\n');
   if(data.finished){playing=false;generation++;element('play').textContent='Play';element('play').disabled=true;element('step').disabled=true;}
+  element('fixtures').textContent=Object.keys(data.fixtures).length ? 'DMX channel values only, not a beam preview. Fixture changes cut; master, fades and pixel tests affect pixels only. Blackout applies to all outputs.\n'+JSON.stringify({fixtures:data.fixtures,universes:data.dmx_frames},null,2) : '';
   rate=data.fps;
   element('fade-status').textContent=`Master ${Math.round(data.master_level*100)}% · fade ${data.transition_duration||0}s`;
   if(initial){
