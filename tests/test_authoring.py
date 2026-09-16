@@ -7,12 +7,15 @@ from pathlib import Path
 from shutil import copytree
 from zipfile import ZipFile
 
+import numpy as np
 import pytest
+from numpy.typing import NDArray
 from ufor import codec, effects, library_files, light_animation
 from ufor.interface import OutputSelection
 from ufor.preset import PresetScore
 
 from lyte import authoring
+from lyte.rendering import PreparedAnimation
 
 
 def test_authoring_session_lists_and_previews_animation_scores() -> None:
@@ -27,7 +30,7 @@ def test_authoring_session_lists_and_previews_animation_scores() -> None:
     selectors = [animation.selector for animation in session.animations]
     preview = session.preview(selectors[0], {})
 
-    assert 'aurora' in selectors
+    assert 'examples:/aurora.toml' in selectors
     assert preview['fps'] == 20
     assert len(preview['frames']) == 2
 
@@ -100,12 +103,12 @@ def test_authoring_session_downloads_validated_ufor_preset() -> None:
         ),
     )
 
-    document = session.preset_document('aurora', {}, 'preset-aurora')
+    document = session.preset_document('examples:/aurora.toml', {}, 'preset-aurora')
 
     preset = codec.parse_score(document)
     assert isinstance(preset, PresetScore)
     assert preset.name == 'preset-aurora'
-    assert preset.score.selector == 'aurora'
+    assert preset.score.selector == 'examples:/aurora.toml'
 
 
 def test_authoring_session_rejects_reactive_preset() -> None:
@@ -121,7 +124,9 @@ def test_authoring_session_exposes_composition_operations_and_sources() -> None:
     session = authoring.AuthoringSession(library, authoring.AuthorConfig())
 
     selected = next(
-        item for item in session.animations if item.selector == 'composition'
+        item
+        for item in session.animations
+        if item.selector == 'examples:/composition.toml'
     )
 
     assert selected.composition is not None
@@ -178,7 +183,9 @@ def test_authoring_session_exposes_exact_crossfade_timeline(tmp_path: Path) -> N
         authoring.AuthorConfig(library_config=config),
     )
     selected = next(
-        item for item in session.animations if item.selector == 'composition'
+        item
+        for item in session.animations
+        if item.selector == 'example:/composition.toml'
     )
 
     assert selected.composition is not None
@@ -276,9 +283,11 @@ def test_authoring_session_accumulates_edits_without_mutating_source_files(
                 ]
             },
         )
-    assert session.preview('composition', {})['frames']
+    assert session.preview('example:/composition.toml', {})['frames']
     assert session.documents['example:/composition.toml'] == combined
-    selected = next(a for a in session.animations if a.selector == 'composition')
+    selected = next(
+        a for a in session.animations if a.selector == 'example:/composition.toml'
+    )
     assert selected.composition['fields']['easing'] == 'smooth'
 
 
@@ -295,7 +304,9 @@ def test_authoring_session_rejects_unknown_score_fields(tmp_path: Path) -> None:
         authoring.AuthorConfig(library_config=config),
     )
 
-    assert not [item for item in session.animations if item.renderer == 'ufor']
+    selected = next(a for a in session.animations if a.source == 'example:/aurora.toml')
+    assert selected.diagnostics
+    assert selected.composition is None
 
 
 def test_authoring_session_round_trips_comments_when_replacing_operation(
@@ -352,7 +363,7 @@ def test_authoring_session_edits_operation_scalar_fields(tmp_path: Path) -> None
     assert edited.body.operation.seed == 8
     with pytest.raises(ValueError, match='operation fields do not match'):
         session.field_document('example:/aurora.toml', 'light', {})
-    assert session.preview('aurora', {})['frames']
+    assert session.preview('example:/aurora.toml', {})['frames']
 
 
 @pytest.fixture
@@ -377,19 +388,19 @@ def test_history_restores_referenced_scores_and_clears_changed_markers(
     aurora = 'example:/aurora.toml'
     limbs = 'example:/limbs.toml'
     original = {p.name: p.read_text() for p in (tmp_path / 'scores').glob('*.toml')}
-    before = session.preview('composition', {})
+    before = session.preview('example:/composition.toml', {})
     first = session.operation_document(aurora, 'light', 'color_fill')
-    after_first = session.preview('composition', {})
+    after_first = session.preview('example:/composition.toml', {})
     second = session.operation_document(limbs, 'light', 'fill')
-    after_second = session.preview('composition', {})
+    after_second = session.preview('example:/composition.toml', {})
     assert session.history_state()['changed'] == [aurora, limbs]
     assert '# retained comment' in first and '# retained comment' in second
 
     session.undo()
-    assert session.preview('composition', {}) == after_first
+    assert session.preview('example:/composition.toml', {}) == after_first
     assert session.history_state()['changed'] == [aurora]
     session.undo()
-    assert session.preview('composition', {}) == before
+    assert session.preview('example:/composition.toml', {}) == before
     assert session.documents[aurora] == original['aurora.toml']
     assert session.documents[limbs] == original['limbs.toml']
     assert session.history_state() == {
@@ -402,7 +413,7 @@ def test_history_restores_referenced_scores_and_clears_changed_markers(
     assert session.documents[aurora] == first
     session.redo()
     assert session.documents[limbs] == second
-    assert session.preview('composition', {}) == after_second
+    assert session.preview('example:/composition.toml', {}) == after_second
     assert not session.history_state()['can_redo']
     assert {
         p.name: p.read_text() for p in (tmp_path / 'scores').glob('*.toml')
@@ -417,8 +428,8 @@ def test_rejected_edit_and_preview_leave_redo_available(
     session.undo()
     with pytest.raises(ValueError):
         session.operation_document('example:/aurora.toml', 'light', 'missing')
-    session.preview('aurora', {})
-    session.preset_document('aurora', {}, 'copy')
+    session.preview('example:/aurora.toml', {})
+    session.preset_document('example:/aurora.toml', {}, 'copy')
     assert session.history_state()['can_redo']
     session.operation_document('example:/limbs.toml', 'light', 'fill')
     assert not session.history_state()['can_redo']
@@ -458,7 +469,9 @@ def test_bundle_preserves_root_and_part_edits_and_reloads(
         library_files.read_library(config),
         authoring.AuthorConfig(library_config=config, duration=0.1),
     )
-    assert restored.preview('composition', {}) == session.preview('composition', {})
+    assert restored.preview('example:/composition.toml', {}) == session.preview(
+        'example:/composition.toml', {}
+    )
     for key, document in session.changed_documents().items():
         assert document == (tmp_path / 'restored' / key.split('/')[-1]).read_text()
     session.undo()
@@ -522,7 +535,7 @@ def test_composition_draft_builds_sequences_and_mixes_without_writing_sources(
     assert '# retained comment' in draft
     applied = session.structure_document(entry, 'light', structure, apply=True)
     assert applied == draft
-    assert session.preview('composition', {})['frames']
+    assert session.preview('example:/composition.toml', {})['frames']
     parsed = codec.parse_score(applied)
     assert isinstance(parsed, light_animation.AnimationScore)
     assert isinstance(parsed.body.operation, light_animation.Cues)
@@ -553,7 +566,7 @@ def test_composition_draft_builds_sequences_and_mixes_without_writing_sources(
         reloaded = authoring.AuthoringSession(
             library_files.read_library(session.config.library_config), session.config
         )
-        assert reloaded.preview('composition', {})['frames']
+        assert reloaded.preview('example:/composition.toml', {})['frames']
 
 
 @pytest.mark.parametrize('problem', ['cycle', 'missing-output', 'unknown-part'])
@@ -585,3 +598,65 @@ def test_invalid_composition_draft_leaves_history_and_working_copy_unchanged(
         session.structure_document(entry, 'light', structure, apply=True)
     assert session.source_document(entry) == before
     assert not session.history_state()['can_undo']
+
+
+def test_browser_keeps_blocked_entries_and_their_dependency_diagnostics(
+    editable_session: authoring.AuthoringSession,
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / 'scores' / 'composition.toml'
+    path.write_text(path.read_text().replace('aurora.toml', 'missing.toml'))
+    session = authoring.AuthoringSession(
+        library_files.read_library(editable_session.config.library_config),
+        editable_session.config,
+    )
+    item = next(
+        a for a in session.animations if a.selector == 'example:/composition.toml'
+    )
+    assert item.composition is None
+    assert any('missing.toml' in d for d in item.diagnostics)
+    with pytest.raises(ValueError, match='missing.toml'):
+        session.preview(item.selector, {})
+    assert (
+        next(
+            a for a in session.animations if a.selector == 'example:/aurora.toml'
+        ).light_count
+        == 250
+    )
+
+
+def test_browser_distinguishes_duplicate_names_and_thumbnails_are_repeatable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = tmp_path / 'library.toml'
+    registrations = []
+    for name in ['first', 'second']:
+        root = tmp_path / name
+        root.mkdir()
+        (root / 'aurora.toml').write_text(
+            Path('examples/scores/aurora.toml').read_text()
+        )
+        registrations.append(f'[[libraries]]\nname = "{name}"\nroot = "{name}"\n')
+    config.write_text('\n'.join(registrations))
+    render = PreparedAnimation.render
+    rendered = []
+
+    def count_render(self: PreparedAnimation) -> NDArray[np.float32]:
+        rendered.append(True)
+        return render(self)
+
+    monkeypatch.setattr(PreparedAnimation, 'render', count_render)
+    session = authoring.AuthoringSession(
+        library_files.read_library(config),
+        authoring.AuthorConfig(library_config=config, duration=0.1),
+    )
+    assert not rendered
+    items = [a for a in session.animations if a.renderer == 'ufor']
+    assert {a.selector for a in items} == {'first:/aurora.toml', 'second:/aurora.toml'}
+    assert items[0].title == items[1].title
+    assert all(not a.diagnostics for a in items)
+    thumbnail = session.thumbnail('first:/aurora.toml')
+    assert thumbnail == session.thumbnail('first:/aurora.toml')
+    assert len(rendered) == 2
+    assert thumbnail['frame'] == session.preview('first:/aurora.toml', {})['frames'][0]
