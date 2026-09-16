@@ -1,4 +1,4 @@
-"""UDP discovery for Lyte devices."""
+"""UDP discovery for lyte devices."""
 
 from __future__ import annotations
 

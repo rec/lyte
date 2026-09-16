@@ -1,15 +1,15 @@
-# Lyte Guide
+# lyte Guide
 
-Lyte plays Ufor light scores on Twinkly strings, renders them for inspection,
-and provides separate primitives for WLED and DMX. Ufor owns portable score
+lyte plays uFor light scores on Twinkly strings, renders them for inspection,
+and provides separate primitives for WLED and DMX. uFor owns portable score
 data: layouts, composition, timing, presets, and public scalar parameters.
-Lyte owns NumPy rendering, output transport, local services, MIDI mapping, and
+lyte owns NumPy rendering, output transport, local services, MIDI mapping, and
 the supplied wearable catalogue.
 
 ## Start Here
 
-Use a Ufor library configuration to name score roots. With no
-`--library-config`, Ufor reads `~/.config/ufor/library.toml`; providing one
+Use a uFor library configuration to name score roots. With no
+`--library-config`, uFor reads `~/.config/ufor/library.toml`; providing one
 replaces that default. Reading a library creates no files.
 
 ```sh
@@ -25,8 +25,8 @@ lyte animate examples:/composition.toml \
   --library-config examples/library.toml --duration 10
 ```
 
-Selectors are Ufor selectors. `--parameters NAME VALUE` supplies public scalar
-overrides, and `--light-output` chooses the score's named light output. Lyte logs all
+Selectors are uFor selectors. `--parameters NAME VALUE` supplies public scalar
+overrides, and `--light-output` chooses the score's named light output. lyte logs all
 library diagnostics. A missing or incompatible score, output, parameter, or
 wiring order fails during preparation, before hardware opens.
 
@@ -41,12 +41,12 @@ after encoding succeeds.
 ## Frames and Rendering
 
 A logical light frame is a finite, C-contiguous `numpy.float32` array shaped
-`(light_count, component_count)`. Generic Ufor operations work with any
-positive component count. Lyte's built-in pixel effects require `red`,
+`(light_count, component_count)`. Generic uFor operations work with any
+positive component count. lyte's built-in pixel effects require `red`,
 `green`, and `blue` drive components in that order. Scores must use an explicit
-Ufor component map when another component contract needs conversion.
+uFor component map when another component contract needs conversion.
 
-Lyte implements every registered Ufor effect with a fixed renderer registry.
+lyte implements every registered uFor effect with a fixed renderer registry.
 Score data cannot import arbitrary Python. Python-defined scores must instead
 subclass `lyte.rendering.PythonAnimationScore`, which defines the explicit
 state and frame contract.
@@ -58,7 +58,7 @@ state. Frames are clipped and rounded only when converted to output bytes.
 
 Wiring is a final light-order permutation. Previews and intermediate
 composition frames remain in authored logical order. At a physical output,
-Lyte rescales frames to the detected LED count and warns if it differs from the
+lyte rescales frames to the detected LED count and warns if it differs from the
 layout count.
 
 ## Twinkly Playback
@@ -80,7 +80,7 @@ blackout behavior.
 ## Installations
 
 An installation selects several Twinkly strings, maintains their connections,
-and switches named Ufor animations at frame boundaries.
+and switches named uFor animations at frame boundaries.
 
 `lyte installation` is the sole service command. The legacy wearable daemon
 has been retired; `lyte patch` and the wearable uFor catalogue remain available.
@@ -109,7 +109,7 @@ lyte installation status examples/installation.toml
 The installation TOML describes physical strings under `[twinkly]` and
 selectable animations under `[animations.NAME]`. A string selector contains
 observed `gestalt` fields such as `product_name`; it never contains an address,
-MAC address, or LED count. Lyte discovers devices and requires one unambiguous,
+MAC address, or LED count. lyte discovers devices and requires one unambiguous,
 one-to-one assignment. An empty selector can select the one remaining device.
 
 ```toml
@@ -135,7 +135,7 @@ Each animation output maps to one physical expression:
 
 An expression cannot mix `+` and `*`, repeat a string, or leave a selected
 string unused. Switching animations prepares fresh renderer state but retains
-healthy physical connections. The Reccy RPC endpoint supports `status`,
+healthy physical connections. The reccy RPC endpoint supports `status`,
 `select_animation`, `test`, `blackout`, and `stop`.
 
 A light test temporarily overrides the display, then resumes the selected
@@ -152,7 +152,7 @@ delivery catches up to elapsed time. Selection and MIDI note restarts reset the
 score timeline.
 
 An optional `[midi]` table reconnects a MIDI input. Animation controls map
-note gate, note number, velocity, CC 2 breath, and pitch bend to public Ufor
+note gate, note number, velocity, CC 2 breath, and pitch bend to public uFor
 parameters. An animation may use `activation = "note"` to output black until a
 note is held. Program changes queue the next configured animation.
 Each program-change message advances the queued selection; its program number
@@ -163,7 +163,7 @@ live parameter changes before discovering devices. Built-in effect parameters
 that are construction-only cannot be mapped to live MIDI controls.
 
 The supplied wearable installation and library are in `patches/`. They provide
-36 Ufor presets for a 250-light garment. Its physical map is guessed, so it
+36 uFor presets for a 250-light garment. Its physical map is guessed, so it
 must be measured and checked on the assembled garment before performance use.
 
 ## Audio-Reactive Effects and Authoring
@@ -181,7 +181,7 @@ sample block, updates the effect state with `update_features()`, then renders.
 lyte author --library-config examples/library.toml --open
 ```
 
-`lyte author` serves a loopback-only browser editor. It lists Ufor animation
+`lyte author` serves a loopback-only browser editor. It lists uFor animation
 scores and the reactive built-ins under `builtin:`, derives sliders from public
 parameters, and regenerates the shared HTML preview after each edit. It does
 not edit spatial layouts.
@@ -192,13 +192,13 @@ Authoring and standalone HTML previews allow at most 10000 frames and 32 MiB
 of raw frame data. Reduce duration or layout size if a preview exceeds either
 limit. Base64 encoding and browser copies require additional memory.
 
-For a Ufor score, the **Composition** panel follows the selected output's
+For a uFor score, the **Composition** panel follows the selected output's
 declared operation tree and the parts it references. Selecting an operation
 shows its declared fields in the read-only inspector. The **Timeline** shows
 each selected `Cues` or `Crossfade` operation as exact rational-second ranges;
 overlapping bars show simultaneous cue playback. Direct TOML scores can edit
 cue starts and durations or a crossfade duration, then apply and download the validated
-result. It is a view and editor for declared Ufor operations, not a generic
+result. It is a view and editor for declared uFor operations, not a generic
 keyframe editor.
 
 The **Operation fields** panel edits a direct TOML operation's top-level scalar
@@ -213,14 +213,14 @@ Both preview modes use XY projection: one-dimensional layouts sit at Y=0,
 and three-dimensional layouts ignore Z. There is no selectable 3D view.
 
 Direct TOML animation scores can replace a selected operation with one of the
-offered score-aware templates and download the edited source. Lyte validates
+offered score-aware templates and download the edited source. lyte validates
 and prepares the replacement before download. Edits accumulate in the running editor, and the composition tree and preview
-refresh after each accepted edit. Source comments survive direct edits. Ufor rejects unknown score fields before authoring, so there are no
+refresh after each accepted edit. Source comments survive direct edits. uFor rejects unknown score fields before authoring, so there are no
 unknown fields to round-trip. Presets and Python scores remain read-only.
 
-Use **Download TOML preset** to save the selected Ufor score's current public
+Use **Download TOML preset** to save the selected uFor score's current public
 parameter values as a new `kind = "preset"` file. The browser downloads the
-file only after Lyte validates and prepares it; source scores are never
+file only after lyte validates and prepares it; source scores are never
 overwritten. Download every changed score to retain the working document;
 restarting the editor discards its in-memory changes. Presets referring to edited
 scores require those edited score files as well. Reactive built-ins remain preview-only.
@@ -228,7 +228,7 @@ scores require those edited score files as well. Reactive built-ins remain previ
 ## WLED Interchange
 
 WLED support has three separate boundaries. It does not claim that WLED's
-native effects and Lyte effects are interchangeable.
+native effects and lyte effects are interchangeable.
 
 ```sh
 lyte wled import snapshot-input --output wled-snapshot.json
@@ -245,7 +245,7 @@ Export writes the original native `presets.json` losslessly.
 
 Translation is deliberately limited to one-segment presets for declared effect
 mappings: Solid, Breathe, Chase, Chase Rainbow, Candle, Color Wipe, Comet,
-Rainbow, Scan, and Twinkle. It creates independent Ufor score files and a
+Rainbow, Scan, and Twinkle. It creates independent uFor score files and a
 manifest. Unsupported presets remain native data and receive a reason in that
 manifest.
 

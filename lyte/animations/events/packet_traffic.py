@@ -1,7 +1,7 @@
 """Send structured groups of pulses with headers, payloads and gaps.
 
 Successful packets can produce acknowledgements traveling in the opposite
-direction. Ufor defines direction, packet rate, length range, error rate,
+direction. uFor defines direction, packet rate, length range, error rate,
 palette, speed and seed.
 """
 

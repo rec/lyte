@@ -1,4 +1,4 @@
-"""Random-walk color streamer for Lyte realtime frames."""
+"""Random-walk color streamer for lyte realtime frames."""
 
 from __future__ import annotations
 

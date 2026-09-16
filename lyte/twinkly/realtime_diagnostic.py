@@ -1,4 +1,4 @@
-"""Exercise a Lyte device with detailed diagnostics."""
+"""Exercise a lyte device with detailed diagnostics."""
 
 import socket
 import sys
@@ -53,7 +53,7 @@ LOGGER = logging.get_logger(__name__)
 
 def run_realtime_diagnostic(config: RealtimeDiagnosticConfig) -> int:
     validate_realtime_diagnostic_config(config)
-    LOGGER.debug('Lyte diagnostic')
+    LOGGER.debug('lyte diagnostic')
     LOGGER.debug('==============================')
     LOGGER.debug('This script uses only the Python standard library.')
     LOGGER.debug('It will discover a device, authenticate, switch to realtime mode,')

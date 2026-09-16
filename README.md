@@ -1,10 +1,11 @@
 # lyte
 
-Lyte is a Python 3.13 lighting player for Twinkly pixel strings and DMX
-instruments. Ufor score libraries own light layouts, animation settings,
-composition, and scalar controls. Lyte provides NumPy effect rendering,
-reliable Twinkly realtime playback, MIDI-controlled wearable patches, and mixed
-Twinkly and Art-Net installation playback.
+lyte is a Python 3.13 lighting player for Twinkly pixel strings and DMX
+instruments. uFor score libraries own light layouts, animation settings,
+composition, and scalar controls. lyte provides NumPy effect rendering,
+reliable Twinkly realtime playback, MIDI-controlled wearable patches, and Twinkly installation playback.
+WLED DDP and DMX/Art-Net are separate output primitives; installation playback
+does not yet combine those transports.
 
 Pixel animations render C-contiguous `numpy.float32` RGB frames. Conversion to
 Twinkly's byte format happens at the output boundary. DMX instruments use typed
@@ -12,7 +13,7 @@ channel categories and render independent 512-slot universe frames.
 
 ## Twinkly Commands
 
-Inspect the discovered device without changing it, prepare and play a Ufor
+Inspect the discovered device without changing it, prepare and play a uFor
 score, or list scores that can be rendered to HTML:
 
 ```sh
@@ -48,9 +49,9 @@ authenticates the device, enters realtime mode, probes the HTTP connection while
 streaming UDP frames, recovers after connection failures, and requests blackout
 when playback ends.
 
-## Ufor Scores and Compositions
+## uFor Scores and Compositions
 
-Register score roots in a Ufor library configuration, then select a score by
+Register score roots in a uFor library configuration, then select a score by
 literal library, name, tag, or address. The default configuration is
 `~/.config/ufor/library.toml`; `--library-config` replaces that default.
 Reading a library never creates files. List one effect family with:
@@ -59,7 +60,7 @@ Reading a library never creates files. List one effect family with:
 lyte preview --library-config examples/library.toml --family fields
 ```
 
-Ufor compositions provide named placement, weighted mixes, crossfades,
+uFor compositions provide named placement, weighted mixes, crossfades,
 reversal, gain, component mapping, and timed cues. The score declares its
 logical update rate, light components, and one-, two-, or three-dimensional
 layout. Preview uses those authored coordinates. Wiring is a final physical
@@ -75,8 +76,8 @@ lyte animate examples:/composition.toml --library-config examples/library.toml -
 
 The example library is rooted at `examples/scores/`. Its composition places
 two 125-light ripple parts into named halves, reverses one half, and cues the
-result against a 250-light aurora. Ufor resolves references and presets before
-Lyte prepares one state per part path. No score data contains a Python import
+result against a 250-light aurora. uFor resolves references and presets before
+lyte prepares one state per part path. No score data contains a Python import
 path.
 
 ## Wearable Patches
@@ -90,12 +91,12 @@ lyte patch locator
 lyte patch play PATCH_NAME
 ```
 
-Lyte warns when using the guessed map. If the connected string has a different
+lyte warns when using the guessed map. If the connected string has a different
 LED count, it warns again and scales the logical regions and physical map to the
 actual count. Mark the map as `measured` only after checking every region on the
 assembled garment.
 
-The same 36-patch catalogue is available through Ufor selectors and the
+The same 36-patch catalogue is available through uFor selectors and the
 installation runner. `patches/wearable-library.toml` registers the presets, and
 `patches/wearable-installation.toml` configures the single wearable string and
 shared MIDI controls:
@@ -106,7 +107,7 @@ lyte validate wearable:/prism_limbs.toml \
 lyte installation run patches/wearable-installation.toml
 ```
 
-The Ufor adapter preserves the legacy algorithms and guessed physical map. The
+The uFor adapter preserves the legacy algorithms and guessed physical map. The
 wearable hardware is not currently available, so this path has automated
 rendering coverage but still requires a physical mapping and MIDI check before
 performance use.
@@ -114,7 +115,7 @@ performance use.
 ## Twinkly Installations
 
 `lyte installation` discovers named Twinkly strings and starts selectable
-bound Ufor animations. It can run in the foreground or own the normal `lyte`
+bound uFor animations. It can run in the foreground or own the normal `lyte`
 per-user service:
 
 ```sh
@@ -129,14 +130,14 @@ Each `[twinkly]` entry is a case-insensitive `gestalt` selector, such as
 device. No address, MAC, or LED count is configured. `[animations.NAME]` maps
 score output names to string expressions: `left + right` treats two strings as
 one long strip, and `left * right` mirrors one rendered frame to both strings.
-The Reccy RPC command `select_animation` queues a declared animation for the
+The reccy RPC command `select_animation` queues a declared animation for the
 next frame boundary. `status` reports the active and queued animation plus
 per-string connection, count, frame, and failure status. The same endpoint
 supports `test`, `blackout`, and `stop`.
 
 An optional `[midi]` table enables MIDI input and reconnection. An animation may
 set `activation = "note"` and map `gate`, `note`, `velocity`, CC 2 `breath`, or
-`pitch_bend` into public Ufor score parameters:
+`pitch_bend` into public uFor score parameters:
 
 ```toml
 [[animations.reactive.controls]]
@@ -151,11 +152,11 @@ through 1. `output` linearly maps that range. A `note` control can instead use
 configured animation.
 
 The installation's `library_config` is resolved relative to its TOML file.
-Lyte validates every selected score output before opening hardware. It discovers
+lyte validates every selected score output before opening hardware. It discovers
 the actual LED count for each string and scales at output time, logging any
 authored-layout mismatch. Shutdown requests blackout from each opened string.
 
-`lyte validate` performs Ufor selection and renderer preflight without connecting
+`lyte validate` performs uFor selection and renderer preflight without connecting
 to hardware or running an installation. DMX and Art-Net remain available as
 separate output primitives; dynamic DMX bindings are not part of this runner.
 

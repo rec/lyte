@@ -2,7 +2,7 @@
 
 ## Goal
 
-Expand Lyte's pixel animation library with effects that are visually distinct
+Expand lyte's pixel animation library with effects that are visually distinct
 from the current fills, gradients, wipes, chases, scanners, rainbows, waves,
 pulses, twinkles, fireflies, searchlights, rain, random walks, and binary
 patterns.
@@ -15,7 +15,7 @@ I/O themselves.
 ## Wearable Region Animations
 
 These use the current named regions and their logical ranges. They do not need
-physical coordinates and continue to work when Lyte scales a 250-LED authored
+physical coordinates and continue to work when lyte scales a 250-LED authored
 layout to the attached string.
 
 ### Region Relay
