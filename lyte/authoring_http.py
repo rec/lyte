@@ -60,6 +60,7 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                 '/api/fields',
                 '/api/undo',
                 '/api/redo',
+                '/api/bundle',
             }:
                 self.send_error(404)
                 return
@@ -77,7 +78,9 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
             try:
                 payload = _request_json(self)
                 response: dict[str, object]
-                if path in {'/api/undo', '/api/redo'}:
+                if path == '/api/bundle':
+                    response = session.download_bundle()
+                elif path in {'/api/undo', '/api/redo'}:
                     if path == '/api/undo':
                         session.undo()
                     else:
@@ -132,6 +135,10 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                                 selector, parameters, name
                             ),
                         }
+                if path in {'/api/operation', '/api/timeline', '/api/fields'}:
+                    response['revisions'] = {
+                        entry: authoring.document_revision(session.documents[entry])
+                    }
                 if path not in {'/api/preview', '/api/preset'}:
                     response['catalog'] = [a.document() for a in session.animations]
                     response['history'] = session.history_state()

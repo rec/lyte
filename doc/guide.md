@@ -228,7 +228,12 @@ Use **Download TOML preset** to save the selected uFor score's current public
 parameter values as a new `kind = "preset"` file. The browser downloads the
 file only after lyte validates and prepares it; source scores are never
 overwritten. Download every changed score to retain the working document;
-restarting the editor discards its in-memory changes. Presets referring to edited
+**Download all edits (ZIP)** offers all changed TOML files together, under
+library-name directories with their relative source paths preserved. The list
+shows which current revisions this browser has offered for download; it cannot
+verify that a download was saved. Closing with unoffered changes prompts a warning.
+The ZIP is a set of edits to your libraries, not a standalone library bundle.
+Restarting the editor discards its in-memory changes. Presets referring to edited
 scores require those edited score files as well. Reactive built-ins remain preview-only.
 
 ## WLED Interchange

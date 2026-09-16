@@ -6,8 +6,11 @@ import math
 from base64 import b64encode
 from dataclasses import dataclass
 from fractions import Fraction
+from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
 from typing import Literal, cast
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import tomlkit
 from pydantic import BaseModel, Field
@@ -263,13 +266,40 @@ class AuthoringSession:
         text = tomlkit.dumps(document)
         return self._apply_document(entry_key, output, text)
 
+    def changed_documents(self) -> dict[str, str]:
+        return {
+            k: v
+            for k, v in sorted(self.documents.items())
+            if v != self.original_documents[k]
+        }
+
+    def download_bundle(self) -> dict[str, object]:
+        changed = self.changed_documents()
+        if not changed:
+            raise ValueError('There are no changed scores to download')
+        buffer = BytesIO()
+        with ZipFile(buffer, 'w', compression=ZIP_DEFLATED) as archive:
+            for key, text in changed.items():
+                entry = self.library.entries[key]
+                if entry.library in {'.', '..'} or any(
+                    c in entry.library for c in ('\\', '\x00')
+                ):
+                    raise ValueError(f'{entry.library!r}: unsafe ZIP directory name')
+                path = f'{entry.library}/{entry.address.lstrip("/")}'
+                archive.writestr(path, text)
+        return {
+            'filename': 'lyte-edits.zip',
+            'archive': b64encode(buffer.getvalue()).decode('ascii'),
+            'revisions': {k: document_revision(v) for k, v in changed.items()},
+        }
+
     def history_state(self) -> dict[str, object]:
+        changed = self.changed_documents()
         return {
             'can_undo': bool(self.undo_history),
             'can_redo': bool(self.redo_history),
-            'changed': sorted(
-                k for k, v in self.documents.items() if v != self.original_documents[k]
-            ),
+            'changed': list(changed),
+            'revisions': {k: document_revision(v) for k, v in changed.items()},
         }
 
     def undo(self) -> None:
@@ -336,6 +366,10 @@ class AuthoringSession:
         if not root.is_absolute():
             root = config_path.parent / root
         return root / entry.address.removeprefix('/')
+
+
+def document_revision(text: str) -> str:
+    return sha256(text.encode()).hexdigest()
 
 
 def author_document(
