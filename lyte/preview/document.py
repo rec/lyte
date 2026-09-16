@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+from math import isfinite
 from pathlib import Path
 
 from .. import animation, rendering
@@ -45,12 +46,29 @@ def animation_document(
 
 
 def encoded_frames(prepared: rendering.PreparedAnimation, duration: float) -> list[str]:
-    frame_count = max(1, round(prepared.fps * duration))
+    frame_count = preview_frame_count(
+        prepared.fps,
+        duration,
+        len(prepared.output.layout.lights) * len(prepared.output.components),
+    )
     frames = []
     for _ in range(frame_count):
         frame = animation.byte_light_frame_from_float(prepared.render())
         frames.append(base64.b64encode(memoryview(frame).cast('B')).decode('ascii'))
     return frames
+
+
+def preview_frame_count(fps: float, duration: float, frame_bytes: int) -> int:
+    samples = fps * duration
+    if not isfinite(samples) or samples <= 0:
+        raise ValueError('preview duration and frame rate must be positive and finite')
+    count = max(1, round(samples))
+    if count > 10000 or count * frame_bytes > 32 * 1024 * 1024:
+        raise ValueError(
+            'preview exceeds 10000 frames or 32 MiB of frame data; '
+            'reduce duration or layout size'
+        )
+    return count
 
 
 def safe_json(value: object) -> str:
