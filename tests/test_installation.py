@@ -744,3 +744,16 @@ def test_blackout_cancels_tests_and_waits_for_selection(
     assert service.status_snapshot().active_animation == 'separate'
     service.rpc_response(rpc.Request(command='stop'))
     assert service._stop_requested.is_set()
+
+
+def test_program_changes_each_advance_the_queued_selection(
+    playback_service: installation.InstallationService,
+) -> None:
+    service = playback_service
+    service._receive_midi(mido.Message('program_change', program=70))
+    assert service.status_snapshot().queued_animation == 'separate'
+    service._receive_midi(mido.Message('program_change', program=3))
+    assert service.status_snapshot().queued_animation == 'across'
+    service.render(1)
+    assert service.status_snapshot().active_animation == 'across'
+    assert service.status_snapshot().queued_animation is None

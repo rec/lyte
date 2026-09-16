@@ -91,15 +91,10 @@ persistence, cancellation, reselection, and explicit stopping.
 
 ### 11. Queued program changes collapse within one frame
 
-**Confirmed edge case.**
-[_receive_midi](../lyte/installation.py) computes the next animation from the
-active name, ignoring an already queued name. Several program-change messages
-processed before selection is applied all select the same next animation.
-Their program numbers are ignored as well; that cycling policy is documented,
-but callers may expect MIDI program selection semantics.
-
-Define whether messages represent individual advances, direct program numbers,
-or intentionally coalesced requests. Verify a burst of two messages.
+**Fixed 2026-09-16.** Preserved the documented cycling policy: every program
+change advances from the queued selection, or from the active selection when
+nothing is queued. Program numbers remain ignored. A burst regression verifies
+two advances, wraparound, and the applied selection.
 
 ### 12. MIDI note ownership ignores channel on release
 
