@@ -219,7 +219,13 @@ the working score and history unchanged.
 
 The **Operation fields** panel edits a direct TOML operation's top-level scalar
 fields and applies and downloads a validated result. Nested arrays and tables stay
-read-only, preserving their source structure and comments.
+read-only, preserving their source structure and comments. **Colours and
+palettes** separately supports Aurora and ExpandingRipples palettes, ColorFill
+and ColorChase colours, and RGB drive Fill values. Swatches and numeric channels
+show their units: bytes are 0–255; normalized drive uses 1 as full scale.
+Out-of-range normalized values are preserved numerically while swatches clip
+their display. Palettes support adding, removing, and reordering colours.
+Unsupported nested fields remain read-only.
 
 The example library was manually checked in the loopback browser on 2026-09-14:
 animation selection, reactive parameter sliders, transport pause and seeking,

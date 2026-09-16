@@ -3,9 +3,11 @@
 # ruff: noqa: E501
 
 from .authoring_browser_template import BROWSER_SCRIPT
+from .authoring_colors_template import COLORS_SCRIPT
 from .authoring_structure_template import STRUCTURE_SCRIPT
 
-AUTHOR_TEMPLATE = """<!doctype html>
+AUTHOR_TEMPLATE = (
+    """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -240,6 +242,11 @@ pre{
 <button id="download-fields" type="button" disabled>Apply and download fields</button>
 <output id="fields-status">
 </output>
+<details><summary>Colours and palettes</summary>
+<fieldset id="color-fields"></fieldset>
+<button id="apply-colors" type="button" disabled>Apply and download colours</button>
+<output id="color-status"></output>
+</details>
 <h2>Timeline</h2>
 <section id="timeline">Select a timed operation</section>
 <button id="download-timing" type="button" disabled>Apply and download timing</button>
@@ -440,6 +447,7 @@ function inspect(node,button){
   selectedOperation=node;
   inspector.textContent=`${node.entry} · ${node.source_kind}\n${JSON.stringify(node.fields,null,2)}`;
   rebuildStructure(node);
+  rebuildColors(node);
   rebuildOperationFields(node);
   rebuildTimeline(node);
   operationTemplate.replaceChildren();
@@ -489,6 +497,7 @@ function rebuildComposition(){
   const tree=active()?.composition;
   if(!tree){
     selectedOperation=null;
+    rebuildColors({editable:false,color_fields:{}});
     rebuildStructure({entry:active()?.selector||'No selection',editable:false,used_by:[]});
     operationFields.replaceChildren();timeline.replaceChildren();
     downloadFields.disabled=true;downloadTiming.disabled=true;
@@ -865,6 +874,7 @@ function animate(time){
 }
 __LYTE_STRUCTURE_SCRIPT__
 __LYTE_BROWSER_SCRIPT__
+__LYTE_COLORS_SCRIPT__
 addEventListener('beforeunload',event=>{
   if(hasUnofferedChanges()){event.preventDefault();event.returnValue='';}
 });
@@ -904,6 +914,7 @@ addEventListener('resize',resize);
 resize();
 rebuildLibrary();
 requestAnimationFrame(animate);
-</script></body></html>""".replace(
-    '__LYTE_STRUCTURE_SCRIPT__', STRUCTURE_SCRIPT
-).replace('__LYTE_BROWSER_SCRIPT__', BROWSER_SCRIPT)
+</script></body></html>""".replace('__LYTE_STRUCTURE_SCRIPT__', STRUCTURE_SCRIPT)
+    .replace('__LYTE_BROWSER_SCRIPT__', BROWSER_SCRIPT)
+    .replace('__LYTE_COLORS_SCRIPT__', COLORS_SCRIPT)
+)
