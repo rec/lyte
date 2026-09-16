@@ -119,3 +119,56 @@ def test_existing_export_stops_the_entire_batch(tmp_path: Path) -> None:
         )
     export.assert_not_called()
     assert destination.read_bytes() == b'existing movie'
+
+
+@pytest.mark.parametrize(
+    'failure', ['render', 'write', 'close', 'exit', 'publish', None]
+)
+def test_export_reaps_encoder_and_publishes_only_successful_movies(
+    tmp_path: Path, failure: str | None
+) -> None:
+    config = render.RenderConfig(
+        output=tmp_path, duration=0.01, library_config=Path('examples/library.toml')
+    )
+    process = Mock()
+    process.stdin.closed = False
+    process.poll.return_value = None
+    process.wait.return_value = 1 if failure == 'exit' else 0
+    if failure == 'write':
+        process.stdin.write.side_effect = BrokenPipeError('write failed')
+    if failure in {'close', 'render'}:
+        process.stdin.close.side_effect = BrokenPipeError('close failed')
+
+    def start(command: list[str], stdin: object) -> Mock:
+        Path(command[-1]).write_bytes(b'movie')
+        if failure == 'publish':
+            (tmp_path / 'aurora.mp4').write_bytes(b'previous movie')
+        return process
+
+    with (
+        patch.object(render.subprocess, 'Popen', side_effect=start),
+        patch.object(
+            render.GridRenderer,
+            'render',
+            return_value=np.zeros((2, 2, 3), dtype=np.uint8),
+        ) as frame,
+    ):
+        if failure == 'render':
+            frame.side_effect = ValueError('render failed')
+        if failure is None:
+            result = render.render_animation('aurora', config, 'ffmpeg')
+            assert result.read_bytes() == b'movie'
+        else:
+            expected = ValueError if failure == 'render' else render.RenderError
+            with pytest.raises(
+                expected, match='render failed' if failure == 'render' else None
+            ):
+                render.render_animation('aurora', config, 'ffmpeg')
+    process.wait.assert_called_once()
+    if failure in {'render', 'write', 'close'}:
+        process.kill.assert_called_once()
+    if failure == 'publish':
+        assert (tmp_path / 'aurora.mp4').read_bytes() == b'previous movie'
+    assert sorted(p.name for p in tmp_path.iterdir()) == (
+        ['aurora.mp4'] if failure in {None, 'publish'} else []
+    )

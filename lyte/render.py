@@ -6,6 +6,7 @@ import math
 import shutil
 import subprocess
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Annotated, Literal
 
 import numpy as np
@@ -167,43 +168,59 @@ def render_animation(selector: str, config: RenderConfig, ffmpeg: str) -> Path:
     )
     output = config.output / f'{safe_name(selector)}.mp4'
     frame_count = max(1, round(prepared.fps * config.duration))
-    command = [
-        ffmpeg,
-        '-n',
-        '-f',
-        'rawvideo',
-        '-pixel_format',
-        'rgb24',
-        '-video_size',
-        f'{renderer.width}x{renderer.height}',
-        '-framerate',
-        f'{prepared.fps:g}',
-        '-i',
-        '-',
-        '-an',
-        '-c:v',
-        'libx264',
-        '-pix_fmt',
-        'yuv420p',
-        '-movflags',
-        '+faststart',
-        str(output),
-    ]
-    process = subprocess.Popen(command, stdin=subprocess.PIPE)
-    try:
-        if process.stdin is None:
-            raise RenderError('ffmpeg did not provide a frame input')
-        for _ in range(frame_count):
-            lights = animation.byte_light_frame_from_float(prepared.render())
-            process.stdin.write(renderer.render(lights).tobytes())
-        process.stdin.close()
-        if process.wait() != 0:
-            raise RenderError(f'{selector}: ffmpeg failed')
-    except BrokenPipeError as error:
-        raise RenderError(f'{selector}: ffmpeg stopped accepting frames') from error
-    finally:
-        if process.stdin is not None and not process.stdin.closed:
+    with TemporaryDirectory(prefix='.lyte-render-', dir=config.output) as directory:
+        temporary = Path(directory) / 'movie.mp4'
+        command = [
+            ffmpeg,
+            '-n',
+            '-f',
+            'rawvideo',
+            '-pixel_format',
+            'rgb24',
+            '-video_size',
+            f'{renderer.width}x{renderer.height}',
+            '-framerate',
+            f'{prepared.fps:g}',
+            '-i',
+            '-',
+            '-an',
+            '-c:v',
+            'libx264',
+            '-pix_fmt',
+            'yuv420p',
+            '-movflags',
+            '+faststart',
+            str(temporary),
+        ]
+        process = subprocess.Popen(command, stdin=subprocess.PIPE)
+        input_complete = False
+        try:
+            if process.stdin is None:
+                raise RenderError('ffmpeg did not provide a frame input')
+            for _ in range(frame_count):
+                lights = animation.byte_light_frame_from_float(prepared.render())
+                process.stdin.write(renderer.render(lights).tobytes())
             process.stdin.close()
+            input_complete = True
+        except BrokenPipeError as error:
+            raise RenderError(f'{selector}: ffmpeg stopped accepting frames') from error
+        finally:
+            if not input_complete and process.poll() is None:
+                process.kill()
+            try:
+                if process.stdin is not None and not process.stdin.closed:
+                    try:
+                        process.stdin.close()
+                    except BrokenPipeError:
+                        pass
+            finally:
+                return_code = process.wait()
+        if return_code != 0:
+            raise RenderError(f'{selector}: ffmpeg failed')
+        try:
+            output.hardlink_to(temporary)
+        except FileExistsError as error:
+            raise RenderError(f'output already exists: {output}') from error
     return output
 
 
