@@ -151,7 +151,7 @@ class TwinklyControlTests(unittest.TestCase):
             )
 
         self.assertEqual(result, 0)
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
         self.assertIn(
             '[brightness] mode=enabled type=A value=75', log_info.call_args.args[0]
         )
@@ -177,7 +177,7 @@ class TwinklyControlTests(unittest.TestCase):
             )
 
         self.assertEqual(result, 0)
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
         write_output_control.assert_called_once_with(
             client,
             'saturation',
@@ -188,7 +188,7 @@ class TwinklyControlTests(unittest.TestCase):
             log_info.call_args.args[0],
         )
 
-    def test_run_mode_control_sets_mode_then_turns_off(self) -> None:
+    def test_run_mode_control_sets_mode_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -205,9 +205,9 @@ class TwinklyControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         set_led_mode.assert_called_once_with({'mode': 'demo'})
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
 
-    def test_run_color_control_sets_rgb_then_turns_off(self) -> None:
+    def test_run_color_control_sets_rgb_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -228,9 +228,9 @@ class TwinklyControlTests(unittest.TestCase):
         set_led_color.assert_called_once_with(
             {'mode': 'rgb', 'red': 1, 'green': 2, 'blue': 3}
         )
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
 
-    def test_run_effect_control_sets_current_effect_then_turns_off(self) -> None:
+    def test_run_effect_control_sets_current_effect_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -249,9 +249,9 @@ class TwinklyControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         set_current_effect.assert_called_once_with({'effect_id': 4})
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
 
-    def test_run_layout_control_exports_layout_then_turns_off(self) -> None:
+    def test_run_layout_control_exports_layout_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with tempfile.TemporaryDirectory() as directory:
@@ -282,10 +282,10 @@ class TwinklyControlTests(unittest.TestCase):
                 json.loads(path.read_text()),
                 {'coordinates': [], 'source': '3d'},
             )
-            turn_off.assert_called_once()
+            turn_off.assert_not_called()
             self.assertIn('[layout] exported', log_info.call_args.args[0])
 
-    def test_run_layout_control_uploads_layout_then_turns_off(self) -> None:
+    def test_run_layout_control_uploads_layout_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with tempfile.TemporaryDirectory() as directory:
@@ -325,9 +325,9 @@ class TwinklyControlTests(unittest.TestCase):
                 'synthesized': False,
             }
         )
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
 
-    def test_run_led_config_control_sets_json_config_then_turns_off(self) -> None:
+    def test_run_led_config_control_sets_json_config_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with tempfile.TemporaryDirectory() as directory:
@@ -349,9 +349,9 @@ class TwinklyControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         set_led_config.assert_called_once_with({'strings': [{'first_led_id': 0}]})
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
 
-    def test_run_timer_control_reads_timer_then_turns_off(self) -> None:
+    def test_run_timer_control_reads_timer_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -380,9 +380,9 @@ class TwinklyControlTests(unittest.TestCase):
             '[timer] time_now=1800 time_on=-1 time_off=7200',
             log_info.call_args.args[0],
         )
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
 
-    def test_run_timer_control_sets_timer_then_turns_off(self) -> None:
+    def test_run_timer_control_sets_timer_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -403,9 +403,9 @@ class TwinklyControlTests(unittest.TestCase):
         set_timer.assert_called_once_with(
             {'time_on': 3600, 'time_off': 7200, 'time_now': 1800}
         )
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
 
-    def test_run_movie_control_reads_current_movie_then_turns_off(self) -> None:
+    def test_run_movie_control_reads_current_movie_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -426,10 +426,10 @@ class TwinklyControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         get_current_movie.assert_called_once()
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
         self.assertIn("[movie] current {'id': 0}", log_info.call_args.args[0])
 
-    def test_run_playlist_control_reads_playlist_then_turns_off(self) -> None:
+    def test_run_playlist_control_reads_playlist_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -450,10 +450,10 @@ class TwinklyControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         get_playlist.assert_called_once()
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
         self.assertIn("[playlist] list {'entries': []}", log_info.call_args.args[0])
 
-    def test_run_network_control_reads_status_then_turns_off(self) -> None:
+    def test_run_network_control_reads_status_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -476,10 +476,10 @@ class TwinklyControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         get_network_status.assert_called_once()
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
         self.assertIn("[network] status {'mode': 1}", log_info.call_args.args[0])
 
-    def test_run_mqtt_control_reads_config_then_turns_off(self) -> None:
+    def test_run_mqtt_control_reads_config_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -500,10 +500,10 @@ class TwinklyControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         get_mqtt_config.assert_called_once()
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
         self.assertIn("[mqtt] config {'enabled': False}", log_info.call_args.args[0])
 
-    def test_run_mic_control_reads_sample_then_turns_off(self) -> None:
+    def test_run_mic_control_reads_sample_without_turning_off(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -524,10 +524,10 @@ class TwinklyControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         get_mic_sample.assert_called_once()
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
         self.assertIn("[mic] sample {'sample': 3}", log_info.call_args.args[0])
 
-    def test_run_music_control_reads_current_driver_set_then_turns_off(self) -> None:
+    def test_music_driver_query_preserves_output(self) -> None:
         client = TwinklyClient(host='192.168.1.23')
 
         with (
@@ -550,7 +550,7 @@ class TwinklyControlTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         get_current_music_driver_set.assert_called_once()
-        turn_off.assert_called_once()
+        turn_off.assert_not_called()
         self.assertIn(
             "[music] current-driver-set {'id': 1}", log_info.call_args.args[0]
         )
