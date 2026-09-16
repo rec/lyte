@@ -136,7 +136,7 @@ def run_render(config: RenderConfig) -> int:
         destinations[key] = selector
     config.output.mkdir(parents=True, exist_ok=True)
     for selector in selectors:
-        render_animation(selector, config, ffmpeg)
+        render_animation(selector, config, ffmpeg, library)
     return 0
 
 
@@ -148,11 +148,13 @@ def list_animation_selectors(library: Library) -> list[str]:
     ]
 
 
-def render_animation(selector: str, config: RenderConfig, ffmpeg: str) -> Path:
+def render_animation(
+    selector: str, config: RenderConfig, ffmpeg: str, library: Library
+) -> Path:
     try:
-        prepared = show.prepare_animation(
+        prepared = show.prepare_library_animation(
+            library,
             show.LightProgramSpec(selector=selector, output=config.light_output),
-            config.library_config,
         )
     except (OSError, ValueError) as error:
         raise RenderError(f'{selector}: {error}') from error

@@ -131,10 +131,9 @@ JavaScript checks cover debounce, single-flight requests, and stale results.
 
 ### 16. Batch export repeatedly reloads the same library
 
-[run_render](../lyte/render.py) reads the library for selection, then each
-`render_animation` calls `show.prepare_animation`, which reads it again.
-Large batches repeat parsing and diagnostics, and source edits during a batch
-can mix library versions. Reuse the already loaded library for the batch.
+**Fixed 2026-09-16.** Batch export passes its loaded library to every animation
+preparation. Parsing and diagnostics occur once per batch. Dispatch tests
+verify that every export receives the same library instance.
 
 ### 17. Editor downloads do not form a cumulative editing session
 
