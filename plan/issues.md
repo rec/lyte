@@ -34,15 +34,10 @@ score title cannot close the script and introduce another script element.
 
 ### 4. Different render selectors can overwrite the same movie
 
-**High priority; confirmed filename collision.**
-[safe_name and render_animation](../lyte/render.py) replace every non-alphanumeric
-character with `-`, then invoke ffmpeg with `-y`. Selectors such as
-`example:/a_b.toml` and `example:/a-b.toml` produce the same filename.
-Batch rendering silently replaces the earlier result. Existing exports are
-also overwritten without an explicit overwrite choice.
-
-Preflight destination collisions before rendering and define an explicit
-policy for existing files. Verify both intra-batch collisions and prior files.
+**Fixed 2026-09-16.** Batch export preflights sanitized filenames, including
+case-only collisions, and refuses existing destinations before rendering any
+score. ffmpeg uses `-n` so files appearing after preflight are not overwritten.
+Tests verify name collisions and preservation of existing exports.
 
 ### 5. The editor's Next button does not advance
 
