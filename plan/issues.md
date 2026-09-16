@@ -62,17 +62,13 @@ ranges, tables, non-finite values, and a real construction-only effect target.
 
 ### 8. Discovery can wait forever before duration and RPC control apply
 
-**User-facing operational trap.**
-[discover_assignments](../lyte/installation.py) retries missing and ambiguous
-assignments indefinitely. `build_service` performs discovery before the service
-starts; `run(duration)` creates its deadline afterward. Thus `--duration 10`
-does not bound discovery, and the runtime RPC stop path is unavailable while
-waiting. A permanently ambiguous configuration is retried like a temporary
-missing device.
-
-Document or revise startup timeout semantics, distinguish ambiguity from
-absence, and provide an interruptible startup policy. Do not describe
-`--duration` as a bound on total command runtime in its current form.
+**Fixed 2026-09-16.** Installation TOML now accepts a positive, finite
+`startup_timeout` (default 30 seconds) for discovery and identification. Scans,
+HTTP identification retries, and retry sleeps share the deadline. Ambiguous
+assignments fail immediately; Ctrl-C remains available during foreground
+startup. Authentication/output setup keep their existing bounded retries.
+Playback duration starts after outputs are ready. Focused tests use a fake
+clock to verify timeout handling, ambiguity, and independent playback duration.
 
 ### 9. Two daemons claim the same service identity
 
@@ -86,6 +82,10 @@ look like independent services while installation and RPC identity are shared.
 Decide which runtime remains. Retirement of the wearable subsystem has been
 discussed, but is not authorized by this issues list. Audit showCo callers and
 installed service commands before any removal.
+
+Source audit on 2026-09-16: showCo deployment and provisioning use
+`lyte installation install`; no legacy daemon or `select_patch` references were
+found in its application source. Installed services were not inspected.
 
 ### 10. Test completion and blackout terminate the installation
 

@@ -80,6 +80,17 @@ blackout behavior.
 An installation selects several Twinkly strings, maintains their connections,
 and switches named Ufor animations at frame boundaries.
 
+Set `startup_timeout = 30` in the installation TOML to bound device discovery
+and identification (30 seconds by default). `discovery_timeout` bounds each
+individual scan; identification retries and waits share the overall discovery
+deadline. Missing devices are retried until that deadline; ambiguous assignments
+fail immediately. Ctrl-C interrupts foreground discovery. Runtime RPC is not
+available until discovery completes.
+
+Authentication and output setup retain their existing bounded retries and are
+outside the discovery timeout. `--duration` measures playback after outputs are
+ready, so discovery and setup do not consume the requested playing time.
+
 ```sh
 lyte installation run examples/installation.toml --duration 10
 lyte installation install examples/installation.toml
