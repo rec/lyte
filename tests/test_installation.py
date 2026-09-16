@@ -674,3 +674,73 @@ def example_installation() -> dict[str, object]:
         },
         'initial_animation': 'across',
     }
+
+
+@pytest.fixture
+def playback_service(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> installation.InstallationService:
+    config = installation.parse_installation(example_installation())
+    library = library_files.read_library(Path('examples/library.toml'))
+    outputs = {
+        'left': Mock(led_count=2, status=installation.StringStatus()),
+        'right': Mock(led_count=3, status=installation.StringStatus()),
+    }
+    service = installation.InstallationService.model_construct(
+        config=config, library=library, outputs=outputs, home=tmp_path
+    )
+    monkeypatch.setattr(
+        installation.InstallationService, 'publish_status', lambda self: None
+    )
+    service.rpc_response(
+        rpc.Request(command='select_animation', params={'name': 'across'})
+    )
+    service.render(0)
+    return service
+
+
+def test_light_test_resumes_the_selected_animation(
+    playback_service: installation.InstallationService,
+) -> None:
+    service = playback_service
+    expected = installation.ActiveAnimation(
+        'across', service.config.animations['across'], service.library, service.outputs
+    )
+    expected.render(0)
+    service.rpc_response(rpc.Request(command='test', params={'duration': 2}))
+    service.render(1)
+    assert service.render(2)[0][1][0, 0] == 128
+    assert service.status_snapshot().active_test is not None
+    frames = service.render(3.1)
+    np.testing.assert_array_equal(frames[0][1], expected.render(3.1)[0][1])
+    assert service.status_snapshot().active_test is None
+    assert service.status_snapshot().active_animation == 'across'
+    assert not service._stop_requested.is_set()
+
+
+def test_blackout_cancels_tests_and_waits_for_selection(
+    playback_service: installation.InstallationService,
+) -> None:
+    service = playback_service
+    service.rpc_response(rpc.Request(command='test'))
+    service.render(1)
+    service.rpc_response(
+        rpc.Request(command='select_animation', params={'name': 'separate'})
+    )
+    service.rpc_response(rpc.Request(command='blackout'))
+    status = service.status_snapshot()
+    assert status.blackout
+    assert status.active_test is None
+    assert status.queued_animation is None
+    assert not any(f.any() for _, f in service.render(2))
+    assert isinstance(service.rpc_response(rpc.Request(command='test')), ipc.Error)
+    assert not any(f.any() for _, f in service.render(10))
+    assert not service._stop_requested.is_set()
+    service.rpc_response(
+        rpc.Request(command='select_animation', params={'name': 'separate'})
+    )
+    service.render(11)
+    assert not service.status_snapshot().blackout
+    assert service.status_snapshot().active_animation == 'separate'
+    service.rpc_response(rpc.Request(command='stop'))
+    assert service._stop_requested.is_set()

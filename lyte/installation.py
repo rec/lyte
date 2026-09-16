@@ -211,6 +211,7 @@ class StringStatus(BaseModel):
 class InstallationStatus(ReccyStatus):
     active_animation: str | None = None
     queued_animation: str | None = None
+    blackout: bool = False
     strings: dict[str, StringStatus] = Field(default_factory=dict)
     bindings: dict[str, str] = Field(default_factory=dict)
     midi_connected: bool = False
@@ -479,6 +480,7 @@ class InstallationService(Reccy):
     _midi_error: str | None = PrivateAttr(default=None)
     _selected_test: runtime_control.LightTestCommand | None = PrivateAttr(default=None)
     _active_test: runtime_control.ActiveLightTest | None = PrivateAttr(default=None)
+    _blackout: bool = PrivateAttr(default=False)
     _stop_requested: threading.Event = PrivateAttr(default_factory=threading.Event)
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
 
@@ -497,6 +499,11 @@ class InstallationService(Reccy):
                 self.publish_status()
                 return {'state': 'queued', 'name': name}
             if request.command == 'test':
+                if self._blackout:
+                    return ipc.Error(
+                        type='error',
+                        message='select an animation before testing during blackout',
+                    )
                 test = runtime_control.light_test_command(request.params)
                 if isinstance(test, ipc.Error):
                     return test
@@ -507,7 +514,14 @@ class InstallationService(Reccy):
                     'level': test.level,
                     'duration': test.duration,
                 }
-            if request.command in {'blackout', 'stop'}:
+            if request.command == 'blackout':
+                self._blackout = True
+                self._queued_name = None
+                self._selected_test = None
+                self._active_test = None
+                self.publish_status()
+                return 'ok'
+            if request.command == 'stop':
                 self._stop_requested.set()
                 return 'ok'
         return ipc.Error(type='error', message=f'unknown command {request.command}')
@@ -525,6 +539,7 @@ class InstallationService(Reccy):
                 errors=self._errors.copy(),
                 active_animation=active,
                 queued_animation=self._queued_name,
+                blackout=self._blackout,
                 strings={name: output.status for name, output in self.outputs.items()},
                 bindings=bindings,
                 midi_connected=self._midi_connected,
@@ -563,11 +578,9 @@ class InstallationService(Reccy):
                 if now < next_frame:
                     time.sleep(next_frame - now)
                     continue
-                self._apply_queued_selection()
                 self._process_midi(now)
-                self._apply_queued_test(now)
                 assert self._active is not None
-                frames = self._test_frames(now) or self._active.render(now)
+                frames = self.render(now)
                 for name, frame in frames:
                     output = self.outputs[name]
                     try:
@@ -588,13 +601,25 @@ class InstallationService(Reccy):
             self.close()
         return 0
 
+    def render(self, now: float) -> list[tuple[str, NDArray[np.uint8]]]:
+        with self._lock:
+            self._apply_queued_selection()
+            if self._blackout:
+                return [
+                    (n, np.zeros((o.led_count, 3), dtype=np.uint8))
+                    for n, o in self.outputs.items()
+                ]
+            self._apply_queued_test(now)
+            assert self._active is not None
+            return self._test_frames(now) or self._active.render(now)
+
     def _apply_queued_selection(self) -> None:
         with self._lock:
             if self._queued_name is None:
                 return
             name = self._queued_name
             self._queued_name = None
-        self._select(name)
+            self._select(name)
 
     def _select(self, name: str) -> None:
         active = ActiveAnimation(
@@ -603,6 +628,8 @@ class InstallationService(Reccy):
         with self._lock:
             self._active = active
             active.apply_performance(self._performance)
+            self._blackout = False
+            self._active_test = None
         LOGGER.info(f'[installation] Selected animation: {name}')
         self.publish_status()
 
@@ -678,11 +705,8 @@ class InstallationService(Reccy):
             )
             if frame is None:
                 self._active_test = None
-                self._stop_requested.set()
-                return [
-                    (n, np.zeros((o.led_count, 3), dtype=np.uint8))
-                    for n, o in self.outputs.items()
-                ]
+                self.publish_status()
+                return []
             frames.append((name, frame))
         return frames
 
