@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-09-09T15:48:31.657955Z"
+exclude-newer = "2026-09-09T18:33:59.983908Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -99,7 +99,7 @@ requires-dist = [
     { name = "reccy", git = "https://github.com/rec/reccy.git?branch=main" },
     { name = "tomlkit", specifier = ">=0.15.1" },
     { name = "tyro", specifier = ">=1.0.15" },
-    { name = "ufor", url = "https://github.com/rec/ufor/archive/289b7a38414a3893946a6e6b5e9c03e7f9e33a70.tar.gz" },
+    { name = "ufor", git = "https://github.com/rec/ufor.git?branch=main" },
 ]
 
 [package.metadata.requires-dev]
@@ -541,15 +541,8 @@ wheels = [
 [[package]]
 name = "ufor"
 version = "0.1.0"
-source = { url = "https://github.com/rec/ufor/archive/289b7a38414a3893946a6e6b5e9c03e7f9e33a70.tar.gz" }
+source = { git = "https://github.com/rec/ufor.git?branch=main#3b3c2ec16052d90ed6afed0ca49ad5d435bcd91d" }
 dependencies = [
     { name = "pydantic" },
     { name = "tomlkit" },
-]
-sdist = { hash = "sha256:f4274bd42149b8587e30f1f37db125fe98bf6940f8841ef3e5085fdf17ddb4b5" }
-
-[package.metadata]
-requires-dist = [
-    { name = "pydantic", specifier = ">=2.13.4" },
-    { name = "tomlkit", specifier = ">=0.15.1" },
 ]
