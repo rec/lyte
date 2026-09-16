@@ -188,6 +188,12 @@ score renderer. Preserve export collision checks and existing preview limits.
 
 ### 8. Installation rehearsal without hardware
 
+**Completed 2026-09-16.** `lyte rehearse` uses the shared installation playback
+engine with explicit simulated string counts. The local browser supports stepping,
+play/pause, selection, MIDI controls, test overrides, and blackout. No installation
+service, device discovery, physical MIDI input, or device output is started.
+Tests cover different score/delivery rates, channel filtering, restart, and routing.
+
 Preview an installation's output bindings, not just one score output.
 
 First version:

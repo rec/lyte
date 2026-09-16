@@ -1,6 +1,9 @@
 from typing import Any
 
 class Message:
+    @classmethod
+    def from_dict(cls, data: dict[str, object]) -> Message: ...
+    def dict(self) -> dict[str, object]: ...
     type: str
     channel: int
     control: int

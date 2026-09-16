@@ -30,6 +30,7 @@ def test_cli_help(cli_help) -> None:
             'playlist',
             'preview',
             'render',
+            'rehearse',
             'saturation',
             'validate',
             'fps-test',
