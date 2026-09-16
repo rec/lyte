@@ -28,6 +28,7 @@ def test_cli_help(cli_help) -> None:
             'music',
             'network',
             'patch',
+            'panel',
             'playlist',
             'preview',
             'render',

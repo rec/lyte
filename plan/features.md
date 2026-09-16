@@ -233,6 +233,12 @@ stateful catch-up behavior or discard logical ticks as part of this feature.
 
 ### 10. Installation control panel
 
+**Completed 2026-09-16.** `lyte panel` is a local browser client of the existing
+lyte RPC service. It polls actual service state, shows string/MIDI health and
+timing diagnostics, and sends selection, test, blackout, and stop commands.
+Disconnected controls are disabled; command errors persist until dismissed.
+Reconnect refreshes status only and never replays commands.
+
 Provide a small operator view for the existing installation service, separate
 from the hardware-free authoring page.
 
