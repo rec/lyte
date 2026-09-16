@@ -753,14 +753,36 @@ function compositionNode(node){const item=document.createElement('li');const but
 function rebuildComposition(){composition.replaceChildren();const tree=active().composition;if(!tree){inspector.textContent='This animation has no Ufor composition.';return}const nodes=document.createElement('ul');nodes.className='tree';nodes.append(compositionNode(tree));composition.append(nodes);const first=composition.querySelector('button');if(first){first.click()}}
 function rebuild(){controls.replaceChildren();for(const parameter of active().parameters){control(parameter)}rebuildComposition();presetName.value=defaultPresetName();saveStatus.textContent='';requestPreview()}
 function decodeFrame(text){const binary=atob(text);const bytes=new Uint8Array(binary.length);for(let index=0;index<binary.length;index+=1){bytes[index]=binary.charCodeAt(index)}return bytes}
-async function requestPreview(){const request=++previewRequest;const response=await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values()})});if(request!==previewRequest){return}if(!response.ok){const error=await response.json();status.textContent=error.error;return}preview=await response.json();frames=preview.frames.map(decodeFrame);frame=0;frameControl.max=Math.max(0,frames.length-1);frameControl.value=frame;updateStatus()}
+async function requestPreview(){
+  const request=++previewRequest;
+  preview=null;
+  frames=[];
+  frame=0;
+  frameControl.max=0;
+  frameControl.value=0;
+  status.textContent='Loading preview';
+  try {
+    const response=await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values()})});
+    const result=await response.json();
+    if(request!==previewRequest){return}
+    if(!response.ok){status.textContent=result.error;return}
+    const decoded=result.frames.map(decodeFrame);
+    preview=result;
+    frames=decoded;
+    frameControl.max=Math.max(0,frames.length-1);
+    lastTime=performance.now();
+    updateStatus();
+  } catch(error) {
+    if(request===previewRequest){status.textContent=`Could not load preview: ${error.message}`}
+  }
+}
 async function savePreset(){const response=await fetch('/api/preset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values(),name:presetName.value})});const result=await response.json();if(!response.ok){saveStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);saveStatus.textContent=`Downloaded ${result.filename}`}
 async function saveOperation(){if(!selectedOperation||!operationTemplate.value){operationStatus.textContent='Choose an operation template';return}const response=await fetch('/api/operation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:selectedOperation.entry,output:selectedOperation.output,template:operationTemplate.value})});const result=await response.json();if(!response.ok){operationStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);operationStatus.textContent=`Downloaded ${result.filename}`}
 function fieldValues(){return Object.fromEntries([...operationFields.querySelectorAll('[data-field]')].map(input=>[input.dataset.field,input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value]))}
 async function saveFields(){if(!selectedOperation){return}const response=await fetch('/api/fields',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:selectedOperation.entry,output:selectedOperation.output,fields:fieldValues()})});const result=await response.json();if(!response.ok){fieldsStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);fieldsStatus.textContent=`Downloaded ${result.filename}`}
 function timingValues(){if(selectedOperation.timeline.effect==='crossfade'){return {duration:timeline.querySelector('[data-timing="duration"]').value}}return {events:[...timeline.querySelectorAll('.timeline-row')].map(row=>Object.fromEntries([...row.querySelectorAll('[data-timing]')].map(input=>[input.dataset.timing,input.value])))} }
 async function saveTiming(){if(!selectedOperation||!selectedOperation.timeline){return}const response=await fetch('/api/timeline',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:selectedOperation.entry,output:selectedOperation.output,timing:timingValues()})});const result=await response.json();if(!response.ok){timingStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);timingStatus.textContent=`Downloaded ${result.filename}`}
-function updateStatus(){if(!preview){status.textContent='Loading preview';return}status.textContent=`${active().title} · frame ${frame+1} of ${frames.length} · ${preview.fps} FPS`}
+function updateStatus(){if(!preview){return}status.textContent=`${active().title} · frame ${frame+1} of ${frames.length} · ${preview.fps} FPS`}
 function setFrame(value){if(!frames.length){return}if(value<0){frame=loop.checked?frames.length-1:0}else if(value>=frames.length){frame=loop.checked?0:frames.length-1;playing=loop.checked}else{frame=value}frameControl.value=frame;updateStatus()}
 function resize(){const scale=devicePixelRatio||1;const rect=canvas.getBoundingClientRect();canvas.width=Math.max(1,Math.round(rect.width*scale));canvas.height=Math.max(1,Math.round(rect.height*scale))}
 function projectedPoints(){const bounds=preview.coords.reduce((value,point)=>({minX:Math.min(value.minX,point[0]),minY:Math.min(value.minY,point[1]),maxX:Math.max(value.maxX,point[0]),maxY:Math.max(value.maxY,point[1])}),{minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity});const pad=Math.max(24,Math.min(canvas.width,canvas.height)*0.08);const spanX=Math.max(1e-9,bounds.maxX-bounds.minX);const spanY=Math.max(1e-9,bounds.maxY-bounds.minY);const scale=Math.min((canvas.width-pad*2)/spanX,(canvas.height-pad*2)/spanY);const offsetX=(canvas.width-spanX*scale)/2;const offsetY=(canvas.height-spanY*scale)/2;return preview.coords.map(point=>[offsetX+(point[0]-bounds.minX)*scale,offsetY+(point[1]-bounds.minY)*scale])}
