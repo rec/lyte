@@ -16,7 +16,7 @@ dependencies = [
     "reccy",
     "tomlkit>=0.15.1",
     "tyro>=1.0.15",
-    "ufor @ https://github.com/rec/ufor/archive/2e5b02ea97aa05b9229d836795da298f51b1be49.tar.gz",
+    "ufor @ https://github.com/rec/ufor/archive/289b7a38414a3893946a6e6b5e9c03e7f9e33a70.tar.gz",
 ]
 
 [project.scripts]
