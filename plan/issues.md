@@ -98,14 +98,10 @@ two advances, wraparound, and the applied selection.
 
 ### 12. MIDI note ownership ignores channel on release
 
-**Conditional bug.** [MidiPerformance.receive](../lyte/runtime_control.py)
-records the note-on channel but matches note-off only by pitch. If the input
-admits multiple channels, another channel's note-off can release the active
-note. Breath and pitch messages also lack active-channel matching.
-
-Define multichannel ownership and verify same-pitch notes on different
-channels. A fixed input-channel filter reduces exposure but does not resolve
-the shared model's behavior.
+**Fixed 2026-09-16.** Preserved latest-note priority while restricting note
+release, breath, and pitch bend to the active note's channel. Tests cover
+same-pitch notes on different channels, velocity-zero releases, foreign-channel
+controls, and controls/releases from the owning channel.
 
 ### 13. ffmpeg cleanup is incomplete on exceptional export paths
 
