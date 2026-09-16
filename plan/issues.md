@@ -145,14 +145,9 @@ explains session lifetime and the need to download each changed score.
 
 ### 18. Spatial preview coverage remains incomplete
 
-[plan/editor.md](editor.md) still requests a two-dimensional layout check.
-Both HTML preview and authoring simply take the first two coordinates, so
-three-dimensional layouts collapse onto XY without a selectable projection.
-[doc/guide.md](../doc/guide.md) records a one-dimensional manual check only.
-
-Add a concrete 2D verification example when doing this milestone, and state
-whether 3D projection is supported. Do not treat prior browser checks as
-coverage of the Next-button bug or all transport boundary behavior.
+**Fixed.** Added a concrete 3×3 layout fixture and visually verified all nine
+pixels in the browser. The guide now explicitly describes XY projection and
+the absence of a selectable 3D view. Removed the completed editor plan.
 
 ## Naming, documentation, and structure
 
