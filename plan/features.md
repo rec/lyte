@@ -280,6 +280,17 @@ two animations. Rehearsal support from feature 8 would make this easier to test.
 
 ### 12. Recorded control input for repeatable rehearsal
 
+**Rehearsal capture and replay implemented 2026-09-16.** A delivery journal
+reuses uFor MIDI events and reccy command requests, includes operator controls,
+and preserves actual delivery timestamps. It stores configuration, score
+declarations/seeds, and source fingerprints; replay reports differences and is
+software-only. Tests reproduce frames with uneven delivery intervals.
+
+**Remaining:** connect capture to the live installation input path after choosing
+whether recording failure should leave lighting running with a visible error or
+stop playback. Operator-command capture is approved. Do not assume an answer
+to the separate failure-policy question.
+
 Capture and replay MIDI performance input to reproduce an animation's behavior
 without performing the same gestures again.
 

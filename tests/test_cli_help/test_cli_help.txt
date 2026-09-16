@@ -547,17 +547,20 @@ $ lyte rehearse --help
 usage: lyte rehearse [-h] [REHEARSE OPTIONS] [PATH]
 
  positional arguments
- -------------------------------------------------
-  [PATH]      config (default: installation.toml)
+ --------------------------------------------------------
+  [PATH]             config (default: installation.toml)
 
  options
- -------------------------------------------------
-  -h, --help  show this help message and exit
+ --------------------------------------------------------
+  -h, --help         show this help message and exit
   --string-counts [STR INT [STR INT ...]]
-              (required)
-  --port INT  (default: 8766)
-  --open, --no-open
-              (default: True)
+                     (default: )
+  --record-input {None}|PATH
+                     (default: None)
+  --replay {None}|PATH
+                     (default: None)
+  --port INT         (default: 8766)
+  --open, --no-open  (default: True)
 
 
 $ lyte render --help

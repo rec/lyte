@@ -15,6 +15,7 @@ canvas{width:100%;height:90px;background:#000}fieldset{margin:1rem 0}output{disp
 <p>Software simulation only. No devices, MIDI ports, or installation services are opened.
 Each step advances one delivery tick. Play advances the simulated clock; browser delays slow rehearsal without skipping ticks.</p>
 <button id="play">Play</button><button id="step">Step</button>
+<fieldset id="operator"><legend>Operator controls</legend>
 <label>Animation <select id="animation"></select></label><button id="select">Select</button>
 <label>Fade (s) <input id="fade" type="number" min="0" step="0.1" value="0"></label>
 <label>Master (%) <input id="master" type="number" min="0" max="100" value="100"></label><button id="set-master">Set master</button>
@@ -22,6 +23,7 @@ Each step advances one delivery tick. Play advances the simulated clock; browser
 <button id="blackout">Blackout</button>
 <label>Test level (%) <input id="level" type="number" min="0" max="100" value="50"></label>
 <label>Test duration (s) <input id="duration" type="number" min="0.01" step="0.1" value="2"></label><button id="test">Test</button>
+</fieldset>
 <fieldset id="midi"><legend>Synthetic MIDI</legend>
 <label>Channel (1–16) <input id="channel" type="number" min="1" max="16" value="1"></label>
 <label>Note <input id="note" type="number" min="0" max="127" value="60"></label>
@@ -32,17 +34,21 @@ Each step advances one delivery tick. Play advances the simulated clock; browser
 <button id="program">Next animation</button>
 <p>Controls apply to the note-owning channel and the installation's configured channel filter.</p></fieldset>
 <output id="error" role="alert"></output><output id="status"></output><pre id="bindings"></pre><section id="strings"></section>
+<output id="recording-status"></output>
 <script>
 const element=id=>document.getElementById(id), number=id=>Number(element(id).value);
 let playing=false, rate=30, queue=Promise.resolve(), timer=null, initial=true, generation=0;
 const canvases=new Map();
 function show(data){
+  element('operator').disabled=data.replay;
+  element('midi').disabled=data.replay||data.midi===null;
+  element('recording-status').textContent=[...data.warnings,data.finished?'Replay finished':''].filter(Boolean).join('\n');
+  if(data.finished){playing=false;generation++;element('play').textContent='Play';element('play').disabled=true;element('step').disabled=true;}
   rate=data.fps;
   element('fade-status').textContent=`Master ${Math.round(data.master_level*100)}% · fade ${data.transition_duration||0}s`;
   if(initial){
     element('animation').replaceChildren(...data.animations.map(name=>new Option(name,name)));
     element('animation').value=data.active;
-    element('midi').disabled=data.midi===null;
     if(data.midi?.channel){element('channel').value=data.midi.channel;}
     initial=false;
   }
