@@ -1,4 +1,4 @@
-"""Ufor adapter for the preserved wearable patch catalogue."""
+"""uFor adapter for the preserved wearable patch catalogue."""
 
 from pathlib import Path
 from typing import cast
@@ -14,9 +14,9 @@ from ufor.lights import Interpretation, Layout, Light, LightType
 from ufor.modulation import Parameter, Target, Unit
 from ufor.time import Rate, Timebase
 
-from lyte import animation, midi, patches, rendering
+from lyte import animation, midi, patch_config, patches, rendering
 
-_LIBRARY = patches.load_patch_library(
+_LIBRARY = patch_config.load_patch_library(
     Path(__file__).parents[1] / 'wearable-breath.toml'
 )
 _LED_COUNT = cast(int, _LIBRARY.wearable.led_count)

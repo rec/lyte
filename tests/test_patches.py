@@ -11,7 +11,14 @@ from numpy import testing as npt
 from pydantic import BaseModel
 from ufor import library_files
 
-from lyte import animation, installation, midi, patches, show
+from lyte import (
+    animation,
+    installation_config,
+    midi,
+    patch_config,
+    patches,
+    show,
+)
 from lyte.retry import RetryConfig
 from lyte.twinkly import realtime, track
 from lyte.twinkly.client import TwinklyClient
@@ -30,8 +37,8 @@ def make_track(led_count: int = 250) -> track.TwinklyTrack:
 
 class PatchLibraryTests(unittest.TestCase):
     def test_wearable_catalog_is_available_as_ufor_scores(self) -> None:
-        catalog = patches.load_patch_library(Path('patches/wearable-breath.toml'))
-        config = installation.load_installation(
+        catalog = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
+        config = installation_config.load_installation(
             Path('patches/wearable-installation.toml')
         )
         library = library_files.read_library(config.library_config)
@@ -54,7 +61,7 @@ class PatchLibraryTests(unittest.TestCase):
             )
 
     def test_ufor_wearable_score_preserves_legacy_rendering(self) -> None:
-        catalog = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        catalog = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
         legacy = patches.build_light_patch(catalog, 'prism_limbs')
         legacy.receive(mido.Message('note_on', note=61, velocity=100))
         legacy.receive(mido.Message('control_change', control=2, value=127))
@@ -76,7 +83,7 @@ class PatchLibraryTests(unittest.TestCase):
         npt.assert_array_equal(prepared.render(), expected)
 
     def test_load_wearable_library_and_map_logical_regions(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
 
         self.assertEqual(len(library.patches), 36)
         self.assertIn('random_walk', library.layers)
@@ -98,21 +105,21 @@ class PatchLibraryTests(unittest.TestCase):
         npt.assert_array_equal(physical_frame[220:250], logical_frame[220:250])
 
     def test_wearable_layout_scales_to_the_connected_led_count(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
 
         with patch('lyte.patches.LOGGER.warning') as log_warning:
             wearable = patches.scale_wearable_layout(library.wearable, 200)
 
         assert wearable.led_count == 200
-        assert wearable.segments['left_leg'] == patches.RegionSpec(
+        assert wearable.segments['left_leg'] == patch_config.RegionSpec(
             start=0, led_count=32
         )
-        assert wearable.segments['left_arm'] == patches.RegionSpec(
+        assert wearable.segments['left_arm'] == patch_config.RegionSpec(
             start=64, led_count=44
         )
         assert wearable.physical_map['left_arm'].ranges == [
-            patches.PhysicalRangeSpec(start=0, led_count=28),
-            patches.PhysicalRangeSpec(start=60, led_count=16),
+            patch_config.PhysicalRangeSpec(start=0, led_count=28),
+            patch_config.PhysicalRangeSpec(start=60, led_count=16),
         ]
         frame = np.zeros((200, 3), dtype=np.float32)
         assert patches.map_logical_frame(wearable, frame).shape == (200, 3)
@@ -121,16 +128,16 @@ class PatchLibraryTests(unittest.TestCase):
         )
 
     def test_wearable_layout_derives_count_from_regions_when_omitted(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
 
-        wearable = patches.WearableSpec.model_validate(
+        wearable = patch_config.WearableSpec.model_validate(
             library.wearable.model_dump(exclude={'led_count'})
         )
 
         assert wearable.led_count == 250
 
     def test_library_uses_validated_control_bindings(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
         patch = library.patches['breath_mix_walk_twinkle']
 
         self.assertEqual(patch.activation, 'note')
@@ -142,7 +149,7 @@ class PatchLibraryTests(unittest.TestCase):
 
     def test_library_rejects_unknown_binding_target(self) -> None:
         with self.assertRaisesRegex(ValueError, 'invalid binding target'):
-            patches.PatchLibrary.model_validate(
+            patch_config.PatchLibrary.model_validate(
                 {
                     'wearable': {
                         'led_count': 1,
@@ -183,7 +190,7 @@ class PatchLibraryTests(unittest.TestCase):
             'layers': {'solid': {'kind': 'solid'}},
         }
         with self.assertRaisesRegex(ValueError, 'does not support'):
-            patches.PatchLibrary.model_validate(
+            patch_config.PatchLibrary.model_validate(
                 base
                 | {
                     'patches': {
@@ -205,7 +212,7 @@ class PatchLibraryTests(unittest.TestCase):
                 }
             )
         with self.assertRaisesRegex(ValueError, 'without a weighted blend'):
-            patches.PatchLibrary.model_validate(
+            patch_config.PatchLibrary.model_validate(
                 base
                 | {
                     'patches': {
@@ -228,7 +235,7 @@ class PatchLibraryTests(unittest.TestCase):
             )
 
     def test_wearable_encoder_maps_logical_values_before_byte_encoding(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
         logical_frame = np.zeros((250, 3), dtype=np.float32)
         logical_frame[0:40, 1] = 1.0
 
@@ -238,7 +245,7 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertTrue(np.all(encoded[0:35, 1] == 0))
 
     def test_locator_frame_lights_only_the_selected_logical_region(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
 
         frame = patches.locator_frame(library.wearable, 'left_arm')
 
@@ -248,7 +255,7 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertTrue(np.all(frame[95:250] == 0.0))
 
     def test_build_light_patch_composes_named_layers(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
         patch = patches.build_light_patch(library, 'breath_mix_walk_twinkle')
         device = animation.Device(led_count=250)
 
@@ -260,7 +267,7 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertTrue(frame.flags.c_contiguous)
 
     def test_note_and_breath_bindings_change_the_declared_layer_state(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
         note_patch = patches.build_light_patch(library, 'prism_limbs')
         breath_patch = patches.build_light_patch(library, 'breath_walker')
         if not isinstance(note_patch, patches.DeclarativeLightPatch):
@@ -284,7 +291,7 @@ class PatchLibraryTests(unittest.TestCase):
         )
 
     def test_note_end_restores_layer_speed_before_the_next_note(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
         patch = patches.build_light_patch(library, 'breath_walker')
         if not isinstance(patch, patches.DeclarativeLightPatch):
             self.fail('patch did not compile to DeclarativeLightPatch')
@@ -303,7 +310,7 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertEqual(layer.config.sources[0].speed, initial_speed)
 
     def test_declarative_patch_applies_note_breath_mix_and_pitch_bindings(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
         patch = patches.build_light_patch(library, 'breath_mix_walk_twinkle')
         if not isinstance(patch, patches.DeclarativeLightPatch):
             self.fail('patch did not compile to DeclarativeLightPatch')
@@ -320,7 +327,7 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertIsNone(patch.state)
 
     def test_layer_regions_override_the_patch_default_regions(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
         patch = patches.build_light_patch(library, 'chest_orbit')
         if not isinstance(patch, patches.DeclarativeLightPatch):
             self.fail('patch did not compile')
@@ -333,7 +340,7 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertNotIn(190, [region.start for region in limbs.config.placements])
 
     def test_declarative_patch_compiles_declared_blend_policy(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
         additive = patches.build_light_patch(library, 'prism_limbs')
         weighted = patches.build_light_patch(library, 'breath_mix_walk_twinkle')
 
@@ -345,7 +352,7 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertEqual(weighted.mixer.config.weights, [1.0, 0.0])
 
     def test_pitch_bend_maps_only_the_positive_half(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
         patch = patches.build_light_patch(library, 'pitch_turbo_walk')
         if not isinstance(patch, patches.DeclarativeLightPatch):
             self.fail('patch did not compile to DeclarativeLightPatch')
@@ -358,7 +365,7 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertEqual(layer.config.sources[0].speed, 300.0)
 
     def test_build_light_patch_rejects_unknown_patch(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
 
         with self.assertRaisesRegex(ValueError, 'unknown patch'):
             patches.build_light_patch(library, 'missing')
@@ -375,7 +382,7 @@ class PatchLibraryTests(unittest.TestCase):
         self.assertIn('prism_limbs:', output.getvalue())
 
     def test_patch_playback_rejects_a_provisional_physical_map(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
         library = library.model_copy(
             update={
                 'wearable': library.wearable.model_copy(
@@ -395,7 +402,7 @@ class PatchLibraryTests(unittest.TestCase):
         )
 
     def test_patch_playback_recovers_after_a_failed_frame_send(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
 
         class Port:
             messages = iter([mido.Message('note_on', note=60, velocity=100)])
@@ -443,7 +450,7 @@ class PatchLibraryTests(unittest.TestCase):
         recover.assert_called_once()
 
     def test_patch_playback_applies_input_before_rendering_each_frame(self) -> None:
-        library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+        library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
 
         class Port:
             messages = iter([mido.Message('note_on', note=60, velocity=100)])
@@ -501,7 +508,7 @@ class PatchLibraryTests(unittest.TestCase):
 
     def test_patch_library_rejects_physical_map_gaps(self) -> None:
         with self.assertRaisesRegex(ValueError, 'must contain 2 LEDs'):
-            patches.PatchLibrary.model_validate(
+            patch_config.PatchLibrary.model_validate(
                 {
                     'wearable': {
                         'led_count': 2,

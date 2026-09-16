@@ -4,11 +4,11 @@ import mido
 import numpy as np
 import pytest
 
-from lyte import animation, patches
+from lyte import animation, patch_config, patches
 
 
 def make_patch(name: str, velocity: int = 100) -> patches.DeclarativeLightPatch:
-    library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+    library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
     patch = patches.build_light_patch(library, name)
     assert isinstance(patch, patches.DeclarativeLightPatch)
     patch.fps = 20
@@ -90,7 +90,7 @@ def test_constellation_separates_dims_and_restarts_on_new_note() -> None:
     ['velocity_splash', 'breath_bloom', 'pitch_bend_travel', 'note_age_constellation'],
 )
 def test_reactive_effect_handles_one_light(name: str) -> None:
-    source = patches.build_layer_animation(patches.LayerSpec(kind=name, speed=1))
+    source = patches.build_layer_animation(patch_config.LayerSpec(kind=name, speed=1))
     device = animation.Device(led_count=1)
     state = source.initial_state(device)
     for _ in range(10):
@@ -100,7 +100,7 @@ def test_reactive_effect_handles_one_light(name: str) -> None:
 
 
 def test_reactive_patch_respects_selected_regions() -> None:
-    library = patches.load_patch_library(Path('patches/wearable-breath.toml'))
+    library = patch_config.load_patch_library(Path('patches/wearable-breath.toml'))
     specs = dict(library.patches)
     specs['velocity_splash'] = specs['velocity_splash'].model_copy(
         update={'regions': ['chest']}

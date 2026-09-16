@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sys
 import time
-import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Literal
@@ -11,10 +10,10 @@ import mido
 import numpy as np
 import tyro
 from numpy.typing import NDArray
-from pydantic import BaseModel, ConfigDict, Field, SkipValidation, model_validator
+from pydantic import BaseModel, ConfigDict, SkipValidation
 from reccy.runtime import logging
 
-from . import animation, midi
+from . import animation, midi, patch_config
 from .animations import compositions, reactive
 from .animations.events import color_chase, twinkle
 from .animations.fields import rainbow
@@ -27,245 +26,15 @@ from .twinkly.client import TwinklyClient
 LOGGER = logging.get_logger(__name__)
 
 
-class PatchLibraryError(ValueError):
-    pass
-
-
-class RegionSpec(BaseModel, frozen=True):
-    start: int
-    led_count: int
-
-    @model_validator(mode='after')
-    def validate_region(self) -> RegionSpec:
-        if self.start < 0:
-            raise ValueError('region start must not be negative')
-        if self.led_count <= 0:
-            raise ValueError('region led_count must be greater than zero')
-        return self
-
-    model_config = ConfigDict(extra='forbid')
-
-
-class PhysicalRangeSpec(BaseModel, frozen=True):
-    start: int
-    led_count: int
-
-    @model_validator(mode='after')
-    def validate_range(self) -> PhysicalRangeSpec:
-        if self.start < 0:
-            raise ValueError('physical range start must not be negative')
-        if self.led_count <= 0:
-            raise ValueError('physical range led_count must be greater than zero')
-        return self
-
-    model_config = ConfigDict(extra='forbid')
-
-
-class PhysicalRegionSpec(BaseModel, frozen=True):
-    ranges: list[PhysicalRangeSpec]
-
-    @model_validator(mode='after')
-    def validate_ranges(self) -> PhysicalRegionSpec:
-        if not self.ranges:
-            raise ValueError('physical region must contain at least one range')
-        return self
-
-    model_config = ConfigDict(extra='forbid')
-
-
-class WearableSpec(BaseModel, frozen=True):
-    led_count: int | None = None
-    physical_map_status: Literal['provisional', 'guessed', 'measured']
-    segments: dict[str, RegionSpec]
-    physical_map: dict[str, PhysicalRegionSpec]
-
-    @model_validator(mode='after')
-    def validate_layout(self) -> WearableSpec:
-        if set(self.segments) != set(self.physical_map):
-            raise ValueError('physical map names must match wearable segments')
-        if not self.segments:
-            raise ValueError('wearable must contain at least one segment')
-
-        led_count = self.led_count or max(
-            segment.start + segment.led_count for segment in self.segments.values()
-        )
-        if led_count <= 0:
-            raise ValueError('wearable led_count must be greater than zero')
-
-        logical_indexes = []
-        physical_indexes = []
-        for name, segment in self.segments.items():
-            logical_indexes.extend(
-                range(segment.start, segment.start + segment.led_count)
-            )
-            physical_ranges = self.physical_map[name].ranges
-            if sum(r.led_count for r in physical_ranges) != segment.led_count:
-                raise ValueError(
-                    f'physical map for {name} must contain {segment.led_count} LEDs'
-                )
-            for physical_range in physical_ranges:
-                physical_indexes.extend(
-                    range(
-                        physical_range.start,
-                        physical_range.start + physical_range.led_count,
-                    )
-                )
-
-        expected_indexes = set(range(led_count))
-        if (
-            set(logical_indexes) != expected_indexes
-            or len(logical_indexes) != led_count
-        ):
-            raise ValueError(
-                'wearable segments must cover each logical LED exactly once'
-            )
-        if (
-            set(physical_indexes) != expected_indexes
-            or len(physical_indexes) != led_count
-        ):
-            raise ValueError('physical map must cover each physical LED exactly once')
-        object.__setattr__(self, 'led_count', led_count)
-        return self
-
-    model_config = ConfigDict(extra='forbid')
-
-
-class LinearMapSpec(BaseModel, frozen=True):
-    kind: Literal['linear', 'positive_linear']
-    input: list[float] = [0.0, 127.0]
-    output: list[float]
-
-    @model_validator(mode='after')
-    def validate_ranges(self) -> LinearMapSpec:
-        if len(self.input) != 2 or len(self.output) != 2:
-            raise ValueError('linear maps require two input and output values')
-        if self.input[0] >= self.input[1] or self.output[0] > self.output[1]:
-            raise ValueError('linear map ranges must be ordered')
-        return self
-
-    model_config = ConfigDict(extra='forbid')
-
-
-class BindingSpec(BaseModel, frozen=True):
-    source: Literal['note', 'breath', 'pitch_bend']
-    target: str
-    mapping: Literal['pitch_class_palette'] | LinearMapSpec = Field(alias='map')
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-
-
-class LayerSpec(BaseModel, frozen=True):
-    kind: Literal[
-        'solid',
-        'random_walk',
-        'twinkle',
-        'chase',
-        'rainbow',
-        'velocity_splash',
-        'breath_bloom',
-        'pitch_bend_travel',
-        'note_age_constellation',
-    ]
-    color: list[float] = [1.0, 1.0, 1.0]
-    speed: float = 10.0
-    regions: list[str] = []
-
-    @model_validator(mode='after')
-    def validate_layer(self) -> LayerSpec:
-        if len(self.color) != 3 or any(value < 0 or value > 1 for value in self.color):
-            raise ValueError('layer color must contain three values between 0 and 1')
-        if self.speed < 0:
-            raise ValueError('layer speed must not be negative')
-        return self
-
-    model_config = ConfigDict(extra='forbid')
-
-
-class PatchSpec(BaseModel, frozen=True):
-    activation: Literal['note']
-    layers: list[str]
-    regions: list[str] = []
-    note_palette: list[list[float]] = []
-    bindings: list[BindingSpec] = []
-    blend: Literal['add', 'weighted'] = 'add'
-
-    @model_validator(mode='after')
-    def validate_patch(self) -> PatchSpec:
-        if not self.layers:
-            raise ValueError('patch must contain at least one layer')
-        if self.note_palette and (
-            len(self.note_palette) != 12
-            or any(
-                len(color) != 3 or any(value < 0 or value > 1 for value in color)
-                for color in self.note_palette
-            )
-        ):
-            raise ValueError('note_palette must contain twelve RGB colors')
-        for binding in self.bindings:
-            if binding.source == 'note' and binding.mapping != 'pitch_class_palette':
-                raise ValueError('note bindings require pitch_class_palette mapping')
-            if binding.source == 'note' and not self.note_palette:
-                raise ValueError('note bindings require note_palette')
-        return self
-
-    model_config = ConfigDict(extra='forbid')
-
-
-class PatchLibrary(BaseModel, frozen=True):
-    wearable: WearableSpec
-    layers: dict[str, LayerSpec]
-    patches: dict[str, PatchSpec]
-
-    @model_validator(mode='after')
-    def validate_patches(self) -> PatchLibrary:
-        if not self.patches:
-            raise ValueError('patch library must contain at least one patch')
-        for layer_name, layer in self.layers.items():
-            unknown_regions = set(layer.regions).difference(self.wearable.segments)
-            if unknown_regions:
-                unknown = ', '.join(sorted(unknown_regions))
-                raise ValueError(f'layer {layer_name} names unknown regions: {unknown}')
-        for name, patch in self.patches.items():
-            unknown_layers = set(patch.layers).difference(self.layers)
-            if unknown_layers:
-                unknown = ', '.join(sorted(unknown_layers))
-                raise ValueError(f'patch {name} names unknown layers: {unknown}')
-            unknown_regions = set(patch.regions).difference(self.wearable.segments)
-            if unknown_regions:
-                unknown = ', '.join(sorted(unknown_regions))
-                raise ValueError(f'patch {name} names unknown regions: {unknown}')
-            for binding in patch.bindings:
-                target_name, _, parameter = binding.target.partition('.')
-                if target_name == 'mix':
-                    if patch.blend != 'weighted':
-                        raise ValueError(
-                            f'patch {name} uses a mix binding without a weighted blend'
-                        )
-                    if parameter not in patch.layers:
-                        raise ValueError(f'patch {name} names unknown mix target')
-                    continue
-                if (layer := self.layers.get(target_name)) is None:
-                    raise ValueError(f'patch {name} names invalid binding target')
-                if not layer_supports_parameter(layer, parameter):
-                    raise ValueError(
-                        f'layer {target_name} does not support {parameter!r} bindings'
-                    )
-                if binding.source == 'note' and parameter != 'color':
-                    raise ValueError('note bindings must target layer color')
-                if binding.source == 'pitch_bend' and parameter != 'speed':
-                    raise ValueError('pitch bend bindings must target layer speed')
-        return self
-
-    model_config = ConfigDict(extra='forbid')
-
-
 class DeclarativePatchState(BaseModel):
     colors: dict[str, list[float]] = {}
     gains: dict[str, float] = {}
     weights: dict[str, float] = {}
 
 
-class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
+class DeclarativeLightPatch(
+    midi.LightPatch[patch_config.PatchSpec, DeclarativePatchState]
+):
     layers: dict[str, SkipValidation[midi.LightPatch]]
     base_layer_configs: dict[str, compositions.Segments]
     mixer: SkipValidation[midi.MixLightPatch]
@@ -347,13 +116,7 @@ class DeclarativeLightPatch(midi.LightPatch[PatchSpec, DeclarativePatchState]):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
-def layer_supports_parameter(layer: LayerSpec, parameter: str) -> bool:
-    if parameter in {'color', 'gain'}:
-        return True
-    return parameter == 'speed' and layer.kind not in {'solid', 'pitch_bend_travel'}
-
-
-def map_binding_value(mapping: LinearMapSpec, value: int) -> float:
+def map_binding_value(mapping: patch_config.LinearMapSpec, value: int) -> float:
     if mapping.kind == 'positive_linear' and value <= 0:
         return mapping.output[0]
     start, end = mapping.input
@@ -380,16 +143,9 @@ def set_layer_speed(layer: midi.LightPatch, speed: float) -> None:
     )
 
 
-def load_patch_library(path: Path) -> PatchLibrary:
-    try:
-        with path.open('rb') as source:
-            data = tomllib.load(source)
-        return PatchLibrary.model_validate(data)
-    except (OSError, tomllib.TOMLDecodeError, ValueError) as error:
-        raise PatchLibraryError(f'{path}: {error}') from error
-
-
-def scale_wearable_layout(wearable: WearableSpec, led_count: int) -> WearableSpec:
+def scale_wearable_layout(
+    wearable: patch_config.WearableSpec, led_count: int
+) -> patch_config.WearableSpec:
     if led_count <= 0:
         raise ValueError('runtime LED count must be greater than zero')
     planned_led_count = wearable.led_count
@@ -401,7 +157,7 @@ def scale_wearable_layout(wearable: WearableSpec, led_count: int) -> WearableSpe
         f'{led_count} LEDs.'
     )
     physical_map = {
-        name: PhysicalRegionSpec(
+        name: patch_config.PhysicalRegionSpec(
             ranges=[
                 _scaled_physical_range(
                     physical_range, planned_led_count, led_count, name
@@ -415,9 +171,11 @@ def scale_wearable_layout(wearable: WearableSpec, led_count: int) -> WearableSpe
     start = 0
     for name in wearable.segments:
         region_led_count = sum(r.led_count for r in physical_map[name].ranges)
-        segments[name] = RegionSpec(start=start, led_count=region_led_count)
+        segments[name] = patch_config.RegionSpec(
+            start=start, led_count=region_led_count
+        )
         start += region_led_count
-    return WearableSpec(
+    return patch_config.WearableSpec(
         led_count=led_count,
         physical_map_status=wearable.physical_map_status,
         segments=segments,
@@ -425,19 +183,21 @@ def scale_wearable_layout(wearable: WearableSpec, led_count: int) -> WearableSpe
     )
 
 
-def scale_patch_library(library: PatchLibrary, led_count: int) -> PatchLibrary:
+def scale_patch_library(
+    library: patch_config.PatchLibrary, led_count: int
+) -> patch_config.PatchLibrary:
     return library.model_copy(
         update={'wearable': scale_wearable_layout(library.wearable, led_count)}
     )
 
 
 def _scaled_physical_range(
-    physical_range: PhysicalRangeSpec,
+    physical_range: patch_config.PhysicalRangeSpec,
     planned_led_count: int,
     actual_led_count: int,
     name: str,
-) -> PhysicalRangeSpec:
-    return PhysicalRangeSpec(
+) -> patch_config.PhysicalRangeSpec:
+    return patch_config.PhysicalRangeSpec(
         start=_scale_boundary(
             physical_range.start, planned_led_count, actual_led_count
         ),
@@ -472,7 +232,7 @@ def _scaled_led_count(
 
 
 def map_logical_frame(
-    wearable: WearableSpec,
+    wearable: patch_config.WearableSpec,
     logical_frame: NDArray[np.float32],
 ) -> NDArray[np.float32]:
     led_count = wearable.led_count
@@ -495,7 +255,7 @@ def map_logical_frame(
 
 
 def encode_wearable_frame(
-    wearable: WearableSpec, logical_frame: NDArray[np.float32]
+    wearable: patch_config.WearableSpec, logical_frame: NDArray[np.float32]
 ) -> NDArray[np.uint8]:
     return animation.byte_light_frame_from_float(
         map_logical_frame(wearable, logical_frame)
@@ -503,7 +263,7 @@ def encode_wearable_frame(
 
 
 def locator_frame(
-    wearable: WearableSpec,
+    wearable: patch_config.WearableSpec,
     region: str,
     color: animation.FloatRGB = (1.0, 1.0, 1.0),
 ) -> NDArray[np.float32]:
@@ -536,7 +296,7 @@ class PatchCommandConfig:
 
 
 def run_patch_command(config: PatchCommandConfig) -> int:
-    library = load_patch_library(config.library)
+    library = patch_config.load_patch_library(config.library)
     if config.action == 'list':
         list_patch_library(library)
         return 0
@@ -545,7 +305,7 @@ def run_patch_command(config: PatchCommandConfig) -> int:
     return run_patch_playback(config, library)
 
 
-def list_patch_library(library: PatchLibrary) -> None:
+def list_patch_library(library: patch_config.PatchLibrary) -> None:
     print(
         f'Wearable: {library.wearable.led_count} LEDs '
         f'({library.wearable.physical_map_status} physical map)'
@@ -560,7 +320,7 @@ def list_patch_library(library: PatchLibrary) -> None:
         )
 
 
-def run_locator(config: PatchCommandConfig, library: PatchLibrary) -> int:
+def run_locator(config: PatchCommandConfig, library: patch_config.PatchLibrary) -> int:
     validate_locator_config(config)
     host = config.host or realtime.discover_host(config.discovery_timeout)
     if host is None:
@@ -596,7 +356,9 @@ def run_locator(config: PatchCommandConfig, library: PatchLibrary) -> int:
     return 0
 
 
-def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int:
+def run_patch_playback(
+    config: PatchCommandConfig, library: patch_config.PatchLibrary
+) -> int:
     validate_playback_config(config)
     if library.wearable.physical_map_status == 'provisional':
         LOGGER.error(
@@ -648,7 +410,7 @@ def run_patch_playback(config: PatchCommandConfig, library: PatchLibrary) -> int
 def stream_patch_frames(
     port: midi.MidiInput,
     config: PatchCommandConfig,
-    library: PatchLibrary,
+    library: patch_config.PatchLibrary,
     patch: midi.LightPatch,
     twinkly_track: track.TwinklyTrack,
 ) -> None:
@@ -688,7 +450,7 @@ def validate_locator_config(config: PatchCommandConfig) -> None:
         sys.exit('--retry-backoff must be at least 1')
 
 
-def build_light_patch(library: PatchLibrary, name: str) -> midi.LightPatch:
+def build_light_patch(library: patch_config.PatchLibrary, name: str) -> midi.LightPatch:
     if (patch := library.patches.get(name)) is None:
         raise ValueError(f'unknown patch: {name}')
     default_regions = patch.regions or list(library.wearable.segments)
@@ -729,7 +491,7 @@ def build_light_patch(library: PatchLibrary, name: str) -> midi.LightPatch:
     )
 
 
-def build_layer_animation(layer: LayerSpec) -> animation.Animation:
+def build_layer_animation(layer: patch_config.LayerSpec) -> animation.Animation:
     if layer.kind == 'velocity_splash':
         return reactive.VelocitySplash(speed=layer.speed, color=layer.color)
     if layer.kind == 'breath_bloom':

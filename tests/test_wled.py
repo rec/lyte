@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from ufor import library_files
 
-from lyte import wled
+from lyte import wled, wled_output
 
 
 def test_snapshot_round_trip_preserves_native_presets_and_excludes_network_identity(
@@ -59,7 +59,7 @@ def test_translation_generates_supported_score_and_preserves_unsupported_preset(
 def test_ddp_encoder_uses_rgb_offsets_and_pushes_only_final_packet() -> None:
     frame = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.uint8)
 
-    packets = wled.encode_ddp_frame(frame, sequence=7, maximum_payload_size=3)
+    packets = wled_output.encode_ddp_frame(frame, sequence=7, maximum_payload_size=3)
 
     assert packets == [
         bytes([0x40, 7, 1, 0, 0, 0, 0, 0, 0, 3, 1, 2, 3]),
@@ -95,7 +95,9 @@ def test_each_declared_wled_effect_has_an_explicit_translation(
 
 def test_ddp_output_scales_before_sending() -> None:
     socket = FakeSocket()
-    output = wled.WledDdpOutput('wled.local', 3, socket_factory=lambda *_: socket)
+    output = wled_output.WledDdpOutput(
+        'wled.local', 3, socket_factory=lambda *_: socket
+    )
     frame = np.array([[0, 0, 0], [255, 0, 0]], dtype=np.uint8)
 
     packets = output.send(frame)

@@ -17,12 +17,12 @@ from ufor.control import Scope
 from ufor.interface import ParameterExport
 from ufor.library import Entry, Library
 
-from lyte import installation, runtime_control, show
+from lyte import installation, installation_config, runtime_control, show
 from lyte.twinkly import diagnostic
 
 
 def test_parse_installation_accepts_selectable_animations() -> None:
-    config = installation.parse_installation(example_installation())
+    config = installation_config.parse_installation(example_installation())
 
     assert config.twinkly['left'].product_name == 'Dots'
     assert config.animations['across'].outputs == {'light': 'left + right'}
@@ -38,7 +38,7 @@ def test_controlled_animation_requires_midi_configuration() -> None:
     across['activation'] = 'note'
 
     with pytest.raises(ValidationError, match='require MIDI'):
-        installation.parse_installation(data)
+        installation_config.parse_installation(data)
 
 
 def test_animation_defaults_are_applied_unless_overridden() -> None:
@@ -56,7 +56,7 @@ def test_animation_defaults_are_applied_unless_overridden() -> None:
     separate['activation'] = 'always'
     separate['controls'] = []
 
-    config = installation.parse_installation(data)
+    config = installation_config.parse_installation(data)
 
     assert config.animations['across'].activation == 'note'
     assert config.animations['across'].controls[0].parameter == 'brightness'
@@ -67,10 +67,10 @@ def test_animation_defaults_are_applied_unless_overridden() -> None:
 def test_midi_controls_map_canonical_and_table_values() -> None:
     performance = runtime_control.MidiPerformance(note=61, velocity=64, breath=32)
 
-    velocity = installation.ParameterControl(
+    velocity = installation_config.ParameterControl(
         source='velocity', parameter='gain', output=[0.0, 2.0]
     )
-    note = installation.ParameterControl(
+    note = installation_config.ParameterControl(
         source='note', parameter='red', values=[0.25, 0.75]
     )
 
@@ -79,7 +79,7 @@ def test_midi_controls_map_canonical_and_table_values() -> None:
 
 
 def test_example_installation_is_valid() -> None:
-    config = installation.load_installation(Path('examples/installation.toml'))
+    config = installation_config.load_installation(Path('examples/installation.toml'))
 
     assert config.initial_animation == 'tree_show'
 
@@ -96,7 +96,7 @@ def test_example_installation_is_valid() -> None:
 def test_invalid_midi_range_fails_before_discovery(
     mapping: dict[str, object], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    config = installation.parse_installation(
+    config = installation_config.parse_installation(
         {
             'library_config': 'patches/wearable-library.toml',
             'twinkly': {'left': {}},
@@ -114,7 +114,7 @@ def test_invalid_midi_range_fails_before_discovery(
     discover = Mock(side_effect=AssertionError('discovery must not start'))
     monkeypatch.setattr(installation, 'discover_assignments', discover)
     with pytest.raises(
-        installation.InstallationFileError, match='control note: mapped value'
+        installation_config.InstallationFileError, match='control note: mapped value'
     ):
         installation.build_service(config)
     discover.assert_not_called()
@@ -156,7 +156,7 @@ def test_construction_only_midi_target_fails_before_discovery(
     )
     discover = Mock(side_effect=AssertionError('discovery must not start'))
     monkeypatch.setattr(installation, 'discover_assignments', discover)
-    config = installation.parse_installation(
+    config = installation_config.parse_installation(
         {
             'twinkly': {'left': {}},
             'midi': {'channel': 1},
@@ -172,13 +172,17 @@ def test_construction_only_midi_target_fails_before_discovery(
             },
         }
     )
-    with pytest.raises(installation.InstallationFileError, match='construction-only'):
+    with pytest.raises(
+        installation_config.InstallationFileError, match='construction-only'
+    ):
         installation.build_service(config)
     discover.assert_not_called()
 
 
 def test_showco_installation_is_valid() -> None:
-    config = installation.load_installation(Path('patches/showco-installation.toml'))
+    config = installation_config.load_installation(
+        Path('patches/showco-installation.toml')
+    )
 
     assert list(config.twinkly) == ['dots', 'strings']
     assert config.animations['tree_show'].outputs == {'light': 'dots + strings'}
@@ -193,7 +197,7 @@ def test_installation_rejects_legacy_network_configuration() -> None:
     left['host'] = '192.168.1.23'
 
     with pytest.raises(ValidationError, match='host'):
-        installation.parse_installation(data)
+        installation_config.parse_installation(data)
 
 
 def test_installation_rejects_missing_string_binding() -> None:
@@ -205,7 +209,7 @@ def test_installation_rejects_missing_string_binding() -> None:
     across['outputs'] = {'light': 'left'}
 
     with pytest.raises(ValueError, match="does not bind string 'right'"):
-        installation.parse_installation(data)
+        installation_config.parse_installation(data)
 
 
 @pytest.mark.parametrize(
@@ -220,12 +224,14 @@ def test_installation_rejects_missing_string_binding() -> None:
 )
 def test_output_expression_rejects_ambiguous_syntax(value: str, message: str) -> None:
     with pytest.raises(ValueError, match=message):
-        installation.parse_output_expression(value, {'left', 'right', 'back'})
+        installation_config.parse_output_expression(value, {'left', 'right', 'back'})
 
 
 def test_concatenated_output_scales_then_partitions() -> None:
     source = np.array([[0, 0, 0], [100, 0, 0], [200, 0, 0]], dtype=np.uint8)
-    expression = installation.parse_output_expression('left + right', {'left', 'right'})
+    expression = installation_config.parse_output_expression(
+        'left + right', {'left', 'right'}
+    )
 
     frames = installation.distribute_frame(source, expression, {'left': 2, 'right': 3})
 
@@ -236,7 +242,9 @@ def test_concatenated_output_scales_then_partitions() -> None:
 
 def test_mirrored_output_scales_each_copy() -> None:
     source = np.array([[0, 0, 0], [255, 0, 0]], dtype=np.uint8)
-    expression = installation.parse_output_expression('left * right', {'left', 'right'})
+    expression = installation_config.parse_output_expression(
+        'left * right', {'left', 'right'}
+    )
 
     frames = installation.distribute_frame(source, expression, {'left': 3, 'right': 5})
 
@@ -258,7 +266,7 @@ def test_mirrored_binding_renders_once() -> None:
         'left': Output(led_count=2),
         'right': Output(led_count=3),
     }
-    active.definition = installation.BoundAnimation(
+    active.definition = installation_config.BoundAnimation(
         selector='examples:/composition.toml',
         outputs={'light': 'left * right'},
     )
@@ -267,7 +275,7 @@ def test_mirrored_binding_renders_once() -> None:
     active.bindings = [
         installation.PreparedBinding(
             output_name='light',
-            expression=installation.parse_output_expression(
+            expression=installation_config.parse_output_expression(
                 'left * right', active.outputs
             ),
             prepared=prepared,
@@ -287,7 +295,9 @@ def test_installation_preserves_score_frames_at_different_send_rates(
     library = library_files.read_library(Path('examples/library.toml'))
     active = installation.ActiveAnimation(
         'aurora',
-        installation.BoundAnimation(selector='aurora', outputs={'light': 'left'}),
+        installation_config.BoundAnimation(
+            selector='aurora', outputs={'light': 'left'}
+        ),
         library,
         {'left': Output(led_count=250)},
     )
@@ -307,7 +317,7 @@ def test_score_catches_up_after_a_delay_and_restarts_on_a_note() -> None:
     library = library_files.read_library(Path('examples/library.toml'))
     active = installation.ActiveAnimation(
         'aurora',
-        installation.BoundAnimation(
+        installation_config.BoundAnimation(
             selector='aurora', outputs={'light': 'left'}, activation='note'
         ),
         library,
@@ -329,11 +339,11 @@ def test_score_catches_up_after_a_delay_and_restarts_on_a_note() -> None:
 def test_active_animation_applies_midi_controls() -> None:
     prepared = CountingPrepared()
     active = object.__new__(installation.ActiveAnimation)
-    active.definition = installation.BoundAnimation(
+    active.definition = installation_config.BoundAnimation(
         selector='examples:/composition.toml',
         outputs={'light': 'left'},
         controls=[
-            installation.ParameterControl(
+            installation_config.ParameterControl(
                 source='breath', parameter='brightness', output=[0.0, 2.0]
             )
         ],
@@ -341,7 +351,7 @@ def test_active_animation_applies_midi_controls() -> None:
     active.bindings = [
         installation.PreparedBinding(
             output_name='light',
-            expression=installation.OutputExpression(['left'], 'single'),
+            expression=installation_config.OutputExpression(['left'], 'single'),
             prepared=prepared,
         )
     ]
@@ -357,8 +367,8 @@ def test_assignment_uses_single_remaining_device() -> None:
 
     assignment = installation.assign_twinkly_devices(
         {
-            'left': installation.TwinklySelector(product_name='dots'),
-            'right': installation.TwinklySelector(),
+            'left': installation_config.TwinklySelector(product_name='dots'),
+            'right': installation_config.TwinklySelector(),
         },
         [dots, strings],
     )
@@ -372,11 +382,11 @@ def test_assignment_rejects_indistinguishable_devices() -> None:
         discovered('192.168.1.11', product_name='Twinkly Dots'),
     ]
 
-    with pytest.raises(installation.InstallationFileError, match='ambiguous'):
+    with pytest.raises(installation_config.InstallationFileError, match='ambiguous'):
         installation.assign_twinkly_devices(
             {
-                'left': installation.TwinklySelector(),
-                'right': installation.TwinklySelector(),
+                'left': installation_config.TwinklySelector(),
+                'right': installation_config.TwinklySelector(),
             },
             devices,
         )
@@ -385,7 +395,7 @@ def test_assignment_rejects_indistinguishable_devices() -> None:
 @pytest.mark.parametrize('value', [0, -1, float('inf'), float('nan')])
 def test_startup_timeout_requires_a_positive_finite_value(value: float) -> None:
     with pytest.raises(ValidationError, match='startup_timeout'):
-        installation.parse_installation(
+        installation_config.parse_installation(
             example_installation() | {'startup_timeout': value}
         )
 
@@ -405,11 +415,13 @@ def test_missing_devices_stop_at_the_startup_deadline(
     monkeypatch.setattr(installation.time, 'monotonic', lambda: clock.now)
     monkeypatch.setattr(installation.time, 'sleep', advance)
     monkeypatch.setattr(installation.discovery, 'discover', scan)
-    config = installation.parse_installation(
+    config = installation_config.parse_installation(
         example_installation() | {'startup_timeout': 2, 'discovery_timeout': 0.75}
     )
 
-    with pytest.raises(installation.InstallationFileError, match='startup_timeout=2s'):
+    with pytest.raises(
+        installation_config.InstallationFileError, match='startup_timeout=2s'
+    ):
         installation.discover_assignments(config)
     assert clock.now == 2
 
@@ -432,7 +444,7 @@ def test_ambiguous_discovery_fails_without_retrying(
     )
     with pytest.raises(installation.AmbiguousAssignmentError):
         installation.discover_assignments(
-            installation.parse_installation(example_installation())
+            installation_config.parse_installation(example_installation())
         )
     scan.assert_called_once()
 
@@ -457,9 +469,11 @@ def test_identification_cannot_extend_the_discovery_deadline(
         ],
     )
     monkeypatch.setattr(installation.session, 'read_gestalt', identify)
-    with pytest.raises(installation.InstallationFileError, match='startup_timeout=2s'):
+    with pytest.raises(
+        installation_config.InstallationFileError, match='startup_timeout=2s'
+    ):
         installation.discover_assignments(
-            installation.parse_installation(
+            installation_config.parse_installation(
                 example_installation() | {'startup_timeout': 2}
             )
         )
@@ -483,7 +497,9 @@ def test_playback_duration_starts_after_outputs_open(
     active.name = 'across'
     active.render.return_value = [('left', np.zeros((1, 3), dtype=np.uint8))]
     service = installation.InstallationService.model_construct(
-        config=installation.parse_installation(example_installation() | {'fps': 1}),
+        config=installation_config.parse_installation(
+            example_installation() | {'fps': 1}
+        ),
         library=None,
         outputs={'left': output},
         home=tmp_path,
@@ -504,7 +520,7 @@ def test_playback_duration_starts_after_outputs_open(
 
 def test_service_queues_animation_selection(tmp_path: Path) -> None:
     service = installation.InstallationService.model_construct(
-        config=installation.parse_installation(example_installation()),
+        config=installation_config.parse_installation(example_installation()),
         library=None,
         outputs={},
         home=tmp_path,
@@ -554,7 +570,7 @@ def test_service_maps_midi_into_the_active_animation(tmp_path: Path) -> None:
 
     active = Active()
     service = installation.InstallationService.model_construct(
-        config=installation.parse_installation(
+        config=installation_config.parse_installation(
             example_installation()
             | {
                 'midi': {'channel': 1},
@@ -680,7 +696,7 @@ def example_installation() -> dict[str, object]:
 def playback_service(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> installation.InstallationService:
-    config = installation.parse_installation(example_installation())
+    config = installation_config.parse_installation(example_installation())
     library = library_files.read_library(Path('examples/library.toml'))
     outputs = {
         'left': Mock(led_count=2, status=installation.StringStatus()),
