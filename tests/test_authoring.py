@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from base64 import b64decode
 from fractions import Fraction
+from io import BytesIO
 from pathlib import Path
+from shutil import copytree
+from zipfile import ZipFile
 
 import pytest
 from ufor import codec, effects, library_files, light_animation
@@ -392,6 +396,7 @@ def test_history_restores_referenced_scores_and_clears_changed_markers(
         'can_undo': False,
         'can_redo': True,
         'changed': [],
+        'revisions': {},
     }
     session.redo()
     assert session.documents[aurora] == first
@@ -419,3 +424,70 @@ def test_rejected_edit_and_preview_leave_redo_available(
     assert not session.history_state()['can_redo']
     with pytest.raises(ValueError, match='no edit to redo'):
         session.redo()
+
+
+def test_bundle_preserves_root_and_part_edits_and_reloads(
+    editable_session: authoring.AuthoringSession,
+    tmp_path: Path,
+) -> None:
+    session = editable_session
+    with pytest.raises(ValueError, match='no changed scores'):
+        session.download_bundle()
+    session.field_document('example:/composition.toml', 'light', {'easing': 'linear'})
+    session.operation_document('example:/aurora.toml', 'light', 'color_fill')
+    session.operation_document('example:/limbs.toml', 'light', 'fill')
+    bundle = session.download_bundle()
+    assert bundle['revisions'] == session.history_state()['revisions']
+    copytree(tmp_path / 'scores', tmp_path / 'restored')
+    assert isinstance(bundle['archive'], str)
+    with ZipFile(BytesIO(b64decode(bundle['archive']))) as archive:
+        assert set(archive.namelist()) == {
+            'example/composition.toml',
+            'example/aurora.toml',
+            'example/limbs.toml',
+        }
+        for name in archive.namelist():
+            data = archive.read(name)
+            assert data.startswith(b'# retained comment')
+            (tmp_path / 'restored' / Path(name).relative_to('example')).write_bytes(
+                data
+            )
+    config = tmp_path / 'restored.toml'
+    config.write_text('[[libraries]]\nname = "example"\nroot = "restored"\n')
+    restored = authoring.AuthoringSession(
+        library_files.read_library(config),
+        authoring.AuthorConfig(library_config=config, duration=0.1),
+    )
+    assert restored.preview('composition', {}) == session.preview('composition', {})
+    for key, document in session.changed_documents().items():
+        assert document == (tmp_path / 'restored' / key.split('/')[-1]).read_text()
+    session.undo()
+    assert len(session.changed_documents()) == 2
+    assert bundle['revisions'] != session.history_state()['revisions']
+
+
+def test_bundle_separates_equal_filenames_in_different_libraries(
+    tmp_path: Path,
+) -> None:
+    config = tmp_path / 'library.toml'
+    registrations = []
+    for name in ['first', 'second']:
+        root = tmp_path / name
+        root.mkdir()
+        source = Path('examples/scores/aurora.toml').read_text()
+        (root / 'aurora.toml').write_text(
+            source.replace('name = "aurora"', f'name = "{name}"')
+        )
+        registrations.append(f'[[libraries]]\nname = "{name}"\nroot = "{name}"\n')
+    config.write_text('\n'.join(registrations))
+    session = authoring.AuthoringSession(
+        library_files.read_library(config),
+        authoring.AuthorConfig(library_config=config),
+    )
+    session.operation_document('first:/aurora.toml', 'light', 'fill')
+    session.operation_document('second:/aurora.toml', 'light', 'color_fill')
+    archive = session.download_bundle()['archive']
+    assert isinstance(archive, str)
+    with ZipFile(BytesIO(b64decode(archive))) as bundle:
+        assert set(bundle.namelist()) == {'first/aurora.toml', 'second/aurora.toml'}
+        assert bundle.read('first/aurora.toml') != bundle.read('second/aurora.toml')

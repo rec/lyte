@@ -49,6 +49,11 @@ original document removes its changed marker.
 
 ### 2. Download all edited scores together
 
+**Completed 2026-09-16.** ZIP export includes every changed score under its
+library and source path. The browser tracks offered revisions, labels changed
+scores, and warns before closing with unoffered edits. Reload and filename
+separation tests cover the bundle.
+
 A composition may depend on several edited files. Downloading just its root or
 a preset does not preserve changes to those dependencies.
 
