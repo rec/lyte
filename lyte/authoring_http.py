@@ -41,7 +41,9 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
             if urlparse(self.path).path != '/':
                 self.send_error(404)
                 return
-            document = authoring.author_document(session.animations).encode()
+            document = authoring.author_document(
+                session.animations, session.history_state()
+            ).encode()
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(document)))
@@ -56,6 +58,8 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                 '/api/operation',
                 '/api/timeline',
                 '/api/fields',
+                '/api/undo',
+                '/api/redo',
             }:
                 self.send_error(404)
                 return
@@ -73,7 +77,13 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
             try:
                 payload = _request_json(self)
                 response: dict[str, object]
-                if path in {'/api/operation', '/api/timeline', '/api/fields'}:
+                if path in {'/api/undo', '/api/redo'}:
+                    if path == '/api/undo':
+                        session.undo()
+                    else:
+                        session.redo()
+                    response = {}
+                elif path in {'/api/operation', '/api/timeline', '/api/fields'}:
                     entry = payload.get('entry')
                     output = payload.get('output')
                     if not isinstance(entry, str) or not isinstance(output, str):
@@ -108,7 +118,6 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                             'filename': Path(entry).name,
                             'document': session.field_document(entry, output, fields),
                         }
-                    response['catalog'] = [a.document() for a in session.animations]
                 else:
                     selector, parameters = _preview_request(payload)
                     if path == '/api/preview':
@@ -123,6 +132,9 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                                 selector, parameters, name
                             ),
                         }
+                if path not in {'/api/preview', '/api/preset'}:
+                    response['catalog'] = [a.document() for a in session.animations]
+                    response['history'] = session.history_state()
             except (ValueError, json.JSONDecodeError) as error:
                 self._json(400, {'error': str(error)})
                 return

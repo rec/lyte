@@ -60,6 +60,8 @@ class AuthorAnimation:
     parameters: list[AuthorParameter]
     renderer: Literal['ufor', 'builtin'] = 'ufor'
     composition: dict[str, object] | None = None
+    source: str | None = None
+    source_kind: str = 'Built-in preview'
 
     def document(self) -> dict[str, object]:
         return {
@@ -68,7 +70,16 @@ class AuthorAnimation:
             'parameters': [parameter.document() for parameter in self.parameters],
             'renderer': self.renderer,
             'composition': self.composition,
+            'source': self.source,
+            'source_kind': self.source_kind,
         }
+
+
+class DocumentEdit(BaseModel, frozen=True):
+    entry: str
+    output: str
+    before: str
+    after: str
 
 
 class AuthoringSession:
@@ -76,6 +87,9 @@ class AuthoringSession:
         self.library = library
         self.config = config
         self.documents: dict[str, str] = {}
+        self.original_documents: dict[str, str] = {}
+        self.undo_history: list[DocumentEdit] = []
+        self.redo_history: list[DocumentEdit] = []
         self.animations = [
             *_author_animations(library, config.light_output),
             *_builtin_animations(),
@@ -249,7 +263,46 @@ class AuthoringSession:
         text = tomlkit.dumps(document)
         return self._apply_document(entry_key, output, text)
 
+    def history_state(self) -> dict[str, object]:
+        return {
+            'can_undo': bool(self.undo_history),
+            'can_redo': bool(self.redo_history),
+            'changed': sorted(
+                k for k, v in self.documents.items() if v != self.original_documents[k]
+            ),
+        }
+
+    def undo(self) -> None:
+        if not self.undo_history:
+            raise ValueError('There is no edit to undo')
+        edit = self.undo_history[-1]
+        self._restore_document(edit.entry, edit.output, edit.before)
+        self.undo_history.pop()
+        self.redo_history.append(edit)
+
+    def redo(self) -> None:
+        if not self.redo_history:
+            raise ValueError('There is no edit to redo')
+        edit = self.redo_history[-1]
+        self._restore_document(edit.entry, edit.output, edit.after)
+        self.redo_history.pop()
+        self.undo_history.append(edit)
+
     def _apply_document(self, entry_key: str, output: str, text: str) -> str:
+        before = (
+            self.documents[entry_key]
+            if entry_key in self.documents
+            else self._source_path(self.library.entries[entry_key]).read_text()
+        )
+        self._restore_document(entry_key, output, text)
+        self.original_documents.setdefault(entry_key, before)
+        self.undo_history.append(
+            DocumentEdit(entry=entry_key, output=output, before=before, after=text)
+        )
+        self.redo_history.clear()
+        return text
+
+    def _restore_document(self, entry_key: str, output: str, text: str) -> None:
         edited = codec.parse_score(text)
         if not isinstance(edited, AnimationScore):
             raise ValueError('edited score is not an animation')
@@ -264,7 +317,6 @@ class AuthoringSession:
         self.library = library
         self.animations = animations
         self.documents[entry_key] = text
-        return text
 
     def _animation(self, selector: str) -> AuthorAnimation:
         for item in self.animations:
@@ -286,11 +338,15 @@ class AuthoringSession:
         return root / entry.address.removeprefix('/')
 
 
-def author_document(animations: list[AuthorAnimation]) -> str:
+def author_document(
+    animations: list[AuthorAnimation], history: dict[str, object] | None = None
+) -> str:
     if not animations:
         raise ValueError('authoring document requires at least one animation')
     catalog = safe_json([animation.document() for animation in animations])
-    return AUTHOR_TEMPLATE.replace('__LYTE_AUTHOR_CATALOG__', catalog)
+    return AUTHOR_TEMPLATE.replace('__LYTE_AUTHOR_CATALOG__', catalog).replace(
+        '__LYTE_AUTHOR_HISTORY__', safe_json(history or {})
+    )
 
 
 def _author_animations(library: Library, output: str) -> list[AuthorAnimation]:
@@ -319,9 +375,19 @@ def _author_animations(library: Library, output: str) -> list[AuthorAnimation]:
                 title=entry.resolved.title or selector,
                 parameters=parameters,
                 composition=_composition_tree(library, composition, output),
+                source=entry.key,
+                source_kind=_source_kind(entry),
             )
         )
     return animations
+
+
+def _source_kind(entry: Entry) -> str:
+    if entry.address.endswith('.py'):
+        return 'Python score (read-only)'
+    if isinstance(entry.score, PresetScore):
+        return 'Preset (read-only)'
+    return 'Editable TOML'
 
 
 def _composition_tree(
@@ -352,7 +418,8 @@ def _composition_tree(
             'editor_fields': _operation_fields(operation),
             'timeline': _operation_timeline(operation),
             'entry': entry.key,
-            'editable': isinstance(entry.score, AnimationScore),
+            'editable': _source_kind(entry) == 'Editable TOML',
+            'source_kind': _source_kind(entry),
             'templates': _operation_templates(score),
             'children': children,
         }

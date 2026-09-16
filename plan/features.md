@@ -25,6 +25,10 @@ a dependency is stated.
 
 ### 1. Undo, redo, and changed-score tracking
 
+**Completed 2026-09-16.** Session-wide document history, changed-score list, and
+source/editability labels are implemented. Tests cover referenced-score edits,
+exact comment restoration, rejected edits, redo branches, and preview restoration.
+
 Edits already accumulate in memory, but there is no way to reverse an accepted
 edit or see the complete set of changed documents.
 

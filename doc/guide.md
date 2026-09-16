@@ -212,6 +212,12 @@ visually verified as three distinct rows and columns in the authoring browser.
 Both preview modes use XY projection: one-dimensional layouts sit at Y=0,
 and three-dimensional layouts ignore Z. There is no selectable 3D view.
 
+The editor shows each selected score's library path and source type. **Undo**
+and **Redo** restore accepted document edits across the session, including
+referenced scores and comments. **Session edits** lists documents that differ
+from their original text. A new accepted edit clears redo; preview playback
+and parameter sliders do not enter document history.
+
 Direct TOML animation scores can replace a selected operation with one of the
 offered score-aware templates and download the edited source. lyte validates
 and prepares the replacement before download. Edits accumulate in the running editor, and the composition tree and preview
