@@ -266,16 +266,17 @@ $ lyte installation --help
 usage: lyte installation [-h] [INSTALLATION OPTIONS] [{run,install,uninstall,start,stop,restart,status}] [PATH]
 
  positional arguments
- -----------------------------------------------------
+ --------------------------------------------------------------
   [{run,install,uninstall,start,stop,restart,status}]
-              action (default: run)
-  [PATH]      config (default: installation.toml)
+                           action (default: run)
+  [PATH]                   config (default: installation.toml)
 
  options
- -----------------------------------------------------
-  -h, --help  show this help message and exit
-  --duration {None}|FLOAT
-              (default: None)
+ --------------------------------------------------------------
+  -h, --help               show this help message and exit
+  --duration {None}|FLOAT  (default: None)
+  --record-input {None}|PATH
+                           (default: None)
 
 
 $ lyte layout --help

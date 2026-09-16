@@ -147,8 +147,9 @@ port, or device output starts. This checks software behavior, not physical readi
 Record a rehearsal from its start with `--record-input performance.jsonl`.
 Capture includes synthetic MIDI and accepted operator commands, including fades,
 master level, tests, and blackout. Stop the rehearsal server normally to seal the
-recording. Existing files are never overwritten. A write error pauses rehearsal
-and is shown in the browser; recordings with missing or damaged data are rejected.
+recording. Existing files are never overwritten. A recording failure stops capture
+and is shown in the browser while playback continues; recordings with missing or
+damaged data are rejected.
 
 Replay offline with:
 
@@ -164,8 +165,20 @@ The journal stores a configuration/score header, then each delivery's timestamp
 and ordered inputs using uFor MIDI events and reccy command requests. MIDI event
 ticks count delivery frames; ordinals retain input order. It records consumption
 at delivery boundaries, not raw device arrival times. It does not capture output
-packets or make physical playback available. Live installation capture is pending
-the recording-failure policy decision.
+packets or make physical playback available.
+
+For live capture, use `lyte installation run examples/installation.toml
+--record-input performance.jsonl`. The option applies to `run`, not service
+installation. Capture starts with the installation, including MIDI and operator
+commands received during output startup. The normal MIDI/selection/render paths
+are shared with rehearsal. Existing destinations or failures opening, serializing,
+writing, flushing, or closing the journal disable recording, not lighting. The
+error remains visible in installation status and the operator panel; failed
+capture stops buffering and does not retry disk writes. Use a fresh path for the
+next run. Status-file write failures likewise leave playback and in-memory RPC
+status available. Recoverable frame-render errors keep the loop running and leave
+the previous physical frame displayed until rendering recovers or another
+animation is selected. Explicit stop and interruption still stop playback.
 
 An installation selects several Twinkly strings, maintains their connections,
 and switches named uFor animations at frame boundaries.

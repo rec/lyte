@@ -120,6 +120,9 @@ class RehearsalSession:
                 raise ValueError(result.message)
         active = self.playback.active
         return {
+            'recording_error': self.playback.recorder.error
+            if self.playback.recorder
+            else None,
             'replay': self.replay is not None,
             'finished': self.replay is not None and self.replay.next_delivery is None,
             'warnings': self.warnings,
