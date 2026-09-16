@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import webbrowser
+from difflib import unified_diff
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
@@ -58,6 +59,7 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                 '/api/operation',
                 '/api/timeline',
                 '/api/fields',
+                '/api/structure',
                 '/api/undo',
                 '/api/redo',
                 '/api/bundle',
@@ -86,14 +88,49 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                     else:
                         session.redo()
                     response = {}
-                elif path in {'/api/operation', '/api/timeline', '/api/fields'}:
+                elif path in {
+                    '/api/operation',
+                    '/api/timeline',
+                    '/api/fields',
+                    '/api/structure',
+                }:
                     entry = payload.get('entry')
                     output = payload.get('output')
                     if not isinstance(entry, str) or not isinstance(output, str):
                         raise ValueError('timing requires entry and output')
                     assert isinstance(entry, str)
                     assert isinstance(output, str)
-                    if path == '/api/operation':
+                    if path == '/api/structure':
+                        structure = payload.get('structure')
+                        apply = payload.get('apply')
+                        if not isinstance(structure, dict) or not isinstance(
+                            apply, bool
+                        ):
+                            raise ValueError(
+                                'structure requires a draft and apply flag'
+                            )
+                        original = session.library.entries.get(entry)
+                        if original is None:
+                            raise ValueError('unknown score')
+                        before = session.documents.get(entry)
+                        if before is None:
+                            before = session.source_document(entry)
+                        text = session.structure_document(
+                            entry, output, structure, apply=apply
+                        )
+                        response = {
+                            'filename': Path(entry).name,
+                            'document': text,
+                            'diff': ''.join(
+                                unified_diff(
+                                    before.splitlines(keepends=True),
+                                    text.splitlines(keepends=True),
+                                    fromfile='working score',
+                                    tofile='proposed score',
+                                )
+                            ),
+                        }
+                    elif path == '/api/operation':
                         template = payload.get('template')
                         if not isinstance(template, str):
                             raise ValueError('operation requires a template')
@@ -135,7 +172,9 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                                 selector, parameters, name
                             ),
                         }
-                if path in {'/api/operation', '/api/timeline', '/api/fields'}:
+                if path in {'/api/operation', '/api/timeline', '/api/fields'} or (
+                    path == '/api/structure' and payload.get('apply') is True
+                ):
                     response['revisions'] = {
                         entry: authoring.document_revision(session.documents[entry])
                     }

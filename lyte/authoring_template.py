@@ -2,6 +2,8 @@
 
 # ruff: noqa: E501
 
+from .authoring_structure_template import STRUCTURE_SCRIPT
+
 AUTHOR_TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
@@ -216,6 +218,14 @@ pre{
 </section>
 <h2>Inspector</h2>
 <pre id="inspector">Select an operation</pre>
+<details><summary>Composition structure</summary>
+<p id="structure-references"></p>
+<section id="structure-editor"></section>
+<button id="review-structure" type="button" disabled>Review composition changes</button>
+<output id="structure-status"></output>
+<pre id="structure-diff"></pre>
+<button id="apply-structure" type="button" disabled>Apply and download composition</button>
+</details>
 <h2>Operation fields</h2>
 <section id="operation-fields">Select an operation</section>
 <button id="download-fields" type="button" disabled>Apply and download fields</button>
@@ -425,6 +435,7 @@ function rebuildTimeline(node){
 function inspect(node,button){
   selectedOperation=node;
   inspector.textContent=`${node.entry} · ${node.source_kind}\n${JSON.stringify(node.fields,null,2)}`;
+  rebuildStructure(node);
   rebuildOperationFields(node);
   rebuildTimeline(node);
   operationTemplate.replaceChildren();
@@ -473,6 +484,11 @@ function rebuildComposition(){
   composition.replaceChildren();
   const tree=active().composition;
   if(!tree){
+    selectedOperation=null;
+    rebuildStructure({entry:active().selector,editable:false,used_by:[]});
+    operationFields.replaceChildren();timeline.replaceChildren();
+    downloadFields.disabled=true;downloadTiming.disabled=true;
+    downloadOperation.disabled=true;operationTemplate.disabled=true;
     inspector.textContent='This animation has no uFor composition.';
     return
   }
@@ -833,6 +849,7 @@ function animate(time){
   draw();
   requestAnimationFrame(animate)
 }
+__LYTE_STRUCTURE_SCRIPT__
 addEventListener('beforeunload',event=>{
   if(hasUnofferedChanges()){event.preventDefault();event.returnValue='';}
 });
@@ -872,4 +889,4 @@ addEventListener('resize',resize);
 resize();
 rebuild();
 requestAnimationFrame(animate);
-</script></body></html>"""
+</script></body></html>""".replace('__LYTE_STRUCTURE_SCRIPT__', STRUCTURE_SCRIPT)
