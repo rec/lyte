@@ -33,6 +33,8 @@ wiring order fails during preparation, before hardware opens.
 `lyte preview` uses the layout's authored coordinates. `lyte render` produces
 an MP4 with a simple grid view for one or more selected scores; it requires
 `ffmpeg` on `PATH`.
+Movie export rejects colliding filenames and existing destinations before
+starting the batch. Use a fresh output directory to retain previous exports.
 
 ## Frames and Rendering
 

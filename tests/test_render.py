@@ -87,3 +87,35 @@ def test_run_render_rejects_missing_ffmpeg(tmp_path: Path) -> None:
 
 def test_safe_name_uses_a_file_name() -> None:
     assert render.safe_name('show:/spark.toml') == 'show--spark-toml'
+
+
+@pytest.mark.parametrize('selectors', [['a_b', 'a-b'], ['Aurora', 'aurora']])
+def test_export_rejects_colliding_names_before_rendering(
+    tmp_path: Path, selectors: list[str]
+) -> None:
+    with (
+        patch.object(render.shutil, 'which', return_value='ffmpeg'),
+        patch.object(render.library_files, 'read_library'),
+        patch.object(render.show, 'log_diagnostics'),
+        patch.object(render, 'render_animation') as export,
+        pytest.raises(render.RenderError, match='share destination'),
+    ):
+        render.run_render(render.RenderConfig(selectors=selectors, output=tmp_path))
+    export.assert_not_called()
+
+
+def test_existing_export_stops_the_entire_batch(tmp_path: Path) -> None:
+    destination = tmp_path / 'two.mp4'
+    destination.write_bytes(b'existing movie')
+    with (
+        patch.object(render.shutil, 'which', return_value='ffmpeg'),
+        patch.object(render.library_files, 'read_library'),
+        patch.object(render.show, 'log_diagnostics'),
+        patch.object(render, 'render_animation') as export,
+        pytest.raises(render.RenderError, match='output already exists'),
+    ):
+        render.run_render(
+            render.RenderConfig(selectors=['one', 'two'], output=tmp_path)
+        )
+    export.assert_not_called()
+    assert destination.read_bytes() == b'existing movie'

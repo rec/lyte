@@ -121,6 +121,18 @@ def run_render(config: RenderConfig) -> int:
     selectors = config.selectors or list_animation_selectors(library)
     if not selectors:
         raise RenderError('library contains no animation scores')
+    destinations: dict[str, str] = {}
+    for selector in selectors:
+        destination = config.output / f'{safe_name(selector)}.mp4'
+        key = destination.name.casefold()
+        if key in destinations:
+            raise RenderError(
+                f'{selector!r} and {destinations[key]!r} '
+                f'share destination {destination}'
+            )
+        if destination.exists():
+            raise RenderError(f'output already exists: {destination}')
+        destinations[key] = selector
     config.output.mkdir(parents=True, exist_ok=True)
     for selector in selectors:
         render_animation(selector, config, ffmpeg)
@@ -157,7 +169,7 @@ def render_animation(selector: str, config: RenderConfig, ffmpeg: str) -> Path:
     frame_count = max(1, round(prepared.fps * config.duration))
     command = [
         ffmpeg,
-        '-y',
+        '-n',
         '-f',
         'rawvideo',
         '-pixel_format',
