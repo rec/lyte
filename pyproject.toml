@@ -16,7 +16,7 @@ dependencies = [
     "reccy",
     "tomlkit>=0.15.1",
     "tyro>=1.0.15",
-    "ufor @ https://github.com/rec/ufor/archive/289b7a38414a3893946a6e6b5e9c03e7f9e33a70.tar.gz",
+    "ufor",
 ]
 
 [project.scripts]
@@ -46,3 +46,4 @@ exclude-newer = "1 week"
 
 [tool.uv.sources]
 reccy = { git = "https://github.com/rec/reccy.git", branch = "main" }
+ufor = { git = "https://github.com/rec/ufor.git", branch = "main" }
