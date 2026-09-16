@@ -83,14 +83,11 @@ Source audit: showCo deployment and provisioning already use
 
 ### 10. Test completion and blackout terminate the installation
 
-**Behavior requiring an explicit product decision.**
-[InstallationService.rpc_response and _test_frames](../lyte/installation.py)
-treat both `blackout` and `stop` as termination requests. A completed RPC light
-test also sets the stop event instead of resuming the selected animation.
-A user expecting a temporary test or reversible blackout loses playback.
-
-Decide whether this is intentional and document it prominently, or distinguish
-pause/blackout/test from service termination. Verify the chosen post-test state.
+**Fixed 2026-09-16.** Light tests resume the selected animation on its elapsed
+timeline. Blackout cancels pending selection/tests and keeps sending black until
+an animation is selected; tests are rejected during blackout. RPC status exposes
+`blackout`. Only `stop` terminates playback. Tests verify resumption, blackout
+persistence, cancellation, reselection, and explicit stopping.
 
 ### 11. Queued program changes collapse within one frame
 

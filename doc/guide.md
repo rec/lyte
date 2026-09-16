@@ -136,6 +136,13 @@ string unused. Switching animations prepares fresh renderer state but retains
 healthy physical connections. The Reccy RPC endpoint supports `status`,
 `select_animation`, `test`, `blackout`, and `stop`.
 
+A light test temporarily overrides the display, then resumes the selected
+animation at its elapsed score time. `blackout` cancels queued selection and
+tests, keeps the service running, and sends black frames until an animation is
+selected. Status reports `blackout`; tests are rejected while it is active.
+Selecting an animation also cancels an active test. Only `stop` terminates
+playback and closes the outputs.
+
 Installation `fps` controls delivery cadence. Each score retains its declared
 timing: slower scores hold their latest frame between ticks, while faster scores
 advance through intervening ticks before sending the latest frame. A delayed
