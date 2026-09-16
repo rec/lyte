@@ -491,3 +491,97 @@ def test_bundle_separates_equal_filenames_in_different_libraries(
     with ZipFile(BytesIO(b64decode(archive))) as bundle:
         assert set(bundle.namelist()) == {'first/aurora.toml', 'second/aurora.toml'}
         assert bundle.read('first/aurora.toml') != bundle.read('second/aurora.toml')
+
+
+def test_composition_draft_builds_sequences_and_mixes_without_writing_sources(
+    editable_session: authoring.AuthoringSession,
+    tmp_path: Path,
+) -> None:
+    session = editable_session
+    entry = 'example:/composition.toml'
+    original = session.source_document(entry)
+    parts = [
+        {'name': 'a', 'score': {'selector': 'example:/aurora.toml'}},
+        {'name': 'b', 'score': {'selector': 'example:/aurora.toml'}},
+    ]
+    cues = {
+        'effect': 'cues',
+        'cues': [
+            {
+                'source': {'name': 'a', 'output': 'light'},
+                'start': '1/2',
+                'duration': '2',
+            },
+            {'source': {'name': 'b', 'output': 'light'}, 'start': '2', 'duration': '3'},
+        ],
+    }
+    structure = {'parts': parts, 'operation': cues}
+    draft = session.structure_document(entry, 'light', structure, apply=False)
+    assert not session.history_state()['can_undo']
+    assert session.source_document(entry) == original
+    assert '# retained comment' in draft
+    applied = session.structure_document(entry, 'light', structure, apply=True)
+    assert applied == draft
+    assert session.preview('composition', {})['frames']
+    parsed = codec.parse_score(applied)
+    assert isinstance(parsed, light_animation.AnimationScore)
+    assert isinstance(parsed.body.operation, light_animation.Cues)
+    assert [c.start for c in parsed.body.operation.cues] == [
+        Fraction(1, 2),
+        Fraction(2),
+    ]
+    structure['operation'] = {
+        'effect': 'mix',
+        'sources': [
+            {'source': {'name': 'a', 'output': 'light'}, 'weight': 0.25},
+            {'source': {'name': 'b', 'output': 'light'}, 'weight': 0.75},
+        ],
+    }
+    mixed = session.structure_document(entry, 'light', structure, apply=True)
+    parsed = codec.parse_score(mixed)
+    assert isinstance(parsed, light_animation.AnimationScore)
+    assert isinstance(parsed.body.operation, light_animation.Mix)
+    assert [s.weight for s in parsed.body.operation.sources] == [0.25, 0.75]
+    session.undo()
+    assert session.source_document(entry) == applied
+    session.redo()
+    assert session.source_document(entry) == mixed
+    path = tmp_path / 'scores' / 'composition.toml'
+    assert path.read_text() == original
+    for document in [applied, mixed]:
+        path.write_text(document)
+        reloaded = authoring.AuthoringSession(
+            library_files.read_library(session.config.library_config), session.config
+        )
+        assert reloaded.preview('composition', {})['frames']
+
+
+@pytest.mark.parametrize('problem', ['cycle', 'missing-output', 'unknown-part'])
+def test_invalid_composition_draft_leaves_history_and_working_copy_unchanged(
+    editable_session: authoring.AuthoringSession,
+    problem: str,
+) -> None:
+    session = editable_session
+    entry = 'example:/composition.toml'
+    before = session.source_document(entry)
+    structure = {
+        'parts': [
+            {
+                'name': 'a',
+                'score': {
+                    'selector': entry if problem == 'cycle' else 'example:/aurora.toml'
+                },
+            }
+        ],
+        'operation': {
+            'effect': 'reverse',
+            'source': {
+                'name': 'missing' if problem == 'unknown-part' else 'a',
+                'output': 'missing' if problem == 'missing-output' else 'light',
+            },
+        },
+    }
+    with pytest.raises(ValueError):
+        session.structure_document(entry, 'light', structure, apply=True)
+    assert session.source_document(entry) == before
+    assert not session.history_state()['can_undo']
