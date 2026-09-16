@@ -167,6 +167,12 @@ camera-based capture can wait until the simpler views are useful.
 
 ### 7. Matching spatial previews and movie exports
 
+**Completed 2026-09-16.** Movie export supports authored XY/XZ/YZ projections
+alongside grid mode. Editor and standalone HTML share projection code; movie
+framing uses the same formulas, with orientation/pixel tests. Standalone editor
+downloads include working edits, parameters, zoom, light size, and background,
+without marking editable source revisions as downloaded.
+
 HTML previews show authored coordinates, while MP4 export currently arranges
 lights in a grid. A movie therefore may not communicate the intended layout.
 

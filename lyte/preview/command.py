@@ -44,6 +44,9 @@ def run_preview(args: PreviewConfig) -> int:
         duration=args.duration,
         led_size=args.led_size,
         name=args.name,
+        plane=args.plane,
+        zoom=args.zoom,
+        background=args.background,
     )
     if args.open:
         webbrowser.open(args.output.resolve().as_uri())
