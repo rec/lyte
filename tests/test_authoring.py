@@ -58,6 +58,20 @@ def test_author_document_contains_animation_catalogue() -> None:
     assert '/api/fields' in document
 
 
+def test_score_title_cannot_close_the_authoring_script() -> None:
+    document = authoring.author_document(
+        [
+            authoring.AuthorAnimation(
+                selector='example',
+                title='</script><script>alert(1)</script>',
+                parameters=[],
+            )
+        ]
+    )
+
+    assert document.count('</script>') == 1
+
+
 def test_authoring_session_previews_built_in_reactive_effects() -> None:
     library = library_files.read_library(Path('examples/library.toml'))
     session = authoring.AuthoringSession(

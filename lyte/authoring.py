@@ -29,7 +29,7 @@ from ufor.preset import PresetScore
 from ufor.selector import LibraryConfig
 
 from . import animation, reactive_effects, reactivity, show
-from .preview.document import encoded_frames
+from .preview.document import encoded_frames, safe_json
 
 
 class AuthorConfig(BaseModel, frozen=True):
@@ -306,7 +306,7 @@ def run_author(config: AuthorConfig) -> int:
 def author_document(animations: list[AuthorAnimation]) -> str:
     if not animations:
         raise ValueError('authoring document requires at least one animation')
-    catalog = json.dumps([animation.document() for animation in animations])
+    catalog = safe_json([animation.document() for animation in animations])
     return _AUTHOR_TEMPLATE.replace('__LYTE_AUTHOR_CATALOG__', catalog)
 
 
