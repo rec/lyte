@@ -1,5 +1,5 @@
 $ lyte --help
-usage: lyte [-h] {animate,author,calibrate-black,brightness,color,diagnostic,effects,layout,installation,led-config,mic,mode,movie,mqtt,music,network,patch,playlist,preview,render,saturation,validate,fps-test,dither-test,timer,verify-output,wled}
+usage: lyte [-h] {animate,author,calibrate-black,brightness,color,diagnostic,effects,layout,installation,led-config,mic,mode,movie,mqtt,music,network,patch,playlist,preview,render,rehearse,saturation,validate,fps-test,dither-test,timer,verify-output,wled}
 
  options
  ------------------------------------------------------
@@ -28,6 +28,7 @@ usage: lyte [-h] {animate,author,calibrate-black,brightness,color,diagnostic,eff
     - playlist
     - preview
     - render
+    - rehearse
     - saturation
     - validate
     - fps-test
@@ -510,6 +511,23 @@ usage: lyte preview [-h] [PREVIEW OPTIONS] [{None}|STR]
   --zoom FLOAT        (default: 1)
   --background STR    (default: '#050506')
   --duration FLOAT    (default: 10.0)
+
+
+$ lyte rehearse --help
+usage: lyte rehearse [-h] [REHEARSE OPTIONS] [PATH]
+
+ positional arguments
+ -------------------------------------------------
+  [PATH]      config (default: installation.toml)
+
+ options
+ -------------------------------------------------
+  -h, --help  show this help message and exit
+  --string-counts [STR INT [STR INT ...]]
+              (required)
+  --port INT  (default: 8766)
+  --open, --no-open
+              (default: True)
 
 
 $ lyte render --help

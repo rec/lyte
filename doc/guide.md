@@ -88,6 +88,22 @@ blackout behavior.
 
 ## Installations
 
+For software-only rehearsal, run:
+
+```sh
+lyte rehearse examples/installation.toml --string-counts left 125 right 125
+```
+
+Supply every named string's simulated light count. These counts are rehearsal
+inputs, not production device selectors. The loopback browser opens on port 8766
+(`--no-open` leaves it closed). It displays each string separately and offers
+animation selection, step/play/pause, test override, blackout, and synthetic MIDI
+when MIDI is configured. Controls take effect at the next simulated delivery tick.
+Playback uses the live installation's shared state, mappings, channel ownership,
+scaling, concatenation, and mirroring. Browser delays slow the simulated clock;
+they do not skip score ticks. No installation daemon, hardware discovery, MIDI
+port, or device output starts. This checks software behavior, not physical readiness.
+
 An installation selects several Twinkly strings, maintains their connections,
 and switches named uFor animations at frame boundaries.
 

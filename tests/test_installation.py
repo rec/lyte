@@ -17,7 +17,13 @@ from ufor.control import Scope
 from ufor.interface import ParameterExport
 from ufor.library import Entry, Library
 
-from lyte import installation, installation_config, runtime_control, show
+from lyte import (
+    installation,
+    installation_config,
+    installation_playback,
+    runtime_control,
+    show,
+)
 from lyte.twinkly import diagnostic
 
 
@@ -152,7 +158,7 @@ def test_construction_only_midi_target_fails_before_discovery(
         [Entry(library='test', address='/aurora.toml', name='aurora', score=controlled)]
     )
     monkeypatch.setattr(
-        installation.library_files, 'read_library', lambda path: library
+        installation_playback.library_files, 'read_library', lambda path: library
     )
     discover = Mock(side_effect=AssertionError('discovery must not start'))
     monkeypatch.setattr(installation, 'discover_assignments', discover)
@@ -233,7 +239,9 @@ def test_concatenated_output_scales_then_partitions() -> None:
         'left + right', {'left', 'right'}
     )
 
-    frames = installation.distribute_frame(source, expression, {'left': 2, 'right': 3})
+    frames = installation_playback.distribute_frame(
+        source, expression, {'left': 2, 'right': 3}
+    )
 
     assert [name for name, _ in frames] == ['left', 'right']
     assert frames[0][1].tolist() == [[0, 0, 0], [0, 0, 0]]
@@ -246,7 +254,9 @@ def test_mirrored_output_scales_each_copy() -> None:
         'left * right', {'left', 'right'}
     )
 
-    frames = installation.distribute_frame(source, expression, {'left': 3, 'right': 5})
+    frames = installation_playback.distribute_frame(
+        source, expression, {'left': 3, 'right': 5}
+    )
 
     assert [frame.shape for _, frame in frames] == [(3, 3), (5, 3)]
     assert frames[0][1].tolist() == [[0, 0, 0], [0, 0, 0], [255, 0, 0]]
@@ -261,10 +271,10 @@ def test_mirrored_output_scales_each_copy() -> None:
 
 def test_mirrored_binding_renders_once() -> None:
     prepared = CountingPrepared()
-    active = object.__new__(installation.ActiveAnimation)
-    active.outputs = {
-        'left': Output(led_count=2),
-        'right': Output(led_count=3),
+    active = object.__new__(installation_playback.ActiveAnimation)
+    active.led_counts = {
+        'left': 2,
+        'right': 3,
     }
     active.definition = installation_config.BoundAnimation(
         selector='examples:/composition.toml',
@@ -273,10 +283,10 @@ def test_mirrored_binding_renders_once() -> None:
     active.performance = runtime_control.MidiPerformance()
     active.started_at = None
     active.bindings = [
-        installation.PreparedBinding(
+        installation_playback.PreparedBinding(
             output_name='light',
             expression=installation_config.parse_output_expression(
-                'left * right', active.outputs
+                'left * right', active.led_counts
             ),
             prepared=prepared,
         )
@@ -293,13 +303,13 @@ def test_installation_preserves_score_frames_at_different_send_rates(
     send_rate: int,
 ) -> None:
     library = library_files.read_library(Path('examples/library.toml'))
-    active = installation.ActiveAnimation(
+    active = installation_playback.ActiveAnimation(
         'aurora',
         installation_config.BoundAnimation(
             selector='aurora', outputs={'light': 'left'}
         ),
         library,
-        {'left': Output(led_count=250)},
+        {'left': 250},
     )
     reference = show.prepare_library_animation(
         library, show.LightProgramSpec(selector='aurora')
@@ -315,13 +325,13 @@ def test_installation_preserves_score_frames_at_different_send_rates(
 
 def test_score_catches_up_after_a_delay_and_restarts_on_a_note() -> None:
     library = library_files.read_library(Path('examples/library.toml'))
-    active = installation.ActiveAnimation(
+    active = installation_playback.ActiveAnimation(
         'aurora',
         installation_config.BoundAnimation(
             selector='aurora', outputs={'light': 'left'}, activation='note'
         ),
         library,
-        {'left': Output(led_count=250)},
+        {'left': 250},
     )
     assert not active.render(100)[0][1].any()
     active.apply_performance(runtime_control.MidiPerformance(note=60), restart=True)
@@ -338,7 +348,7 @@ def test_score_catches_up_after_a_delay_and_restarts_on_a_note() -> None:
 
 def test_active_animation_applies_midi_controls() -> None:
     prepared = CountingPrepared()
-    active = object.__new__(installation.ActiveAnimation)
+    active = object.__new__(installation_playback.ActiveAnimation)
     active.definition = installation_config.BoundAnimation(
         selector='examples:/composition.toml',
         outputs={'light': 'left'},
@@ -349,7 +359,7 @@ def test_active_animation_applies_midi_controls() -> None:
         ],
     )
     active.bindings = [
-        installation.PreparedBinding(
+        installation_playback.PreparedBinding(
             output_name='light',
             expression=installation_config.OutputExpression(['left'], 'single'),
             prepared=prepared,
@@ -491,7 +501,7 @@ def test_playback_duration_starts_after_outputs_open(
         advance(10)
         return True
 
-    output = Mock()
+    output = Mock(status=installation.StringStatus())
     output.open.side_effect = open_output
     active = Mock()
     active.name = 'across'
@@ -504,13 +514,13 @@ def test_playback_duration_starts_after_outputs_open(
         outputs={'left': output},
         home=tmp_path,
     )
-    service._active = active
+    service.playback.active = active
     monkeypatch.setattr(installation.time, 'monotonic', lambda: clock.now)
     monkeypatch.setattr(installation.time, 'sleep', advance)
     monkeypatch.setattr(installation.InstallationService, 'start', lambda self: None)
     monkeypatch.setattr(installation.InstallationService, 'close', lambda self: None)
     monkeypatch.setattr(
-        installation.InstallationService, '_select', lambda self, name: None
+        installation_playback.InstallationPlayback, 'select', lambda self, name: None
     )
 
     assert service.run(duration=2) == 0
@@ -591,11 +601,11 @@ def test_service_maps_midi_into_the_active_animation(tmp_path: Path) -> None:
         outputs={},
         home=tmp_path,
     )
-    service._active = active
+    service.playback.active = active
 
-    service._receive_midi(mido.Message('note_on', note=64, velocity=96))
-    service._receive_midi(mido.Message('control_change', control=2, value=80))
-    service._receive_midi(mido.Message('pitchwheel', pitch=-4096))
+    service.playback.receive_midi(mido.Message('note_on', note=64, velocity=96))
+    service.playback.receive_midi(mido.Message('control_change', control=2, value=80))
+    service.playback.receive_midi(mido.Message('pitchwheel', pitch=-4096))
 
     status = service.status_snapshot()
     assert status.note == 64
@@ -696,7 +706,9 @@ def example_installation() -> dict[str, object]:
 def playback_service(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> installation.InstallationService:
-    config = installation_config.parse_installation(example_installation())
+    config = installation_config.parse_installation(
+        example_installation() | {'midi': {}}
+    )
     library = library_files.read_library(Path('examples/library.toml'))
     outputs = {
         'left': Mock(led_count=2, status=installation.StringStatus()),
@@ -719,8 +731,11 @@ def test_light_test_resumes_the_selected_animation(
     playback_service: installation.InstallationService,
 ) -> None:
     service = playback_service
-    expected = installation.ActiveAnimation(
-        'across', service.config.animations['across'], service.library, service.outputs
+    expected = installation_playback.ActiveAnimation(
+        'across',
+        service.config.animations['across'],
+        service.library,
+        service.playback.led_counts,
     )
     expected.render(0)
     service.rpc_response(rpc.Request(command='test', params={'duration': 2}))
@@ -766,9 +781,9 @@ def test_program_changes_each_advance_the_queued_selection(
     playback_service: installation.InstallationService,
 ) -> None:
     service = playback_service
-    service._receive_midi(mido.Message('program_change', program=70))
+    service.playback.receive_midi(mido.Message('program_change', program=70))
     assert service.status_snapshot().queued_animation == 'separate'
-    service._receive_midi(mido.Message('program_change', program=3))
+    service.playback.receive_midi(mido.Message('program_change', program=3))
     assert service.status_snapshot().queued_animation == 'across'
     service.render(1)
     assert service.status_snapshot().active_animation == 'across'
