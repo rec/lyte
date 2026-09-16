@@ -67,6 +67,7 @@ device MAC address and refreshes its LED count. Shutdown requests a blackout.
 `lyte diagnostic` is read-only device inspection. The other device commands
 inspect or change Twinkly brightness, colour, mode, effects, layout, timer,
 media, network, and input settings.
+These device commands do not turn the lights off after completing their action.
 
 The following physical checks still need the target hardware: visible output,
 Wi-Fi recovery, correct string order, fixture addressing, MIDI routing, and
