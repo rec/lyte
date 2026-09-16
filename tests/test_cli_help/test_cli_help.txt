@@ -1,0 +1,653 @@
+$ lyte --help
+usage: lyte [-h] {animate,author,black-floor,brightness,color,daemon,diagnostic,effects,layout,installation,led-config,mic,mode,movie,mqtt,music,network,patch,playlist,preview,render,saturation,show,test,test2,timer,verify,wled}
+
+ options
+ ---------------------------------------------------
+  -h, --help        show this help message and exit
+
+ subcommands
+ ---------------------------------------------------
+  (required)
+    - animate
+    - author
+    - black-floor
+    - brightness
+    - color
+    - daemon
+    - diagnostic
+    - effects
+    - layout
+    - installation
+    - led-config
+    - mic
+    - mode
+    - movie
+    - mqtt
+    - music
+    - network
+    - patch
+    - playlist
+    - preview
+    - render
+    - saturation
+    - show
+    - test
+    - test2
+    - timer
+    - verify
+    - wled
+
+
+$ lyte animate --help
+usage: lyte animate [-h] [ANIMATE OPTIONS] STR
+
+ positional arguments
+ ------------------------------------------------------
+  STR                  selector (required)
+
+ options
+ ------------------------------------------------------
+  -h, --help           show this help message and exit
+  --library-config {None}|PATH
+                       (default: None)
+  --output STR         (default: light)
+  --parameters [STR FLOAT [STR FLOAT ...]]
+                       (default: )
+  --wiring {None}|{[STR [STR ...]]}
+                       (default: None)
+  --host {None}|STR    (default: None)
+  --timeout FLOAT      (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                       (default: None)
+  --attempts INT       (default: 10)
+  --retry-delay FLOAT  (default: 0.5)
+  --retry-backoff FLOAT
+                       (default: 2.0)
+  --led-count {None}|INT
+                       (default: None)
+  --duration {None}|FLOAT
+                       (default: None)
+
+
+$ lyte author --help
+usage: lyte author [-h] [AUTHOR OPTIONS]
+
+ options
+ ---------------------------------------------------
+  -h, --help        show this help message and exit
+  --library-config {None}|PATH
+                    (default: None)
+  --light-output STR
+                    (default: light)
+  --duration FLOAT  (default: 10)
+  --port INT        (default: 8765)
+  --open, --no-open
+                    (default: True)
+
+
+$ lyte black-floor --help
+usage: lyte black-floor [-h] [BLACK-FLOOR OPTIONS]
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout FLOAT    (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay FLOAT
+                     (default: 0.5)
+  --retry-backoff FLOAT
+                     (default: 2.0)
+  --led-count {None}|INT
+                     (default: None)
+
+
+$ lyte brightness --help
+usage: lyte brightness [-h] [BRIGHTNESS OPTIONS] [{get,set}] [{None}|INT]
+
+ positional arguments
+ --------------------------------------------------
+  [{get,set}]      action (default: get)
+  [{None}|INT]     value (default: None)
+
+ options
+ --------------------------------------------------
+  -h, --help       show this help message and exit
+  --host {None}|STR
+                   (default: None)
+  --timeout FLOAT  (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                   (default: None)
+  --attempts INT   (default: 10)
+  --retry-delay FLOAT
+                   (default: 0.5)
+  --retry-backoff FLOAT
+                   (default: 2.0)
+
+
+$ lyte color --help
+usage: lyte color [-h] [COLOR OPTIONS] [{get,set}] [{None}|INT] [{None}|INT] [{None}|INT]
+
+ positional arguments
+ --------------------------------------------------
+  [{get,set}]      action (default: get)
+  [{None}|INT]     red (default: None)
+  [{None}|INT]     green (default: None)
+  [{None}|INT]     blue (default: None)
+
+ options
+ --------------------------------------------------
+  -h, --help       show this help message and exit
+  --host {None}|STR
+                   (default: None)
+  --timeout FLOAT  (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                   (default: None)
+  --attempts INT   (default: 10)
+  --retry-delay FLOAT
+                   (default: 0.5)
+  --retry-backoff FLOAT
+                   (default: 2.0)
+
+
+$ lyte daemon --help
+usage: lyte daemon [-h] [{run,install,uninstall,start,stop,restart,status}] [--config PATH]
+
+ positional arguments
+ --------------------------------------------------------
+  [{run,install,uninstall,start,stop,restart,status}]
+                 action (default: run)
+
+ options
+ --------------------------------------------------------
+  -h, --help     show this help message and exit
+  --config PATH  (default: patches/wearable-daemon.toml)
+
+
+$ lyte diagnostic --help
+usage: lyte diagnostic [-h] [DIAGNOSTIC OPTIONS]
+
+ options
+ ------------------------------------------------------
+  -h, --help           show this help message and exit
+  --realtime, --no-realtime
+                       (default: False)
+  --host {None}|STR    (default: None)
+  --timeout FLOAT      (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                       (default: None)
+  --attempts INT       (default: 10)
+  --retry-delay FLOAT  (default: 0.5)
+  --retry-backoff FLOAT
+                       (default: 2.0)
+  --discovery-attempts INT
+                       (default: 20)
+  --discovery-retry-delay FLOAT
+                       (default: 0.05)
+  --discovery-backoff-after INT
+                       (default: 10)
+  --led-count {None}|INT
+                       (default: None)
+  --pause FLOAT        (default: 0.7)
+
+
+$ lyte effects --help
+usage: lyte effects [-h] [EFFECTS OPTIONS] [{list,current,set-current}] [{None}|INT]
+
+ positional arguments
+ ----------------------------------------------------
+  [{list,current,set-current}]
+                     action (default: list)
+  [{None}|INT]       effect-id (default: None)
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout FLOAT    (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay FLOAT
+                     (default: 0.5)
+  --retry-backoff FLOAT
+                     (default: 2.0)
+
+
+$ lyte installation --help
+usage: lyte installation [-h] [INSTALLATION OPTIONS] [{run,install,uninstall,start,stop,restart,status}] [PATH]
+
+ positional arguments
+ -----------------------------------------------------
+  [{run,install,uninstall,start,stop,restart,status}]
+              action (default: run)
+  [PATH]      config (default: installation.toml)
+
+ options
+ -----------------------------------------------------
+  -h, --help  show this help message and exit
+  --duration {None}|FLOAT
+              (default: None)
+
+
+$ lyte layout --help
+usage: lyte layout [-h] [LAYOUT OPTIONS] [{get,export,upload,delete}] [{None}|PATH]
+
+ positional arguments
+ ----------------------------------------------------
+  [{get,export,upload,delete}]
+                     action (default: get)
+  [{None}|PATH]      path (default: None)
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout FLOAT    (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay FLOAT
+                     (default: 0.5)
+  --retry-backoff FLOAT
+                     (default: 2.0)
+
+
+$ lyte led-config --help
+usage: lyte led-config [-h] [LED-CONFIG OPTIONS] [{get,set}] [{None}|PATH]
+
+ positional arguments
+ --------------------------------------------------
+  [{get,set}]      action (default: get)
+  [{None}|PATH]    path (default: None)
+
+ options
+ --------------------------------------------------
+  -h, --help       show this help message and exit
+  --host {None}|STR
+                   (default: None)
+  --timeout FLOAT  (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                   (default: None)
+  --attempts INT   (default: 10)
+  --retry-delay FLOAT
+                   (default: 0.5)
+  --retry-backoff FLOAT
+                   (default: 2.0)
+
+
+$ lyte mic --help
+usage: lyte mic [-h] [MIC OPTIONS] [{config,sample}]
+
+ positional arguments
+ ----------------------------------------------------
+  [{config,sample}]  action (default: config)
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout FLOAT    (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay FLOAT
+                     (default: 0.5)
+  --retry-backoff FLOAT
+                     (default: 2.0)
+
+
+$ lyte mode --help
+usage: lyte mode [-h] [MODE OPTIONS] [{get,set}] [{None,off,color,demo,effect,movie,playlist,rt}]
+
+ positional arguments
+ ------------------------------------------------------
+  [{get,set}]          action (default: get)
+  [{None,off,color,demo,effect,movie,playlist,rt}]
+                       value (default: None)
+
+ options
+ ------------------------------------------------------
+  -h, --help           show this help message and exit
+  --host {None}|STR    (default: None)
+  --timeout FLOAT      (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                       (default: None)
+  --attempts INT       (default: 10)
+  --retry-delay FLOAT  (default: 0.5)
+  --retry-backoff FLOAT
+                       (default: 2.0)
+
+
+$ lyte movie --help
+usage: lyte movie [-h] [MOVIE OPTIONS] [{config,list,current}]
+
+ positional arguments
+ ----------------------------------------------------
+  [{config,list,current}]
+                     action (default: list)
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout FLOAT    (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay FLOAT
+                     (default: 0.5)
+  --retry-backoff FLOAT
+                     (default: 2.0)
+
+
+$ lyte mqtt --help
+usage: lyte mqtt [-h] [MQTT OPTIONS] [{config}]
+
+ positional arguments
+ ----------------------------------------------------
+  [{config}]         action (default: config)
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout FLOAT    (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay FLOAT
+                     (default: 0.5)
+  --retry-backoff FLOAT
+                     (default: 2.0)
+
+
+$ lyte music --help
+usage: lyte music [-h] [MUSIC OPTIONS] [{drivers,driver-sets,current-driver-set}]
+
+ positional arguments
+ --------------------------------------------------------
+  [{drivers,driver-sets,current-driver-set}]
+                         action (default: drivers)
+
+ options
+ --------------------------------------------------------
+  -h, --help             show this help message and exit
+  --host {None}|STR      (default: None)
+  --timeout FLOAT        (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                         (default: None)
+  --attempts INT         (default: 10)
+  --retry-delay FLOAT    (default: 0.5)
+  --retry-backoff FLOAT  (default: 2.0)
+
+
+$ lyte network --help
+usage: lyte network [-h] [NETWORK OPTIONS] [{status,scan,scan-results}]
+
+ positional arguments
+ ------------------------------------------------------
+  [{status,scan,scan-results}]
+                       action (default: status)
+
+ options
+ ------------------------------------------------------
+  -h, --help           show this help message and exit
+  --host {None}|STR    (default: None)
+  --timeout FLOAT      (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                       (default: None)
+  --attempts INT       (default: 10)
+  --retry-delay FLOAT  (default: 0.5)
+  --retry-backoff FLOAT
+                       (default: 2.0)
+
+
+$ lyte patch --help
+usage: lyte patch [-h] [PATCH OPTIONS] [{list,locator,play}] [{None}|STR]
+
+ positional arguments
+ ----------------------------------------------------------------
+  [{list,locator,play}]  action (default: list)
+  [{None}|STR]           patch-name (default: None)
+
+ options
+ ----------------------------------------------------------------
+  -h, --help             show this help message and exit
+  --library PATH         (default: patches/wearable-breath.toml)
+  --region-duration FLOAT
+                         (default: 3.0)
+  --fps FLOAT            (default: 20.0)
+  --duration {None}|FLOAT
+                         (default: None)
+  --host {None}|STR      (default: None)
+  --timeout FLOAT        (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                         (default: None)
+  --attempts INT         (default: 10)
+  --retry-delay FLOAT    (default: 0.5)
+  --retry-backoff FLOAT  (default: 2.0)
+
+ midi-input options
+ ----------------------------------------------------------------
+  --midi-input.channel {None}|INT
+                         (default: None)
+  --midi-input.device-name {None}|STR|{[STR [STR ...]]}
+                         (default: None)
+
+
+$ lyte playlist --help
+usage: lyte playlist [-h] [PLAYLIST OPTIONS] [{list,current}]
+
+ positional arguments
+ ----------------------------------------------------
+  [{list,current}]   action (default: list)
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout FLOAT    (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay FLOAT
+                     (default: 0.5)
+  --retry-backoff FLOAT
+                     (default: 2.0)
+
+
+$ lyte preview --help
+usage: lyte preview [-h] [PREVIEW OPTIONS] [{None}|STR] [{None}|PATH]
+
+ positional arguments
+ -----------------------------------------------------
+  [{None}|STR]        selector (default: None)
+  [{None}|PATH]       output (default: None)
+
+ options
+ -----------------------------------------------------
+  -h, --help          show this help message and exit
+  --library-config {None}|PATH
+                      (default: None)
+  --light-output STR  (default: light)
+  --parameters [STR FLOAT [STR FLOAT ...]]
+                      (default: )
+  --family {None}|STR
+                      (default: None)
+  --open, --no-open   (default: False)
+  --name {None}|STR   (default: None)
+  --led-size FLOAT    (default: 1.0)
+  --duration FLOAT    (default: 10.0)
+
+
+$ lyte render --help
+usage: lyte render [-h] [RENDER OPTIONS] [[STR [STR ...]]]
+
+ positional arguments
+ -----------------------------------------------------
+  [[STR [STR ...]]]   selectors (default: )
+
+ options
+ -----------------------------------------------------
+  -h, --help          show this help message and exit
+  --output PATH       (default: rendered)
+  --library-config {None}|PATH
+                      (default: None)
+  --light-output STR  (default: light)
+  --duration FLOAT    (default: 10.0)
+  --diameter FLOAT    (default: 20.0)
+  --padding FLOAT     (default: 5.0)
+  --shape {circle,rect}
+                      (default: circle)
+  --layout {None}|{[INT [INT ...]]}
+                      (default: None)
+  --background-color STR
+                      (default: white)
+
+
+$ lyte saturation --help
+usage: lyte saturation [-h] [SATURATION OPTIONS] [{get,set}] [{None}|INT]
+
+ positional arguments
+ --------------------------------------------------
+  [{get,set}]      action (default: get)
+  [{None}|INT]     value (default: None)
+
+ options
+ --------------------------------------------------
+  -h, --help       show this help message and exit
+  --host {None}|STR
+                   (default: None)
+  --timeout FLOAT  (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                   (default: None)
+  --attempts INT   (default: 10)
+  --retry-delay FLOAT
+                   (default: 0.5)
+  --retry-backoff FLOAT
+                   (default: 2.0)
+
+
+$ lyte show --help
+usage: lyte show [-h] [SHOW OPTIONS] STR
+
+ positional arguments
+ -----------------------------------------------
+  STR           selector (required)
+
+ options
+ -----------------------------------------------
+  -h, --help    show this help message and exit
+  --library-config {None}|PATH
+                (default: None)
+  --output STR  (default: light)
+  --parameters [STR FLOAT [STR FLOAT ...]]
+                (default: )
+  --wiring {None}|{[STR [STR ...]]}
+                (default: None)
+
+
+$ lyte test --help
+usage: lyte test [-h] [TEST OPTIONS]
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout FLOAT    (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay FLOAT
+                     (default: 0.5)
+  --retry-backoff FLOAT
+                     (default: 2.0)
+  --led-count {None}|INT
+                     (default: None)
+  --duration FLOAT   (default: 2.0)
+  --pause FLOAT      (default: 1)
+
+
+$ lyte test2 --help
+usage: lyte test2 [-h] [TEST2 OPTIONS]
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout FLOAT    (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay FLOAT
+                     (default: 0.5)
+  --retry-backoff FLOAT
+                     (default: 2.0)
+  --led-count {None}|INT
+                     (default: None)
+  --time FLOAT       (default: 5.0)
+
+
+$ lyte timer --help
+usage: lyte timer [-h] [TIMER OPTIONS] [{get,set}] [{None}|INT] [{None}|INT]
+
+ positional arguments
+ --------------------------------------------------
+  [{get,set}]      action (default: get)
+  [{None}|INT]     time-on (default: None)
+  [{None}|INT]     time-off (default: None)
+
+ options
+ --------------------------------------------------
+  -h, --help       show this help message and exit
+  --host {None}|STR
+                   (default: None)
+  --timeout FLOAT  (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                   (default: None)
+  --attempts INT   (default: 10)
+  --retry-delay FLOAT
+                   (default: 0.5)
+  --retry-backoff FLOAT
+                   (default: 2.0)
+  --time-now {None}|INT
+                   (default: None)
+
+
+$ lyte verify --help
+usage: lyte verify [-h] [VERIFY OPTIONS]
+
+ options
+ -----------------------------------------------------
+  -h, --help          show this help message and exit
+  --host {None}|STR   (default: None)
+  --timeout FLOAT     (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                      (default: None)
+  --attempts INT      (default: 10)
+  --retry-delay FLOAT
+                      (default: 0.5)
+  --retry-backoff FLOAT
+                      (default: 2.0)
+  --led-count {None}|INT
+                      (default: None)
+  --mode {fast,slow}  (default: fast)
+
+
+$ lyte wled --help
+usage: lyte wled [-h] [{import,export,list,translate}] [PATH] [--output {None}|PATH]
+
+ positional arguments
+ -------------------------------------------------
+  [{import,export,list,translate}]
+              action (default: list)
+  [PATH]      input (default: wled-snapshot.json)
+
+ options
+ -------------------------------------------------
+  -h, --help  show this help message and exit
+  --output {None}|PATH
+              (default: None)
