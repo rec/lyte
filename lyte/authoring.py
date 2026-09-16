@@ -18,7 +18,7 @@ from tomlkit.items import Table
 from ufor import codec, effects, library_files, light_animation
 from ufor.base import Model
 from ufor.composition import Composition
-from ufor.interface import ScoreVersion
+from ufor.interface import ScoreReference
 from ufor.library import Entry, Library, State
 from ufor.light_animation import AnimationScore
 from ufor.lights import LightType
@@ -196,7 +196,7 @@ class AuthoringSession:
         preset = PresetScore(
             name=name,
             title=f'{selected.title} preset',
-            score=ScoreVersion(selector=selector),
+            score=ScoreReference(selector=selector),
             parameters=parameters,
         )
         entries = [
@@ -625,10 +625,10 @@ def _composition_tree(
         entry = library.entries[part.score]
         children = []
         for source in light_animation.sources(operation):
-            child = part.children[source.name]
+            child = part.children[source.part]
             children.append(
                 {
-                    'source': source.name,
+                    'source': source.part,
                     'output': source.output,
                     'node': node(child, source.output),
                 }
@@ -671,7 +671,7 @@ def _operation_timeline(operation: Model) -> dict[str, object] | None:
             'duration': _rational_text(end),
             'events': [
                 {
-                    'name': cue.source.name,
+                    'name': cue.source.part,
                     'output': cue.source.output,
                     'start': _rational_text(cue.start),
                     'duration': _rational_text(cue.duration),
@@ -687,14 +687,14 @@ def _operation_timeline(operation: Model) -> dict[str, object] | None:
             'duration': duration,
             'events': [
                 {
-                    'name': operation.outgoing.name,
+                    'name': operation.outgoing.part,
                     'output': operation.outgoing.output,
                     'start': '0',
                     'duration': duration,
                     'end': duration,
                 },
                 {
-                    'name': operation.incoming.name,
+                    'name': operation.incoming.part,
                     'output': operation.incoming.output,
                     'start': '0',
                     'duration': duration,

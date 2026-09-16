@@ -245,7 +245,7 @@ class PreparedAnimation:
         part = self.composition.parts[path]
         return {
             source: self._render_part(
-                part.children[source.name], source.output, child_tick
+                part.children[source.part], source.output, child_tick
             )
             for source, child_tick in selections
         }

@@ -25,6 +25,11 @@ lyte animate examples:/composition.toml \
   --library-config examples/library.toml --duration 10
 ```
 
+Composition source selections use `part` and `output`, for example
+`source = { part = "intro", output = "light" }`. Older scores using `name`
+in those selections must change it to `part`. Python score references use
+`ufor.interface.ScoreReference`.
+
 Selectors are uFor selectors. `--parameters NAME VALUE` supplies public scalar
 overrides, and `--light-output` chooses the score's named light output. lyte logs all
 library diagnostics. A missing or incompatible score, output, parameter, or

@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-09-09T10:46:22.780051Z"
+exclude-newer = "2026-09-09T15:43:39.336199Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -99,7 +99,7 @@ requires-dist = [
     { name = "reccy", git = "https://github.com/rec/reccy.git?branch=main" },
     { name = "tomlkit", specifier = ">=0.15.1" },
     { name = "tyro", specifier = ">=1.0.15" },
-    { name = "ufor", url = "https://github.com/rec/ufor/archive/38469868953750513cb01c375823e36eb851bd14.tar.gz" },
+    { name = "ufor", url = "https://github.com/rec/ufor/archive/2e5b02ea97aa05b9229d836795da298f51b1be49.tar.gz" },
 ]
 
 [package.metadata.requires-dev]
@@ -541,12 +541,12 @@ wheels = [
 [[package]]
 name = "ufor"
 version = "0.1.0"
-source = { url = "https://github.com/rec/ufor/archive/38469868953750513cb01c375823e36eb851bd14.tar.gz" }
+source = { url = "https://github.com/rec/ufor/archive/2e5b02ea97aa05b9229d836795da298f51b1be49.tar.gz" }
 dependencies = [
     { name = "pydantic" },
     { name = "tomlkit" },
 ]
-sdist = { hash = "sha256:6b78b45bb20bb61bf8c2dc25eff962fcc052e9cf86b0d24a2727b85d2fb589cb" }
+sdist = { hash = "sha256:00701814e04e4d0ccf00e8b5934c403eb918fcbd28bcb55ec9bfb5fb7dc010e9" }
 
 [package.metadata]
 requires-dist = [

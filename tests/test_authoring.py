@@ -170,8 +170,8 @@ def test_authoring_session_exposes_exact_crossfade_timeline(tmp_path: Path) -> N
     )
     assert isinstance(composition, light_animation.AnimationScore)
     operation = light_animation.Crossfade(
-        outgoing=OutputSelection(name='limbs', output='light'),
-        incoming=OutputSelection(name='aurora', output='light'),
+        outgoing=OutputSelection(part='limbs', output='light'),
+        incoming=OutputSelection(part='aurora', output='light'),
         fade=light_animation.Fade(duration='3/2'),
     )
     edited = composition.model_copy(
@@ -524,11 +524,11 @@ def test_composition_draft_builds_sequences_and_mixes_without_writing_sources(
         'effect': 'cues',
         'cues': [
             {
-                'source': {'name': 'a', 'output': 'light'},
+                'source': {'part': 'a', 'output': 'light'},
                 'start': '1/2',
                 'duration': '2',
             },
-            {'source': {'name': 'b', 'output': 'light'}, 'start': '2', 'duration': '3'},
+            {'source': {'part': 'b', 'output': 'light'}, 'start': '2', 'duration': '3'},
         ],
     }
     structure = {'parts': parts, 'operation': cues}
@@ -549,8 +549,8 @@ def test_composition_draft_builds_sequences_and_mixes_without_writing_sources(
     structure['operation'] = {
         'effect': 'mix',
         'sources': [
-            {'source': {'name': 'a', 'output': 'light'}, 'weight': 0.25},
-            {'source': {'name': 'b', 'output': 'light'}, 'weight': 0.75},
+            {'source': {'part': 'a', 'output': 'light'}, 'weight': 0.25},
+            {'source': {'part': 'b', 'output': 'light'}, 'weight': 0.75},
         ],
     }
     mixed = session.structure_document(entry, 'light', structure, apply=True)
