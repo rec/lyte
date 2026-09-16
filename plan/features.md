@@ -146,6 +146,11 @@ same values and appearance. Reuse feature 1's edit history.
 
 ### 6. Spatial layout inspection and editing
 
+**Completed 2026-09-16.** Orthographic planes, axis labels, fit, zoom, light
+selection, names/indexes, a coordinate table, and constrained dragging are
+implemented. Layout edits validate and share document history; hidden coordinates
+and logical light identities are preserved. Three-dimensional reload tests pass.
+
 Current previews use XY projection and ignore Z; the editor does not edit layouts.
 
 First version: selectable XY, XZ, and YZ views with axis labels, fit-to-layout,

@@ -231,8 +231,11 @@ The example library was manually checked in the loopback browser on 2026-09-14:
 animation selection, reactive parameter sliders, transport pause and seeking,
 the composition tree, and cue timeline all worked. On 2026-09-16, the nine pixels in `examples/scores/grid.toml` were
 visually verified as three distinct rows and columns in the authoring browser.
-Both preview modes use XY projection: one-dimensional layouts sit at Y=0,
-and three-dimensional layouts ignore Z. There is no selectable 3D view.
+The editor supports XY, XZ, and YZ projections, zoom, fit, light names and
+logical indexes. Click a light to select it. For direct TOML scores, edit the
+coordinate table or enable dragging to move lights in the visible plane; hidden
+coordinates remain unchanged. Apply validates and downloads the layout through
+the same undo history. Wiring remains separate. Standalone previews still use XY.
 
 The editor shows each selected score's library path and source type. **Undo**
 and **Redo** restore accepted document edits across the session, including
