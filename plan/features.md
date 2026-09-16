@@ -100,6 +100,11 @@ and 2; do not introduce a second composition model or a generic keyframe system.
 
 ### 4. Library browser and actionable diagnostics
 
+**Completed 2026-09-16.** Search, library/family filters, canonical selectors,
+source metadata, parameter contracts, dependency navigation, visible blocked
+entries, and on-demand initial-frame thumbnails are implemented. No frames
+render while building the catalogue.
+
 Replace the single animation list with navigation that remains useful as the
 library grows.
 

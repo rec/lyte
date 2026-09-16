@@ -182,8 +182,15 @@ lyte author --library-config examples/library.toml --open
 ```
 
 `lyte author` serves a loopback-only browser editor. It lists uFor animation
-scores and the reactive built-ins under `builtin:`, derives sliders from public
-parameters, and regenerates the shared HTML preview after each edit. It does
+scores and the reactive built-ins under `builtin:`. Search names, selectors,
+and tags, or filter by library and effect family. Entries use their canonical
+library paths, so duplicate names remain distinct. Blocked entries display
+field/dependency diagnostics and links to dependencies and referring scores.
+The selected score shows its source type, rate, light count, outputs, and
+parameter targets, bounds, defaults, and units. **Render thumbnail** renders
+only the selected score's initial frame on request, with its existing seed.
+The editor derives sliders from public parameters and regenerates the shared
+HTML preview after each edit. It does
 not edit spatial layouts.
 
 Slider changes are coalesced, with one preview request at a time per browser.
