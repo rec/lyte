@@ -57,6 +57,11 @@ class TwinklySelector(InstallationDefinition, frozen=True):
         )
 
 
+class WledTarget(InstallationDefinition, frozen=True):
+    host: str = Field(min_length=1, pattern=r'^[^\s/:]+$')
+    led_count: int = Field(gt=0, strict=True)
+
+
 class ParameterControl(InstallationDefinition, frozen=True):
     source: Literal['gate', 'note', 'velocity', 'breath', 'pitch_bend']
     parameter: str = Field(min_length=1)
@@ -105,7 +110,8 @@ class BoundAnimation(InstallationDefinition, frozen=True):
 
 class InstallationFile(InstallationDefinition, frozen=True):
     library_config: Path | None = None
-    twinkly: dict[str, TwinklySelector] = Field(min_length=1)
+    twinkly: dict[str, TwinklySelector] = Field(default_factory=dict)
+    wled: dict[str, WledTarget] = Field(default_factory=dict)
     animation_defaults: AnimationDefaults = Field(default_factory=AnimationDefaults)
     animations: dict[str, BoundAnimation] = Field(min_length=1)
     initial_animation: str
@@ -200,6 +206,7 @@ def parse_installation(data: dict[str, object]) -> InstallationFile:
     allowed = {
         'library_config',
         'twinkly',
+        'wled',
         'animation_defaults',
         'animations',
         'initial_animation',
@@ -220,20 +227,28 @@ def parse_installation(data: dict[str, object]) -> InstallationFile:
 
 
 def _validate_installation(config: InstallationFile) -> None:
-    for name in config.twinkly:
+    strings = [*config.twinkly, *config.wled]
+    if not strings:
+        raise ValueError('installation requires at least one Twinkly or WLED output')
+    if set(config.twinkly).intersection(config.wled):
+        raise ValueError('Twinkly and WLED output names must be distinct')
+    hosts = [t.host.casefold() for t in config.wled.values()]
+    if len(set(hosts)) != len(hosts):
+        raise ValueError('WLED targets must have distinct hosts')
+    for name in strings:
         if not _STRING_NAME.fullmatch(name):
-            raise ValueError(f'Twinkly string name {name!r} is not an identifier')
+            raise ValueError(f'output string name {name!r} is not an identifier')
     for name, definition in config.animations.items():
         used: set[str] = set()
         for expression in definition.outputs.values():
-            parsed = parse_output_expression(expression, config.twinkly)
+            parsed = parse_output_expression(expression, strings)
             duplicate = used.intersection(parsed.members)
             if duplicate:
                 raise ValueError(
                     f'animation {name!r} binds string {min(duplicate)!r} more than once'
                 )
             used.update(parsed.members)
-        missing = set(config.twinkly) - used
+        missing = set(strings) - used
         if missing:
             raise ValueError(
                 f'animation {name!r} does not bind string {min(missing)!r}'

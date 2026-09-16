@@ -1,0 +1,18 @@
+library_config = "library.toml"
+fps = 30
+initial_animation = "across"
+
+[twinkly.left]
+product_name = "Dots"
+
+[wled.right]
+host = "wled.local"
+led_count = 60
+
+[animations.across]
+selector = "examples:/composition.toml"
+outputs = { light = "left + right" }
+
+[animations.mirrored]
+selector = "examples:/composition.toml"
+outputs = { light = "left * right" }

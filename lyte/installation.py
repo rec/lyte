@@ -1,4 +1,4 @@
-"""Selectable Twinkly animation installations."""
+"""Selectable Twinkly and WLED animation installations."""
 
 from __future__ import annotations
 
@@ -39,6 +39,7 @@ from .midi import MidiInput, input_messages, open_input
 from .retry import RetryConfig
 from .twinkly import diagnostic, discovery, realtime, session, track
 from .twinkly.client import TwinklyClient
+from .wled_output import WledDdpOutput
 
 LOGGER = logging.get_logger(__name__)
 
@@ -72,6 +73,7 @@ class TwinklyAssignment:
 
 
 class StringStatus(BaseModel):
+    transport: Literal['twinkly', 'wled'] = 'twinkly'
     state: str = 'pending'
     host: str | None = None
     mac: str | None = None
@@ -225,6 +227,50 @@ class TwinklyOutput:
         self.status.last_error = message
 
 
+class WledOutput:
+    def __init__(self, target: installation_config.WledTarget, timeout: float) -> None:
+        self.target = target
+        self.timeout = timeout
+        self.led_count = target.led_count
+        self.status = StringStatus(
+            transport='wled', host=target.host, led_count=target.led_count
+        )
+        self.output: WledDdpOutput | None = None
+
+    def open(self) -> bool:
+        # DDP has no handshake. Socket acquisition is retried by scheduled sends.
+        self.status.state = 'ready'
+        return True
+
+    def send(self, animation_name: str, frame: NDArray[np.uint8]) -> bool:
+        if self.output is None:
+            self.output = WledDdpOutput(self.target.host, self.led_count)
+            self.output.socket.settimeout(self.timeout)
+        self.output.send(frame)
+        self.status.state = 'sending (unconfirmed)'
+        self.status.frame_count += 1
+        self.status.last_error = None
+        return True
+
+    def record_failure(self, message: str) -> None:
+        self.status.state = 'failed'
+        self.status.failure_count += 1
+        self.status.last_error = message
+
+    def close(self) -> None:
+        if self.output is not None:
+            try:
+                self.output.send(np.zeros((self.led_count, 3), dtype=np.uint8))
+            except OSError as error:
+                self.record_failure(str(error))
+                LOGGER.warning(f'Could not send final WLED blackout: {error}')
+            finally:
+                self.output.close()
+                self.output = None
+        if self.status.state != 'failed':
+            self.status.state = 'stopped'
+
+
 class InstallationService(Reccy):
     name = 'lyte'
     service_spec = service.LYTE_SERVICE
@@ -233,7 +279,7 @@ class InstallationService(Reccy):
 
     config: installation_config.InstallationFile
     library: Library
-    outputs: dict[str, TwinklyOutput]
+    outputs: dict[str, TwinklyOutput | WledOutput]
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -332,16 +378,14 @@ class InstallationService(Reccy):
         if record_input is not None:
             self.playback.recorder = ControlRecorder(record_input)
             self.playback.recorder.start(self.config, self.library)
-        opened: list[TwinklyOutput] = []
+        opened: list[TwinklyOutput | WledOutput] = []
         try:
             self.start()
-            for output in self.outputs.values():
+            for name, output in self.outputs.items():
                 if output.open():
                     opened.append(output)
                 else:
-                    self.publish_error(
-                        f'{output.assignment.name}: could not open output'
-                    )
+                    self.publish_error(f'{name}: could not open output')
             if len(opened) != len(self.outputs):
                 return 1
             self.publish_status()
@@ -466,6 +510,8 @@ class InstallationService(Reccy):
 def discover_assignments(
     config: installation_config.InstallationFile,
 ) -> dict[str, TwinklyAssignment]:
+    if not config.twinkly:
+        return {}
     deadline = time.monotonic() + config.startup_timeout
 
     def remaining() -> float:
@@ -527,7 +573,8 @@ def build_service(
         config=config,
         library=library,
         outputs={
-            name: TwinklyOutput(value, config) for name, value in resolved.items()
+            **{n: TwinklyOutput(v, config) for n, v in resolved.items()},
+            **{n: WledOutput(v, config.timeout) for n, v in config.wled.items()},
         },
     )
 

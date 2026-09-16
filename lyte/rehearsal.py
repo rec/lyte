@@ -51,7 +51,16 @@ class RehearsalSession:
         self.replay = (
             ControlReplay(config.replay) if config.replay is not None else None
         )
-        counts = dict(config.string_counts)
+        if self.replay is None and set(config.string_counts) != set(
+            installation.twinkly
+        ):
+            raise ValueError(
+                'string counts must name every Twinkly string exactly once; '
+                'WLED uses configured counts'
+            )
+        counts = dict(config.string_counts) | {
+            n: t.led_count for n, t in installation.wled.items()
+        }
         self.warnings: list[str] = []
         if self.replay is not None:
             if self.replay.next_delivery is None:
@@ -68,7 +77,7 @@ class RehearsalSession:
                     'Score sources or declarations (including seeds) '
                     'differ from the recording'
                 )
-        if set(counts) != set(installation.twinkly):
+        if set(counts) != set(installation.twinkly) | set(installation.wled):
             if self.replay is not None:
                 self.replay.stream.close()
             raise ValueError(

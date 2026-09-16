@@ -335,6 +335,16 @@ and a saved score describes its required controls without embedding device I/O.
 
 ### 14. WLED and DMX installation outputs
 
+**WLED software implemented 2026-09-16; physical rehearsal pending.** Targets
+use explicit hostname/IPv4 address and light count, with no HTTP query. The sole
+installation runner shares playback, fades, master, blackout and status across
+Twinkly and WLED. Rehearsal uses configured WLED counts and simulated Twinkly
+counts. Tests cover DDP bytes, mixed controls, failure isolation and subsequent
+successful sends. UDP success is explicitly unconfirmed, not device health.
+Before declaring the transport complete, rehearse selection, disconnection,
+reconnection and blackout with the user's actual WLED and Twinkly devices.
+DMX integration remains unimplemented and requires fixture/blackout decisions.
+
 Extend the sole installation runner to use the existing WLED DDP and Art-Net
 primitives. This is architectural work, not just adding another command.
 

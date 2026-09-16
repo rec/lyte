@@ -18,7 +18,7 @@ PANEL_TEMPLATE = r"""<!doctype html>
 <label>Test level (%) <input id="level" type="number" min="0" max="100" value="50"></label>
 <label>Duration (s) <input id="duration" type="number" min="0.01" step="0.1" value="2"></label><button id="test">Test lights</button>
 </fieldset><output id="error" role="alert"></output><button id="clear-error">Clear command error</button>
-<output id="status"></output><table><thead><tr><th>String</th><th>State</th><th>Lights</th><th>Sent</th><th>Failures</th><th>Last error</th></tr></thead><tbody id="strings"></tbody></table>
+<output id="status"></output><table><thead><tr><th>String</th><th>Transport</th><th>State</th><th>Lights</th><th>Sent</th><th>Failures</th><th>Last error</th></tr></thead><tbody id="strings"></tbody></table>
 <details><summary>Timing diagnostics</summary><pre id="diagnostics"></pre></details>
 <script>
 const element=id=>document.getElementById(id);
@@ -35,7 +35,7 @@ function displayStatus(data){
   element('status').textContent=`Active: ${data.active_animation||'none'}\nQueued: ${data.queued_animation||'none'}\nBlackout: ${data.blackout}\nMIDI: ${data.midi_connected?'connected':'disconnected'}${data.midi_error?' ('+data.midi_error+')':''}\nTest: ${data.active_test?'active':data.queued_test?'queued':'none'}\n${(data.errors||[]).map(error=>error.message).join('\n')}`;
   element('strings').replaceChildren(...Object.entries(data.strings).map(([name,status])=>{
     const row=document.createElement('tr');
-    for(const value of [name,status.state,status.led_count??'unknown',status.frame_count,status.failure_count,status.last_error||'']){
+    for(const value of [name,status.transport,status.state,status.led_count??'unknown',status.frame_count,status.failure_count,status.last_error||'']){
       const cell=document.createElement('td');cell.textContent=String(value);row.append(cell);
     }
     return row;
