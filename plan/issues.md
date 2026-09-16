@@ -105,15 +105,12 @@ controls, and controls/releases from the owning channel.
 
 ### 13. ffmpeg cleanup is incomplete on exceptional export paths
 
-**Confirmed resource-management gap.**
-[render_animation](../lyte/render.py) waits for ffmpeg only on the successful
-write path. Rendering errors or broken pipes close stdin without reliably
-waiting for the child. Closing a buffered pipe in `finally` can also raise
-another error and obscure the original failure. Partial movies are left at
-the final destination.
-
-Ensure every launched child is reaped and decide how failed outputs are
-identified or published. Verify a renderer exception and early ffmpeg exit.
+**Fixed 2026-09-16.** Movies are encoded in a temporary directory beside the
+output and published without overwriting an existing destination only after
+ffmpeg succeeds. Failed exports are discarded. Every encoder is waited for;
+an interrupted input kills the encoder first, and broken-pipe cleanup cannot
+hide a rendering error. Tests cover renderer, write, close, encoder-exit, and
+publication failures as well as success.
 
 ## Inefficiencies and editor limitations
 
