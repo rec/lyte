@@ -213,6 +213,11 @@ into the browser. This demonstrates software behavior, not physical readiness.
 
 ### 9. Render cost and timing diagnostics
 
+**Completed 2026-09-16.** `lyte benchmark` reports offline score costs and budget
+overruns. Installation status includes per-animation/output render aggregates,
+catch-up ticks, scheduled/actual delivery intervals, lateness, output time, and
+failures. Tests cover overruns, catch-up accounting, and retained counters.
+
 Help users find effects or compositions that cannot keep up at the chosen rate.
 
 First version: report render time per animation, scheduled versus actual frame

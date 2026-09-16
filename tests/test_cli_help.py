@@ -12,6 +12,7 @@ def test_cli_help(cli_help) -> None:
         subcommands=[
             'animate',
             'author',
+            'benchmark',
             'calibrate-black',
             'brightness',
             'color',

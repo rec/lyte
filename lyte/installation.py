@@ -32,6 +32,7 @@ from . import (
     runtime_control,
     service,
 )
+from .metrics import DeliveryTiming, RenderCost
 from .midi import MidiInput, input_messages, open_input
 from .retry import RetryConfig
 from .twinkly import diagnostic, discovery, realtime, session, track
@@ -78,6 +79,8 @@ class StringStatus(BaseModel):
 
 
 class InstallationStatus(ReccyStatus):
+    render_costs: dict[str, dict[str, RenderCost]] = Field(default_factory=dict)
+    delivery: DeliveryTiming | None = None
     active_animation: str | None = None
     queued_animation: str | None = None
     blackout: bool = False
@@ -227,6 +230,7 @@ class InstallationService(Reccy):
     _midi_error: str | None = PrivateAttr(default=None)
     _stop_requested: threading.Event = PrivateAttr(default_factory=threading.Event)
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
+    _delivery: DeliveryTiming | None = PrivateAttr(default=None)
 
     @cached_property
     def playback(self) -> installation_playback.InstallationPlayback:
@@ -255,6 +259,8 @@ class InstallationService(Reccy):
                 else self.config.animations[self.playback.active.name].outputs.copy()
             )
             return InstallationStatus(
+                render_costs=self.playback.render_costs,
+                delivery=self._delivery,
                 running=self._started,
                 errors=self._errors.copy(),
                 active_animation=active,
@@ -294,6 +300,10 @@ class InstallationService(Reccy):
             self.publish_status()
             next_frame = time.monotonic()
             deadline = None if duration is None else next_frame + duration
+            self._delivery = DeliveryTiming(
+                scheduled_interval_seconds=1 / self.config.fps
+            )
+            previous_frame: float | None = None
             while not self._stop_requested.is_set():
                 now = time.monotonic()
                 if deadline is not None and now >= deadline:
@@ -302,16 +312,26 @@ class InstallationService(Reccy):
                     time.sleep(next_frame - now)
                     continue
                 self._process_midi(now)
+                self._delivery.record(
+                    None if previous_frame is None else now - previous_frame,
+                    now - next_frame,
+                )
+                previous_frame = now
                 assert self.playback.active is not None
                 frames = self.render(now)
                 for name, frame in frames:
                     output = self.outputs[name]
+                    started = time.perf_counter()
                     try:
                         if not output.send(self.playback.active.name, frame):
+                            self._delivery.output_failures += 1
                             self.publish_status()
                     except (OSError, RuntimeError, ValueError) as error:
+                        self._delivery.output_failures += 1
                         output.record_failure(str(error))
                         self.publish_error(f'{name}: output failed: {error}')
+                    finally:
+                        self._delivery.output_seconds += time.perf_counter() - started
                 next_frame += 1 / self.config.fps
                 while next_frame <= now:
                     next_frame += 1 / self.config.fps
