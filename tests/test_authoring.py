@@ -208,7 +208,7 @@ def test_authoring_session_exposes_exact_crossfade_timeline(tmp_path: Path) -> N
     assert edited.body.operation.fade.duration == Fraction(5, 4)
 
 
-def test_authoring_session_edits_cue_timing_without_mutating_its_library(
+def test_authoring_session_accumulates_edits_without_mutating_source_files(
     tmp_path: Path,
 ) -> None:
     scores = tmp_path / 'scores'
@@ -229,6 +229,7 @@ def test_authoring_session_edits_cue_timing_without_mutating_its_library(
         library_files.read_library(config),
         authoring.AuthorConfig(library_config=config),
     )
+    original = composition.read_text()
 
     document = session.timeline_document(
         'example:/composition.toml',
@@ -250,6 +251,16 @@ def test_authoring_session_edits_cue_timing_without_mutating_its_library(
         (Fraction(0), Fraction(9, 2)),
         (Fraction(4), Fraction(5)),
     ]
+    combined = session.field_document(
+        'example:/composition.toml', 'light', {'easing': 'smooth'}
+    )
+    combined_score = codec.parse_score(combined)
+    assert isinstance(combined_score, light_animation.AnimationScore)
+    assert isinstance(combined_score.body.operation, light_animation.Cues)
+    assert combined_score.body.operation.easing == 'smooth'
+    assert combined_score.body.operation.cues[0].duration == Fraction(9, 2)
+    assert '# preserved timing comment' in combined
+    assert composition.read_text() == original
     with pytest.raises(ValueError, match='cues require increasing starts and ends'):
         session.timeline_document(
             'example:/composition.toml',
@@ -262,6 +273,9 @@ def test_authoring_session_edits_cue_timing_without_mutating_its_library(
             },
         )
     assert session.preview('composition', {})['frames']
+    assert session.documents['example:/composition.toml'] == combined
+    selected = next(a for a in session.animations if a.selector == 'composition')
+    assert selected.composition['fields']['easing'] == 'smooth'
 
 
 def test_authoring_session_rejects_unknown_score_fields(tmp_path: Path) -> None:
