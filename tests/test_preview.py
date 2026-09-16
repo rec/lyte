@@ -4,6 +4,7 @@ import base64
 import json
 from pathlib import Path
 
+import pytest
 from ufor import light_animation
 from ufor.interface import LightBinding, Output
 from ufor.library import Entry, Library
@@ -73,3 +74,21 @@ def test_one_dimensional_layout_is_padded_for_canvas_projection() -> None:
 
     assert data['coords'][0] == [0.0, 0.0]
     assert data['coords'][-1] == [124.0, 0.0]
+
+
+def test_preview_size_limit_rejects_work_before_rendering() -> None:
+    prepared = show.prepare_animation(
+        show.LightProgramSpec(selector='examples:/ripple.toml'),
+        Path('examples/library.toml'),
+    )
+    with pytest.raises(ValueError, match='preview exceeds'):
+        document.encoded_frames(prepared, 100000)
+    assert prepared.tick == 0
+
+
+@pytest.mark.parametrize(
+    ('frames', 'frame_bytes'), [(10001, 1), (1, 32 * 1024 * 1024 + 1)]
+)
+def test_preview_workload_limits(frames: int, frame_bytes: int) -> None:
+    with pytest.raises(ValueError, match='preview exceeds'):
+        document.preview_frame_count(1, frames, frame_bytes)

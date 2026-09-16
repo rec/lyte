@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Lock
 from typing import Literal, cast
 from urllib.parse import urlparse
 
@@ -29,7 +30,7 @@ from ufor.preset import PresetScore
 from ufor.selector import LibraryConfig
 
 from . import animation, reactive_effects, reactivity, show
-from .preview.document import encoded_frames, safe_json
+from .preview.document import encoded_frames, preview_frame_count, safe_json
 
 
 class AuthorConfig(BaseModel, frozen=True):
@@ -536,7 +537,7 @@ def _builtin_preview(
     device = animation.Device(led_count=128)
     state = source.initial_state(device)
     state.fps = 30
-    frame_count = max(1, round(duration * state.fps))
+    frame_count = preview_frame_count(state.fps, duration, device.led_count * 3)
     frames = []
     for index in range(frame_count):
         reactive_effects.update_features(state, _demo_features(index, frame_count))
@@ -567,6 +568,8 @@ def _demo_features(index: int, frame_count: int) -> reactivity.AudioFeatures:
 
 
 def _handler(session: AuthoringSession) -> type[BaseHTTPRequestHandler]:
+    preview_lock = Lock()
+
     class AuthorHandler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             if urlparse(self.path).path != '/':
@@ -631,7 +634,18 @@ def _handler(session: AuthoringSession) -> type[BaseHTTPRequestHandler]:
                 else:
                     selector, parameters = _preview_request(payload)
                     if path == '/api/preview':
-                        response = session.preview(selector, parameters)
+                        if not preview_lock.acquire(blocking=False):
+                            self._json(
+                                429,
+                                {
+                                    'error': 'Another preview is rendering; try again when it finishes.'
+                                },
+                            )
+                            return
+                        try:
+                            response = session.preview(selector, parameters)
+                        finally:
+                            preview_lock.release()
                     else:
                         name = payload.get('name')
                         if not isinstance(name, str):
@@ -737,6 +751,9 @@ let frame=0;
 let playing=true;
 let lastTime=0;
 let previewRequest=0;
+let previewBusy=false;
+let previewTimer=null;
+let pendingPreview=null;
 let selectedOperation=null;
 for(const animation of catalog){const option=document.createElement('option');option.value=animation.selector;option.textContent=animation.title;select.append(option)}
 function active(){return catalog.find(animation=>animation.selector===select.value)}
@@ -755,14 +772,23 @@ function rebuild(){controls.replaceChildren();for(const parameter of active().pa
 function decodeFrame(text){const binary=atob(text);const bytes=new Uint8Array(binary.length);for(let index=0;index<binary.length;index+=1){bytes[index]=binary.charCodeAt(index)}return bytes}
 async function requestPreview(){
   const request=++previewRequest;
+  pendingPreview={request,selector:select.value,parameters:values()};
+  clearTimeout(previewTimer);
   preview=null;
   frames=[];
   frame=0;
   frameControl.max=0;
   frameControl.value=0;
   status.textContent='Loading preview';
+  previewTimer=setTimeout(sendPreview,150);
+}
+async function sendPreview(){
+  if(previewBusy||!pendingPreview){return}
+  previewBusy=true;
+  const {request,selector,parameters}=pendingPreview;
+  pendingPreview=null;
   try {
-    const response=await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values()})});
+    const response=await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector,parameters})});
     const result=await response.json();
     if(request!==previewRequest){return}
     if(!response.ok){status.textContent=result.error;return}
@@ -774,6 +800,9 @@ async function requestPreview(){
     updateStatus();
   } catch(error) {
     if(request===previewRequest){status.textContent=`Could not load preview: ${error.message}`}
+  } finally {
+    previewBusy=false;
+    if(pendingPreview){clearTimeout(previewTimer);previewTimer=setTimeout(sendPreview,150)}
   }
 }
 async function savePreset(){const response=await fetch('/api/preset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:select.value,parameters:values(),name:presetName.value})});const result=await response.json();if(!response.ok){saveStatus.textContent=result.error;return}const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([result.document],{type:'application/toml'}));link.download=result.filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);saveStatus.textContent=`Downloaded ${result.filename}`}

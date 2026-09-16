@@ -186,6 +186,12 @@ scores and the reactive built-ins under `builtin:`, derives sliders from public
 parameters, and regenerates the shared HTML preview after each edit. It does
 not edit spatial layouts.
 
+Slider changes are coalesced, with one preview request at a time per browser.
+The server renders one preview at a time; other tabs receive a busy message.
+Authoring and standalone HTML previews allow at most 10000 frames and 32 MiB
+of raw frame data. Reduce duration or layout size if a preview exceeds either
+limit. Base64 encoding and browser copies require additional memory.
+
 For a Ufor score, the **Composition** panel follows the selected output's
 declared operation tree and the parts it references. Selecting an operation
 shows its declared fields in the read-only inspector. The **Timeline** shows
