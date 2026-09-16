@@ -207,9 +207,10 @@ read-only, preserving their source structure and comments.
 
 The example library was manually checked in the loopback browser on 2026-09-14:
 animation selection, reactive parameter sliders, transport pause and seeking,
-the composition tree, and cue timeline all worked. Its layouts are
-one-dimensional, so a two-dimensional projection still needs a score with a
-two-dimensional layout.
+the composition tree, and cue timeline all worked. On 2026-09-16, the nine pixels in `examples/scores/grid.toml` were
+visually verified as three distinct rows and columns in the authoring browser.
+Both preview modes use XY projection: one-dimensional layouts sit at Y=0,
+and three-dimensional layouts ignore Z. There is no selectable 3D view.
 
 Direct TOML animation scores can replace a selected operation with one of the
 offered score-aware templates and download the edited source. Lyte validates
