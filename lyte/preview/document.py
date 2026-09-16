@@ -43,6 +43,7 @@ def animation_document(
     payload = {
         'coords': [p.position for p in prepared.output.layout.lights],
         'fps': prepared.fps,
+        'audio': prepared.audio is not None,
         'frames': encoded_frames(prepared, duration),
     }
     view = SpatialView.model_validate(
@@ -63,16 +64,24 @@ def preview_document(payload: dict[str, object], name: str, view: SpatialView) -
 
 
 def encoded_frames(prepared: rendering.PreparedAnimation, duration: float) -> list[str]:
-    frame_count = preview_frame_count(
-        prepared.fps,
-        duration,
-        len(prepared.output.layout.lights) * len(prepared.output.components),
+    frame_bytes = len(prepared.output.layout.lights) * len(prepared.output.components)
+    frame_count = (
+        len(prepared.audio.frames)
+        if prepared.audio is not None
+        else preview_frame_count(prepared.fps, duration, frame_bytes)
     )
+    if frame_count > 10000 or frame_count * frame_bytes > 32 * 1024 * 1024:
+        raise ValueError('preview exceeds 10000 frames or 32 MiB of frame data')
     frames = []
     for _ in range(frame_count):
         frame = animation.byte_light_frame_from_float(prepared.render())
         frames.append(base64.b64encode(memoryview(frame).cast('B')).decode('ascii'))
     return frames
+
+
+def attach_preview_audio(prepared: rendering.PreparedAnimation, path: Path) -> None:
+    frame_bytes = len(prepared.output.layout.lights) * len(prepared.output.components)
+    prepared.set_audio(path, min(10000, 32 * 1024 * 1024 // frame_bytes))
 
 
 def preview_frame_count(fps: float, duration: float, frame_bytes: int) -> int:

@@ -54,6 +54,7 @@ from ..animations.simulations import (
     randomize,
     reaction_diffusion_strip,
 )
+from ..reactive_effects import AudioSpectrum
 
 
 class RendererCapabilityError(ValueError):
@@ -71,6 +72,7 @@ def build_effect(effect: effects.EffectValue) -> Animation:
 
 
 EFFECT_RENDERERS: dict[str, type[Animation]] = {
+    'audio_spectrum': AudioSpectrum,
     'alternates': alternates.Alternates,
     'aurora': aurora.Aurora,
     'candle_bank': candle_bank.CandleBank,

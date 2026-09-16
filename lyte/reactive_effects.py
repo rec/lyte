@@ -10,6 +10,8 @@ import numpy as np
 import pydantic
 from numpy.typing import NDArray
 from pydantic import Field
+from ufor import effects
+from ufor.audio_features import AudioFeatures
 
 from . import animation, reactivity
 
@@ -35,13 +37,13 @@ _WHITE = reactivity.Gradient(
         reactivity.GradientStop(position=1, color=[1, 1, 1]),
     ]
 )
-_SILENCE = reactivity.AudioFeatures(
+_SILENCE = AudioFeatures(
     level=0, bass=0, mid=0, treble=0, onset=0, beat=0, spectrum=[0]
 )
 
 
 class AudioState(animation.State):
-    features: reactivity.AudioFeatures = _SILENCE
+    features: AudioFeatures = _SILENCE
 
 
 class AudioReactiveAnimation(pydantic.BaseModel, frozen=True):
@@ -87,11 +89,8 @@ class SpectrumState(AudioState):
 
 
 class AudioSpectrum(
-    AudioReactiveAnimation, animation.Animation[SpectrumState], frozen=True
+    effects.AudioSpectrum, animation.Animation[SpectrumState], frozen=True
 ):
-    gain: float = Field(default=1.5, ge=0)
-    smoothing: float = Field(default=10, ge=0)
-
     def initial_state(self, device: animation.Device) -> SpectrumState:
         return SpectrumState(levels=np.zeros(device.led_count, dtype=np.float32))
 
@@ -109,9 +108,17 @@ class AudioSpectrum(
             ],
             dtype=np.float32,
         )
-        frame = (
-            self.gradient.sample(_positions(device))
-            * np.clip(state.levels, 0, 1)[:, None]
+        colors = np.asarray(self.palette, dtype=np.float32) / 255
+        palette = np.column_stack(
+            [
+                np.interp(
+                    _positions(device), np.linspace(0, 1, len(colors)), colors[:, c]
+                )
+                for c in range(3)
+            ]
+        )
+        frame = np.asarray(
+            palette * np.clip(state.levels, 0, 1)[:, None], dtype=np.float32
         )
         state.frame += 1
         return np.ascontiguousarray(frame)
@@ -296,7 +303,7 @@ class BeatStrobe(AudioReactiveAnimation, animation.Animation[StrobeState], froze
         )
 
 
-def update_features(state: AudioState, features: reactivity.AudioFeatures) -> None:
+def update_features(state: AudioState, features: AudioFeatures) -> None:
     state.features = features
 
 
@@ -306,7 +313,7 @@ def _positions(device: animation.Device) -> NDArray[np.float32]:
     return np.linspace(0, 1, device.led_count, dtype=np.float32)
 
 
-EFFECTS: dict[str, type[AudioReactiveAnimation]] = {
+EFFECTS: dict[str, type[AudioReactiveAnimation | AudioSpectrum]] = {
     'audio-scan': AudioScan,
     'audio-spectrum': AudioSpectrum,
     'bass-pulse': BassPulse,

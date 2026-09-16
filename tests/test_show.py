@@ -110,7 +110,7 @@ def test_library_diagnostics_include_fields_and_cycles(
 
 
 def test_every_ufor_effect_has_an_installed_renderer() -> None:
-    assert len(build.EFFECT_RENDERERS) == 41
+    assert len(build.EFFECT_RENDERERS) == 42
     for tag in build.EFFECT_RENDERERS:
         description = TypeAdapter(effects.EffectValue).validate_python({'effect': tag})
         renderer = build.build_effect(description)

@@ -65,11 +65,15 @@ function decodeFrame(text) {
 const frames = data.frames.map(decodeFrame);
 __PROJECTION_SCRIPT__
 
+let started;
 function draw(time) {
+  if(started===undefined){started=time;}
+  const index=Math.floor((time-started)/1000*data.fps);
   if (canvas.width === 0 || canvas.height === 0) {
     resize();
   }
-  const frame = frames[Math.floor(time / 1000 * data.fps) % frames.length];
+  const frameIndex=data.audio ? Math.min(index,frames.length-1) : index % frames.length;
+  const frame = frames[frameIndex];
   const axes = {xy:[0,1],xz:[0,2],yz:[1,2]}[data.plane];
   const points = projectedPoints(data.coords,canvas.width,canvas.height,axes,data.zoom);
   const radius = Math.max(3, Math.min(canvas.width, canvas.height) / 140)
