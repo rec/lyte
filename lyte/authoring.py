@@ -35,7 +35,13 @@ from . import (
     show,
 )
 from .authoring_template import AUTHOR_TEMPLATE
-from .preview.document import encoded_frames, preview_frame_count, safe_json
+from .preview.document import (
+    encoded_frames,
+    preview_document,
+    preview_frame_count,
+    safe_json,
+)
+from .spatial import SpatialView
 
 
 class AuthorConfig(BaseModel, frozen=True):
@@ -150,6 +156,18 @@ class AuthoringSession:
             'coords': [p.position for p in prepared.output.layout.lights],
             'fps': prepared.fps,
             'frames': encoded_frames(prepared, self.config.duration),
+        }
+
+    def preview_download(
+        self, selector: str, parameters: dict[str, float], view: SpatialView
+    ) -> dict[str, object]:
+        selected = self._animation(selector)
+        return {
+            'filename': 'lyte-preview.html',
+            'document': preview_document(
+                self.preview(selector, parameters), selected.title, view
+            ),
+            'mime': 'text/html',
         }
 
     def thumbnail(self, selector: str) -> dict[str, object]:

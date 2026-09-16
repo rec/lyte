@@ -31,8 +31,17 @@ library diagnostics. A missing or incompatible score, output, parameter, or
 wiring order fails during preparation, before hardware opens.
 
 `lyte preview` uses the layout's authored coordinates. `lyte render` produces
-an MP4 with a simple grid view for one or more selected scores; it requires
-`ffmpeg` on `PATH`.
+an MP4 for one or more selected scores; it requires `ffmpeg` on `PATH`.
+Movies default to grid mode. Use `--projection xy` (or `xz`, `yz`) for authored
+positions, with `--width`, `--height`, `--zoom`, and `--led-size`. HTML previews
+use `--plane xy` (or `xz`, `yz`) with the same zoom and light-size semantics.
+At equal canvas dimensions, framing and orientation match; positive vertical
+coordinates point down. Light size multiplies a radius of the greater of three
+pixels and 1/140 of the shorter canvas dimension. Movie coordinates round to
+pixels, and movie dimensions round up to even numbers for the encoder.
+Use `--background-color '#050506'` for movies to match the default preview
+background; HTML uses `--background '#rrggbb'`. Movie grid layout, diameter,
+and padding retain their existing meanings.
 Movie export rejects colliding filenames and existing destinations before
 starting the batch. Use a fresh output directory to retain previous exports.
 Failed exports discard their temporary movies; final filenames appear only
@@ -235,7 +244,11 @@ The editor supports XY, XZ, and YZ projections, zoom, fit, light names and
 logical indexes. Click a light to select it. For direct TOML scores, edit the
 coordinate table or enable dragging to move lights in the visible plane; hidden
 coordinates remain unchanged. Apply validates and downloads the layout through
-the same undo history. Wiring remains separate. Standalone previews still use XY.
+the same undo history. Wiring remains separate. **Download standalone HTML
+preview** exports the current working animation and parameter values, with the
+selected projection, zoom, light size, and background. Apply a pending layout
+draft first. This is a visual artifact, not editable source, and does not mark
+source edits as downloaded.
 
 The editor shows each selected score's library path and source type. **Undo**
 and **Redo** restore accepted document edits across the session, including

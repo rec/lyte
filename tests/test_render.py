@@ -7,10 +7,11 @@ import numpy as np
 import pytest
 
 from lyte import render
+from lyte.spatial import SpatialView, projected_points
 
 
 def test_grid_renderer_uses_rounded_square_layout() -> None:
-    renderer = render.GridRenderer(5, 4, 1, 'rect', None, 'white')
+    renderer = render.FrameRenderer(5, 4, 1, 'rect', None, 'white')
     values = np.array(
         [[255, 0, 0], [0, 255, 0], [0, 0, 255], [0, 0, 0], [255, 255, 0]],
         dtype=np.uint8,
@@ -25,12 +26,56 @@ def test_grid_renderer_uses_rounded_square_layout() -> None:
 
 
 def test_grid_renderer_draws_circular_lights() -> None:
-    renderer = render.GridRenderer(1, 4, 0, 'circle', [1, 1], '#000')
+    renderer = render.FrameRenderer(1, 4, 0, 'circle', [1, 1], '#000')
 
     frame = renderer.render(np.array([[255, 0, 0]], dtype=np.uint8))
 
     assert frame[0, 0].tolist() == [0, 0, 0]
     assert frame[2, 2].tolist() == [255, 0, 0]
+
+
+@pytest.mark.parametrize('plane', ['xy', 'xz', 'yz'])
+def test_spatial_movie_preserves_orientation_and_renders_at_projected_centres(
+    plane: str,
+) -> None:
+    positions = [[0.0, 0.0, 0.0], [2.0, 1.0, 3.0], [1.0, 4.0, 2.0]]
+    view = SpatialView.model_validate({'plane': plane, 'led_size': 2})
+    points = projected_points(positions, 800, 600, view)
+    assert points[1][0] > points[0][0]
+    assert points[1][1] > points[0][1]
+    renderer = render.FrameRenderer(
+        3,
+        20,
+        5,
+        'circle',
+        None,
+        '#123456',
+        positions=positions,
+        view=view,
+        width=800,
+        height=600,
+    )
+    colors = np.array([[255, 0, 0], [0, 255, 0], [0, 0, 255]], dtype=np.uint8)
+    frame = renderer.render(colors)
+    for point, color in zip(points, colors, strict=True):
+        assert frame[round(point[1]), round(point[0])].tolist() == color.tolist()
+    assert frame[0, 0].tolist() == [18, 52, 86]
+
+
+def test_zoomed_movie_clips_offscreen_lights() -> None:
+    renderer = render.FrameRenderer(
+        2,
+        20,
+        5,
+        'circle',
+        None,
+        '#000',
+        positions=[[0.0], [100.0]],
+        view=SpatialView(zoom=4),
+        width=800,
+        height=600,
+    )
+    assert not renderer.render(np.full((2, 3), 255, dtype=np.uint8)).any()
 
 
 @pytest.mark.parametrize(
@@ -151,7 +196,7 @@ def test_export_reaps_encoder_and_publishes_only_successful_movies(
     with (
         patch.object(render.subprocess, 'Popen', side_effect=start),
         patch.object(
-            render.GridRenderer,
+            render.FrameRenderer,
             'render',
             return_value=np.zeros((2, 2, 3), dtype=np.uint8),
         ) as frame,
