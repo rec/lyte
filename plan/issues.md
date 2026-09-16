@@ -116,11 +116,9 @@ publication failures as well as success.
 
 ### 14. Device assignment enumerates every ambiguous solution
 
-[assign_twinkly_devices](../lyte/installation.py) accumulates all complete
-assignments merely to distinguish zero, one, or multiple solutions. With N
-indistinguishable devices and N empty selectors this grows as N factorial.
-Stop once a second solution proves ambiguity. This needs no general-purpose
-constraint solver.
+**Fixed 2026-09-16.** Assignment search stops exploring once a second valid
+solution proves ambiguity. Existing assignment tests cover unique, missing,
+and ambiguous matches.
 
 ### 15. Slider movement starts overlapping full renders
 
