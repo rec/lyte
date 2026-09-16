@@ -1046,7 +1046,7 @@ start = "0"
 duration = "6"
 
 [body.operation.cues.source]
-name = "limbs"
+part = "limbs"
 output = "light"
 
 [[body.operation.cues]]
@@ -1054,7 +1054,7 @@ start = "4"
 duration = "6"
 
 [body.operation.cues.source]
-name = "aurora"
+part = "aurora"
 output = "light"
 
 [[body.parts]]
