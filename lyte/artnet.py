@@ -26,11 +26,13 @@ class ArtNetDriver:
         self.sequence = 1
         self._socket: socket.socket | None = None
 
-    def open(self) -> None:
+    def open(self, timeout: float | None = None) -> None:
         if self._socket is None:
             self._socket = socket.socket(
                 socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
             )
+            if timeout is not None:
+                self._socket.settimeout(timeout)
 
     def send(self, frames: dict[int, dmx.DmxFrame]) -> None:
         if self._socket is None:
