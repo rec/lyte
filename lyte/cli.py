@@ -10,7 +10,7 @@ from typing import Annotated
 import tyro
 from reccy.runtime import logging
 
-from . import authoring, fps_test, installation, render, wled
+from . import authoring, authoring_http, fps_test, installation, render, wled
 from . import patches
 from . import show
 from .animate.config import AnimateConfig
@@ -170,7 +170,7 @@ def run_command(config: object) -> int:
     if isinstance(config, AnimateConfig):
         return run_animate(config)
     if isinstance(config, authoring.AuthorConfig):
-        return authoring.run_author(config)
+        return authoring_http.run_author(config)
     if isinstance(config, fps_test.BlackFloorTestConfig):
         return fps_test.run_black_floor_test(config)
     if isinstance(config, BrightnessConfig):

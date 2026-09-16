@@ -8,7 +8,7 @@ import numpy as np
 from numpy import testing as npt
 from numpy.typing import NDArray
 
-from lyte import animation, fps_test
+from lyte import animation, diagnostic_frames, fps_test
 from lyte.retry import RetryConfig
 from lyte.twinkly import realtime
 from lyte.twinkly.client import TwinklyClient
@@ -21,7 +21,7 @@ class FpsTestTests(unittest.TestCase):
 
     def test_gradient_frame_blends_between_endpoint_colors(self) -> None:
         npt.assert_array_equal(
-            fps_test.gradient_frame(3, (0, 0, 0), (100, 50, 200)),
+            diagnostic_frames.gradient_frame(3, (0, 0, 0), (100, 50, 200)),
             np.array([[0, 0, 0], [50, 25, 100], [100, 50, 200]], dtype=np.uint8),
         )
 
@@ -30,7 +30,7 @@ class FpsTestTests(unittest.TestCase):
         second_frame = np.array([[100, 200, 0]], dtype=np.uint8)
 
         npt.assert_array_equal(
-            fps_test.blend_frames(first_frame, second_frame, 0.25),
+            diagnostic_frames.blend_frames(first_frame, second_frame, 0.25),
             np.array([[25, 125, 150]], dtype=np.uint8),
         )
 
@@ -109,7 +109,7 @@ class FpsTestTests(unittest.TestCase):
         turn_off.assert_called_once()
 
     def test_dispersed_pixel_order_visits_each_led_once(self) -> None:
-        order = fps_test.dispersed_pixel_order(11)
+        order = diagnostic_frames.dispersed_pixel_order(11)
 
         self.assertEqual(sorted(order.tolist()), list(range(11)))
         self.assertEqual(order.tolist(), [0, 5, 10, 4, 9, 3, 8, 2, 7, 1, 6])
@@ -120,7 +120,9 @@ class FpsTestTests(unittest.TestCase):
         device = animation.Device(led_count=4)
         order = np.array([0, 2, 1, 3], dtype=np.int64)
 
-        frame = fps_test.temporal_dither_grayscale_frame(device, 0, 1, 2, 5, order)
+        frame = diagnostic_frames.temporal_dither_grayscale_frame(
+            device, 0, 1, 2, 5, order
+        )
 
         npt.assert_array_equal(
             frame,
@@ -129,13 +131,15 @@ class FpsTestTests(unittest.TestCase):
 
     def test_solid_grayscale_frame_fills_all_channels(self) -> None:
         npt.assert_array_equal(
-            fps_test.solid_grayscale_frame(animation.Device(led_count=2), 7),
+            diagnostic_frames.solid_grayscale_frame(animation.Device(led_count=2), 7),
             np.array([[7, 7, 7], [7, 7, 7]], dtype=np.uint8),
         )
 
     def test_solid_rgb_level_frame_fills_all_channels(self) -> None:
         npt.assert_array_equal(
-            fps_test.solid_rgb_level_frame(animation.Device(led_count=2), (1, 2, 3)),
+            diagnostic_frames.solid_rgb_level_frame(
+                animation.Device(led_count=2), (1, 2, 3)
+            ),
             np.array([[1, 2, 3], [1, 2, 3]], dtype=np.uint8),
         )
 
@@ -278,7 +282,8 @@ class FpsTestTests(unittest.TestCase):
         device = animation.Device(led_count=2)
 
         frames = [
-            fps_test.verify_primary_channels_frame(device, i, 4) for i in range(4)
+            diagnostic_frames.verify_primary_channels_frame(device, i, 4)
+            for i in range(4)
         ]
 
         npt.assert_array_equal(frames[0], np.full((2, 3), (255, 0, 0), dtype=np.uint8))
