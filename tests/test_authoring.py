@@ -660,3 +660,68 @@ def test_browser_distinguishes_duplicate_names_and_thumbnails_are_repeatable(
     assert thumbnail == session.thumbnail('first:/aurora.toml')
     assert len(rendered) == 2
     assert thumbnail['frame'] == session.preview('first:/aurora.toml', {})['frames'][0]
+
+
+def test_palette_edits_preserve_comments_and_can_be_undone(
+    editable_session: authoring.AuthoringSession,
+    tmp_path: Path,
+) -> None:
+    session = editable_session
+    key = 'example:/aurora.toml'
+    source = tmp_path / 'scores' / 'aurora.toml'
+    original = source.read_text().replace(
+        'band_count =', '# keep this field comment\nband_count ='
+    )
+    source.write_text(original)
+    palette = [[0, 255, 0], [255, 0, 0], [0, 0, 255]]
+    document = session.color_document(key, 'light', {'palette': palette})
+    score = codec.parse_score(document)
+    assert isinstance(score, light_animation.AnimationScore)
+    assert isinstance(score.body.operation, effects.Aurora)
+    assert score.body.operation.palette == palette
+    assert '# retained comment' in document
+    assert '# keep this field comment' in document
+    assert source.read_text() == original
+    assert session.preview(key, {})['frames']
+    with pytest.raises(ValueError):
+        session.color_document(key, 'light', {'palette': []})
+    assert session.source_document(key) == document
+    session.undo()
+    assert session.source_document(key) == original
+    session.redo()
+    assert session.source_document(key) == document
+
+
+def test_normalized_fill_values_keep_their_units_and_precision(
+    editable_session: authoring.AuthoringSession,
+) -> None:
+    session = editable_session
+    key = 'example:/grid.toml'
+    values = [0.123456789, 0.5, 1.25]
+    document = session.color_document(key, 'light', {'values': values})
+    score = codec.parse_score(document)
+    assert isinstance(score, light_animation.AnimationScore)
+    assert isinstance(score.body.operation, light_animation.Fill)
+    assert score.body.operation.values == values
+    selected = next(a for a in session.animations if a.selector == key)
+    assert selected.composition['color_fields']['values']['scale'] == 1
+    with pytest.raises(ValueError, match='finite'):
+        session.color_document(key, 'light', {'values': [float('nan'), 0, 0]})
+    assert session.source_document(key) == document
+
+
+def test_byte_colour_rejects_fractional_channels(
+    editable_session: authoring.AuthoringSession,
+) -> None:
+    session = editable_session
+    key = 'example:/aurora.toml'
+    session.operation_document(key, 'light', 'color_fill')
+    before = session.source_document(key)
+    with pytest.raises(ValueError):
+        session.color_document(key, 'light', {'color': [0.5, 0, 0]})
+    assert session.source_document(key) == before
+    document = session.color_document(key, 'light', {'color': [128, 0, 255]})
+    score = codec.parse_score(document)
+    assert isinstance(score, light_animation.AnimationScore)
+    assert isinstance(score.body.operation, effects.ColorFill)
+    assert score.body.operation.color == [128, 0, 255]

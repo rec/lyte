@@ -124,6 +124,11 @@ and a score can be selected unambiguously even when several share a title.
 
 ### 5. Palette and nested-field editors
 
+**Completed 2026-09-16.** Colour swatches and numeric channels support Aurora
+and ExpandingRipples palettes, ColorFill and ColorChase RGB bytes, and normalized
+RGB Fill values. Palettes can add, remove, and reorder colours. Unsupported
+nested fields stay read-only; validation and undo use the shared session.
+
 Scalar controls leave common edits, especially colours and palettes, in TOML.
 
 First version:
