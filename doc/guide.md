@@ -153,6 +153,9 @@ An optional `[midi]` table reconnects a MIDI input. Animation controls map
 note gate, note number, velocity, CC 2 breath, and pitch bend to public Ufor
 parameters. An animation may use `activation = "note"` to output black until a
 note is held. Program changes queue the next configured animation.
+Each program-change message advances the queued selection; its program number
+is ignored. The latest note-on owns the active note, even across channels.
+Releases, breath, and pitch bend only affect it when their channel matches.
 Preparation rejects non-finite or out-of-range mapped values and unsupported
 live parameter changes before discovering devices. Built-in effect parameters
 that are construction-only cannot be mapped to live MIDI controls.
