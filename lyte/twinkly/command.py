@@ -28,12 +28,8 @@ def run_twinkly_command(
     client = TwinklyClient(host=host, timeout=config.timeout)
     prepare_authenticated_client(client, retry, host)
 
-    off_succeeded = True
-    try:
-        action(client)
-    finally:
-        off_succeeded = session.turn_off_with_retry(client, retry, host)
-    return 0 if off_succeeded else 1
+    action(client)
+    return 0
 
 
 def prepare_authenticated_client(

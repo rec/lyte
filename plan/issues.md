@@ -12,16 +12,11 @@ Suggested checks describe future verification, not tests already performed.
 
 ### 1. Device queries and setting changes turn the lights off
 
-**High priority; confirmed control flow.**
-[run_twinkly_command](../lyte/twinkly/command.py) unconditionally calls
-`turn_off_with_retry` in `finally`. Brightness, mode, color, effects, and media
-commands use this wrapper, including getters. Reading brightness can therefore
-interrupt a running display; setting a mode is immediately followed by an off
-request. The dedicated diagnostic command takes a different path.
-
-Give playback cleanup and ordinary device commands distinct shutdown policies.
-Verify getters preserve output state and setters leave the requested state in
-place. Actual device behavior still needs hardware verification.
+**Fixed 2026-09-16.**
+[run_twinkly_command](../lyte/twinkly/command.py) now performs the requested
+action without sending an additional off request. Existing command tests verify
+that getters and setters do not invoke blackout cleanup. Playback retains its
+own shutdown handling. Actual device behavior still needs hardware verification.
 
 ### 2. Installation playback ignores the score's declared frame rate
 
