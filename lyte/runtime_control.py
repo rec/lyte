@@ -26,14 +26,22 @@ class MidiPerformance(BaseModel):
                 self.channel = message.channel
                 self.breath = None
                 self.pitch = None
-            case 'note_on' | 'note_off' if self.note == message.note:
+            case 'note_on' | 'note_off' if (
+                self.note == message.note and self.channel == message.channel
+            ):
                 self.note = None
                 self.velocity = 0
                 self.breath = None
                 self.pitch = None
-            case 'control_change' if self.note is not None and message.control == 2:
+            case 'control_change' if (
+                self.note is not None
+                and self.channel == message.channel
+                and message.control == 2
+            ):
                 self.breath = message.value
-            case 'pitchwheel' if self.note is not None:
+            case 'pitchwheel' if (
+                self.note is not None and self.channel == message.channel
+            ):
                 self.pitch = int(message.__getattribute__('pitch'))
 
     def value(self, source: str) -> float:
