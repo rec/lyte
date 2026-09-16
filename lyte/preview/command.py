@@ -1,4 +1,4 @@
-"""Render a Ufor light score to a standalone HTML preview."""
+"""Render a uFor light score to a standalone HTML preview."""
 
 import sys
 import webbrowser

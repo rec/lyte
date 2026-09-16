@@ -1,4 +1,4 @@
-"""Ufor score selection and Lyte renderer preparation."""
+"""uFor score selection and lyte renderer preparation."""
 
 from __future__ import annotations
 

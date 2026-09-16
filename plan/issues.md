@@ -160,19 +160,13 @@ checks, and the complete CLI help regression. Old command names are removed.
 
 ### 20. README overstates installation transport support
 
-The opening of [README.md](../README.md) advertises mixed Twinkly and Art-Net
-installation playback. [installation.py](../lyte/installation.py) builds
-Twinkly outputs only, and [doc/guide.md](../doc/guide.md) correctly says DMX,
-Art-Net, and WLED are separate primitives. Align the capability summary with
-what users can actually run. Integration is unfinished product work, not an
-existing feature just because the transport classes exist.
+**Fixed.** README now describes Twinkly installation playback and explicitly
+identifies WLED DDP and DMX/Art-Net as separate primitives.
 
 ### 21. Project spelling is inconsistent
 
-README, guide, handover, plan text, and the authoring title still use `Lyte`,
-`Ufor`, and `Reccy`. Use the requested display spellings: lyte, streamO, recs,
-uFor, reccy, tuney, enge, showCo. Keep real import paths, filenames, and external
-identifiers accurate; display capitalization is not a request to rename code.
+**Fixed.** Display text, documentation, docstrings, and service labels use lyte,
+uFor, and reccy. Real class names, imports, and identifiers remain accurate.
 
 ### 22. Several modules combine too many responsibilities
 

@@ -1,4 +1,4 @@
-"""Common device setup helpers for Lyte scripts and applications."""
+"""Common device setup helpers for lyte scripts and applications."""
 
 from __future__ import annotations
 

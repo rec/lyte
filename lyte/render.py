@@ -1,4 +1,4 @@
-"""Render Ufor light animations as MP4 files."""
+"""Render uFor light animations as MP4 files."""
 
 from __future__ import annotations
 

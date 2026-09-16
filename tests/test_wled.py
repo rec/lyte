@@ -45,7 +45,7 @@ def test_translation_generates_supported_score_and_preserves_unsupported_preset(
     assert translated['lyte_effect'] == 'color_fill'
     assert (
         native['not_translated']
-        == "WLED effect 'Noise' has no declared Lyte translation"
+        == "WLED effect 'Noise' has no declared lyte translation"
     )
     score = tomllib.loads((tmp_path / 'scores' / translated['score']).read_text())
     assert score['body']['operation'] == {'effect': 'color_fill', 'color': [64, 32, 16]}

@@ -40,7 +40,7 @@ def test_author_document_contains_animation_catalogue() -> None:
     )
 
     assert 'examples:/aurora.toml' in document
-    assert 'Lyte Author' in document
+    assert 'lyte Author' in document
     assert 'id="previous"' in document
     assert 'id="frame"' in document
     assert 'projectedPoints' in document

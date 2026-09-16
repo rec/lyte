@@ -1,8 +1,8 @@
-"""Exceptions for the small Lyte client."""
+"""Exceptions for the small lyte client."""
 
 
 class LyteError(Exception):
-    """Base error for Lyte operations."""
+    """Base error for lyte operations."""
 
 
 class DiscoveryError(LyteError):

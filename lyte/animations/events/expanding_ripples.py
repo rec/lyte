@@ -1,7 +1,7 @@
 """Create paired wavefronts traveling outwards from one or more origins.
 
 Events propagate in both directions at a fixed width and fade with age.
-A regular event rate chooses seeded origins and colors. Ufor defines origins,
+A regular event rate chooses seeded origins and colors. uFor defines origins,
 event rate, propagation speed, width, decay, palette, speed and seed.
 """
 

@@ -1,4 +1,4 @@
-# Lyte Handover
+# lyte Handover
 
 Status on 2026-09-14: no active work has been handed over.
 

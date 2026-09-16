@@ -1,4 +1,4 @@
-"""Shared Lyte service identity."""
+"""Shared lyte service identity."""
 
 from pathlib import Path
 

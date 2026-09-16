@@ -3,7 +3,7 @@ HTML_TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lyte Preview</title>
+<title>lyte Preview</title>
 <style>
 html, body {
   height: 100%;
@@ -35,7 +35,7 @@ canvas {
 </head>
 <body>
 <main>
-<header><h1 id="title">Lyte Preview</h1></header>
+<header><h1 id="title">lyte Preview</h1></header>
 <canvas id="preview"></canvas>
 </main>
 <script>
