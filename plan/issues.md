@@ -41,11 +41,9 @@ Tests verify name collisions and preservation of existing exports.
 
 ### 5. The editor's Next button does not advance
 
-**Confirmed bug.** In the final event bindings of
-[authoring.py](../lyte/authoring.py), `next.onclick` calls
-`setFrame(Number(frameControl.value))`, selecting the current frame. Previous
-correctly subtracts one. Advance by one and check both ends with looping on
-and off. Python document assertions do not exercise this browser interaction.
+**Fixed 2026-09-16.** Next advances one frame. A focused JavaScript check
+executed the actual event handler and frame-selection function, including the
+last frame with looping enabled and disabled.
 
 ### 6. Preview requests can leave stale or misleading results onscreen
 
