@@ -116,6 +116,12 @@ string unused. Switching animations prepares fresh renderer state but retains
 healthy physical connections. The Reccy RPC endpoint supports `status`,
 `select_animation`, `test`, `blackout`, and `stop`.
 
+Installation `fps` controls delivery cadence. Each score retains its declared
+timing: slower scores hold their latest frame between ticks, while faster scores
+advance through intervening ticks before sending the latest frame. A delayed
+delivery catches up to elapsed time. Selection and MIDI note restarts reset the
+score timeline.
+
 An optional `[midi]` table reconnects a MIDI input. Animation controls map
 note gate, note number, velocity, CC 2 breath, and pitch bend to public Ufor
 parameters. An animation may use `activation = "note"` to output black until a

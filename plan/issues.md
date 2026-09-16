@@ -20,17 +20,11 @@ own shutdown handling. Actual device behavior still needs hardware verification.
 
 ### 2. Installation playback ignores the score's declared frame rate
 
-**High priority; confirmed clock mismatch.**
-[InstallationService.run and ActiveAnimation.render](../lyte/installation.py)
-render each binding once per installation frame, scheduled by `config.fps`.
-[PreparedAnimation.render](../lyte/rendering.py) advances one logical score tick
-per call; the score's rate determines how that tick translates into time.
-There is no reconciliation of the two rates. A 20 FPS score sent at 30 FPS
-advances 1.5 times as fast. Bindings with different rates cannot all be correct.
-
-Choose an explicit scheduling contract: reject incompatible rates or sample
-scores according to elapsed logical time. Verify cue boundaries and effect
-speed with differing installation and score rates.
+**Fixed 2026-09-16.** Installation rendering samples each binding at elapsed
+monotonic time using its exact declared rate. Slower scores hold their last
+frame; faster scores advance through every intervening tick to preserve state.
+Selection and MIDI note restarts begin a fresh timeline. Tests cover differing
+send rates, delayed frames, and note restarts.
 
 ### 3. Authoring embeds unescaped score metadata inside a script
 

@@ -9,6 +9,7 @@ import time
 import tomllib
 from collections.abc import Iterable
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -357,6 +358,7 @@ class PreparedBinding:
     output_name: str
     expression: OutputExpression
     prepared: rendering.PreparedAnimation
+    frame: NDArray[np.uint8] | None = None
 
 
 class ActiveAnimation:
@@ -376,6 +378,7 @@ class ActiveAnimation:
         self._prepare()
 
     def _prepare(self) -> None:
+        self.started_at: Fraction | None = None
         self.bindings = [
             PreparedBinding(
                 output_name,
@@ -396,17 +399,26 @@ class ActiveAnimation:
             for binding in self.bindings:
                 binding.prepared.set_parameters(values)
 
-    def render(self) -> list[tuple[str, NDArray[np.uint8]]]:
+    def render(self, now: float) -> list[tuple[str, NDArray[np.uint8]]]:
+        at = Fraction(str(now))
+        if self.started_at is None:
+            self.started_at = at
+        elapsed = at - self.started_at
         frames: list[tuple[str, NDArray[np.uint8]]] = []
         for binding in self.bindings:
-            source = (
-                binding.prepared.byte_frame(wired=True)
-                if self.definition.activation == 'always'
+            if (
+                self.definition.activation == 'always'
                 or self.performance.note is not None
-                else np.zeros(
+            ):
+                tick = int(elapsed * binding.prepared.rate)
+                while binding.prepared.tick <= tick:
+                    binding.frame = binding.prepared.byte_frame(wired=True)
+                assert binding.frame is not None
+                source = binding.frame
+            else:
+                source = np.zeros(
                     (len(binding.prepared.output.layout.lights), 3), dtype=np.uint8
                 )
-            )
             frames.extend(
                 distribute_frame(
                     source,
@@ -549,7 +561,7 @@ class InstallationService(Reccy):
                 self._process_midi(now)
                 self._apply_queued_test(now)
                 assert self._active is not None
-                frames = self._test_frames(now) or self._active.render()
+                frames = self._test_frames(now) or self._active.render(now)
                 for name, frame in frames:
                     output = self.outputs[name]
                     try:
