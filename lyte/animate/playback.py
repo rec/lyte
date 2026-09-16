@@ -32,6 +32,10 @@ def run_animate(args: AnimateConfig) -> int:
         ),
         args.library_config,
     )
+    if prepared.requires_audio:
+        raise ValueError(
+            'audio-driven scores currently support offline preview and export only'
+        )
     if prepared.output.components != ['red', 'green', 'blue']:
         raise ValueError('Twinkly output requires red, green, blue components')
     if prepared.output.interpretation != Interpretation.drive:

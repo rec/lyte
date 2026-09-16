@@ -37,6 +37,7 @@ class RenderConfig(BaseModel, frozen=True):
     selectors: Annotated[list[str], tyro.conf.Positional] = Field(default_factory=list)
     output: Path = Path('rendered')
     library_config: Path | None = None
+    audio: Path | None = None
     light_output: str = 'light'
     duration: float = Field(default=10.0, gt=0)
     diameter: float = Field(default=20.0, gt=0)
@@ -192,6 +193,10 @@ def render_animation(
         raise RenderError(f'{selector}: {error}') from error
     if prepared.output.components != ['red', 'green', 'blue']:
         raise RenderError(f'{selector}: render requires red, green, blue components')
+    if config.audio is not None:
+        prepared.set_audio(config.audio)
+    if prepared.requires_audio and prepared.audio is None:
+        raise RenderError('this score requires --audio with a PCM WAV file')
     renderer = FrameRenderer(
         len(prepared.output.layout.lights),
         config.diameter,
@@ -213,7 +218,11 @@ def render_animation(
         height=config.height,
     )
     output = config.output / f'{safe_name(selector)}.mp4'
-    frame_count = max(1, round(prepared.fps * config.duration))
+    frame_count = (
+        len(prepared.audio.frames)
+        if prepared.audio is not None
+        else max(1, round(prepared.fps * config.duration))
+    )
     with TemporaryDirectory(prefix='.lyte-render-', dir=config.output) as directory:
         temporary = Path(directory) / 'movie.mp4'
         command = [
@@ -226,7 +235,7 @@ def render_animation(
             '-video_size',
             f'{renderer.width}x{renderer.height}',
             '-framerate',
-            f'{prepared.fps:g}',
+            str(prepared.rate),
             '-i',
             '-',
             '-an',
@@ -236,6 +245,7 @@ def render_animation(
             'yuv420p',
             '-movflags',
             '+faststart',
+            *(['-t', str(float(prepared.audio.duration))] if prepared.audio else []),
             str(temporary),
         ]
         process = subprocess.Popen(command, stdin=subprocess.PIPE)

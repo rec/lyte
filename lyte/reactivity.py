@@ -9,24 +9,7 @@ from typing import Literal
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, Field, model_validator
-
-
-class AudioFeatures(BaseModel, frozen=True):
-    """Normalized analysis values for one rendered logical frame."""
-
-    level: float = Field(ge=0, le=1)
-    bass: float = Field(ge=0, le=1)
-    mid: float = Field(ge=0, le=1)
-    treble: float = Field(ge=0, le=1)
-    onset: float = Field(ge=0, le=1)
-    beat: float = Field(ge=0, le=1)
-    spectrum: list[float] = Field(min_length=1)
-
-    @model_validator(mode='after')
-    def normalized_spectrum(self) -> AudioFeatures:
-        if any(not 0 <= value <= 1 for value in self.spectrum):
-            raise ValueError('spectrum values must be between zero and one')
-        return self
+from ufor.audio_features import AudioFeatures
 
 
 class GradientStop(BaseModel, frozen=True):

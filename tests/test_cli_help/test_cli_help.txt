@@ -78,6 +78,8 @@ usage: lyte author [-h] [AUTHOR OPTIONS]
   -h, --help        show this help message and exit
   --library-config {None}|PATH
                     (default: None)
+  --audio {None}|PATH
+                    (default: None)
   --light-output STR
                     (default: light)
   --duration FLOAT  (default: 10)
@@ -530,6 +532,8 @@ usage: lyte preview [-h] [PREVIEW OPTIONS] [{None}|STR]
                       (default: None)
   --library-config {None}|PATH
                       (default: None)
+  --audio {None}|PATH
+                      (default: None)
   --light-output STR  (default: light)
   --parameters [STR FLOAT [STR FLOAT ...]]
                       (default: )
@@ -568,32 +572,33 @@ $ lyte render --help
 usage: lyte render [-h] [RENDER OPTIONS] [[STR [STR ...]]]
 
  positional arguments
- ----------------------------------------------------
-  [[STR [STR ...]]]  selectors (default: )
+ -----------------------------------------------------
+  [[STR [STR ...]]]   selectors (default: )
 
  options
- ----------------------------------------------------
-  -h, --help         show this help message and exit
-  --output PATH      (default: rendered)
+ -----------------------------------------------------
+  -h, --help          show this help message and exit
+  --output PATH       (default: rendered)
   --library-config {None}|PATH
-                     (default: None)
-  --light-output STR
-                     (default: light)
-  --duration FLOAT   (default: 10.0)
-  --diameter FLOAT   (default: 20.0)
-  --padding FLOAT    (default: 5.0)
+                      (default: None)
+  --audio {None}|PATH
+                      (default: None)
+  --light-output STR  (default: light)
+  --duration FLOAT    (default: 10.0)
+  --diameter FLOAT    (default: 20.0)
+  --padding FLOAT     (default: 5.0)
   --shape {circle,rect}
-                     (default: circle)
+                      (default: circle)
   --layout {None}|{[INT [INT ...]]}
-                     (default: None)
+                      (default: None)
   --background-color STR
-                     (default: white)
+                      (default: white)
   --projection {grid,xy,xz,yz}
-                     (default: grid)
-  --width INT        (default: 960)
-  --height INT       (default: 540)
-  --led-size FLOAT   (default: 1)
-  --zoom FLOAT       (default: 1)
+                      (default: grid)
+  --width INT         (default: 960)
+  --height INT        (default: 540)
+  --led-size FLOAT    (default: 1)
+  --zoom FLOAT        (default: 1)
 
 
 $ lyte saturation --help

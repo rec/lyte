@@ -675,6 +675,7 @@ async function sendPreview(){
     }
     const decoded=result.frames.map(decodeFrame);
     preview=result;
+    if(result.audio){loop.checked=false;}
     frames=decoded;
     frameControl.max=Math.max(0,frames.length-1);
     lastTime=performance.now();

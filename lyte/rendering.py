@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fractions import Fraction
+from pathlib import Path
 from time import perf_counter
 from typing import cast
 
@@ -16,7 +17,9 @@ from ufor.lights import LightType, Wiring
 
 from . import animation
 from .animate.build import RendererCapabilityError, build_effect
+from .audio_input import AudioAnalysis
 from .metrics import RenderCost
+from .reactive_effects import AudioState
 
 
 class PythonAnimationScore(light_animation.AnimationScore):
@@ -61,6 +64,7 @@ class PreparedAnimation:
         self.renderers: dict[str, animation.Animation | PythonAnimationScore] = {}
         self._last_ticks: dict[str, int] = {}
         self._cache: dict[tuple[str, int], NDArray[np.float32]] = {}
+        self.audio: AudioAnalysis | None = None
         self.tick = 0
         self._prepare_parts()
         self.timing = RenderCost(
@@ -76,7 +80,26 @@ class PreparedAnimation:
     def fps(self) -> float:
         return float(self.rate)
 
+    @property
+    def requires_audio(self) -> bool:
+        return any(isinstance(s, AudioState) for s in self.states.values())
+
+    def set_audio(self, path: Path, max_frames: int | None = None) -> None:
+        if self.tick:
+            raise ValueError('attach audio before rendering begins')
+        if not self.requires_audio:
+            raise ValueError('this score does not require audio controls')
+        self.audio = AudioAnalysis(path, self.rate, max_frames)
+
     def render(self) -> NDArray[np.float32]:
+        if self.requires_audio:
+            if self.audio is None:
+                raise ValueError('this score requires --audio with a PCM WAV file')
+            if self.tick >= len(self.audio.frames):
+                raise ValueError('audio has reached EOF')
+            for state in self.states.values():
+                if isinstance(state, AudioState):
+                    state.features = self.audio.frames[self.tick]
         started = perf_counter()
         frame = self._render_part('root', self.output_name, self.tick)
         self.tick += 1

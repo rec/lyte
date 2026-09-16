@@ -16,6 +16,7 @@ import tomlkit
 from pydantic import BaseModel, Field
 from tomlkit.items import Table
 from ufor import codec, effects, library_files, light_animation
+from ufor.audio_features import AudioFeatures
 from ufor.base import Model
 from ufor.composition import Composition
 from ufor.interface import ScoreReference
@@ -31,11 +32,11 @@ from . import (
     authoring_composition,
     authoring_layout,
     reactive_effects,
-    reactivity,
     show,
 )
 from .authoring_template import AUTHOR_TEMPLATE
 from .preview.document import (
+    attach_preview_audio,
     encoded_frames,
     preview_document,
     preview_frame_count,
@@ -46,6 +47,7 @@ from .spatial import SpatialView
 
 class AuthorConfig(BaseModel, frozen=True):
     library_config: Path | None = None
+    audio: Path | None = None
     light_output: str = 'light'
     duration: float = Field(default=10, gt=0)
     port: int = Field(default=8765, ge=1024, le=65535)
@@ -150,11 +152,14 @@ class AuthoringSession:
                 parameters=parameters,
             ),
         )
+        if self.config.audio is not None and prepared.requires_audio:
+            attach_preview_audio(prepared, self.config.audio)
         if prepared.output.components != ['red', 'green', 'blue']:
             raise ValueError('authoring preview requires red, green, blue components')
         return {
             'coords': [p.position for p in prepared.output.layout.lights],
             'fps': prepared.fps,
+            'audio': prepared.audio is not None,
             'frames': encoded_frames(prepared, self.config.duration),
         }
 
@@ -178,6 +183,8 @@ class AuthoringSession:
             self.library,
             show.LightProgramSpec(selector=selector, output=self.config.light_output),
         )
+        if self.config.audio is not None and prepared.requires_audio:
+            attach_preview_audio(prepared, self.config.audio)
         preview_frame_count(1, 1, len(prepared.output.layout.lights) * 3)
         frame = animation.byte_light_frame_from_float(prepared.render())
         return {
@@ -837,11 +844,11 @@ def _builtin_preview(
     }
 
 
-def _demo_features(index: int, frame_count: int) -> reactivity.AudioFeatures:
+def _demo_features(index: int, frame_count: int) -> AudioFeatures:
     phase = index / max(1, frame_count - 1)
     level = 0.25 + 0.5 * (0.5 + 0.5 * math.sin(phase * math.tau * 3))
     onset = max(0, math.sin(phase * math.tau * 6)) ** 4
-    return reactivity.AudioFeatures(
+    return AudioFeatures(
         level=level,
         bass=0.2 + onset * 0.8,
         mid=0.25 + 0.5 * (0.5 + 0.5 * math.sin(phase * math.tau * 2)),
