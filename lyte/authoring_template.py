@@ -206,6 +206,9 @@ pre{
 <button id="redo" type="button" disabled>Redo</button>
 <output id="history-status"></output>
 <ul id="changed-scores"></ul>
+<p>The ZIP contains the listed edits, not a standalone library. Replace matching files in a copy of your libraries.</p>
+<button id="download-bundle" type="button" disabled>Download all edits (ZIP)</button>
+<output id="bundle-status"></output>
 <section id="controls">
 </section>
 <h2>Composition</h2>
@@ -253,6 +256,7 @@ pre{
 <script>
 let catalog=__LYTE_AUTHOR_CATALOG__;
 let history=__LYTE_AUTHOR_HISTORY__;
+const offeredRevisions=new Map();
 const select=document.getElementById('animation');
 const controls=document.getElementById('controls');
 const canvas=document.getElementById('preview');
@@ -485,14 +489,45 @@ function updateHistory(value){
   history=value;
   document.getElementById('undo').disabled=!history.can_undo;
   document.getElementById('redo').disabled=!history.can_redo;
+  document.getElementById('download-bundle').disabled=!(history.changed||[]).length;
   const changed=document.getElementById('changed-scores');
   changed.replaceChildren();
   for(const entry of history.changed||[]){
     const item=document.createElement('li');
-    item.textContent=entry;
+    const offered=offeredRevisions.get(entry)===history.revisions[entry];
+    item.textContent=`${entry} · ${offered?'Current revision offered for download':'Not yet offered for download'}`;
     changed.append(item);
   }
   if(!changed.children.length){changed.textContent='No changed scores';}
+}
+function hasUnofferedChanges(){
+  return (history.changed||[]).some(entry=>offeredRevisions.get(entry)!==history.revisions[entry]);
+}
+function offerDownload(result){
+  const content=result.archive?decodeFrame(result.archive):result.document;
+  const type=result.archive?'application/zip':'application/toml';
+  const link=document.createElement('a');
+  link.href=URL.createObjectURL(new Blob([content],{type}));
+  link.download=result.filename;
+  link.click();
+  setTimeout(()=>URL.revokeObjectURL(link.href),0);
+  for(const [entry,revision] of Object.entries(result.revisions||{})){
+    offeredRevisions.set(entry,revision);
+  }
+  updateHistory(history);
+}
+async function downloadBundle(){
+  const message=document.getElementById('bundle-status');
+  try{
+    const response=await fetch('/api/bundle',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:'{}'
+    });
+    const result=await response.json();
+    if(!response.ok){message.textContent=result.error;return;}
+    updateHistory(result.history);
+    offerDownload(result);
+    message.textContent=`Offered ${result.filename} for download. Check your browser's downloads.`;
+  }catch(error){message.textContent=`Could not download edits: ${error.message}`;}
 }
 async function changeHistory(action){
   const message=document.getElementById('history-status');
@@ -618,15 +653,8 @@ async function savePreset(){
     rebuildComposition();
     requestPreview()
   }
-  const link=document.createElement('a');
-  link.href=URL.createObjectURL(new Blob([result.document],{
-    type:'application/toml'
-  }
-  ));
-  link.download=result.filename;
-  link.click();
-  setTimeout(()=>URL.revokeObjectURL(link.href),0);
-  saveStatus.textContent=`Downloaded ${result.filename}`
+  offerDownload(result);
+  saveStatus.textContent=`Offered ${result.filename} for download`
 }
 async function saveOperation(){
   if(!selectedOperation||!operationTemplate.value){
@@ -654,15 +682,8 @@ async function saveOperation(){
     rebuildComposition();
     requestPreview()
   }
-  const link=document.createElement('a');
-  link.href=URL.createObjectURL(new Blob([result.document],{
-    type:'application/toml'
-  }
-  ));
-  link.download=result.filename;
-  link.click();
-  setTimeout(()=>URL.revokeObjectURL(link.href),0);
-  operationStatus.textContent=`Downloaded ${result.filename}`
+  offerDownload(result);
+  operationStatus.textContent=`Offered ${result.filename} for download`
 }
 function fieldValues(){
   return Object.fromEntries([...operationFields.querySelectorAll('[data-field]')].map(input=>[input.dataset.field,input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value]))
@@ -692,15 +713,8 @@ async function saveFields(){
     rebuildComposition();
     requestPreview()
   }
-  const link=document.createElement('a');
-  link.href=URL.createObjectURL(new Blob([result.document],{
-    type:'application/toml'
-  }
-  ));
-  link.download=result.filename;
-  link.click();
-  setTimeout(()=>URL.revokeObjectURL(link.href),0);
-  fieldsStatus.textContent=`Downloaded ${result.filename}`
+  offerDownload(result);
+  fieldsStatus.textContent=`Offered ${result.filename} for download`
 }
 function timingValues(){
   if(selectedOperation.timeline.effect==='crossfade'){
@@ -737,15 +751,8 @@ async function saveTiming(){
     rebuildComposition();
     requestPreview()
   }
-  const link=document.createElement('a');
-  link.href=URL.createObjectURL(new Blob([result.document],{
-    type:'application/toml'
-  }
-  ));
-  link.download=result.filename;
-  link.click();
-  setTimeout(()=>URL.revokeObjectURL(link.href),0);
-  timingStatus.textContent=`Downloaded ${result.filename}`
+  offerDownload(result);
+  timingStatus.textContent=`Offered ${result.filename} for download`
 }
 function updateStatus(){
   if(!preview){
@@ -826,6 +833,10 @@ function animate(time){
   draw();
   requestAnimationFrame(animate)
 }
+addEventListener('beforeunload',event=>{
+  if(hasUnofferedChanges()){event.preventDefault();event.returnValue='';}
+});
+document.getElementById('download-bundle').onclick=downloadBundle;
 updateHistory(history);
 document.getElementById('undo').onclick=()=>changeHistory('undo');
 document.getElementById('redo').onclick=()=>changeHistory('redo');
