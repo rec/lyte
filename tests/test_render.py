@@ -59,6 +59,7 @@ def test_run_render_uses_explicit_selectors(tmp_path: Path) -> None:
         assert render.run_render(config) == 0
 
     assert [call.args[0] for call in render_animation.call_args_list] == ['one', 'two']
+    assert all(c.args[3] is library for c in render_animation.call_args_list)
 
 
 def test_run_render_uses_all_library_animations(tmp_path: Path) -> None:
@@ -75,6 +76,7 @@ def test_run_render_uses_all_library_animations(tmp_path: Path) -> None:
         assert render.run_render(config) == 0
 
     assert [call.args[0] for call in render_animation.call_args_list] == ['one', 'two']
+    assert all(c.args[3] is library for c in render_animation.call_args_list)
 
 
 def test_run_render_rejects_missing_ffmpeg(tmp_path: Path) -> None:
@@ -130,6 +132,7 @@ def test_export_reaps_encoder_and_publishes_only_successful_movies(
     config = render.RenderConfig(
         output=tmp_path, duration=0.01, library_config=Path('examples/library.toml')
     )
+    library = render.library_files.read_library(config.library_config)
     process = Mock()
     process.stdin.closed = False
     process.poll.return_value = None
@@ -156,14 +159,14 @@ def test_export_reaps_encoder_and_publishes_only_successful_movies(
         if failure == 'render':
             frame.side_effect = ValueError('render failed')
         if failure is None:
-            result = render.render_animation('aurora', config, 'ffmpeg')
+            result = render.render_animation('aurora', config, 'ffmpeg', library)
             assert result.read_bytes() == b'movie'
         else:
             expected = ValueError if failure == 'render' else render.RenderError
             with pytest.raises(
                 expected, match='render failed' if failure == 'render' else None
             ):
-                render.render_animation('aurora', config, 'ffmpeg')
+                render.render_animation('aurora', config, 'ffmpeg', library)
     process.wait.assert_called_once()
     if failure in {'render', 'write', 'close'}:
         process.kill.assert_called_once()
