@@ -12,6 +12,7 @@ from reccy.runtime import logging
 
 from . import authoring, authoring_http, fps_test, installation, render, wled
 from . import patches
+from . import benchmark
 from . import rehearsal, rehearsal_http
 from . import show
 from .animate.config import AnimateConfig
@@ -135,6 +136,7 @@ def main(args: Sequence[str] | None = None) -> int:
         {
             'animate': AnimateConfig,
             'author': authoring.AuthorConfig,
+            'benchmark': benchmark.BenchmarkConfig,
             'calibrate-black': fps_test.BlackFloorTestConfig,
             'brightness': BrightnessConfig,
             'color': ColorConfig,
@@ -169,6 +171,8 @@ def main(args: Sequence[str] | None = None) -> int:
 
 
 def run_command(config: object) -> int:
+    if isinstance(config, benchmark.BenchmarkConfig):
+        return benchmark.run_benchmark(config)
     if isinstance(config, rehearsal.RehearsalConfig):
         return rehearsal_http.run_rehearsal(config)
     if isinstance(config, AnimateConfig):

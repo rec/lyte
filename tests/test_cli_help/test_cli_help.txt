@@ -1,5 +1,5 @@
 $ lyte --help
-usage: lyte [-h] {animate,author,calibrate-black,brightness,color,diagnostic,effects,layout,installation,led-config,mic,mode,movie,mqtt,music,network,patch,playlist,preview,render,rehearse,saturation,validate,fps-test,dither-test,timer,verify-output,wled}
+usage: lyte [-h] {animate,author,benchmark,calibrate-black,brightness,color,diagnostic,effects,layout,installation,led-config,mic,mode,movie,mqtt,music,network,patch,playlist,preview,render,rehearse,saturation,validate,fps-test,dither-test,timer,verify-output,wled}
 
  options
  ------------------------------------------------------
@@ -10,6 +10,7 @@ usage: lyte [-h] {animate,author,calibrate-black,brightness,color,diagnostic,eff
   (required)
     - animate
     - author
+    - benchmark
     - calibrate-black
     - brightness
     - color
@@ -82,6 +83,24 @@ usage: lyte author [-h] [AUTHOR OPTIONS]
   --port INT        (default: 8765)
   --open, --no-open
                     (default: True)
+
+
+$ lyte benchmark --help
+usage: lyte benchmark [-h] [BENCHMARK OPTIONS] STR
+
+ positional arguments
+ -----------------------------------------------------
+  STR                 selector (required)
+
+ options
+ -----------------------------------------------------
+  -h, --help          show this help message and exit
+  --library-config {None}|PATH
+                      (default: None)
+  --light-output STR  (default: light)
+  --duration FLOAT    (default: 10)
+  --parameters [STR FLOAT [STR FLOAT ...]]
+                      (default: )
 
 
 $ lyte brightness --help

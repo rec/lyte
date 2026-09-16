@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fractions import Fraction
+from time import perf_counter
 from typing import cast
 
 import numpy as np
@@ -15,6 +16,7 @@ from ufor.lights import LightType, Wiring
 
 from . import animation
 from .animate.build import RendererCapabilityError, build_effect
+from .metrics import RenderCost
 
 
 class PythonAnimationScore(light_animation.AnimationScore):
@@ -61,6 +63,9 @@ class PreparedAnimation:
         self._cache: dict[tuple[str, int], NDArray[np.float32]] = {}
         self.tick = 0
         self._prepare_parts()
+        self.timing = RenderCost(
+            fps=self.fps, light_count=len(self.output.layout.lights)
+        )
 
     @property
     def rate(self) -> Fraction:
@@ -72,9 +77,11 @@ class PreparedAnimation:
         return float(self.rate)
 
     def render(self) -> NDArray[np.float32]:
+        started = perf_counter()
         frame = self._render_part('root', self.output_name, self.tick)
         self.tick += 1
         self._cache.clear()
+        self.timing.record(perf_counter() - started)
         return frame
 
     def byte_frame(self, wired: bool = False) -> NDArray[np.uint8]:

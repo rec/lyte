@@ -21,6 +21,7 @@ from lyte import (
     installation,
     installation_config,
     installation_playback,
+    metrics,
     runtime_control,
     show,
 )
@@ -659,17 +660,13 @@ def discovered(host: str, **values: object) -> installation.DiscoveredTwinkly:
     )
 
 
-class Output:
-    def __init__(self, led_count: int) -> None:
-        self.led_count = led_count
-
-
 class CountingPrepared:
     def __init__(self) -> None:
         self.render_count = 0
         self.parameters: dict[str, float] = {}
         self.rate = Fraction(20)
         self.tick = 0
+        self.timing = metrics.RenderCost(fps=20, light_count=2)
 
     def byte_frame(self, wired: bool) -> NDArray[np.uint8]:
         assert wired
