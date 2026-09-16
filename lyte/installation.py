@@ -66,6 +66,10 @@ class InstallationFileError(ValueError):
     pass
 
 
+class AmbiguousAssignmentError(InstallationFileError):
+    pass
+
+
 class InstallationDefinition(BaseModel, frozen=True):
     model_config = ConfigDict(extra='forbid')
 
@@ -145,6 +149,7 @@ class InstallationFile(InstallationDefinition, frozen=True):
     retry_delay: float = Field(default=0.5, ge=0)
     retry_backoff: float = Field(default=2.0, ge=1)
     discovery_timeout: float = Field(default=5.0, gt=0)
+    startup_timeout: float = Field(default=30.0, gt=0, allow_inf_nan=False)
     midi: MidiIn | None = None
 
     @model_validator(mode='after')
@@ -273,7 +278,7 @@ def assign_twinkly_devices(
             unmatched = [name for name, value in matches.items() if not value]
             detail = ', '.join(unmatched) if unmatched else 'selectors'
             raise InstallationFileError(f'could not assign Twinkly strings: {detail}')
-        raise InstallationFileError('Twinkly device assignment is ambiguous')
+        raise AmbiguousAssignmentError('Twinkly device assignment is ambiguous')
     return solutions[0]
 
 
@@ -538,7 +543,6 @@ class InstallationService(Reccy):
             raise ValueError('duration must be greater than zero')
         self.start()
         opened: list[TwinklyOutput] = []
-        deadline = None if duration is None else time.monotonic() + duration
         try:
             for output in self.outputs.values():
                 if output.open():
@@ -551,6 +555,7 @@ class InstallationService(Reccy):
                 return 1
             self._select(self.config.initial_animation)
             next_frame = time.monotonic()
+            deadline = None if duration is None else next_frame + duration
             while not self._stop_requested.is_set():
                 now = time.monotonic()
                 if deadline is not None and now >= deadline:
@@ -711,6 +716,7 @@ def parse_installation(data: dict[str, object]) -> InstallationFile:
         'retry_delay',
         'retry_backoff',
         'discovery_timeout',
+        'startup_timeout',
         'midi',
     }
     if unknown := sorted(set(data) - allowed):
@@ -721,6 +727,16 @@ def parse_installation(data: dict[str, object]) -> InstallationFile:
 
 
 def discover_assignments(config: InstallationFile) -> dict[str, TwinklyAssignment]:
+    deadline = time.monotonic() + config.startup_timeout
+
+    def remaining() -> float:
+        seconds = deadline - time.monotonic()
+        if seconds <= 0:
+            raise InstallationFileError(
+                f'device discovery exceeded startup_timeout={config.startup_timeout:g}s'
+            )
+        return seconds
+
     retry = RetryConfig(
         attempts=config.attempts,
         delay=config.retry_delay,
@@ -728,10 +744,12 @@ def discover_assignments(config: InstallationFile) -> dict[str, TwinklyAssignmen
     )
     while True:
         devices: list[DiscoveredTwinkly] = []
-        for found in discovery.discover(config.discovery_timeout):
-            client = TwinklyClient(host=found.ip_address, timeout=config.timeout)
+        for found in discovery.discover(min(config.discovery_timeout, remaining())):
+            client = TwinklyClient(
+                host=found.ip_address, timeout=min(config.timeout, remaining())
+            )
             gestalt = session.read_gestalt(
-                client, retry, f'GET gestalt on {found.ip_address}'
+                client, retry, f'GET gestalt on {found.ip_address}', deadline=deadline
             )
             if gestalt is None:
                 LOGGER.warning(
@@ -743,10 +761,13 @@ def discover_assignments(config: InstallationFile) -> dict[str, TwinklyAssignmen
             LOGGER.info(f'[discovered] {found.ip_address}: {_describe_device(device)}')
         try:
             assignment = assign_twinkly_devices(config.twinkly, devices)
+        except AmbiguousAssignmentError:
+            raise
         except InstallationFileError as error:
             LOGGER.warning(f'[waiting] {error}')
-            time.sleep(config.retry_delay)
+            time.sleep(min(config.retry_delay, remaining()))
             continue
+        remaining()
         return {
             name: TwinklyAssignment(name, found.host, found.device)
             for name, found in assignment.items()
