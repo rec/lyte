@@ -659,10 +659,13 @@ class InstallationService(Reccy):
 
     def _receive_midi(self, message: mido.Message) -> None:
         if message.type == 'program_change':
-            names = list(self.config.animations)
-            current = self._active.name if self._active is not None else names[0]
-            self._queued_name = names[(names.index(current) + 1) % len(names)]
-            self.publish_status()
+            with self._lock:
+                names = list(self.config.animations)
+                current = self._queued_name or (
+                    self._active.name if self._active is not None else names[0]
+                )
+                self._queued_name = names[(names.index(current) + 1) % len(names)]
+                self.publish_status()
             return
         restart = message.type == 'note_on' and bool(message.velocity)
         self._performance.receive(message)
