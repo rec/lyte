@@ -47,16 +47,10 @@ last frame with looping enabled and disabled.
 
 ### 6. Preview requests can leave stale or misleading results onscreen
 
-**Confirmed frontend control-flow problems.**
-[requestPreview](../lyte/authoring.py) checks the request sequence before
-awaiting `response.json()`, but not afterward. An older response body can
-finish after a newer request and replace its preview. On HTTP errors it leaves
-the old preview active; animation status updates can overwrite the error with
-the newly selected title while showing old frames. Fetch failures are uncaught.
-
-Check freshness after decoding, preserve visible error state, and make the
-relationship between selected controls and displayed frames explicit. Verify
-out-of-order responses, invalid parameters, and an unavailable server.
+**Fixed 2026-09-16.** Preview requests clear stale frames, check freshness after
+body decoding, reset the playback clock on success, and preserve visible HTTP
+and network errors. A focused JavaScript check exercised out-of-order body
+completion, failed requests, and stale-frame clearing using the actual functions.
 
 ### 7. MIDI mappings can fail only after hardware starts
 
