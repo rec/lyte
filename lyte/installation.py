@@ -10,6 +10,7 @@ import tomllib
 from collections.abc import Iterable
 from dataclasses import dataclass
 from fractions import Fraction
+from math import isfinite
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -765,9 +766,32 @@ def build_service(
         for output_name in definition.outputs:
             prepared = _prepare_output(library, definition.selector, output_name)
             for control in definition.controls:
-                prepared.composition.parameter_contract(
-                    prepared.composition.root, control.parameter
-                )
+                try:
+                    contract = prepared.composition.parameter_contract(
+                        prepared.composition.root, control.parameter
+                    )
+                    values = (
+                        control.values
+                        or control.output
+                        or _CONTROL_RANGES[control.source]
+                    )
+                    original = prepared.composition.parts['root'].parameters.copy()
+                    for value in values:
+                        if (
+                            not isfinite(value)
+                            or not contract.minimum <= value <= contract.maximum
+                        ):
+                            raise ValueError(
+                                f'mapped value {value} is outside '
+                                f'{contract.minimum}..{contract.maximum}'
+                            )
+                        prepared.set_parameters({control.parameter: value})
+                    prepared.set_parameters(original)
+                except ValueError as error:
+                    raise InstallationFileError(
+                        f'{definition.selector}, output {output_name}, '
+                        f'control {control.parameter}: {error}'
+                    ) from error
     resolved = discover_assignments(config) if assignments is None else assignments
     if set(resolved) != set(config.twinkly):
         raise InstallationFileError(

@@ -54,17 +54,11 @@ completion, failed requests, and stale-frame clearing using the actual functions
 
 ### 7. MIDI mappings can fail only after hardware starts
 
-**Confirmed validation gap.** [build_service](../lyte/installation.py) checks
-that mapped parameter names exist, but does not validate the mapping's output
-range or table values against their contracts. Later `apply_performance`
-passes them into `set_parameters`; those failures are not caught by the
-per-output send exception handler. Also,
-[PreparedAnimation.set_parameters](../lyte/rendering.py) rejects changes to
-construction-only built-in effect parameters even if the parameter exists.
-
-Reject unsupported live targets and invalid mapped values during preparation,
-before discovery/output startup. Verify both an out-of-range table and a
-construction-only parameter controlled by MIDI.
+**Fixed 2026-09-16.** Preparation validates mapped endpoints or table values
+against public parameter bounds and exercises the renderer's live-update
+checks before discovery. Non-finite mappings and construction-only targets
+produce errors naming the selector, output, and control. Tests cover invalid
+ranges, tables, non-finite values, and a real construction-only effect target.
 
 ### 8. Discovery can wait forever before duration and RPC control apply
 
