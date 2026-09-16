@@ -31,7 +31,7 @@ class LightProgramSpec(BaseModel, frozen=True):
 class ShowConfig(BaseModel, frozen=True):
     selector: Annotated[str, tyro.conf.Positional]
     library_config: Path | None = None
-    output: str = 'light'
+    light_output: str = 'light'
     parameters: dict[str, float] = Field(default_factory=dict)
     wiring: list[str] | None = None
 
@@ -40,7 +40,7 @@ def run_show(config: ShowConfig) -> int:
     prepare_animation(
         LightProgramSpec(
             selector=config.selector,
-            output=config.output,
+            output=config.light_output,
             parameters=config.parameters,
             wiring=config.wiring,
         ),

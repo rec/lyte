@@ -27,7 +27,7 @@ Override exported scalar controls as name/value pairs, for example
 Generate a hardware-free preview from the same score:
 
 ```sh
-lyte preview examples:/composition.toml preview.html --library-config examples/library.toml
+lyte preview examples:/composition.toml --output preview.html --library-config examples/library.toml
 ```
 
 Render browser- and desktop-playable MP4 files from selected scores, or omit
@@ -68,8 +68,8 @@ permutation and is never applied to previews or intermediate parts.
 The same 250-light graph can be validated, previewed, or played:
 
 ```sh
-lyte show examples:/composition.toml --library-config examples/library.toml
-lyte preview examples:/composition.toml preview.html --library-config examples/library.toml
+lyte validate examples:/composition.toml --library-config examples/library.toml
+lyte preview examples:/composition.toml --output preview.html --library-config examples/library.toml
 lyte animate examples:/composition.toml --library-config examples/library.toml --duration 10
 ```
 
@@ -101,7 +101,7 @@ installation runner. `patches/wearable-library.toml` registers the presets, and
 shared MIDI controls:
 
 ```sh
-lyte show wearable:/prism_limbs.toml \
+lyte validate wearable:/prism_limbs.toml \
   --library-config patches/wearable-library.toml
 lyte installation run patches/wearable-installation.toml
 ```
@@ -155,7 +155,7 @@ Lyte validates every selected score output before opening hardware. It discovers
 the actual LED count for each string and scales at output time, logging any
 authored-layout mismatch. Shutdown requests blackout from each opened string.
 
-`lyte show` performs Ufor selection and renderer preflight without connecting
+`lyte validate` performs Ufor selection and renderer preflight without connecting
 to hardware or running an installation. DMX and Art-Net remain available as
 separate output primitives; dynamic DMX bindings are not part of this runner.
 
