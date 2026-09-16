@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 class AnimateConfig(BaseModel, frozen=True):
     selector: Annotated[str, tyro.conf.Positional]
     library_config: Path | None = None
-    output: str = 'light'
+    light_output: str = 'light'
     parameters: dict[str, float] = Field(default_factory=dict)
     wiring: list[str] | None = None
     host: str | None = None

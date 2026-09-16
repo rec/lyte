@@ -58,6 +58,7 @@ class CliTests(unittest.TestCase):
                 [
                     'preview',
                     'examples:/composition.toml',
+                    '--output',
                     'preview.html',
                     '--library-config',
                     'examples/library.toml',
@@ -127,7 +128,7 @@ class CliTests(unittest.TestCase):
         with patch.object(cli.fps_test, 'run_fps_test', return_value=0) as run_fps_test:
             result = cli.main(
                 [
-                    'test',
+                    'fps-test',
                     '--host',
                     '192.168.1.23',
                     '--led-count',
@@ -149,7 +150,7 @@ class CliTests(unittest.TestCase):
         ) as run_temporal_dither_test:
             result = cli.main(
                 [
-                    'test2',
+                    'dither-test',
                     '--host',
                     '192.168.1.23',
                     '--led-count',
@@ -169,7 +170,7 @@ class CliTests(unittest.TestCase):
         with patch.object(cli.show, 'run_show', return_value=0) as run_show:
             result = cli.main(
                 [
-                    'show',
+                    'validate',
                     'examples:/composition.toml',
                     '--library-config',
                     'examples/library.toml',
@@ -200,7 +201,7 @@ class CliTests(unittest.TestCase):
         ) as run_black_floor_test:
             result = cli.main(
                 [
-                    'black-floor',
+                    'calibrate-black',
                     '--host',
                     '192.168.1.23',
                     '--led-count',
@@ -219,7 +220,7 @@ class CliTests(unittest.TestCase):
         ) as run_verify_test:
             result = cli.main(
                 [
-                    'verify',
+                    'verify-output',
                     '--host',
                     '192.168.1.23',
                     '--led-count',

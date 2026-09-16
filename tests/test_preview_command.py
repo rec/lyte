@@ -18,6 +18,7 @@ def test_parse_args_selects_a_library_score() -> None:
     args = command.parse_args(
         [
             'examples:/composition.toml',
+            '--output',
             'preview.html',
             '--library-config',
             'examples/library.toml',

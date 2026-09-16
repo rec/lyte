@@ -26,7 +26,7 @@ def run_animate(args: AnimateConfig) -> int:
     prepared = show.prepare_animation(
         show.LightProgramSpec(
             selector=args.selector,
-            output=args.output,
+            output=args.light_output,
             parameters=args.parameters,
             wiring=args.wiring,
         ),
