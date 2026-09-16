@@ -4,6 +4,7 @@
 
 from .authoring_browser_template import BROWSER_SCRIPT
 from .authoring_colors_template import COLORS_SCRIPT
+from .authoring_layout_template import LAYOUT_SCRIPT
 from .authoring_structure_template import STRUCTURE_SCRIPT
 
 AUTHOR_TEMPLATE = (
@@ -264,6 +265,17 @@ pre{
 <button id="save" type="button">Download TOML preset</button>
 <output id="save-status">
 </output>
+<h2>Spatial view</h2>
+<label>Projection<select id="projection"><option value="0,1">XY</option><option value="0,2">XZ</option><option value="1,2">YZ</option></select></label>
+<p id="axis-labels"></p>
+<label>Zoom<input id="zoom" type="range" min="0.25" max="4" step="0.05" value="1"></label>
+<button id="fit-layout" type="button">Fit layout</button>
+<label><input id="show-light-names" type="checkbox">Show light names and indexes</label>
+<label><input id="drag-lights" type="checkbox">Drag lights in this plane</label>
+<p id="selected-light"></p>
+<details id="layout-details"><summary>Coordinates of the selected score</summary><section id="layout-table"></section></details>
+<button id="apply-layout" type="button" disabled>Apply and download layout</button>
+<output id="layout-status"></output>
 <h2>Preview</h2>
 <div class="transport">
 <button id="previous" type="button" aria-label="Previous frame">Previous</button>
@@ -579,6 +591,7 @@ function rebuild(){
   document.getElementById('score-source').textContent=selected?
     `${selected.source||selected.selector} · ${selected.source_kind}`:'';
   libraryDetails(selected);
+  rebuildLayout(selected);
   controls.replaceChildren();
   for(const parameter of selected?.parameters||[]){
     control(parameter);
@@ -818,32 +831,24 @@ function setFrame(value){
   updateStatus()
 }
 function resize(){
+  layoutCamera=null;
   const scale=devicePixelRatio||1;
   const rect=canvas.getBoundingClientRect();
   canvas.width=Math.max(1,Math.round(rect.width*scale));
   canvas.height=Math.max(1,Math.round(rect.height*scale))
 }
-function projectedPoints(coords,width,height){
-  const bounds=coords.reduce((value,point)=>({
-    minX:Math.min(value.minX,point[0]),minY:Math.min(value.minY,point[1]),maxX:Math.max(value.maxX,point[0]),maxY:Math.max(value.maxY,point[1])
-  }
-  ),{
-    minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity
-  }
-  );
-  const pad=Math.max(24,Math.min(width,height)*0.08);
-  const spanX=Math.max(1e-9,bounds.maxX-bounds.minX);
-  const spanY=Math.max(1e-9,bounds.maxY-bounds.minY);
-  const scale=Math.min((width-pad*2)/spanX,(height-pad*2)/spanY);
-  const offsetX=(width-spanX*scale)/2;
-  const offsetY=(height-spanY*scale)/2;
-  return coords.map(point=>[offsetX+(point[0]-bounds.minX)*scale,offsetY+(point[1]-bounds.minY)*scale])
+function projectedPoints(coords,width,height,axes=[0,1],magnification=1,transform=null){
+  const view=transform||projectionTransform(coords,width,height,axes,magnification);
+  return coords.map(point=>[
+    view.offsetX+((point[axes[0]]||0)-view.minX)*view.scale,
+    view.offsetY+((point[axes[1]]||0)-view.minY)*view.scale
+  ]);
 }
-function drawFrame(target,coords,values){
+function drawFrame(target,coords,values,axes=[0,1],magnification=1,transform=null){
   const context=target.getContext('2d');
   context.fillStyle='#050506';
   context.fillRect(0,0,target.width,target.height);
-  const points=projectedPoints(coords,target.width,target.height);
+  const points=projectedPoints(coords,target.width,target.height,axes,magnification,transform);
   const radius=Math.max(3,Math.min(target.width,target.height)/140);
   for(let index=0;index<points.length;index++){
     const offset=index*3;
@@ -852,9 +857,20 @@ function drawFrame(target,coords,values){
     context.arc(points[index][0],points[index][1],radius,0,Math.PI*2);
     context.fill();
   }
+  return points;
 }
 function draw(){
-  if(preview&&frames.length){drawFrame(canvas,preview.coords,frames[frame]);}
+  if(preview&&frames.length){
+    const points=drawFrame(canvas,draftPositions(),frames[frame],viewAxes(),Number(zoom.value),layoutCamera);
+    if(layoutDraft&&points[selectedLight]){
+      const point=points[selectedLight];context.strokeStyle='#ffffff';context.lineWidth=2;
+      context.beginPath();context.arc(point[0],point[1],10,0,Math.PI*2);context.stroke();
+    }
+    if(document.getElementById('show-light-names').checked&&layoutDraft){
+      context.font=`${12*(devicePixelRatio||1)}px sans-serif`;context.fillStyle='#e5e7eb';
+      points.forEach((point,index)=>context.fillText(`${index}: ${layoutDraft.lights[index].name}`,point[0]+7,point[1]-7));
+    }
+  }
   else{context.fillStyle='#050506';context.fillRect(0,0,canvas.width,canvas.height);}
 }
 function animate(time){
@@ -875,6 +891,7 @@ function animate(time){
 __LYTE_STRUCTURE_SCRIPT__
 __LYTE_BROWSER_SCRIPT__
 __LYTE_COLORS_SCRIPT__
+__LYTE_LAYOUT_SCRIPT__
 addEventListener('beforeunload',event=>{
   if(hasUnofferedChanges()){event.preventDefault();event.returnValue='';}
 });
@@ -917,4 +934,5 @@ requestAnimationFrame(animate);
 </script></body></html>""".replace('__LYTE_STRUCTURE_SCRIPT__', STRUCTURE_SCRIPT)
     .replace('__LYTE_BROWSER_SCRIPT__', BROWSER_SCRIPT)
     .replace('__LYTE_COLORS_SCRIPT__', COLORS_SCRIPT)
+    .replace('__LYTE_LAYOUT_SCRIPT__', LAYOUT_SCRIPT)
 )
