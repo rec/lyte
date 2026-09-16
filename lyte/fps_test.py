@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import os
 import select
 import sys
@@ -16,6 +15,7 @@ import numpy as np
 from numpy.typing import NDArray
 from reccy.runtime import logging
 
+from . import diagnostic_frames
 from .animation import Device, validate_byte_rgb_frame
 from .animations.colors import RGB
 from .retry import RetryConfig
@@ -23,8 +23,6 @@ from .twinkly import realtime
 from .twinkly.client import TwinklyClient
 
 FPS_VALUES: tuple[float, ...] = (30.0, 60.0, 120.0, 240, 480, 960, 1920)
-LOW_CONTRAST_BLEND: tuple[RGB, RGB] = ((255, 0, 80), (0, 160, 255))
-HIGH_CONTRAST_BLEND: tuple[RGB, RGB] = ((0, 255, 120), (255, 240, 0))
 TEST2_ANIMATION_FPS = 60.0
 TEST2_TEMPORAL_FACTOR = 4
 TEST2_TRANSPORT_FPS = TEST2_ANIMATION_FPS * TEST2_TEMPORAL_FACTOR
@@ -276,79 +274,6 @@ def validate_discovery_timeout(timeout: float | None) -> None:
         sys.exit('--discovery-timeout must be greater than zero')
 
 
-def gradient_frame(led_count: int, start: RGB, end: RGB) -> NDArray[np.uint8]:
-    if led_count <= 0:
-        raise ValueError('led_count must be greater than zero')
-    if led_count == 1:
-        return np.array([start], dtype=np.uint8)
-    start_array = np.array(start, dtype=np.float32)
-    end_array = np.array(end, dtype=np.float32)
-    positions = np.linspace(0.0, 1.0, led_count, dtype=np.float32)[:, np.newaxis]
-    return np.rint(start_array * (1.0 - positions) + end_array * positions).astype(
-        np.uint8
-    )
-
-
-def blend_frames(
-    first_frame: NDArray[np.uint8],
-    second_frame: NDArray[np.uint8],
-    progress: float,
-) -> NDArray[np.uint8]:
-    if first_frame.shape != second_frame.shape:
-        raise ValueError('cannot blend frames with different shapes')
-    progress = max(0.0, min(1.0, progress))
-    blended = (
-        first_frame.astype(np.float32) * (1.0 - progress)
-        + second_frame.astype(np.float32) * progress
-    )
-    return np.rint(blended).astype(np.uint8)
-
-
-def dispersed_pixel_order(led_count: int) -> NDArray[np.int64]:
-    if led_count <= 0:
-        raise ValueError('led_count must be greater than zero')
-    if led_count == 1:
-        return np.array([0], dtype=np.int64)
-    midpoint = led_count / 2
-    stride = min(
-        (i for i in range(1, led_count) if math.gcd(i, led_count) == 1),
-        key=lambda i: (abs(i - midpoint), i),
-    )
-    return np.fromiter(
-        ((i * stride) % led_count for i in range(led_count)),
-        dtype=np.int64,
-        count=led_count,
-    )
-
-
-def temporal_dither_grayscale_frame(
-    device: Device,
-    start: int,
-    end: int,
-    index: int,
-    frame_count: int,
-    order: NDArray[np.int64],
-) -> NDArray[np.uint8]:
-    if frame_count < 2:
-        raise ValueError('frame_count must be at least 2')
-    if not 0 <= start <= 255 or not 0 <= end <= 255:
-        raise ValueError('start and end must be 8-bit channel values')
-    if len(order) != device.led_count:
-        raise ValueError('order must have one entry per LED')
-    progress = index / (frame_count - 1)
-    ideal = start + (end - start) * max(0.0, min(1.0, progress))
-    lower = math.floor(ideal)
-    upper = math.ceil(ideal)
-    fraction = ideal - lower
-    high_count = round(fraction * device.led_count)
-    frame = np.full((device.led_count, 3), lower, dtype=np.uint8)
-    if high_count and upper != lower:
-        offset = lower % device.led_count
-        selected = np.concatenate((order[offset:], order[:offset]))[:high_count]
-        frame[selected] = upper
-    return frame
-
-
 def run_fades(
     client: TwinklyClient,
     retry: RetryConfig,
@@ -358,8 +283,12 @@ def run_fades(
     pause: float,
 ) -> None:
     black_frame = np.zeros((device.led_count, 3), dtype=np.uint8)
-    first_frame = gradient_frame(device.led_count, *LOW_CONTRAST_BLEND)
-    second_frame = gradient_frame(device.led_count, *HIGH_CONTRAST_BLEND)
+    first_frame = diagnostic_frames.gradient_frame(
+        device.led_count, *diagnostic_frames.LOW_CONTRAST_BLEND
+    )
+    second_frame = diagnostic_frames.gradient_frame(
+        device.led_count, *diagnostic_frames.HIGH_CONTRAST_BLEND
+    )
     for fps in FPS_VALUES:
         LOGGER.info(f'[test] Fading black -> blend -> blend -> black at {fps:g} FPS')
         reports = (
@@ -554,75 +483,6 @@ def log_verify_demos() -> None:
     LOGGER.info('[verify] Demos: ' + ', '.join(i.name for i in VERIFY_DEMOS))
 
 
-def verify_primary_channels_frame(
-    device: Device,
-    index: int,
-    frame_count: int,
-) -> NDArray[np.uint8]:
-    colors: tuple[RGB, ...] = ((255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255))
-    color = colors[(index * len(colors)) // frame_count % len(colors)]
-    return solid_rgb_level_frame(device, color)
-
-
-def verify_moving_gradient_frame(
-    device: Device,
-    index: int,
-    frame_count: int,
-) -> NDArray[np.uint8]:
-    frame = gradient_frame(device.led_count, (255, 0, 80), (0, 160, 255))
-    return np.roll(frame, round(index * device.led_count / frame_count), axis=0)
-
-
-def verify_crossfade_frame(
-    device: Device,
-    index: int,
-    frame_count: int,
-) -> NDArray[np.uint8]:
-    first_frame = gradient_frame(device.led_count, *LOW_CONTRAST_BLEND)
-    second_frame = gradient_frame(device.led_count, *HIGH_CONTRAST_BLEND)
-    cycle = math.sin((index / frame_count) * math.tau) * 0.5 + 0.5
-    return blend_frames(first_frame, second_frame, cycle)
-
-
-def verify_temporal_dither_frame(
-    device: Device,
-    index: int,
-    frame_count: int,
-) -> NDArray[np.uint8]:
-    if frame_count < 2:
-        raise ValueError('frame_count must be at least 2')
-    half = max(2, frame_count // 2)
-    if index < half:
-        return temporal_dither_grayscale_frame(
-            device,
-            0,
-            32,
-            index,
-            half,
-            dispersed_pixel_order(device.led_count),
-        )
-    return temporal_dither_grayscale_frame(
-        device,
-        32,
-        0,
-        index - half,
-        max(2, frame_count - half),
-        dispersed_pixel_order(device.led_count),
-    )
-
-
-def solid_grayscale_frame(device: Device, level: int) -> NDArray[np.uint8]:
-    if not 0 <= level <= 255:
-        raise ValueError('level must be an 8-bit channel value')
-    return np.full((device.led_count, 3), level, dtype=np.uint8)
-
-
-def solid_rgb_level_frame(device: Device, level: RGB) -> NDArray[np.uint8]:
-    if any(not 0 <= i <= 255 for i in level):
-        raise ValueError('levels must be 8-bit channel values')
-    return np.full((device.led_count, 3), level, dtype=np.uint8)
-
-
 def adjust_black_floor_level(level: RGB, key: str) -> RGB:
     red, green, blue = level
     if key == 'r':
@@ -688,7 +548,7 @@ def send_black_floor_level(
     device: Device,
     level: RGB,
 ) -> None:
-    frame = solid_rgb_level_frame(device, level)
+    frame = diagnostic_frames.solid_rgb_level_frame(device, level)
     red, green, blue = level
     LOGGER.info(f'[black-floor] RGB {red} {green} {blue}')
     result = realtime.send_realtime_frame(client, retry, host, frame)
@@ -788,7 +648,7 @@ def run_temporal_dither_comparison(
         f'[test2] {TEST2_ANIMATION_FPS:g} FPS animation with '
         f'{TEST2_TEMPORAL_FACTOR}x temporal dithering'
     )
-    order = dispersed_pixel_order(device.led_count)
+    order = diagnostic_frames.dispersed_pixel_order(device.led_count)
     report_fades(
         (
             stream_temporal_dither_fade(
@@ -850,7 +710,7 @@ def stream_fade(
         fps,
         duration,
         phase,
-        lambda index, frame_count: blend_frames(
+        lambda index, frame_count: diagnostic_frames.blend_frames(
             first_frame,
             second_frame,
             index / (frame_count - 1),
@@ -880,7 +740,7 @@ def stream_temporal_dither_fade(
         transport_fps,
         duration,
         phase,
-        lambda index, frame_count: temporal_dither_grayscale_frame(
+        lambda index, frame_count: diagnostic_frames.temporal_dither_grayscale_frame(
             device,
             start,
             end,
@@ -963,8 +823,8 @@ def report_fades(reports: tuple[FadeReport, ...]) -> None:
 
 VERIFY_DEMOS: tuple[VerifyDemo, ...] = (
     # Add new demos at the start; new features are the most likely to break.
-    VerifyDemo('primary-channels', verify_primary_channels_frame),
-    VerifyDemo('moving-gradient', verify_moving_gradient_frame),
-    VerifyDemo('crossfade', verify_crossfade_frame),
-    VerifyDemo('temporal-dither', verify_temporal_dither_frame),
+    VerifyDemo('primary-channels', diagnostic_frames.verify_primary_channels_frame),
+    VerifyDemo('moving-gradient', diagnostic_frames.verify_moving_gradient_frame),
+    VerifyDemo('crossfade', diagnostic_frames.verify_crossfade_frame),
+    VerifyDemo('temporal-dither', diagnostic_frames.verify_temporal_dither_frame),
 )

@@ -39,7 +39,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(config.duration, 1.5)
 
     def test_cli_author_command_dispatches_browser_editor(self) -> None:
-        with patch.object(cli.authoring, 'run_author', return_value=0) as run:
+        with patch.object(cli.authoring_http, 'run_author', return_value=0) as run:
             result = cli.main(
                 ['author', '--library-config', 'examples/library.toml', '--no-open']
             )

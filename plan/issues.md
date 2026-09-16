@@ -170,19 +170,15 @@ uFor, and reccy. Real class names, imports, and identifiers remain accurate.
 
 ### 22. Several modules combine too many responsibilities
 
-At review time, [fps_test.py](../lyte/fps_test.py) has 970 lines,
-[installation.py](../lyte/installation.py) 851,
-[authoring.py](../lyte/authoring.py) 770, [patches.py](../lyte/patches.py) 754,
-and [wled.py](../lyte/wled.py) 615. Counts alone are not defects, but these files
-combine distinct responsibilities. Authoring embeds compressed HTML/CSS/JS
-alongside validation and HTTP handling; installation combines schema, discovery,
-assignment, output, MIDI, RPC, and scheduling. The long JavaScript lines make
-review and focused browser testing especially difficult.
-
-Split along demonstrated boundaries when those areas are next changed. Avoid
-creating one-line modules or reorganizing the entire repository just to reduce
-counts. No directory inspected warrants a split based on entry count alone;
-cohesion and navigation matter more than an arbitrary limit.
+**Fixed.** Split the demonstrated responsibilities into focused modules:
+`authoring_http.py` handles HTTP, `authoring_template.py` holds readable browser
+markup and JavaScript, `installation_config.py` handles installation TOML and
+expressions, `patch_config.py` handles patch schema/loading,
+`diagnostic_frames.py` generates diagnostic frames, and `wled_output.py` owns
+DDP transport. Updated callers, including Python-authored wearable scores;
+there are no compatibility re-exports. Remaining runtime modules retain their
+cohesive orchestration responsibilities. Existing tests and focused browser
+transport/queue checks verify the moved code.
 
 ### 23. One cheap test is disabled by an expensive-test gate
 
