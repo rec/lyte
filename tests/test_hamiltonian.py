@@ -8,12 +8,11 @@ from lyte.animations.patterns.hamiltonian import RGB, hamiltonian_colors
 
 RUN_HAMILTONIAN_CHECK = 'LYTE_RUN_HAMILTONIAN_CHECK'
 
-pytestmark = pytest.mark.skipif(
+
+@pytest.mark.skipif(
     os.environ.get(RUN_HAMILTONIAN_CHECK) != '1',
     reason=f'set {RUN_HAMILTONIAN_CHECK}=1 to run the Hamiltonian sequence check',
 )
-
-
 def test_hamiltonian_sequence_has_single_channel_steps() -> None:
     n = int(os.environ.get('LYTE_HAMILTONIAN_N', '32'))
     order = os.environ.get('LYTE_HAMILTONIAN_ORDER', 'rgb')

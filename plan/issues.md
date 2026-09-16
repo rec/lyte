@@ -182,13 +182,9 @@ transport/queue checks verify the moved code.
 
 ### 23. One cheap test is disabled by an expensive-test gate
 
-[tests/test_hamiltonian.py](../tests/test_hamiltonian.py) applies a module-wide
-opt-in skip to both the sequence check and the tiny bad-transition helper
-check. The latter does not need a full Hamiltonian sequence. Narrow the gate
-if this test support is retained; normal green test totals currently include
-neither check.
+**Fixed.** Only the full Hamiltonian sequence test is opt-in. The inexpensive
+bad-transition check now runs in the normal suite.
 
 ## Additional work beyond the prompt
 
-None. This document records findings and proposed follow-up only. No fixes,
-API changes, dependency changes, or subsystem removals are included.
+None. All listed issues have been resolved.
