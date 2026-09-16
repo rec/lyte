@@ -9,6 +9,7 @@ from zipfile import ZipFile
 
 import numpy as np
 import pytest
+import tomlkit
 from numpy.typing import NDArray
 from ufor import codec, effects, library_files, light_animation
 from ufor.interface import OutputSelection
@@ -51,7 +52,7 @@ def test_author_document_contains_animation_catalogue() -> None:
     assert 'id="previous"' in document
     assert 'id="frame"' in document
     assert 'projectedPoints' in document
-    assert 'preview.coords' in document
+    assert 'preview?.coords' in document
     assert 'id="preset-name"' in document
     assert '/api/preset' in document
     assert 'id="composition"' in document
@@ -725,3 +726,58 @@ def test_byte_colour_rejects_fractional_channels(
     assert isinstance(score, light_animation.AnimationScore)
     assert isinstance(score.body.operation, effects.ColorFill)
     assert score.body.operation.color == [128, 0, 255]
+
+
+def test_layout_edits_reload_three_dimensions_and_preserve_identity(
+    editable_session: authoring.AuthoringSession, tmp_path: Path
+) -> None:
+    source = tmp_path / 'scores' / 'grid.toml'
+    document = tomlkit.parse(source.read_text())
+    layout = document['outputs'][0]['stream']['layout']
+    layout['axes'] = ['x', 'y', 'z']
+    for index, light in enumerate(layout['lights']):
+        light['position'] = [*light['position'], float(index)]
+    original = tomlkit.dumps(document)
+    source.write_text(original)
+    config = editable_session.config
+    session = authoring.AuthoringSession(
+        library_files.read_library(config.library_config), config
+    )
+    key = 'example:/grid.toml'
+    before = session.preview(key, {})['coords']
+    positions = [list(p) for p in before]
+    positions[2][0] = 3.125
+    edited = session.layout_document(key, 'light', positions)
+    score = codec.parse_score(edited)
+    assert isinstance(score, light_animation.AnimationScore)
+    assert score.outputs[0].stream.layout.lights[2].position == [3.125, 0, 2]
+    assert session.preview(key, {})['coords'] == positions
+    assert '# retained comment' in edited
+    assert source.read_text() == original
+    source.write_text(edited)
+    reloaded = authoring.AuthoringSession(
+        library_files.read_library(config.library_config), config
+    )
+    assert reloaded.preview(key, {})['coords'] == positions
+    assert [p.name for p in score.outputs[0].stream.layout.lights] == [
+        f'light_{i}' for i in range(9)
+    ]
+    session.undo()
+    assert session.source_document(key) == original
+    assert session.preview(key, {})['coords'] == before
+    session.redo()
+    assert session.source_document(key) == edited
+
+
+def test_layout_rejects_changed_count_dimensions_and_nonfinite_coordinates(
+    editable_session: authoring.AuthoringSession,
+) -> None:
+    session = editable_session
+    key = 'example:/grid.toml'
+    positions = session.preview(key, {})['coords']
+    original = session.source_document(key)
+    for invalid in [positions[:-1], [[0]] * 9, [[float('inf'), 0]] * 9]:
+        with pytest.raises(ValueError):
+            session.layout_document(key, 'light', invalid)
+        assert session.source_document(key) == original
+    assert not session.history_state()['can_undo']

@@ -29,6 +29,7 @@ from . import (
     animation,
     authoring_colors,
     authoring_composition,
+    authoring_layout,
     reactive_effects,
     reactivity,
     show,
@@ -84,6 +85,7 @@ class AuthorAnimation:
     diagnostics: list[str] = field(default_factory=list)
     used_by: list[str] = field(default_factory=list)
     dependencies: list[str] = field(default_factory=list)
+    layout: dict[str, object] | None = None
 
     def document(self) -> dict[str, object]:
         return {
@@ -104,6 +106,7 @@ class AuthorAnimation:
             'diagnostics': self.diagnostics,
             'used_by': self.used_by,
             'dependencies': self.dependencies,
+            'layout': self.layout,
         }
 
 
@@ -143,12 +146,8 @@ class AuthoringSession:
         )
         if prepared.output.components != ['red', 'green', 'blue']:
             raise ValueError('authoring preview requires red, green, blue components')
-        points = [
-            [*light.position, *([0.0] * (2 - len(light.position)))]
-            for light in prepared.output.layout.lights
-        ]
         return {
-            'coords': [point[:2] for point in points],
+            'coords': [p.position for p in prepared.output.layout.lights],
             'fps': prepared.fps,
             'frames': encoded_frames(prepared, self.config.duration),
         }
@@ -164,9 +163,7 @@ class AuthoringSession:
         preview_frame_count(1, 1, len(prepared.output.layout.lights) * 3)
         frame = animation.byte_light_frame_from_float(prepared.render())
         return {
-            'coords': [
-                (p.position + [0.0, 0.0])[:2] for p in prepared.output.layout.lights
-            ],
+            'coords': [p.position for p in prepared.output.layout.lights],
             'frame': b64encode(memoryview(frame).cast('B')).decode('ascii'),
         }
 
@@ -310,6 +307,21 @@ class AuthoringSession:
         for name, value in _operation_fields(edited_operation).items():
             document_operation[name] = tomlkit.item(value)
         text = tomlkit.dumps(document)
+        return self._apply_document(entry_key, output, text)
+
+    def layout_document(
+        self, entry_key: str, output: str, positions: list[object]
+    ) -> str:
+        entry = self.library.entries.get(entry_key)
+        if (
+            entry is None
+            or not isinstance(entry.score, AnimationScore)
+            or not entry.address.endswith('.toml')
+        ):
+            raise ValueError('layout editing requires a direct TOML animation')
+        text = authoring_layout.layout_document(
+            self.source_document(entry_key), entry.score, positions
+        )
         return self._apply_document(entry_key, output, text)
 
     def color_document(
@@ -565,6 +577,7 @@ def _author_animations(library: Library, output: str) -> list[AuthorAnimation]:
                 else 'composition',
                 rate=str(Fraction(rate.numerator, rate.denominator)),
                 light_count=len(stream.layout.lights),
+                layout=stream.layout.model_dump(mode='json'),
             )
         elif not item.diagnostics:
             item.diagnostics.append(f'Score is {entry.state.value}')
