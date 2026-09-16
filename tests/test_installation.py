@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import mido
@@ -379,6 +380,126 @@ def test_assignment_rejects_indistinguishable_devices() -> None:
             },
             devices,
         )
+
+
+@pytest.mark.parametrize('value', [0, -1, float('inf'), float('nan')])
+def test_startup_timeout_requires_a_positive_finite_value(value: float) -> None:
+    with pytest.raises(ValidationError, match='startup_timeout'):
+        installation.parse_installation(
+            example_installation() | {'startup_timeout': value}
+        )
+
+
+def test_missing_devices_stop_at_the_startup_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = SimpleNamespace(now=0.0)
+
+    def advance(seconds: float) -> None:
+        clock.now += seconds
+
+    def scan(seconds: float) -> list[installation.discovery.DiscoveredDevice]:
+        advance(seconds)
+        return []
+
+    monkeypatch.setattr(installation.time, 'monotonic', lambda: clock.now)
+    monkeypatch.setattr(installation.time, 'sleep', advance)
+    monkeypatch.setattr(installation.discovery, 'discover', scan)
+    config = installation.parse_installation(
+        example_installation() | {'startup_timeout': 2, 'discovery_timeout': 0.75}
+    )
+
+    with pytest.raises(installation.InstallationFileError, match='startup_timeout=2s'):
+        installation.discover_assignments(config)
+    assert clock.now == 2
+
+
+def test_ambiguous_discovery_fails_without_retrying(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    devices = [
+        installation.discovery.DiscoveredDevice(
+            ip_address=f'192.168.1.{i}', device_id=str(i)
+        )
+        for i in [10, 11]
+    ]
+    scan = Mock(return_value=devices)
+    monkeypatch.setattr(installation.discovery, 'discover', scan)
+    monkeypatch.setattr(
+        installation.session,
+        'read_gestalt',
+        Mock(return_value={'product_name': 'Dots'}),
+    )
+    with pytest.raises(installation.AmbiguousAssignmentError):
+        installation.discover_assignments(
+            installation.parse_installation(example_installation())
+        )
+    scan.assert_called_once()
+
+
+def test_identification_cannot_extend_the_discovery_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = SimpleNamespace(now=10.0)
+
+    def identify(client: object, retry: object, label: str, deadline: float) -> None:
+        assert deadline == 12
+        clock.now = deadline
+
+    monkeypatch.setattr(installation.time, 'monotonic', lambda: clock.now)
+    monkeypatch.setattr(
+        installation.discovery,
+        'discover',
+        lambda seconds: [
+            installation.discovery.DiscoveredDevice(
+                ip_address='192.168.1.10', device_id='one'
+            )
+        ],
+    )
+    monkeypatch.setattr(installation.session, 'read_gestalt', identify)
+    with pytest.raises(installation.InstallationFileError, match='startup_timeout=2s'):
+        installation.discover_assignments(
+            installation.parse_installation(
+                example_installation() | {'startup_timeout': 2}
+            )
+        )
+
+
+def test_playback_duration_starts_after_outputs_open(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    clock = SimpleNamespace(now=0.0)
+
+    def advance(seconds: float) -> None:
+        clock.now += seconds
+
+    def open_output() -> bool:
+        advance(10)
+        return True
+
+    output = Mock()
+    output.open.side_effect = open_output
+    active = Mock()
+    active.name = 'across'
+    active.render.return_value = [('left', np.zeros((1, 3), dtype=np.uint8))]
+    service = installation.InstallationService.model_construct(
+        config=installation.parse_installation(example_installation() | {'fps': 1}),
+        library=None,
+        outputs={'left': output},
+        home=tmp_path,
+    )
+    service._active = active
+    monkeypatch.setattr(installation.time, 'monotonic', lambda: clock.now)
+    monkeypatch.setattr(installation.time, 'sleep', advance)
+    monkeypatch.setattr(installation.InstallationService, 'start', lambda self: None)
+    monkeypatch.setattr(installation.InstallationService, 'close', lambda self: None)
+    monkeypatch.setattr(
+        installation.InstallationService, '_select', lambda self, name: None
+    )
+
+    assert service.run(duration=2) == 0
+    assert output.send.call_count == 2
+    assert clock.now == 12
 
 
 def test_service_queues_animation_selection(tmp_path: Path) -> None:
