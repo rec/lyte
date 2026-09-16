@@ -1,16 +1,16 @@
 $ lyte --help
-usage: lyte [-h] {animate,author,black-floor,brightness,color,diagnostic,effects,layout,installation,led-config,mic,mode,movie,mqtt,music,network,patch,playlist,preview,render,saturation,show,test,test2,timer,verify,wled}
+usage: lyte [-h] {animate,author,calibrate-black,brightness,color,diagnostic,effects,layout,installation,led-config,mic,mode,movie,mqtt,music,network,patch,playlist,preview,render,saturation,validate,fps-test,dither-test,timer,verify-output,wled}
 
  options
- ---------------------------------------------------
-  -h, --help        show this help message and exit
+ ------------------------------------------------------
+  -h, --help           show this help message and exit
 
  subcommands
- ---------------------------------------------------
+ ------------------------------------------------------
   (required)
     - animate
     - author
-    - black-floor
+    - calibrate-black
     - brightness
     - color
     - diagnostic
@@ -29,11 +29,11 @@ usage: lyte [-h] {animate,author,black-floor,brightness,color,diagnostic,effects
     - preview
     - render
     - saturation
-    - show
-    - test
-    - test2
+    - validate
+    - fps-test
+    - dither-test
     - timer
-    - verify
+    - verify-output
     - wled
 
 
@@ -41,31 +41,30 @@ $ lyte animate --help
 usage: lyte animate [-h] [ANIMATE OPTIONS] STR
 
  positional arguments
- ------------------------------------------------------
-  STR                  selector (required)
+ --------------------------------------------------------
+  STR                    selector (required)
 
  options
- ------------------------------------------------------
-  -h, --help           show this help message and exit
+ --------------------------------------------------------
+  -h, --help             show this help message and exit
   --library-config {None}|PATH
-                       (default: None)
-  --output STR         (default: light)
+                         (default: None)
+  --light-output STR     (default: light)
   --parameters [STR FLOAT [STR FLOAT ...]]
-                       (default: )
+                         (default: )
   --wiring {None}|{[STR [STR ...]]}
-                       (default: None)
-  --host {None}|STR    (default: None)
-  --timeout FLOAT      (default: 5.0)
+                         (default: None)
+  --host {None}|STR      (default: None)
+  --timeout FLOAT        (default: 5.0)
   --discovery-timeout {None}|FLOAT
-                       (default: None)
-  --attempts INT       (default: 10)
-  --retry-delay FLOAT  (default: 0.5)
-  --retry-backoff FLOAT
-                       (default: 2.0)
+                         (default: None)
+  --attempts INT         (default: 10)
+  --retry-delay FLOAT    (default: 0.5)
+  --retry-backoff FLOAT  (default: 2.0)
   --led-count {None}|INT
-                       (default: None)
+                         (default: None)
   --duration {None}|FLOAT
-                       (default: None)
+                         (default: None)
 
 
 $ lyte author --help
@@ -82,25 +81,6 @@ usage: lyte author [-h] [AUTHOR OPTIONS]
   --port INT        (default: 8765)
   --open, --no-open
                     (default: True)
-
-
-$ lyte black-floor --help
-usage: lyte black-floor [-h] [BLACK-FLOOR OPTIONS]
-
- options
- ----------------------------------------------------
-  -h, --help         show this help message and exit
-  --host {None}|STR  (default: None)
-  --timeout FLOAT    (default: 5.0)
-  --discovery-timeout {None}|FLOAT
-                     (default: None)
-  --attempts INT     (default: 10)
-  --retry-delay FLOAT
-                     (default: 0.5)
-  --retry-backoff FLOAT
-                     (default: 2.0)
-  --led-count {None}|INT
-                     (default: None)
 
 
 $ lyte brightness --help
@@ -124,6 +104,25 @@ usage: lyte brightness [-h] [BRIGHTNESS OPTIONS] [{get,set}] [{None}|INT]
                    (default: 0.5)
   --retry-backoff FLOAT
                    (default: 2.0)
+
+
+$ lyte calibrate-black --help
+usage: lyte calibrate-black [-h] [CALIBRATE-BLACK OPTIONS]
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout FLOAT    (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay FLOAT
+                     (default: 0.5)
+  --retry-backoff FLOAT
+                     (default: 2.0)
+  --led-count {None}|INT
+                     (default: None)
 
 
 $ lyte color --help
@@ -178,6 +177,26 @@ usage: lyte diagnostic [-h] [DIAGNOSTIC OPTIONS]
   --pause FLOAT        (default: 0.7)
 
 
+$ lyte dither-test --help
+usage: lyte dither-test [-h] [DITHER-TEST OPTIONS]
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout FLOAT    (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay FLOAT
+                     (default: 0.5)
+  --retry-backoff FLOAT
+                     (default: 2.0)
+  --led-count {None}|INT
+                     (default: None)
+  --time FLOAT       (default: 5.0)
+
+
 $ lyte effects --help
 usage: lyte effects [-h] [EFFECTS OPTIONS] [{list,current,set-current}] [{None}|INT]
 
@@ -199,6 +218,27 @@ usage: lyte effects [-h] [EFFECTS OPTIONS] [{list,current,set-current}] [{None}|
                      (default: 0.5)
   --retry-backoff FLOAT
                      (default: 2.0)
+
+
+$ lyte fps-test --help
+usage: lyte fps-test [-h] [FPS-TEST OPTIONS]
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout FLOAT    (default: 5.0)
+  --discovery-timeout {None}|FLOAT
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay FLOAT
+                     (default: 0.5)
+  --retry-backoff FLOAT
+                     (default: 2.0)
+  --led-count {None}|INT
+                     (default: None)
+  --duration FLOAT   (default: 2.0)
+  --pause FLOAT      (default: 1)
 
 
 $ lyte installation --help
@@ -445,27 +485,27 @@ usage: lyte playlist [-h] [PLAYLIST OPTIONS] [{list,current}]
 
 
 $ lyte preview --help
-usage: lyte preview [-h] [PREVIEW OPTIONS] [{None}|STR] [{None}|PATH]
+usage: lyte preview [-h] [PREVIEW OPTIONS] [{None}|STR]
 
  positional arguments
- -----------------------------------------------------
-  [{None}|STR]        selector (default: None)
-  [{None}|PATH]       output (default: None)
+ ------------------------------------------------------
+  [{None}|STR]         selector (default: None)
 
  options
- -----------------------------------------------------
-  -h, --help          show this help message and exit
+ ------------------------------------------------------
+  -h, --help           show this help message and exit
+  --output {None}|PATH
+                       (default: None)
   --library-config {None}|PATH
-                      (default: None)
-  --light-output STR  (default: light)
+                       (default: None)
+  --light-output STR   (default: light)
   --parameters [STR FLOAT [STR FLOAT ...]]
-                      (default: )
-  --family {None}|STR
-                      (default: None)
-  --open, --no-open   (default: False)
-  --name {None}|STR   (default: None)
-  --led-size FLOAT    (default: 1.0)
-  --duration FLOAT    (default: 10.0)
+                       (default: )
+  --family {None}|STR  (default: None)
+  --open, --no-open    (default: False)
+  --name {None}|STR    (default: None)
+  --led-size FLOAT     (default: 1.0)
+  --duration FLOAT     (default: 10.0)
 
 
 $ lyte render --help
@@ -516,66 +556,6 @@ usage: lyte saturation [-h] [SATURATION OPTIONS] [{get,set}] [{None}|INT]
                    (default: 2.0)
 
 
-$ lyte show --help
-usage: lyte show [-h] [SHOW OPTIONS] STR
-
- positional arguments
- -----------------------------------------------
-  STR           selector (required)
-
- options
- -----------------------------------------------
-  -h, --help    show this help message and exit
-  --library-config {None}|PATH
-                (default: None)
-  --output STR  (default: light)
-  --parameters [STR FLOAT [STR FLOAT ...]]
-                (default: )
-  --wiring {None}|{[STR [STR ...]]}
-                (default: None)
-
-
-$ lyte test --help
-usage: lyte test [-h] [TEST OPTIONS]
-
- options
- ----------------------------------------------------
-  -h, --help         show this help message and exit
-  --host {None}|STR  (default: None)
-  --timeout FLOAT    (default: 5.0)
-  --discovery-timeout {None}|FLOAT
-                     (default: None)
-  --attempts INT     (default: 10)
-  --retry-delay FLOAT
-                     (default: 0.5)
-  --retry-backoff FLOAT
-                     (default: 2.0)
-  --led-count {None}|INT
-                     (default: None)
-  --duration FLOAT   (default: 2.0)
-  --pause FLOAT      (default: 1)
-
-
-$ lyte test2 --help
-usage: lyte test2 [-h] [TEST2 OPTIONS]
-
- options
- ----------------------------------------------------
-  -h, --help         show this help message and exit
-  --host {None}|STR  (default: None)
-  --timeout FLOAT    (default: 5.0)
-  --discovery-timeout {None}|FLOAT
-                     (default: None)
-  --attempts INT     (default: 10)
-  --retry-delay FLOAT
-                     (default: 0.5)
-  --retry-backoff FLOAT
-                     (default: 2.0)
-  --led-count {None}|INT
-                     (default: None)
-  --time FLOAT       (default: 5.0)
-
-
 $ lyte timer --help
 usage: lyte timer [-h] [TIMER OPTIONS] [{get,set}] [{None}|INT] [{None}|INT]
 
@@ -602,8 +582,27 @@ usage: lyte timer [-h] [TIMER OPTIONS] [{get,set}] [{None}|INT] [{None}|INT]
                    (default: None)
 
 
-$ lyte verify --help
-usage: lyte verify [-h] [VERIFY OPTIONS]
+$ lyte validate --help
+usage: lyte validate [-h] [VALIDATE OPTIONS] STR
+
+ positional arguments
+ -----------------------------------------------------
+  STR                 selector (required)
+
+ options
+ -----------------------------------------------------
+  -h, --help          show this help message and exit
+  --library-config {None}|PATH
+                      (default: None)
+  --light-output STR  (default: light)
+  --parameters [STR FLOAT [STR FLOAT ...]]
+                      (default: )
+  --wiring {None}|{[STR [STR ...]]}
+                      (default: None)
+
+
+$ lyte verify-output --help
+usage: lyte verify-output [-h] [VERIFY-OUTPUT OPTIONS]
 
  options
  -----------------------------------------------------

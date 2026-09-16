@@ -153,16 +153,10 @@ the absence of a selectable 3D view. Removed the completed editor plan.
 
 ### 19. Public command and option names hide their purpose
 
-[cli.py](../lyte/cli.py) exposes `test`, `test2`, `verify`, and `black-floor`;
-`test2` in particular does not communicate temporal dithering. `show` only
-validates/prepares a score, whereas `animate` actually plays it.
-`--output` selects a score output in `animate`/`show`, but a destination
-directory in `render`; preview uses a positional destination and
-`--light-output` for the score output.
-
-Choose clearer names and consistent output terminology before expanding the
-CLI. These are interface changes requiring a deliberate decision, not license
-for a broad rename in an unrelated task.
+**Fixed.** Commands are now `fps-test`, `dither-test`, `verify-output`,
+`calibrate-black`, and `validate`. Score outputs use `--light-output` and file
+destinations use `--output`, including preview. Updated examples, dispatch
+checks, and the complete CLI help regression. Old command names are removed.
 
 ### 20. README overstates installation transport support
 

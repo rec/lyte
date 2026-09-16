@@ -14,10 +14,10 @@ replaces that default. Reading a library creates no files.
 
 ```sh
 # Validate selection and renderer preparation without opening hardware.
-lyte show examples:/composition.toml --library-config examples/library.toml
+lyte validate examples:/composition.toml --library-config examples/library.toml
 
 # Create an HTML preview from the same prepared score.
-lyte preview examples:/composition.toml preview.html \
+lyte preview examples:/composition.toml --output preview.html \
   --library-config examples/library.toml
 
 # Play one score on a discovered Twinkly device.
@@ -26,7 +26,7 @@ lyte animate examples:/composition.toml \
 ```
 
 Selectors are Ufor selectors. `--parameters NAME VALUE` supplies public scalar
-overrides, and `--output` chooses the score's named light output. Lyte logs all
+overrides, and `--light-output` chooses the score's named light output. Lyte logs all
 library diagnostics. A missing or incompatible score, output, parameter, or
 wiring order fails during preparation, before hardware opens.
 
