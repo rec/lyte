@@ -1,7 +1,7 @@
 # lyte Guide
 
-lyte plays uFor light scores on Twinkly strings, renders them for inspection,
-and provides separate primitives for WLED and DMX. uFor owns portable score
+lyte plays uFor light scores on Twinkly and WLED strings, renders them for
+inspection, and provides separate primitives for DMX. uFor owns portable score
 data: layouts, composition, timing, presets, and public scalar parameters.
 lyte owns NumPy rendering, output transport, local services, MIDI mapping, and
 the supplied wearable catalogue.
@@ -174,7 +174,8 @@ For software-only rehearsal, run:
 lyte rehearse examples/installation.toml --string-counts left 125 right 125
 ```
 
-Supply every named string's simulated light count. These counts are rehearsal
+Supply every Twinkly string's simulated light count. WLED strings use their
+configured `led_count`; do not repeat them in `--string-counts`. Twinkly counts are rehearsal
 inputs, not production device selectors. The loopback browser opens on port 8766
 (`--no-open` leaves it closed). It displays each string separately and offers
 animation selection, step/play/pause, test override, blackout, and synthetic MIDI
@@ -220,8 +221,9 @@ status available. Recoverable frame-render errors keep the loop running and leav
 the previous physical frame displayed until rendering recovers or another
 animation is selected. Explicit stop and interruption still stop playback.
 
-An installation selects several Twinkly strings, maintains their connections,
-and switches named uFor animations at frame boundaries.
+An installation drives Twinkly and WLED strings and switches named uFor
+animations at frame boundaries. Both transports share selection, fades, master
+level, test patterns, blackout, recording and status.
 
 `lyte installation` is the sole service command. The legacy wearable daemon
 has been retired; `lyte patch` and the wearable uFor catalogue remain available.
@@ -247,8 +249,9 @@ lyte installation install examples/installation.toml
 lyte installation status examples/installation.toml
 ```
 
-The installation TOML describes physical strings under `[twinkly]` and
-selectable animations under `[animations.NAME]`. A string selector contains
+The installation TOML describes Twinkly strings under `[twinkly]`, WLED targets
+under `[wled]`, and selectable animations under `[animations.NAME]`. A Twinkly
+selector contains
 observed `gestalt` fields such as `product_name`; it never contains an address,
 MAC address, or LED count. lyte discovers devices and requires one unambiguous,
 one-to-one assignment. An empty selector can select the one remaining device.
@@ -430,10 +433,40 @@ Rainbow, Scan, and Twinkle. It creates independent uFor score files and a
 manifest. Unsupported presets remain native data and receive a reason in that
 manifest.
 
-`WledDdpOutput` is a transient output primitive. Given a host and a discovered
-LED count, it rescales RGB frames and sends chunked DDP packets to port 4048.
-It does not discover devices or persist network identity, and it is not yet a
-target in the installation runner.
+Installation targets use an explicit hostname or IPv4 address and light count:
+
+```toml
+[wled.right]
+host = "wled.local"
+led_count = 60
+```
+
+Use a bare hostname or address, without a URL scheme or port. The destination
+is UDP port 4048. Counts are never queried from WLED; update the configuration
+when the physical layout changes. Output names must be unique across transports,
+and each animation must bind every output. Concatenation (`left + right`) and
+mirroring (`left * right`) work across transports. WLED-only installations omit
+`[twinkly]` and perform no discovery. Mixed installations retain Twinkly's
+existing discovery and startup requirements.
+
+`examples/installation-wled.toml` demonstrates a mixed installation. Rehearse
+it without devices with `lyte rehearse examples/installation-wled.toml
+--string-counts left 125`. Set the actual WLED host/count and Twinkly selector
+before physical playback with `lyte installation run`.
+
+The runner uses `WledDdpOutput` to send chunked RGB frames. Status displays
+`ready` before the first attempt and `sending (unconfirmed)` after a successful
+UDP send. This is not a device-health check: DDP has no acknowledgements, so an
+unplugged device may still appear to be sending successfully. Local send errors
+increment failure counters; other outputs continue, and the next scheduled frame
+tries again without queuing old frames. Socket acquisition is also attempted on
+a later frame if it fails. Socket operations use the installation `timeout`;
+operating-system hostname resolution has its own timing.
+
+Blackout sends zero RGB frames while the runner remains active. Shutdown attempts
+one final zero frame before closing the socket. Delivery is not guaranteed; WLED
+may resume its local preset when its realtime timeout expires. Physical checks
+of selection, unplug/replug and blackout remain necessary on the actual devices.
 
 ## DMX and Art-Net
 
@@ -444,7 +477,7 @@ wheel, gobo, and named raw channels. The encoder creates C-contiguous,
 
 `lyte.artnet.ArtNetDriver` sends those frames as ArtDmx UDP packets and can
 black out specified universes. DMX and Art-Net are independent output
-primitives; installation animation selection currently controls Twinkly only.
+primitives; installation animation selection currently controls Twinkly and WLED pixels.
 
 ## What the Tests Establish
 
