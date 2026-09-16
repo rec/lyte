@@ -28,15 +28,9 @@ send rates, delayed frames, and note restarts.
 
 ### 3. Authoring embeds unescaped score metadata inside a script
 
-**High priority; confirmed unsafe HTML construction.**
-[author_document](../lyte/authoring.py) inserts `json.dumps(catalog)` directly
-into an inline script. A title containing `</script>` terminates that script;
-following HTML can execute in the editor's origin. This matters when opening
-third-party score libraries, even though the server binds to loopback.
-
-The standalone preview already has [safe_json](../lyte/preview/document.py).
-Use a shared safe embedding rule and verify a title containing a closing
-script tag remains inert text.
+**Fixed 2026-09-16.** Authoring now uses the standalone preview's `safe_json`
+helper when embedding the catalogue. A regression test checks that a malicious
+score title cannot close the script and introduce another script element.
 
 ### 4. Different render selectors can overwrite the same movie
 
