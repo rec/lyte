@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fractions import Fraction
 from pathlib import Path
 
 import mido
@@ -9,8 +10,9 @@ from numpy.typing import NDArray
 from pydantic import ValidationError
 from reccy.protocol import ipc, rpc
 from reccy.services.models import StatusResult
+from ufor import library_files
 
-from lyte import installation, runtime_control
+from lyte import installation, runtime_control, show
 from lyte.twinkly import diagnostic
 
 
@@ -163,6 +165,7 @@ def test_mirrored_binding_renders_once() -> None:
         outputs={'light': 'left * right'},
     )
     active.performance = runtime_control.MidiPerformance()
+    active.started_at = None
     active.bindings = [
         installation.PreparedBinding(
             output_name='light',
@@ -173,10 +176,56 @@ def test_mirrored_binding_renders_once() -> None:
         )
     ]
 
-    frames = active.render()
+    frames = active.render(0)
 
     assert prepared.render_count == 1
     assert [frame.shape for _, frame in frames] == [(2, 3), (3, 3)]
+
+
+@pytest.mark.parametrize('send_rate', [10, 20, 30])
+def test_installation_preserves_score_frames_at_different_send_rates(
+    send_rate: int,
+) -> None:
+    library = library_files.read_library(Path('examples/library.toml'))
+    active = installation.ActiveAnimation(
+        'aurora',
+        installation.BoundAnimation(selector='aurora', outputs={'light': 'left'}),
+        library,
+        {'left': Output(led_count=250)},
+    )
+    reference = show.prepare_library_animation(
+        library, show.LightProgramSpec(selector='aurora')
+    )
+    expected = None
+    for i in range(send_rate + 1):
+        now = float(Fraction(i, send_rate))
+        target = int(Fraction(str(now)) * reference.rate)
+        while reference.tick <= target:
+            expected = reference.byte_frame(wired=True)
+        np.testing.assert_array_equal(active.render(now)[0][1], expected)
+
+
+def test_score_catches_up_after_a_delay_and_restarts_on_a_note() -> None:
+    library = library_files.read_library(Path('examples/library.toml'))
+    active = installation.ActiveAnimation(
+        'aurora',
+        installation.BoundAnimation(
+            selector='aurora', outputs={'light': 'left'}, activation='note'
+        ),
+        library,
+        {'left': Output(led_count=250)},
+    )
+    assert not active.render(100)[0][1].any()
+    active.apply_performance(runtime_control.MidiPerformance(note=60), restart=True)
+    first = active.render(200)[0][1].copy()
+    reference = show.prepare_library_animation(
+        library, show.LightProgramSpec(selector='aurora')
+    )
+    for _ in range(21):
+        expected = reference.byte_frame(wired=True)
+    np.testing.assert_array_equal(active.render(201)[0][1], expected)
+    active.apply_performance(runtime_control.MidiPerformance(note=62), restart=True)
+    np.testing.assert_array_equal(active.render(202)[0][1], first)
 
 
 def test_active_animation_applies_midi_controls() -> None:
@@ -375,10 +424,13 @@ class CountingPrepared:
     def __init__(self) -> None:
         self.render_count = 0
         self.parameters: dict[str, float] = {}
+        self.rate = Fraction(20)
+        self.tick = 0
 
     def byte_frame(self, wired: bool) -> NDArray[np.uint8]:
         assert wired
         self.render_count += 1
+        self.tick += 1
         return np.array([[0, 0, 0], [255, 0, 0]], dtype=np.uint8)
 
     def set_parameters(self, values: dict[str, float]) -> None:
