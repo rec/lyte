@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from math import isfinite
 
 import mido
@@ -36,29 +35,6 @@ class MidiPerformance(BaseModel):
                 self.breath = message.value
             case 'pitchwheel' if self.note is not None:
                 self.pitch = int(message.__getattribute__('pitch'))
-
-    def replay(self, receive: Callable[[mido.Message], None]) -> None:
-        if self.note is None:
-            return
-        receive(
-            mido.Message(
-                'note_on',
-                channel=self.channel,
-                note=self.note,
-                velocity=self.velocity,
-            )
-        )
-        if self.breath is not None:
-            receive(
-                mido.Message(
-                    'control_change',
-                    channel=self.channel,
-                    control=2,
-                    value=self.breath,
-                )
-            )
-        if self.pitch is not None:
-            receive(mido.Message('pitchwheel', channel=self.channel, pitch=self.pitch))
 
     def value(self, source: str) -> float:
         if source == 'gate':

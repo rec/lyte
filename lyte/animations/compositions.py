@@ -104,11 +104,7 @@ class TimedChildrenState(ChildrenState):
 
 
 class Fade(BaseModel, frozen=True):
-    """Blend two frames, including the selector's patch transition morph.
-
-    On a program change, PatchSelector crossfades the current and next patches.
-    The selector owns the transition; individual animations remain independent.
-    """
+    """Blend two frames using a timed linear or smooth transition."""
 
     duration: float = Field(gt=0, allow_inf_nan=False)
     easing: Literal['linear', 'smooth'] = 'linear'
