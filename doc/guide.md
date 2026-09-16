@@ -143,6 +143,14 @@ blackout behavior.
 
 ## Installations
 
+For an ordered lighting cue list, use showCo's **Lighting cues** page. showCo
+owns Go/Back and persistent cue position; lyte executes the selected installation
+look through its existing RPC. Cue selections cut immediately. showCo displays
+live active/queued looks and blackout/test overrides separately from cue position,
+and reconnects never resend selections. Its hardware-free rehearsal includes the
+laser example's `idle`, `circle`, and `square` names. Song markers remain separate
+manual actions. See showCo's `doc/README.md` for editing and uncertain-reply handling.
+
 `lyte panel` opens a local operator page on port 8767 for the running installation.
 It uses the existing lyte reccy identity and RPC socket; it does not start another
 installation daemon. Active/queued animation, MIDI connection, blackout, tests,
