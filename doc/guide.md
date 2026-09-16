@@ -128,6 +128,9 @@ An optional `[midi]` table reconnects a MIDI input. Animation controls map
 note gate, note number, velocity, CC 2 breath, and pitch bend to public Ufor
 parameters. An animation may use `activation = "note"` to output black until a
 note is held. Program changes queue the next configured animation.
+Preparation rejects non-finite or out-of-range mapped values and unsupported
+live parameter changes before discovering devices. Built-in effect parameters
+that are construction-only cannot be mapped to live MIDI controls.
 
 The supplied wearable installation and library are in `patches/`. They provide
 36 Ufor presets for a 250-light garment. Its physical map is guessed, so it

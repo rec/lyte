@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 from pathlib import Path
+from unittest.mock import Mock
 
 import mido
 import numpy as np
@@ -10,7 +11,10 @@ from numpy.typing import NDArray
 from pydantic import ValidationError
 from reccy.protocol import ipc, rpc
 from reccy.services.models import StatusResult
-from ufor import library_files
+from ufor import library_files, light_animation, modulation
+from ufor.control import Scope
+from ufor.interface import ParameterExport
+from ufor.library import Entry, Library
 
 from lyte import installation, runtime_control, show
 from lyte.twinkly import diagnostic
@@ -77,6 +81,99 @@ def test_example_installation_is_valid() -> None:
     config = installation.load_installation(Path('examples/installation.toml'))
 
     assert config.initial_animation == 'tree_show'
+
+
+@pytest.mark.parametrize(
+    'mapping',
+    [
+        {'output': [0, 128]},
+        {'values': [0, 60, 128]},
+        {'values': [float('nan')]},
+        {'output': [0, float('inf')]},
+    ],
+)
+def test_invalid_midi_range_fails_before_discovery(
+    mapping: dict[str, object], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = installation.parse_installation(
+        {
+            'library_config': 'patches/wearable-library.toml',
+            'twinkly': {'left': {}},
+            'midi': {'channel': 1},
+            'initial_animation': 'controlled',
+            'animations': {
+                'controlled': {
+                    'selector': 'wearable:/breath_walker.toml',
+                    'outputs': {'light': 'left'},
+                    'controls': [{'source': 'note', 'parameter': 'note', **mapping}],
+                }
+            },
+        }
+    )
+    discover = Mock(side_effect=AssertionError('discovery must not start'))
+    monkeypatch.setattr(installation, 'discover_assignments', discover)
+    with pytest.raises(
+        installation.InstallationFileError, match='control note: mapped value'
+    ):
+        installation.build_service(config)
+    discover.assert_not_called()
+
+
+def test_construction_only_midi_target_fails_before_discovery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    library = library_files.read_library(Path('examples/library.toml'))
+    score = library.composition('aurora').scores['examples:/aurora.toml'].score
+    assert isinstance(score, light_animation.AnimationScore)
+    target = modulation.Target(name='animation', parameter='speed')
+    controlled = score.model_copy(
+        update={
+            'parameters': [ParameterExport(name='speed', binding=target)],
+            'body': score.body.model_copy(
+                update={
+                    'modulation': modulation.Modulation(
+                        parameters=[
+                            modulation.Parameter(
+                                target=target,
+                                unit=modulation.Unit.ratio,
+                                scope=Scope.part,
+                                minimum=0,
+                                maximum=2,
+                                default=1,
+                            ),
+                        ]
+                    )
+                }
+            ),
+        }
+    )
+    library = Library(
+        [Entry(library='test', address='/aurora.toml', name='aurora', score=controlled)]
+    )
+    monkeypatch.setattr(
+        installation.library_files, 'read_library', lambda path: library
+    )
+    discover = Mock(side_effect=AssertionError('discovery must not start'))
+    monkeypatch.setattr(installation, 'discover_assignments', discover)
+    config = installation.parse_installation(
+        {
+            'twinkly': {'left': {}},
+            'midi': {'channel': 1},
+            'initial_animation': 'controlled',
+            'animations': {
+                'controlled': {
+                    'selector': 'aurora',
+                    'outputs': {'light': 'left'},
+                    'controls': [
+                        {'source': 'breath', 'parameter': 'speed', 'output': [0, 2]}
+                    ],
+                }
+            },
+        }
+    )
+    with pytest.raises(installation.InstallationFileError, match='construction-only'):
+        installation.build_service(config)
+    discover.assert_not_called()
 
 
 def test_showco_installation_is_valid() -> None:
