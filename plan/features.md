@@ -343,7 +343,15 @@ counts. Tests cover DDP bytes, mixed controls, failure isolation and subsequent
 successful sends. UDP success is explicitly unconfirmed, not device health.
 Before declaring the transport complete, rehearse selection, disconnection,
 reconnection and blackout with the user's actual WLED and Twinkly devices.
-DMX integration remains unimplemented and requires fixture/blackout decisions.
+
+**DMX software implemented 2026-09-16; physical rehearsal pending.** The
+litoid laser is the example uFor profile, with centred geometry values of 64,
+no dimmer and mode-only blackout. Installations patch profiles, validate overlap,
+compose each universe, bind named looks and numeric MIDI controls, and share
+recording/replay and rehearsal. Fixture values cut on selection; pixel fades,
+master and tests do not modify them. Tests cover bytes, mixed failure isolation,
+MIDI/replay, shared universes, validation and profile-specific shutdown.
+Actual gateway/fixture delivery, disconnection and blackout remain unverified.
 
 Extend the sole installation runner to use the existing WLED DDP and Art-Net
 primitives. This is architectural work, not just adding another command.

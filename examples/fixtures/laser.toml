@@ -1,0 +1,151 @@
+# From litoid laser-def.toml. Geometry controls are centred at 64.
+# No dimmer. Installation blackout sets mode to blackout, preserving geometry.
+name = "laser-nine-channel"
+
+[[parameters]]
+name = "mode"
+choices = ["blackout", "auto", "sound", "manual"]
+
+[[parameters]]
+name = "pattern"
+choices = ["circle", "spike_circle", "triangle", "square", "spike_square", "square_in_square", "maltese_cross", "star", "ell", "hourglass", "spiral", "cees", "logarithmic", "two_quarter_circle", "specs", "wave", "vee", "em", "saw", "line", "three_lines", "joined_line", "parallel_lines", "x", "skew", "four_lines", "two_squares", "four_squares", "one_intense_square", "dotted_line", "dotted_semicircle", "random_dots"]
+
+[[parameters]]
+name = "zoom"
+unit = "logical"
+minimum = 0
+maximum = 255
+
+[[parameters]]
+name = "xrot"
+unit = "logical"
+minimum = 0
+maximum = 255
+
+[[parameters]]
+name = "yrot"
+unit = "logical"
+minimum = 0
+maximum = 255
+
+[[parameters]]
+name = "zrot"
+unit = "logical"
+minimum = 0
+maximum = 255
+
+[[parameters]]
+name = "hpos"
+unit = "logical"
+minimum = 0
+maximum = 255
+
+[[parameters]]
+name = "vpos"
+unit = "logical"
+minimum = 0
+maximum = 255
+
+[[parameters]]
+name = "color"
+choices = ["all", "red", "green", "blue", "yellow", "pink", "cyan"]
+
+[[channels]]
+parameter = "mode"
+slots = [1]
+
+[channels.values]
+blackout = 0
+auto = 64
+sound = 128
+manual = 192
+
+[[channels]]
+parameter = "pattern"
+slots = [2]
+
+[channels.values]
+circle = 0
+spike_circle = 8
+triangle = 16
+square = 24
+spike_square = 32
+square_in_square = 40
+maltese_cross = 48
+star = 56
+ell = 64
+hourglass = 72
+spiral = 80
+cees = 88
+logarithmic = 96
+two_quarter_circle = 104
+specs = 112
+wave = 120
+vee = 128
+em = 136
+saw = 144
+line = 152
+three_lines = 160
+joined_line = 168
+parallel_lines = 176
+x = 184
+skew = 192
+four_lines = 200
+two_squares = 208
+four_squares = 216
+one_intense_square = 224
+dotted_line = 232
+dotted_semicircle = 240
+random_dots = 248
+
+[[channels]]
+parameter = "zoom"
+slots = [3]
+minimum = 0
+maximum = 255
+
+[[channels]]
+parameter = "xrot"
+slots = [4]
+minimum = 0
+maximum = 255
+
+[[channels]]
+parameter = "yrot"
+slots = [5]
+minimum = 0
+maximum = 255
+
+[[channels]]
+parameter = "zrot"
+slots = [6]
+minimum = 0
+maximum = 255
+
+[[channels]]
+parameter = "hpos"
+slots = [7]
+minimum = 0
+maximum = 255
+
+[[channels]]
+parameter = "vpos"
+slots = [8]
+minimum = 0
+maximum = 255
+
+[[channels]]
+parameter = "color"
+slots = [9]
+
+[channels.values]
+all = 0
+red = 64
+green = 96
+blue = 128
+yellow = 160
+pink = 192
+cyan = 224
+
+[stop]
+kind = "blackout"

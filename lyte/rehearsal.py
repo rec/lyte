@@ -100,6 +100,7 @@ class RehearsalSession:
         self.origin: float | None = None
         self.at = 0.0
         self.frames: dict[str, str] = {}
+        self.dmx_frames: dict[int, list[int]] = {}
 
     def request(self, request: RehearsalRequest) -> dict[str, object]:
         if request.command == 'step':
@@ -113,6 +114,9 @@ class RehearsalSession:
                 self.frames = {
                     n: b64encode(memoryview(f).cast('B')).decode('ascii')
                     for n, f in self.playback.render(now)
+                }
+                self.dmx_frames = {
+                    u: f.slots.tolist() for u, f in self.playback.dmx_frames.items()
                 }
                 self.tick += 1
                 if self.replay is not None:
@@ -129,6 +133,8 @@ class RehearsalSession:
                 raise ValueError(result.message)
         active = self.playback.active
         return {
+            'fixtures': self.playback.fixtures.values,
+            'dmx_frames': self.dmx_frames,
             'recording_error': self.playback.recorder.error
             if self.playback.recorder
             else None,

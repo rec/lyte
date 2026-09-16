@@ -34,6 +34,7 @@ from . import (
     service,
 )
 from .control_recording import ControlRecorder
+from .installation_dmx import ArtNetOutput, ArtNetStatus
 from .metrics import DeliveryTiming, RenderCost
 from .midi import MidiInput, input_messages, open_input
 from .retry import RetryConfig
@@ -84,6 +85,8 @@ class StringStatus(BaseModel):
 
 
 class InstallationStatus(ReccyStatus):
+    artnet: ArtNetStatus | None = None
+    fixtures: dict[str, dict[str, float | str]] = Field(default_factory=dict)
     recording: bool = False
     recording_path: str | None = None
     recording_error: str | None = None
@@ -309,6 +312,16 @@ class InstallationService(Reccy):
             self.config, self.library, {n: o.led_count for n, o in self.outputs.items()}
         )
 
+    @cached_property
+    def artnet_output(self) -> ArtNetOutput | None:
+        if self.config.artnet is None:
+            return None
+        return ArtNetOutput(
+            self.config.artnet,
+            sorted({f.universe for f in self.config.dmx.values()}),
+            self.config.timeout,
+        )
+
     def rpc_response(self, request: rpc.Request) -> rpc.Result:
         with self._lock:
             if request.command == 'status':
@@ -330,6 +343,8 @@ class InstallationService(Reccy):
                 else self.config.animations[self.playback.active.name].outputs.copy()
             )
             return InstallationStatus(
+                artnet=self.artnet_output.status if self.artnet_output else None,
+                fixtures=self.playback.fixtures.values,
                 recording=self.playback.recorder is not None
                 and self.playback.recorder.stream is not None,
                 recording_path=str(self.playback.recorder.path)
@@ -434,6 +449,12 @@ class InstallationService(Reccy):
                         self.publish_error(f'{name}: output failed: {error}')
                     finally:
                         self._delivery.output_seconds += time.perf_counter() - started
+                if self.artnet_output is not None:
+                    started = time.perf_counter()
+                    if not self.artnet_output.send(self.playback.dmx_frames):
+                        self._delivery.output_failures += 1
+                        self.publish_status()
+                    self._delivery.output_seconds += time.perf_counter() - started
                 next_frame += 1 / self.config.fps
                 while next_frame <= now:
                     next_frame += 1 / self.config.fps
@@ -443,6 +464,13 @@ class InstallationService(Reccy):
             if self.playback.recorder is not None:
                 self.playback.recorder.close()
             self._close_midi()
+            if self.artnet_output is not None:
+                try:
+                    self.artnet_output.send(
+                        self.playback.fixture_frames(force_blackout=True)
+                    )
+                finally:
+                    self.artnet_output.close()
             for output in opened:
                 output.close()
             self.close()

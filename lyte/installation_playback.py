@@ -14,8 +14,9 @@ from ufor import library_files
 from ufor.library import Library
 from ufor.lights import Interpretation
 
-from . import animation, installation_config, rendering, runtime_control, show
+from . import animation, dmx, installation_config, rendering, runtime_control, show
 from .control_recording import ControlRecorder
+from .installation_dmx import FixturePlayback
 from .metrics import RenderCost
 
 
@@ -29,6 +30,8 @@ class InstallationPlayback:
         self.config = config
         self.library = library
         self.led_counts = led_counts
+        self.fixtures = FixturePlayback(config)
+        self.dmx_frames: dict[int, dmx.DmxFrame] = {}
         self.active: ActiveAnimation | None = None
         self.queued_name: str | None = None
         self.queued_duration = 0.0
@@ -82,6 +85,10 @@ class InstallationPlayback:
             self.master_level = float(level)
             result = 'ok'
         elif command == 'test':
+            if not (self.config.twinkly or self.config.wled):
+                return ipc.Error(
+                    type='error', message='pixel tests require pixel outputs'
+                )
             if self.blackout:
                 return ipc.Error(
                     type='error',
@@ -187,6 +194,7 @@ class InstallationPlayback:
             name = self.queued_name
             self.queued_name = None
             self.select(name, self.queued_duration, now)
+        self.dmx_frames = self.fixture_frames()
         if self.blackout:
             return [
                 (n, np.zeros((c, 3), dtype=np.uint8))
@@ -242,6 +250,15 @@ class InstallationPlayback:
                     for n, f in frames
                 ]
         return self.finish_frame(frames)
+
+    def fixture_frames(self, force_blackout: bool = False) -> dict[int, dmx.DmxFrame]:
+        if not self.config.dmx:
+            return {}
+        return self.fixtures.render(
+            self.active.definition if self.active else None,
+            self.performance,
+            self.blackout or force_blackout,
+        )
 
     def finish_frame(
         self, frames: list[tuple[str, NDArray[np.uint8]]]
@@ -303,7 +320,11 @@ class ActiveAnimation:
         self.performance = performance.model_copy(deep=True)
         if restart:
             self._prepare()
-        values = {c.parameter: c.map(performance) for c in self.definition.controls}
+        values = {
+            c.parameter: c.map(performance)
+            for c in self.definition.controls
+            if c.fixture is None
+        }
         if values:
             for binding in self.bindings:
                 binding.prepared.set_parameters(values)
@@ -363,8 +384,10 @@ def distribute_frame(
 
 
 def prepare_output(
-    library: Library, selector: str, output_name: str
+    library: Library, selector: str | None, output_name: str
 ) -> rendering.PreparedAnimation:
+    if selector is None:
+        raise ValueError('pixel output requires a score selector')
     try:
         prepared = show.prepare_library_animation(
             library, show.LightProgramSpec(selector=selector, output=output_name)
@@ -390,7 +413,12 @@ def prepare_output(
 
 def load_library(config: installation_config.InstallationFile) -> Library:
     try:
-        library = library_files.read_library(config.library_config)
+        FixturePlayback(config)
+        library = (
+            library_files.read_library(config.library_config)
+            if any(d.outputs for d in config.animations.values())
+            else Library([])
+        )
     except (OSError, ValueError) as error:
         raise installation_config.InstallationFileError(str(error)) from error
     show.log_diagnostics(library)
@@ -398,6 +426,8 @@ def load_library(config: installation_config.InstallationFile) -> Library:
         for output_name in definition.outputs:
             prepared = prepare_output(library, definition.selector, output_name)
             for control in definition.controls:
+                if control.fixture is not None:
+                    continue
                 try:
                     contract = prepared.composition.parameter_contract(
                         prepared.composition.root, control.parameter

@@ -1,7 +1,7 @@
 # lyte Guide
 
-lyte plays uFor light scores on Twinkly and WLED strings, renders them for
-inspection, and provides separate primitives for DMX. uFor owns portable score
+lyte plays uFor light scores on Twinkly and WLED strings, drives DMX fixtures
+through Art-Net, and provides offline previews and installation rehearsal. uFor owns portable score
 data: layouts, composition, timing, presets, and public scalar parameters.
 lyte owns NumPy rendering, output transport, local services, MIDI mapping, and
 the supplied wearable catalogue.
@@ -470,14 +470,83 @@ of selection, unplug/replug and blackout remain necessary on the actual devices.
 
 ## DMX and Art-Net
 
-`lyte.dmx` describes one contiguous channel range in one universe. Categories
-cover brightness, RGB, white, chase speed, pattern, strobe, pan, tilt, colour
-wheel, gobo, and named raw channels. The encoder creates C-contiguous,
-512-byte DMX universe frames.
+The installation runner supports named fixture values alongside pixel scores,
+or a DMX-only installation. Start with `examples/installation-laser.toml` and
+its portable uFor profile, `examples/fixtures/laser.toml`. This reproduces the
+nine-channel litoid laser definition: mode, pattern, zoom, three rotations,
+horizontal/vertical position and colour. All six geometry defaults are 64.
+There is no dimmer. Blackout overrides mode with 0 and preserves other values.
 
-`lyte.artnet.ArtNetDriver` sends those frames as ArtDmx UDP packets and can
-black out specified universes. DMX and Art-Net are independent output
-primitives; installation animation selection currently controls Twinkly and WLED pixels.
+**Fixture changes cut at selection. Master level, pixel fades and pixel tests
+do not alter DMX fixtures, including at master zero. Use Blackout to stop both
+pixels and fixtures.** Rehearsal and the panel show this distinction. This first
+fixture milestone does not implement fixture fading or intensity scaling.
+
+```sh
+# No network, MIDI port, or service is opened by rehearsal.
+lyte rehearse examples/installation-laser.toml
+```
+
+The example starts with its `idle` look in blackout. `circle` and `square` select
+manual mode with named patterns and colours. Rehearsal displays semantic values
+and 512-byte universe frames, not a simulated laser beam. Replace the example
+Art-Net destination and patch address before running the installation physically.
+
+An `[artnet]` endpoint supplies `host`, optional `port` (6454), and
+`universe_offset` (-1). Logical universes start at 1; with the default offset,
+logical universe 1 is Art-Net wire universe 0. Each `[dmx.NAME]` supplies:
+
+- `profile`: a uFor FixtureProfile TOML file, relative to the installation file.
+- `universe` and `start_channel`: one-based patch coordinates.
+- `defaults`: every named parameter's initial value.
+- `blackout`: explicit overrides applied during blackout, a closed note gate,
+  and the final best-effort shutdown frame.
+
+Profiles declare numeric domains or named choices and their one/two-slot byte
+encodings. This runner requires a channel encoding for every parameter and a
+`stop.kind = "blackout"` profile. Values, patch footprint overlap, universe
+boundaries and wire addresses are checked before device discovery. It composes
+one frame per universe; unpatched channels are zero. The endpoint should receive
+universes owned by this installation, not a partial contribution to another
+controller's frame.
+
+Every `[animations.NAME.fixtures]` table must name all configured fixtures.
+Each fixture's values override its defaults; an empty table uses those defaults.
+For mixed pixel/DMX looks, retain the usual `selector` and `outputs` as well.
+DMX-only looks omit both and do not need a pixel score library.
+
+Existing MIDI controls can target numeric fixture parameters by adding
+`fixture = "laser"`. For example, add a MIDI input and this control to a look:
+
+```toml
+[midi]
+channel = 1
+
+[[animations.circle.controls]]
+fixture = "laser"
+source = "breath"
+parameter = "hpos"
+output = [64, 255]
+```
+
+Values use the profile's domain. The laser geometry domain is raw 0–255 with
+centre 64, not degrees or a symmetric normalized range. MIDI controls cannot
+target named mode/pattern/colour selections; select a look for those. A look's
+`activation = "note"` applies its declared blackout while no note is held.
+Fixture rendering and pixel rendering share the recorded delivery boundary;
+recordings include profile fingerprints and replay reports changed profiles.
+
+Art-Net sends have no delivery acknowledgement. Status distinguishes successful
+local sends from confirmed device health. Send failures leave pixels and other
+universes running and the next delivery tries again without replaying old frames.
+Shutdown sends the fixture-specific blackout frame rather than calling the
+low-level all-zero universe helper. The receiving node's timeout behaviour and
+physical blackout still need device testing; no fixture was activated during
+implementation.
+
+The existing `lyte.dmx` encoder and `lyte.artnet.ArtNetDriver` remain the shared
+encoding and transport primitives. Portable profile declarations stay in uFor;
+installation patching, control evaluation and transport stay in lyte.
 
 ## What the Tests Establish
 
