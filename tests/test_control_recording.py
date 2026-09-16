@@ -1,4 +1,5 @@
 from base64 import b64encode
+from io import StringIO
 from pathlib import Path
 
 import mido
@@ -145,6 +146,59 @@ def test_replay_reports_configuration_changes_and_rejects_truncated_recordings(
 def test_recording_never_overwrites_an_existing_file(tmp_path: Path) -> None:
     path = tmp_path / 'input.jsonl'
     path.write_text('existing')
-    with pytest.raises(FileExistsError):
-        control_recording.ControlRecorder(path)
+    recorder = control_recording.ControlRecorder(path)
+    assert recorder.error is not None
+    assert recorder.stream is None
     assert path.read_text() == 'existing'
+
+
+@pytest.mark.parametrize('failure', ['write', 'flush', 'close'])
+def test_recording_failure_leaves_playback_running_and_stops_buffering(
+    installation_path: Path, tmp_path: Path, failure: str
+) -> None:
+    class BrokenStream(StringIO):
+        def write(self, value: str) -> int:
+            if failure == 'write':
+                raise OSError('disk full')
+            return super().write(value)
+
+        def flush(self) -> None:
+            if failure == 'flush':
+                raise OSError('flush failed')
+            super().flush()
+
+        def close(self) -> None:
+            if failure == 'close':
+                raise OSError('close failed')
+            super().close()
+
+    session = rehearsal.RehearsalSession(
+        rehearsal.RehearsalConfig(
+            config=installation_path,
+            string_counts={'left': 2, 'right': 3},
+            record_input=tmp_path / 'input.jsonl',
+        )
+    )
+    recorder = session.playback.recorder
+    assert recorder is not None and recorder.stream is not None
+    recorder.stream.close()
+    stream = BrokenStream()
+    recorder.stream = stream
+    if failure == 'close':
+        recorder.close()
+    session.request(
+        rehearsal.RehearsalRequest(command='select_animation', params={'name': 'b'})
+    )
+    result = session.request(rehearsal.RehearsalRequest(command='step'))
+    assert result['frames']
+    assert result['active'] == 'b'
+    assert result['recording_error']
+    assert recorder.stream is None
+    for _ in range(10):
+        session.request(
+            rehearsal.RehearsalRequest(command='master_level', params={'level': 0.5})
+        )
+        session.request(rehearsal.RehearsalRequest(command='step'))
+    assert not recorder.pending
+    session.close()
+    StringIO.close(stream)

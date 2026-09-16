@@ -286,10 +286,12 @@ and preserves actual delivery timestamps. It stores configuration, score
 declarations/seeds, and source fingerprints; replay reports differences and is
 software-only. Tests reproduce frames with uneven delivery intervals.
 
-**Remaining:** connect capture to the live installation input path after choosing
-whether recording failure should leave lighting running with a visible error or
-stop playback. Operator-command capture is approved. Do not assume an answer
-to the separate failure-policy question.
+**Completed 2026-09-16.** Live capture is available with `installation run
+--record-input`. File-open, serialization, write, flush, and close failures stop
+capture, preserve the error in status, and leave lighting running. Failed capture
+does not accumulate inputs or attempt further writes. Tests cover live capture,
+replay, and recording/status failures. Recoverable frame errors leave the delivery
+loop running so later frames or operator selections can recover.
 
 Capture and replay MIDI performance input to reproduce an animation's behavior
 without performing the same gestures again.

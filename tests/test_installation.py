@@ -10,7 +10,9 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 from pydantic import ValidationError
+from reccy.errors import ReccyError
 from reccy.protocol import ipc, rpc
+from reccy.reccy import Reccy
 from reccy.services.models import StatusResult
 from ufor import library_files, light_animation, modulation
 from ufor.control import Scope
@@ -527,6 +529,118 @@ def test_playback_duration_starts_after_outputs_open(
     assert service.run(duration=2) == 0
     assert output.send.call_count == 2
     assert clock.now == 12
+
+
+def test_live_recording_uses_real_delivery_times_without_starting_test_devices(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from lyte import control_replay
+
+    config = installation_config.parse_installation(
+        example_installation() | {'fps': 2, 'midi': {}}
+    )
+    library = library_files.read_library(Path('examples/library.toml'))
+    frames = []
+    clock = SimpleNamespace(now=100.0)
+
+    def sleep(seconds: float) -> None:
+        clock.now += seconds
+
+    outputs = {
+        n: Mock(led_count=c, status=installation.StringStatus())
+        for n, c in [('left', 2), ('right', 3)]
+    }
+    for output in outputs.values():
+        output.open.return_value = True
+        output.send.side_effect = lambda name, frame: (
+            frames.append(frame.copy()) or True
+        )
+    service = installation.InstallationService.model_construct(
+        config=config, library=library, outputs=outputs, home=tmp_path
+    )
+    monkeypatch.setattr(installation.time, 'monotonic', lambda: clock.now)
+    monkeypatch.setattr(installation.time, 'sleep', sleep)
+    monkeypatch.setattr(installation, 'open_input', lambda config: Mock())
+    monkeypatch.setattr(
+        installation,
+        'input_messages',
+        lambda port, config: [mido.Message('note_on', note=60, velocity=100)],
+    )
+    monkeypatch.setattr(installation.InstallationService, 'start', lambda self: None)
+    monkeypatch.setattr(installation.InstallationService, 'close', lambda self: None)
+    destination = tmp_path / 'live.jsonl'
+    assert service.run(duration=1, record_input=destination) == 0
+    assert len(frames) == 4
+    replay = control_replay.ControlReplay(destination)
+    engine = installation_playback.InstallationPlayback(
+        config, library, {'left': 2, 'right': 3}
+    )
+    engine.select('across')
+    for index in range(2):
+        at = replay.apply(engine)
+        assert at == 100 + index / 2
+        actual = engine.render(at)
+        for (_, frame), expected in zip(
+            actual, frames[index * 2 : index * 2 + 2], strict=True
+        ):
+            np.testing.assert_array_equal(frame, expected)
+        replay.advance()
+    assert replay.next_delivery is None
+    replay.stream.close()
+
+
+def test_render_failure_does_not_end_the_delivery_loop(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    clock = SimpleNamespace(now=0.0)
+
+    def advance(seconds: float) -> None:
+        clock.now += seconds
+
+    output = Mock(led_count=2, status=installation.StringStatus())
+    output.open.return_value = True
+    active = Mock(name='active')
+    active.name = 'across'
+    frame = np.zeros((2, 3), dtype=np.uint8)
+    active.render.side_effect = [ValueError('bad frame'), [('left', frame)]]
+    service = installation.InstallationService.model_construct(
+        config=installation_config.parse_installation(
+            example_installation() | {'fps': 1}
+        ),
+        library=None,
+        outputs={'left': output},
+        home=tmp_path,
+    )
+    service.playback.active = active
+    monkeypatch.setattr(installation.time, 'monotonic', lambda: clock.now)
+    monkeypatch.setattr(installation.time, 'sleep', advance)
+    monkeypatch.setattr(installation.InstallationService, 'start', lambda self: None)
+    monkeypatch.setattr(installation.InstallationService, 'close', lambda self: None)
+    monkeypatch.setattr(
+        installation_playback.InstallationPlayback, 'select', lambda self, name: None
+    )
+    assert service.run(duration=2) == 0
+    output.send.assert_called_once()
+    assert service.status_snapshot().render_error is None
+
+
+def test_status_write_failure_does_not_break_operator_commands(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    service = installation.InstallationService.model_construct(
+        config=installation_config.parse_installation(example_installation()),
+        library=None,
+        outputs={},
+        home=tmp_path,
+    )
+
+    def failed_status(self: object) -> None:
+        raise ReccyError('disk full')
+
+    monkeypatch.setattr(Reccy, 'publish_status', failed_status)
+    assert service.rpc_response(rpc.Request(command='blackout')) == 'ok'
+    assert service.status_snapshot().status_error == 'disk full'
+    assert service.status_snapshot().blackout
 
 
 def test_service_queues_animation_selection(tmp_path: Path) -> None:
