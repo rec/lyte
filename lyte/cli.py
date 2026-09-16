@@ -13,6 +13,7 @@ from reccy.runtime import logging
 from . import authoring, authoring_http, fps_test, installation, render, wled
 from . import patches
 from . import benchmark
+from . import panel
 from . import rehearsal, rehearsal_http
 from . import show
 from .animate.config import AnimateConfig
@@ -152,6 +153,7 @@ def main(args: Sequence[str] | None = None) -> int:
             'music': MusicConfig,
             'network': NetworkConfig,
             'patch': patches.PatchCommandConfig,
+            'panel': panel.PanelConfig,
             'playlist': PlaylistConfig,
             'preview': PreviewConfig,
             'render': render.RenderConfig,
@@ -171,6 +173,8 @@ def main(args: Sequence[str] | None = None) -> int:
 
 
 def run_command(config: object) -> int:
+    if isinstance(config, panel.PanelConfig):
+        return panel.run_panel(config)
     if isinstance(config, benchmark.BenchmarkConfig):
         return benchmark.run_benchmark(config)
     if isinstance(config, rehearsal.RehearsalConfig):

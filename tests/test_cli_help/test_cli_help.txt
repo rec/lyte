@@ -1,5 +1,5 @@
 $ lyte --help
-usage: lyte [-h] {animate,author,benchmark,calibrate-black,brightness,color,diagnostic,effects,layout,installation,led-config,mic,mode,movie,mqtt,music,network,patch,playlist,preview,render,rehearse,saturation,validate,fps-test,dither-test,timer,verify-output,wled}
+usage: lyte [-h] {animate,author,benchmark,calibrate-black,brightness,color,diagnostic,effects,layout,installation,led-config,mic,mode,movie,mqtt,music,network,patch,panel,playlist,preview,render,rehearse,saturation,validate,fps-test,dither-test,timer,verify-output,wled}
 
  options
  ------------------------------------------------------
@@ -26,6 +26,7 @@ usage: lyte [-h] {animate,author,benchmark,calibrate-black,brightness,color,diag
     - music
     - network
     - patch
+    - panel
     - playlist
     - preview
     - render
@@ -448,6 +449,16 @@ usage: lyte network [-h] [NETWORK OPTIONS] [{status,scan,scan-results}]
   --retry-delay FLOAT  (default: 0.5)
   --retry-backoff FLOAT
                        (default: 2.0)
+
+
+$ lyte panel --help
+usage: lyte panel [-h] [--port INT] [--open | --no-open]
+
+ options
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --port INT         (default: 8767)
+  --open, --no-open  (default: True)
 
 
 $ lyte patch --help
