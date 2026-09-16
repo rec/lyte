@@ -15,7 +15,6 @@ def test_cli_help(cli_help) -> None:
             'black-floor',
             'brightness',
             'color',
-            'daemon',
             'diagnostic',
             'effects',
             'installation',

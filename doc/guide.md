@@ -80,6 +80,13 @@ blackout behavior.
 An installation selects several Twinkly strings, maintains their connections,
 and switches named Ufor animations at frame boundaries.
 
+`lyte installation` is the sole service command. The legacy wearable daemon
+has been retired; `lyte patch` and the wearable uFor catalogue remain available.
+On machines with an older wearable service installed, stop and uninstall that
+service with `lyte installation stop` and `lyte installation uninstall`, then
+install the chosen installation configuration. Old service definitions that
+invoke `lyte daemon` must be replaced; they are not migrated automatically.
+
 Set `startup_timeout = 30` in the installation TOML to bound device discovery
 and identification (30 seconds by default). `discovery_timeout` bounds each
 individual scan; identification retries and waits share the overall discovery

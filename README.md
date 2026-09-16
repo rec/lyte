@@ -95,25 +95,6 @@ LED count, it warns again and scales the logical regions and physical map to the
 actual count. Mark the map as `measured` only after checking every region on the
 assembled garment.
 
-`patches/wearable-daemon.toml` configures the MIDI input, ordered patch list,
-Twinkly connection, and frame rate. Run the daemon in the foreground or install
-its per-user service:
-
-```sh
-lyte daemon run
-lyte daemon install
-lyte daemon status
-```
-
-Program-change messages select the next patch. Note, CC 2 breath, and pitch-bend
-messages control the active patch. The Reccy endpoint supports status, blackout,
-stop, named patch selection, and a white fade test; the test level percentage
-and total duration are configurable.
-
-Patch changes during an active note crossfade for 0.25 seconds. Set
-`transition_duration` in `[daemon]` to change this, or to zero for immediate
-switching. Note-off cancels an active transition.
-
 The same 36-patch catalogue is available through Ufor selectors and the
 installation runner. `patches/wearable-library.toml` registers the presets, and
 `patches/wearable-installation.toml` configures the single wearable string and
