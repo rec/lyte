@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from base64 import b64encode
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from hashlib import sha256
 from io import BytesIO
@@ -45,6 +45,7 @@ class AuthorParameter:
     maximum: float
     default: float
     unit: str
+    description: str = ''
 
     def document(self) -> dict[str, object]:
         return {
@@ -53,6 +54,7 @@ class AuthorParameter:
             'maximum': self.maximum,
             'default': self.default,
             'unit': self.unit,
+            'description': self.description,
         }
 
 
@@ -66,6 +68,15 @@ class AuthorAnimation:
     source: str | None = None
     source_kind: str = 'Built-in preview'
     outputs: list[str] = field(default_factory=list)
+    library: str = 'builtin'
+    name: str = ''
+    tags: list[str] = field(default_factory=list)
+    family: str = 'reactive'
+    rate: str = ''
+    light_count: int = 0
+    diagnostics: list[str] = field(default_factory=list)
+    used_by: list[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
 
     def document(self) -> dict[str, object]:
         return {
@@ -77,6 +88,15 @@ class AuthorAnimation:
             'source': self.source,
             'source_kind': self.source_kind,
             'outputs': self.outputs,
+            'library': self.library,
+            'name': self.name,
+            'tags': self.tags,
+            'family': self.family,
+            'rate': self.rate,
+            'light_count': self.light_count,
+            'diagnostics': self.diagnostics,
+            'used_by': self.used_by,
+            'dependencies': self.dependencies,
         }
 
 
@@ -124,6 +144,23 @@ class AuthoringSession:
             'coords': [point[:2] for point in points],
             'fps': prepared.fps,
             'frames': encoded_frames(prepared, self.config.duration),
+        }
+
+    def thumbnail(self, selector: str) -> dict[str, object]:
+        selected = self._animation(selector)
+        if selected.renderer != 'ufor':
+            raise ValueError('thumbnails require a library score')
+        prepared = show.prepare_library_animation(
+            self.library,
+            show.LightProgramSpec(selector=selector, output=self.config.light_output),
+        )
+        preview_frame_count(1, 1, len(prepared.output.layout.lights) * 3)
+        frame = animation.byte_light_frame_from_float(prepared.render())
+        return {
+            'coords': [
+                (p.position + [0.0, 0.0])[:2] for p in prepared.output.layout.lights
+            ],
+            'frame': b64encode(memoryview(frame).cast('B')).decode('ascii'),
         }
 
     def preset_document(
@@ -390,11 +427,21 @@ class AuthoringSession:
             *_author_animations(library, self.config.light_output),
             *_builtin_animations(),
         ]
+        previously_ready = {a.selector for a in self.animations if not a.diagnostics}
+        failures = [
+            a for a in animations if a.selector in previously_ready and a.diagnostics
+        ]
+        if failures:
+            raise ValueError(
+                '; '.join(f'{a.selector}: {", ".join(a.diagnostics)}' for a in failures)
+            )
         return library, animations
 
     def _animation(self, selector: str) -> AuthorAnimation:
         for item in self.animations:
             if item.selector == selector:
+                if item.diagnostics:
+                    raise ValueError('; '.join(item.diagnostics))
                 return item
         raise ValueError(f'unknown animation {selector!r}')
 
@@ -429,39 +476,83 @@ def author_document(
 
 def _author_animations(library: Library, output: str) -> list[AuthorAnimation]:
     animations = []
-    for entry in library.find():
-        if not isinstance(entry.resolved, AnimationScore):
+    for entry in library.entries.values():
+        score = entry.resolved
+        if entry.state == State.ready and not isinstance(score, AnimationScore):
             continue
-        selector = entry.name or entry.key
-        composition = library.composition(selector)
-        parameters = [
-            AuthorParameter(
-                name=export.name,
-                minimum=contract.minimum,
-                maximum=contract.maximum,
-                default=contract.default,
-                unit=contract.unit,
-            )
-            for export in entry.resolved.parameters
-            for contract in [
-                composition.parameter_contract(composition.root, export.name)
-            ]
-        ]
-        animations.append(
-            AuthorAnimation(
-                selector=selector,
-                title=entry.resolved.title or selector,
-                parameters=parameters,
-                composition=_composition_tree(library, composition, output),
-                source=entry.key,
-                source_kind=_source_kind(entry),
-                outputs=[o.name for o in entry.resolved.outputs],
-            )
+        item = AuthorAnimation(
+            selector=entry.key,
+            title=getattr(score, 'title', None) or entry.name or entry.key,
+            parameters=[],
+            source=entry.key,
+            source_kind=_source_kind(entry),
+            library=entry.library,
+            name=entry.name or '',
+            tags=entry.tags,
+            family='unavailable',
+            diagnostics=[
+                f'{d.code}: {d.field + ": " if d.field else ""}{d.message}'
+                + (f' (cycle: {" -> ".join(d.cycle)})' if d.cycle else '')
+                for d in library.diagnostics
+                if d.library == entry.library and d.address == entry.address
+            ],
+            used_by=sorted(
+                e.key
+                for e in library.entries.values()
+                if entry.key in e.dependencies.values()
+            ),
+            dependencies=sorted(set(entry.dependencies.values())),
         )
+        if isinstance(score, AnimationScore) and entry.state == State.ready:
+            stream = score.outputs[0].stream
+            assert isinstance(stream, LightType)
+            rate = score.timebases[0].rate
+            try:
+                prepared = show.prepare_library_animation(
+                    library, show.LightProgramSpec(selector=entry.key, output=output)
+                )
+                if stream.components != ['red', 'green', 'blue']:
+                    raise ValueError(
+                        'authoring preview requires red, green, blue components'
+                    )
+                composition = prepared.composition
+                parameters = [
+                    AuthorParameter(
+                        name=e.name,
+                        minimum=c.minimum,
+                        maximum=c.maximum,
+                        default=c.default,
+                        unit=c.unit,
+                        description=f'Controls {e.binding.name}.{e.binding.parameter}',
+                    )
+                    for e in score.parameters
+                    for c in [composition.parameter_contract(composition.root, e.name)]
+                ]
+                tree = _composition_tree(library, composition, output)
+            except ValueError as error:
+                item.diagnostics.append(str(error))
+                parameters = []
+                tree = None
+            item = replace(
+                item,
+                parameters=parameters,
+                composition=tree,
+                outputs=[o.name for o in score.outputs],
+                family=score.body.operation.family
+                if isinstance(score.body.operation, effects.Effect)
+                else 'composition',
+                rate=str(Fraction(rate.numerator, rate.denominator)),
+                light_count=len(stream.layout.lights),
+            )
+        elif not item.diagnostics:
+            item.diagnostics.append(f'Score is {entry.state.value}')
+        animations.append(item)
     return animations
 
 
 def _source_kind(entry: Entry) -> str:
+    if entry.state != State.ready:
+        return 'Unavailable source'
     if entry.address.endswith('.py'):
         return 'Python score (read-only)'
     if isinstance(entry.score, PresetScore):
@@ -659,6 +750,8 @@ def _builtin_animations() -> list[AuthorAnimation]:
             title=name.replace('-', ' ').title(),
             parameters=parameters,
             renderer='builtin',
+            rate='30',
+            light_count=128,
         )
         for name, parameters in controls.items()
     ]

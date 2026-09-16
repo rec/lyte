@@ -55,6 +55,7 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
             path = urlparse(self.path).path
             if path not in {
                 '/api/preview',
+                '/api/thumbnail',
                 '/api/preset',
                 '/api/operation',
                 '/api/timeline',
@@ -160,7 +161,9 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                         }
                 else:
                     selector, parameters = _preview_request(payload)
-                    if path == '/api/preview':
+                    if path == '/api/thumbnail':
+                        response = session.thumbnail(selector)
+                    elif path == '/api/preview':
                         response = session.preview(selector, parameters)
                     else:
                         name = payload.get('name')
@@ -178,7 +181,7 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                     response['revisions'] = {
                         entry: authoring.document_revision(session.documents[entry])
                     }
-                if path not in {'/api/preview', '/api/preset'}:
+                if path not in {'/api/preview', '/api/preset', '/api/thumbnail'}:
                     response['catalog'] = [a.document() for a in session.animations]
                     response['history'] = session.history_state()
             except (ValueError, json.JSONDecodeError) as error:

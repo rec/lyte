@@ -136,7 +136,7 @@ function drawStructure(){
   structureDraft.parts.forEach((part,index)=>{
     const box=document.createElement('fieldset');
     structureInput(box,'Part name',part.name,value=>{part.name=value;drawStructure();});
-    structureSelect(box,'Referenced score',partTarget(part),catalog.filter(score=>score.source).map(score=>({
+    structureSelect(box,'Referenced score',partTarget(part),catalog.filter(score=>score.source&&!score.diagnostics.length).map(score=>({
       value:score.source,label:`${score.title} (${score.source})`
     })),value=>{part.score={selector:value};drawStructure();});
     structureButton(box,'Remove part',()=>structureDraft.parts.splice(index,1));
@@ -145,7 +145,7 @@ function drawStructure(){
   structureButton(parts,'Add part',()=>{
     let index=1;
     while(structureDraft.parts.some(part=>part.name===`part_${index}`)){index++;}
-    const score=catalog.find(score=>score.source&&score.source!==structureNode.entry);
+    const score=catalog.find(score=>score.source&&!score.diagnostics.length&&score.source!==structureNode.entry);
     structureDraft.parts.push({name:`part_${index}`,score:{selector:score?.source||''},parameters:{}});
   });
   structurePanel.append(parts);
@@ -221,7 +221,7 @@ async function submitStructure(apply){
       structureStatus.textContent='Valid draft. Review the changes below, then apply.';
       return;
     }
-    catalog=result.catalog;updateHistory(result.history);rebuildComposition();requestPreview();
+    catalog=result.catalog;updateHistory(result.history);rebuildLibrary();
     offerDownload(result);
     structureStatus.textContent=`Applied and offered ${result.filename} for download`;
   }catch(error){structureStatus.textContent=`Could not ${apply?'apply':'review'} composition: ${error.message}`;}

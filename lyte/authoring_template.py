@@ -2,6 +2,7 @@
 
 # ruff: noqa: E501
 
+from .authoring_browser_template import BROWSER_SCRIPT
 from .authoring_structure_template import STRUCTURE_SCRIPT
 
 AUTHOR_TEMPLATE = """<!doctype html>
@@ -199,10 +200,18 @@ pre{
 <aside>
 <h1>lyte Author</h1>
 <p>Edits accumulate in memory and update the preview. Download every edited score to keep your work. Source files are unchanged; restarting the editor discards unsaved work.</p>
-<label>Animation<select id="animation">
+<label>Search scores<input id="library-search" type="search" placeholder="Name, selector, or tag"></label>
+<label>Library<select id="library-filter"></select></label>
+<label>Effect family<select id="family-filter"></select></label>
+<output id="library-count"></output>
+<label>Animation<select id="animation" size="8">
 </select>
 </label>
 <p id="score-source"></p>
+<section id="library-details"></section>
+<button id="make-thumbnail" type="button">Render thumbnail</button>
+<canvas id="thumbnail" width="280" height="140" style="width:280px;height:140px" hidden></canvas>
+<output id="thumbnail-status"></output>
 <h2>Session edits</h2>
 <button id="undo" type="button" disabled>Undo</button>
 <button id="redo" type="button" disabled>Redo</button>
@@ -301,12 +310,6 @@ let previewBusy=false;
 let previewTimer=null;
 let pendingPreview=null;
 let selectedOperation=null;
-for(const animation of catalog){
-  const option=document.createElement('option');
-  option.value=animation.selector;
-  option.textContent=animation.title;
-  select.append(option)
-}
 function active(){
   return catalog.find(animation=>animation.selector===select.value)
 }
@@ -315,7 +318,8 @@ function values(){
 }
 function control(parameter){
   const label=document.createElement('label');
-  label.textContent=parameter.name;
+  label.textContent=`${parameter.name} (${parameter.minimum}–${parameter.maximum} ${parameter.unit})`;
+  label.title=parameter.description;
   const input=document.createElement('input');
   input.type='range';
   input.name=parameter.name;
@@ -482,14 +486,14 @@ function compositionNode(node){
 }
 function rebuildComposition(){
   composition.replaceChildren();
-  const tree=active().composition;
+  const tree=active()?.composition;
   if(!tree){
     selectedOperation=null;
-    rebuildStructure({entry:active().selector,editable:false,used_by:[]});
+    rebuildStructure({entry:active()?.selector||'No selection',editable:false,used_by:[]});
     operationFields.replaceChildren();timeline.replaceChildren();
     downloadFields.disabled=true;downloadTiming.disabled=true;
     downloadOperation.disabled=true;operationTemplate.disabled=true;
-    inspector.textContent='This animation has no uFor composition.';
+    inspector.textContent=active()?.diagnostics.join('\\n')||'No editable composition selected.';
     return
   }
   const nodes=document.createElement('ul');
@@ -555,23 +559,32 @@ async function changeHistory(action){
     if(!response.ok){message.textContent=result.error;return;}
     catalog=result.catalog;
     updateHistory(result.history);
-    rebuildComposition();
-    requestPreview();
+    rebuildLibrary();
     message.textContent=action==='undo'?'Edit undone':'Edit redone';
   }catch(error){message.textContent=`Could not ${action}: ${error.message}`;}
 }
 function rebuild(){
   const selected=active();
-  document.getElementById('score-source').textContent=
-    `${selected.source||selected.selector} · ${selected.source_kind}`;
+  const previous=lastSelected===select.value?values():{};
+  lastSelected=select.value;
+  document.getElementById('score-source').textContent=selected?
+    `${selected.source||selected.selector} · ${selected.source_kind}`:'';
+  libraryDetails(selected);
   controls.replaceChildren();
-  for(const parameter of active().parameters){
-    control(parameter)
+  for(const parameter of selected?.parameters||[]){
+    control(parameter);
+  }
+  for(const input of controls.querySelectorAll('input')){
+    if(Object.hasOwn(previous,input.name)){
+      input.value=Math.min(Number(input.max),Math.max(Number(input.min),previous[input.name]));
+      input.parentElement.querySelector('output').textContent=input.value;
+    }
   }
   rebuildComposition();
   presetName.value=defaultPresetName();
+  save.disabled=!selected||selected.renderer!=='ufor'||selected.diagnostics.length>0;
   saveStatus.textContent='';
-  requestPreview()
+  requestPreview();
 }
 function decodeFrame(text){
   const binary=atob(text);
@@ -595,6 +608,12 @@ async function requestPreview(){
   frame=0;
   frameControl.max=0;
   frameControl.value=0;
+  const selected=active();
+  if(!selected||selected.diagnostics.length){
+    pendingPreview=null;
+    status.textContent=selected?.diagnostics.join('; ')||'No matching scores';
+    return;
+  }
   status.textContent='Loading preview';
   previewTimer=setTimeout(sendPreview,150);
 }
@@ -666,8 +685,7 @@ async function savePreset(){
   if(result.catalog){
     catalog=result.catalog;
     updateHistory(result.history);
-    rebuildComposition();
-    requestPreview()
+    rebuildLibrary()
   }
   offerDownload(result);
   saveStatus.textContent=`Offered ${result.filename} for download`
@@ -695,8 +713,7 @@ async function saveOperation(){
   if(result.catalog){
     catalog=result.catalog;
     updateHistory(result.history);
-    rebuildComposition();
-    requestPreview()
+    rebuildLibrary()
   }
   offerDownload(result);
   operationStatus.textContent=`Offered ${result.filename} for download`
@@ -726,8 +743,7 @@ async function saveFields(){
   if(result.catalog){
     catalog=result.catalog;
     updateHistory(result.history);
-    rebuildComposition();
-    requestPreview()
+    rebuildLibrary()
   }
   offerDownload(result);
   fieldsStatus.textContent=`Offered ${result.filename} for download`
@@ -764,8 +780,7 @@ async function saveTiming(){
   if(result.catalog){
     catalog=result.catalog;
     updateHistory(result.history);
-    rebuildComposition();
-    requestPreview()
+    rebuildLibrary()
   }
   offerDownload(result);
   timingStatus.textContent=`Offered ${result.filename} for download`
@@ -799,40 +814,39 @@ function resize(){
   canvas.width=Math.max(1,Math.round(rect.width*scale));
   canvas.height=Math.max(1,Math.round(rect.height*scale))
 }
-function projectedPoints(){
-  const bounds=preview.coords.reduce((value,point)=>({
+function projectedPoints(coords,width,height){
+  const bounds=coords.reduce((value,point)=>({
     minX:Math.min(value.minX,point[0]),minY:Math.min(value.minY,point[1]),maxX:Math.max(value.maxX,point[0]),maxY:Math.max(value.maxY,point[1])
   }
   ),{
     minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity
   }
   );
-  const pad=Math.max(24,Math.min(canvas.width,canvas.height)*0.08);
+  const pad=Math.max(24,Math.min(width,height)*0.08);
   const spanX=Math.max(1e-9,bounds.maxX-bounds.minX);
   const spanY=Math.max(1e-9,bounds.maxY-bounds.minY);
-  const scale=Math.min((canvas.width-pad*2)/spanX,(canvas.height-pad*2)/spanY);
-  const offsetX=(canvas.width-spanX*scale)/2;
-  const offsetY=(canvas.height-spanY*scale)/2;
-  return preview.coords.map(point=>[offsetX+(point[0]-bounds.minX)*scale,offsetY+(point[1]-bounds.minY)*scale])
+  const scale=Math.min((width-pad*2)/spanX,(height-pad*2)/spanY);
+  const offsetX=(width-spanX*scale)/2;
+  const offsetY=(height-spanY*scale)/2;
+  return coords.map(point=>[offsetX+(point[0]-bounds.minX)*scale,offsetY+(point[1]-bounds.minY)*scale])
 }
-function draw(){
+function drawFrame(target,coords,values){
+  const context=target.getContext('2d');
   context.fillStyle='#050506';
-  context.fillRect(0,0,canvas.width,canvas.height);
-  if(!preview||!frames.length){
-    return
-  }
-  const points=projectedPoints();
-  const values=frames[frame];
-  const radius=Math.max(3,Math.min(canvas.width,canvas.height)/140);
-  for(let index=0;
-  index<points.length;
-  index+=1){
+  context.fillRect(0,0,target.width,target.height);
+  const points=projectedPoints(coords,target.width,target.height);
+  const radius=Math.max(3,Math.min(target.width,target.height)/140);
+  for(let index=0;index<points.length;index++){
     const offset=index*3;
     context.fillStyle=`rgb(${values[offset]},${values[offset+1]},${values[offset+2]})`;
     context.beginPath();
     context.arc(points[index][0],points[index][1],radius,0,Math.PI*2);
-    context.fill()
+    context.fill();
   }
+}
+function draw(){
+  if(preview&&frames.length){drawFrame(canvas,preview.coords,frames[frame]);}
+  else{context.fillStyle='#050506';context.fillRect(0,0,canvas.width,canvas.height);}
 }
 function animate(time){
   if(playing&&preview&&frames.length){
@@ -850,6 +864,7 @@ function animate(time){
   requestAnimationFrame(animate)
 }
 __LYTE_STRUCTURE_SCRIPT__
+__LYTE_BROWSER_SCRIPT__
 addEventListener('beforeunload',event=>{
   if(hasUnofferedChanges()){event.preventDefault();event.returnValue='';}
 });
@@ -887,6 +902,8 @@ frameControl.oninput=()=>{
 ;
 addEventListener('resize',resize);
 resize();
-rebuild();
+rebuildLibrary();
 requestAnimationFrame(animate);
-</script></body></html>""".replace('__LYTE_STRUCTURE_SCRIPT__', STRUCTURE_SCRIPT)
+</script></body></html>""".replace(
+    '__LYTE_STRUCTURE_SCRIPT__', STRUCTURE_SCRIPT
+).replace('__LYTE_BROWSER_SCRIPT__', BROWSER_SCRIPT)
