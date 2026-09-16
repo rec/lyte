@@ -545,6 +545,7 @@ def test_service_queues_animation_selection(tmp_path: Path) -> None:
     status = service.rpc_response(rpc.Request(command='status'))
     assert isinstance(status, dict)
     assert status['queued_animation'] == 'separate'
+    assert status['animations'] == ['across', 'separate']
     assert not isinstance(response, ipc.Error)
 
     test = service.rpc_response(

@@ -103,6 +103,15 @@ blackout behavior.
 
 ## Installations
 
+`lyte panel` opens a local operator page on port 8767 for the running installation.
+It uses the existing lyte reccy identity and RPC socket; it does not start another
+installation daemon. Active/queued animation, MIDI connection, blackout, tests,
+per-string health, and timing diagnostics come from service status, refreshed
+every second. Selection, test, blackout, and stop affect real outputs. Disconnection
+disables controls and labels the retained display as stale. Reconnection refreshes
+status without retrying commands, and rejected-command messages remain until
+cleared. Use `--no-open` to serve the page without opening a browser.
+
 For software-only rehearsal, run:
 
 ```sh
