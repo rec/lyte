@@ -262,6 +262,8 @@ def assign_twinkly_devices(
     solutions: list[dict[str, DiscoveredTwinkly]] = []
 
     def search(remaining: list[str], chosen: dict[str, DiscoveredTwinkly]) -> None:
+        if len(solutions) == 2:
+            return
         if not remaining:
             solutions.append(chosen)
             return
