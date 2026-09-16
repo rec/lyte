@@ -8,6 +8,7 @@ let structureNode=null;
 let reviewedStructure=null;
 let structureBusy=false;
 const structurePanel=document.getElementById('structure-editor');
+structurePanel.onchange=invalidateStructure;
 const structureStatus=document.getElementById('structure-status');
 const structureDiff=document.getElementById('structure-diff');
 const applyStructure=document.getElementById('apply-structure');
@@ -24,7 +25,7 @@ function structureInput(parent,label,value,change,type='text'){
   input.type=type;
   if(type==='number'){input.step='any';}
   input.value=value;
-  input.onchange=()=>{change(type==='number'?Number(input.value):input.value);invalidateStructure();};
+  input.onchange=()=>{change(type==='number'?Number(input.value):input.value);};
   wrapper.append(input);parent.append(wrapper);
   return input;
 }
@@ -40,7 +41,7 @@ function structureSelect(parent,label,value,options,change){
     option.value=choice.value;option.textContent=choice.label;input.append(option);
   }
   input.value=value;
-  input.onchange=()=>{change(input.value);invalidateStructure();};
+  input.onchange=()=>{change(input.value);};
   wrapper.append(input);parent.append(wrapper);
 }
 function structureButton(parent,label,action,disabled=false){

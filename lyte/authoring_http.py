@@ -60,6 +60,7 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                 '/api/operation',
                 '/api/timeline',
                 '/api/fields',
+                '/api/colors',
                 '/api/structure',
                 '/api/undo',
                 '/api/redo',
@@ -93,6 +94,7 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                     '/api/operation',
                     '/api/timeline',
                     '/api/fields',
+                    '/api/colors',
                     '/api/structure',
                 }:
                     entry = payload.get('entry')
@@ -157,7 +159,11 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                             raise ValueError('fields requires operation values')
                         response = {
                             'filename': Path(entry).name,
-                            'document': session.field_document(entry, output, fields),
+                            'document': (
+                                session.color_document(entry, output, fields)
+                                if path == '/api/colors'
+                                else session.field_document(entry, output, fields)
+                            ),
                         }
                 else:
                     selector, parameters = _preview_request(payload)
@@ -175,9 +181,12 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                                 selector, parameters, name
                             ),
                         }
-                if path in {'/api/operation', '/api/timeline', '/api/fields'} or (
-                    path == '/api/structure' and payload.get('apply') is True
-                ):
+                if path in {
+                    '/api/operation',
+                    '/api/timeline',
+                    '/api/fields',
+                    '/api/colors',
+                } or (path == '/api/structure' and payload.get('apply') is True):
                     response['revisions'] = {
                         entry: authoring.document_revision(session.documents[entry])
                     }

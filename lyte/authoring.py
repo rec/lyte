@@ -25,7 +25,14 @@ from ufor.lights import LightType
 from ufor.preset import PresetScore
 from ufor.selector import LibraryConfig
 
-from . import animation, authoring_composition, reactive_effects, reactivity, show
+from . import (
+    animation,
+    authoring_colors,
+    authoring_composition,
+    reactive_effects,
+    reactivity,
+    show,
+)
 from .authoring_template import AUTHOR_TEMPLATE
 from .preview.document import encoded_frames, preview_frame_count, safe_json
 
@@ -303,6 +310,21 @@ class AuthoringSession:
         for name, value in _operation_fields(edited_operation).items():
             document_operation[name] = tomlkit.item(value)
         text = tomlkit.dumps(document)
+        return self._apply_document(entry_key, output, text)
+
+    def color_document(
+        self, entry_key: str, output: str, fields: dict[str, object]
+    ) -> str:
+        entry = self.library.entries.get(entry_key)
+        if (
+            entry is None
+            or not isinstance(entry.score, AnimationScore)
+            or not entry.address.endswith('.toml')
+        ):
+            raise ValueError('colour editing requires a direct TOML animation')
+        text = authoring_colors.color_document(
+            self.source_document(entry_key), entry.score, fields
+        )
         return self._apply_document(entry_key, output, text)
 
     def source_document(self, entry_key: str) -> str:
@@ -588,6 +610,7 @@ def _composition_tree(
             'effect': operation.effect,
             'fields': operation.model_dump(mode='json'),
             'editor_fields': _operation_fields(operation),
+            'color_fields': authoring_colors.color_fields(score),
             'timeline': _operation_timeline(operation),
             'entry': entry.key,
             'editable': _source_kind(entry) == 'Editable TOML',
