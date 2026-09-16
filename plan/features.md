@@ -371,6 +371,16 @@ plugin framework or promises of network-wide frame synchronization.
 
 ### 15. Rehearsal cue list and showCo integration
 
+**Completed first manual version 2026-09-16 in showCo.** showCo owns the
+editable named cue list, Go/Back, and persistent current/pending cue state.
+Its Lighting cues page uses lyte's existing selection/status RPCs, distinguishes
+acknowledged cues from live active/queued looks and overrides, and refreshes on
+reconnect without replaying commands. Revision checks reject stale actions;
+uncertain replies require explicit resolution. Hardware-free showCo rehearsal
+includes idle/circle/square looks matching the laser example. Automated tests
+cover forward/back, restart, lost replies, persistence failures, performance
+lock, and browser reconnect. Physical show rehearsal remains unverified.
+
 Operate a named sequence of installation looks, with explicit Go, Back, and
 current/next cue state. This is useful for shows that need repeatable progression
 rather than cycling every program-change message.
