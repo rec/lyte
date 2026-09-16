@@ -79,6 +79,10 @@ class StringStatus(BaseModel):
 
 
 class InstallationStatus(ReccyStatus):
+    master_level: float = 1
+    transition_duration: float = 0
+    outgoing_animation: str | None = None
+    transition_from_snapshot: bool = False
     animations: list[str] = Field(default_factory=list)
     render_costs: dict[str, dict[str, RenderCost]] = Field(default_factory=dict)
     delivery: DeliveryTiming | None = None
@@ -260,6 +264,12 @@ class InstallationService(Reccy):
                 else self.config.animations[self.playback.active.name].outputs.copy()
             )
             return InstallationStatus(
+                master_level=self.playback.master_level,
+                transition_duration=self.playback.transition_duration,
+                outgoing_animation=self.playback.outgoing.name
+                if self.playback.outgoing
+                else None,
+                transition_from_snapshot=self.playback.transition_snapshot is not None,
                 animations=list(self.config.animations),
                 render_costs=self.playback.render_costs,
                 delivery=self._delivery,

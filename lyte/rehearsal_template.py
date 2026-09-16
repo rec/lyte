@@ -16,6 +16,9 @@ canvas{width:100%;height:90px;background:#000}fieldset{margin:1rem 0}output{disp
 Each step advances one delivery tick. Play advances the simulated clock; browser delays slow rehearsal without skipping ticks.</p>
 <button id="play">Play</button><button id="step">Step</button>
 <label>Animation <select id="animation"></select></label><button id="select">Select</button>
+<label>Fade (s) <input id="fade" type="number" min="0" step="0.1" value="0"></label>
+<label>Master (%) <input id="master" type="number" min="0" max="100" value="100"></label><button id="set-master">Set master</button>
+<output id="fade-status"></output>
 <button id="blackout">Blackout</button>
 <label>Test level (%) <input id="level" type="number" min="0" max="100" value="50"></label>
 <label>Test duration (s) <input id="duration" type="number" min="0.01" step="0.1" value="2"></label><button id="test">Test</button>
@@ -35,6 +38,7 @@ let playing=false, rate=30, queue=Promise.resolve(), timer=null, initial=true, g
 const canvases=new Map();
 function show(data){
   rate=data.fps;
+  element('fade-status').textContent=`Master ${Math.round(data.master_level*100)}% · fade ${data.transition_duration||0}s`;
   if(initial){
     element('animation').replaceChildren(...data.animations.map(name=>new Option(name,name)));
     element('animation').value=data.active;
@@ -71,7 +75,8 @@ function request(command,params={}){
 async function tick(id){if(!playing||id!==generation){return;}await request('step');if(playing&&id===generation){timer=setTimeout(()=>tick(id),1000/rate);}}
 element('play').onclick=()=>{playing=!playing;generation++;element('play').textContent=playing?'Pause':'Play';clearTimeout(timer);if(playing){tick(generation);}};
 element('step').onclick=()=>request('step');
-element('select').onclick=()=>request('select_animation',{name:element('animation').value});
+element('select').onclick=()=>request('select_animation',{name:element('animation').value,duration:number('fade')});
+element('set-master').onclick=()=>request('master_level',{level:number('master')/100});
 element('blackout').onclick=()=>request('blackout');
 element('test').onclick=()=>request('test',{level:number('level'),duration:number('duration')});
 function midi(type,values){return request('midi',{type,channel:number('channel')-1,...values});}

@@ -18,7 +18,7 @@ class PanelConfig(BaseModel, frozen=True):
 
 
 class PanelCommand(BaseModel, frozen=True):
-    command: Literal['select_animation', 'test', 'blackout', 'stop']
+    command: Literal['select_animation', 'test', 'blackout', 'stop', 'master_level']
     params: dict[str, object] = Field(default_factory=dict)
 
 

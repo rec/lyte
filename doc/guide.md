@@ -112,6 +112,22 @@ disables controls and labels the retained display as stale. Reconnection refresh
 status without retrying commands, and rejected-command messages remain until
 cleared. Use `--no-open` to serve the page without opening a browser.
 
+The panel and rehearsal have **Fade (s)** and **Master (%)** controls. Selection
+crossfades linearly after both scores have rendered and mapped to the physical
+strings. Zero seconds cuts immediately. During a normal fade, both animations
+receive MIDI and obey their own note gates. Selecting again freezes the last
+displayed blend and fades from it, avoiding a jump or an accumulating chain of
+renderers. That frozen snapshot no longer responds to MIDI; the incoming score
+does. Master level scales the final output, including test output, without
+changing score parameters. Blackout cancels the fade immediately at the next
+delivery boundary. A timed selection out of blackout fades from black.
+
+RPC selection accepts `select_animation(name=..., duration=...)`, with duration
+defaulting to zero. `master_level(level=...)` accepts 0–1. MIDI program changes
+retain immediate selection. Tests temporarily override the visible output while
+the fade's clock continues; selecting during a test fades from its displayed
+frame. Device connections stay open throughout selection and fading.
+
 For software-only rehearsal, run:
 
 ```sh

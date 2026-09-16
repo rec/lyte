@@ -30,6 +30,13 @@ class InstallationPlayback:
         self.led_counts = led_counts
         self.active: ActiveAnimation | None = None
         self.queued_name: str | None = None
+        self.queued_duration = 0.0
+        self.master_level = 1.0
+        self.transition_duration = 0.0
+        self.transition_started = 0.0
+        self.outgoing: ActiveAnimation | None = None
+        self.transition_snapshot: dict[str, NDArray[np.uint8]] | None = None
+        self.last_frames: dict[str, NDArray[np.uint8]] = {}
         self.performance = runtime_control.MidiPerformance()
         self.selected_test: runtime_control.LightTestCommand | None = None
         self.active_test: runtime_control.ActiveLightTest | None = None
@@ -45,8 +52,33 @@ class InstallationPlayback:
                     type='error',
                     message='select_animation requires a configured animation name',
                 )
+            duration = params.get('duration', 0.0)
+            if (
+                isinstance(duration, bool)
+                or not isinstance(duration, int | float)
+                or not isfinite(duration)
+                or duration < 0
+            ):
+                return ipc.Error(
+                    type='error',
+                    message='transition duration must be finite and nonnegative',
+                )
             self.queued_name = name
+            self.queued_duration = float(duration)
             result: rpc.Result = {'state': 'queued', 'name': name}
+        elif command == 'master_level':
+            level = params.get('level')
+            if (
+                isinstance(level, bool)
+                or not isinstance(level, int | float)
+                or not isfinite(level)
+                or not 0 <= level <= 1
+            ):
+                return ipc.Error(
+                    type='error', message='master level must be between 0 and 1'
+                )
+            self.master_level = float(level)
+            result = 'ok'
         elif command == 'test':
             if self.blackout:
                 return ipc.Error(
@@ -63,13 +95,17 @@ class InstallationPlayback:
             self.queued_name = None
             self.selected_test = None
             self.active_test = None
+            self.outgoing = None
+            self.transition_snapshot = None
+            self.transition_duration = 0.0
+            self.last_frames = {}
             result = 'ok'
         else:
             return ipc.Error(type='error', message=f'unknown command {command}')
         self.revision += 1
         return result
 
-    def select(self, name: str) -> None:
+    def select(self, name: str, duration: float = 0, now: float = 0) -> None:
         active = ActiveAnimation(
             name, self.config.animations[name], self.library, self.led_counts
         )
@@ -79,6 +115,27 @@ class InstallationPlayback:
                 binding.output_name, binding.prepared.timing
             )
         active.apply_performance(self.performance)
+        if duration > 0 and self.active is not None:
+            if (
+                self.outgoing is not None
+                or self.transition_snapshot is not None
+                or self.active_test is not None
+                or self.blackout
+            ):
+                self.transition_snapshot = {
+                    n: self.last_frames.get(n, np.zeros((c, 3), dtype=np.uint8)).copy()
+                    for n, c in self.led_counts.items()
+                }
+                self.outgoing = None
+            else:
+                self.outgoing = self.active
+                self.transition_snapshot = None
+            self.transition_duration = duration
+            self.transition_started = now
+        else:
+            self.outgoing = None
+            self.transition_snapshot = None
+            self.transition_duration = 0.0
         self.active = active
         self.blackout = False
         self.active_test = None
@@ -96,10 +153,13 @@ class InstallationPlayback:
                 self.active.name if self.active is not None else names[0]
             )
             self.queued_name = names[(names.index(current) + 1) % len(names)]
+            self.queued_duration = 0.0
         else:
             self.performance.receive(message)
-            if self.active is not None:
-                self.active.apply_performance(
+            for active in [self.active, self.outgoing]:
+                if active is None:
+                    continue
+                active.apply_performance(
                     self.performance,
                     restart=message.type == 'note_on' and bool(message.velocity),
                 )
@@ -107,13 +167,14 @@ class InstallationPlayback:
 
     def reset_midi(self) -> None:
         self.performance = runtime_control.MidiPerformance()
-        if self.active is not None:
-            self.active.apply_performance(self.performance)
+        for active in [self.active, self.outgoing]:
+            if active is not None:
+                active.apply_performance(self.performance)
         self.revision += 1
 
     def render(self, now: float) -> list[tuple[str, NDArray[np.uint8]]]:
         if self.queued_name is not None:
-            self.select(self.queued_name)
+            self.select(self.queued_name, self.queued_duration, now)
             self.queued_name = None
         if self.blackout:
             return [
@@ -136,9 +197,51 @@ class InstallationPlayback:
                     break
                 frames.append((name, frame))
             else:
-                return frames
+                return self.finish_frame(frames)
         assert self.active is not None
-        return self.active.render(now)
+        frames = self.active.render(now)
+        if self.transition_duration:
+            progress = min(
+                1.0,
+                max(0.0, (now - self.transition_started) / self.transition_duration),
+            )
+            if progress >= 1:
+                self.outgoing = None
+                self.transition_snapshot = None
+                self.transition_duration = 0.0
+                self.revision += 1
+            else:
+                source = (
+                    dict(self.outgoing.render(now))
+                    if self.outgoing is not None
+                    else self.transition_snapshot
+                )
+                assert source is not None
+                frames = [
+                    (
+                        n,
+                        np.rint(
+                            animation.scale_byte_rgb_frame(source[n], len(f)).astype(
+                                np.float64
+                            )
+                            * (1 - progress)
+                            + f.astype(np.float64) * progress
+                        ).astype(np.uint8),
+                    )
+                    for n, f in frames
+                ]
+        return self.finish_frame(frames)
+
+    def finish_frame(
+        self, frames: list[tuple[str, NDArray[np.uint8]]]
+    ) -> list[tuple[str, NDArray[np.uint8]]]:
+        self.last_frames = dict(frames)
+        if self.master_level == 1:
+            return frames
+        return [
+            (n, np.rint(f.astype(np.float64) * self.master_level).astype(np.uint8))
+            for n, f in frames
+        ]
 
 
 @dataclass

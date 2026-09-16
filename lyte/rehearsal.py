@@ -22,7 +22,9 @@ class RehearsalConfig(BaseModel, frozen=True):
 
 
 class RehearsalRequest(BaseModel, frozen=True):
-    command: Literal['step', 'select_animation', 'test', 'blackout', 'midi']
+    command: Literal[
+        'step', 'select_animation', 'test', 'blackout', 'midi', 'master_level'
+    ]
     params: dict[str, object] = Field(default_factory=dict)
 
 
@@ -60,6 +62,8 @@ class RehearsalSession:
                 raise ValueError(result.message)
         active = self.playback.active
         return {
+            'master_level': self.playback.master_level,
+            'transition_duration': self.playback.transition_duration,
             'tick': self.tick,
             'time': max(0, self.tick - 1) / self.playback.config.fps,
             'fps': self.playback.config.fps,
