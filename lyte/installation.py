@@ -19,6 +19,7 @@ from pydantic import (
     Field,
     PrivateAttr,
 )
+from reccy.errors import ReccyError
 from reccy.protocol import ipc, rpc
 from reccy.reccy import Reccy, ReccyStatus
 from reccy.runtime import logging
@@ -32,6 +33,7 @@ from . import (
     runtime_control,
     service,
 )
+from .control_recording import ControlRecorder
 from .metrics import DeliveryTiming, RenderCost
 from .midi import MidiInput, input_messages, open_input
 from .retry import RetryConfig
@@ -49,6 +51,7 @@ class InstallationCommandConfig:
     ] = 'run'
     config: Annotated[Path, tyro.conf.Positional] = Path('installation.toml')
     duration: float | None = None
+    record_input: Path | None = None
 
 
 class AmbiguousAssignmentError(installation_config.InstallationFileError):
@@ -79,6 +82,11 @@ class StringStatus(BaseModel):
 
 
 class InstallationStatus(ReccyStatus):
+    recording: bool = False
+    recording_path: str | None = None
+    recording_error: str | None = None
+    render_error: str | None = None
+    status_error: str | None = None
     master_level: float = 1
     transition_duration: float = 0
     outgoing_animation: str | None = None
@@ -236,6 +244,18 @@ class InstallationService(Reccy):
     _stop_requested: threading.Event = PrivateAttr(default_factory=threading.Event)
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
     _delivery: DeliveryTiming | None = PrivateAttr(default=None)
+    _render_error: str | None = PrivateAttr(default=None)
+    _status_error: str | None = PrivateAttr(default=None)
+
+    def publish_status(self) -> None:
+        try:
+            super().publish_status()
+        except (OSError, ReccyError, ValueError) as error:
+            if self._status_error != str(error):
+                LOGGER.error(f'Could not publish installation status: {error}')
+            self._status_error = str(error)
+        else:
+            self._status_error = None
 
     @cached_property
     def playback(self) -> installation_playback.InstallationPlayback:
@@ -264,6 +284,16 @@ class InstallationService(Reccy):
                 else self.config.animations[self.playback.active.name].outputs.copy()
             )
             return InstallationStatus(
+                recording=self.playback.recorder is not None
+                and self.playback.recorder.stream is not None,
+                recording_path=str(self.playback.recorder.path)
+                if self.playback.recorder
+                else None,
+                recording_error=self.playback.recorder.error
+                if self.playback.recorder
+                else None,
+                render_error=self._render_error,
+                status_error=self._status_error,
                 master_level=self.playback.master_level,
                 transition_duration=self.playback.transition_duration,
                 outgoing_animation=self.playback.outgoing.name
@@ -293,12 +323,18 @@ class InstallationService(Reccy):
                 ),
             )
 
-    def run(self, duration: float | None = None) -> int:
+    def run(
+        self, duration: float | None = None, record_input: Path | None = None
+    ) -> int:
         if duration is not None and duration <= 0:
             raise ValueError('duration must be greater than zero')
-        self.start()
+        self.playback.select(self.config.initial_animation)
+        if record_input is not None:
+            self.playback.recorder = ControlRecorder(record_input)
+            self.playback.recorder.start(self.config, self.library)
         opened: list[TwinklyOutput] = []
         try:
+            self.start()
             for output in self.outputs.values():
                 if output.open():
                     opened.append(output)
@@ -308,7 +344,6 @@ class InstallationService(Reccy):
                     )
             if len(opened) != len(self.outputs):
                 return 1
-            self.playback.select(self.config.initial_animation)
             self.publish_status()
             next_frame = time.monotonic()
             deadline = None if duration is None else next_frame + duration
@@ -330,7 +365,18 @@ class InstallationService(Reccy):
                 )
                 previous_frame = now
                 assert self.playback.active is not None
-                frames = self.render(now)
+                previous_error = self._render_error
+                try:
+                    frames = self.render(now)
+                except (OSError, RuntimeError, ValueError) as error:
+                    if self._render_error != str(error):
+                        LOGGER.error(f'Animation render failed; continuing: {error}')
+                    self._render_error = str(error)
+                    frames = []
+                else:
+                    self._render_error = None
+                if self._render_error != previous_error:
+                    self.publish_status()
                 for name, frame in frames:
                     output = self.outputs[name]
                     started = time.perf_counter()
@@ -350,6 +396,8 @@ class InstallationService(Reccy):
         except KeyboardInterrupt:
             LOGGER.info('[installation] Interrupted.')
         finally:
+            if self.playback.recorder is not None:
+                self.playback.recorder.close()
             self._close_midi()
             for output in opened:
                 output.close()
@@ -362,8 +410,14 @@ class InstallationService(Reccy):
                 {n: o.led_count for n, o in self.outputs.items()}
             )
             revision = self.playback.revision
+            recording_error = (
+                self.playback.recorder.error if self.playback.recorder else None
+            )
             frames = self.playback.render(now)
-            if self.playback.revision != revision:
+            if self.playback.revision != revision or (
+                self.playback.recorder is not None
+                and self.playback.recorder.error != recording_error
+            ):
                 self.publish_status()
             return frames
 
@@ -479,9 +533,11 @@ def build_service(
 
 
 def run_installation_command(config: InstallationCommandConfig) -> int:
+    if config.record_input is not None and config.action != 'run':
+        raise ValueError('--record-input is only available with installation run')
     if config.action == 'run':
         return build_service(installation_config.load_installation(config.config)).run(
-            config.duration
+            config.duration, config.record_input
         )
     runtime = InstallationService.model_construct()
     if config.action == 'install':

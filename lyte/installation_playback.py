@@ -184,8 +184,9 @@ class InstallationPlayback:
         if self.recorder is not None:
             self.recorder.delivery(now, self.led_counts)
         if self.queued_name is not None:
-            self.select(self.queued_name, self.queued_duration, now)
+            name = self.queued_name
             self.queued_name = None
+            self.select(name, self.queued_duration, now)
         if self.blackout:
             return [
                 (n, np.zeros((c, 3), dtype=np.uint8))

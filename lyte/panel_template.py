@@ -13,6 +13,7 @@ PANEL_TEMPLATE = r"""<!doctype html>
 <label>Fade (s) <input id="fade" type="number" min="0" step="0.1" value="0"></label>
 <label>Master (%) <input id="master" type="number" min="0" max="100" value="100"></label><button id="set-master">Set master</button>
 <output id="fade-status"></output>
+<output id="recording-status"></output>
 <button id="blackout">Blackout</button><button id="stop">Stop installation</button>
 <label>Test level (%) <input id="level" type="number" min="0" max="100" value="50"></label>
 <label>Duration (s) <input id="duration" type="number" min="0.01" step="0.1" value="2"></label><button id="test">Test lights</button>
@@ -26,11 +27,12 @@ function displayStatus(data){
   connected=data.running===true;
   element('connection').textContent=connected?'Connected to lyte':'lyte reports stopped';
   element('controls').disabled=!connected||busy;
+  element('recording-status').textContent=[data.recording?'Recording to '+data.recording_path:'Recording off',data.recording_error?'Recording failed; lighting continues: '+data.recording_error:'',data.render_error?'Render error; retrying: '+data.render_error:'',data.status_error?'Status publication error: '+data.status_error:''].filter(Boolean).join('\n');
   element('fade-status').textContent=`Master ${Math.round(data.master_level*100)}% · fade ${data.transition_duration||0}s${data.transition_from_snapshot?' from displayed snapshot':data.outgoing_animation?' from '+data.outgoing_animation:''}`;
   const selected=element('animation').value;
   element('animation').replaceChildren(...data.animations.map(name=>new Option(name,name)));
   element('animation').value=data.animations.includes(selected)?selected:data.active_animation||data.animations[0]||'';
-  element('status').textContent=`Active: ${data.active_animation||'none'}\nQueued: ${data.queued_animation||'none'}\nBlackout: ${data.blackout}\nMIDI: ${data.midi_connected?'connected':'disconnected'}${data.midi_error?' ('+data.midi_error+')':''}\nTest: ${data.active_test?'active':data.queued_test?'queued':'none'}\n${(data.errors||[]).join('\n')}`;
+  element('status').textContent=`Active: ${data.active_animation||'none'}\nQueued: ${data.queued_animation||'none'}\nBlackout: ${data.blackout}\nMIDI: ${data.midi_connected?'connected':'disconnected'}${data.midi_error?' ('+data.midi_error+')':''}\nTest: ${data.active_test?'active':data.queued_test?'queued':'none'}\n${(data.errors||[]).map(error=>error.message).join('\n')}`;
   element('strings').replaceChildren(...Object.entries(data.strings).map(([name,status])=>{
     const row=document.createElement('tr');
     for(const value of [name,status.state,status.led_count??'unknown',status.frame_count,status.failure_count,status.last_error||'']){

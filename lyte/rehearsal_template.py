@@ -42,7 +42,7 @@ const canvases=new Map();
 function show(data){
   element('operator').disabled=data.replay;
   element('midi').disabled=data.replay||data.midi===null;
-  element('recording-status').textContent=[...data.warnings,data.finished?'Replay finished':''].filter(Boolean).join('\n');
+  element('recording-status').textContent=[...data.warnings,data.recording_error?'Recording failed; playback continues: '+data.recording_error:'',data.finished?'Replay finished':''].filter(Boolean).join('\n');
   if(data.finished){playing=false;generation++;element('play').textContent='Play';element('play').disabled=true;element('step').disabled=true;}
   rate=data.fps;
   element('fade-status').textContent=`Master ${Math.round(data.master_level*100)}% · fade ${data.transition_duration||0}s`;
