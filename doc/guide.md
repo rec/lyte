@@ -144,6 +144,29 @@ scaling, concatenation, and mirroring. Browser delays slow the simulated clock;
 they do not skip score ticks. No installation daemon, hardware discovery, MIDI
 port, or device output starts. This checks software behavior, not physical readiness.
 
+Record a rehearsal from its start with `--record-input performance.jsonl`.
+Capture includes synthetic MIDI and accepted operator commands, including fades,
+master level, tests, and blackout. Stop the rehearsal server normally to seal the
+recording. Existing files are never overwritten. A write error pauses rehearsal
+and is shown in the browser; recordings with missing or damaged data are rejected.
+
+Replay offline with:
+
+```sh
+lyte rehearse examples/installation.toml --replay performance.jsonl
+```
+
+Replay uses the recorded string counts and delivery clock; omit `--string-counts`.
+Inputs come from the recording, so operator and MIDI controls are disabled.
+Configuration or score-source differences appear as warnings, including changed
+declared seeds. Identical deterministic scores reproduce the captured frames.
+The journal stores a configuration/score header, then each delivery's timestamp
+and ordered inputs using uFor MIDI events and reccy command requests. MIDI event
+ticks count delivery frames; ordinals retain input order. It records consumption
+at delivery boundaries, not raw device arrival times. It does not capture output
+packets or make physical playback available. Live installation capture is pending
+the recording-failure policy decision.
+
 An installation selects several Twinkly strings, maintains their connections,
 and switches named uFor animations at frame boundaries.
 

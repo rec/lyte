@@ -10,15 +10,15 @@ from .rehearsal_template import REHEARSAL_TEMPLATE
 
 def run_rehearsal(config: RehearsalConfig) -> int:
     session = RehearsalSession(config)
-    server = HTTPServer(('127.0.0.1', config.port), handler(session))
-    if config.open:
-        webbrowser.open(f'http://127.0.0.1:{config.port}')
     try:
-        server.serve_forever()
+        with HTTPServer(('127.0.0.1', config.port), handler(session)) as server:
+            if config.open:
+                webbrowser.open(f'http://127.0.0.1:{config.port}')
+            server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
-        server.server_close()
+        session.close()
     return 0
 
 
@@ -46,7 +46,7 @@ def handler(session: RehearsalSession) -> type[BaseHTTPRequestHandler]:
                     raise ValueError('request must be between 1 and 65536 bytes')
                 request = RehearsalRequest.model_validate_json(self.rfile.read(length))
                 result = session.request(request)
-            except (ValueError, TypeError, KeyError) as error:
+            except (ValueError, TypeError, KeyError, OSError) as error:
                 status = 400
                 result = {'error': str(error)}
             data = json.dumps(result).encode()

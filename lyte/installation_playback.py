@@ -15,6 +15,7 @@ from ufor.library import Library
 from ufor.lights import Interpretation
 
 from . import animation, installation_config, rendering, runtime_control, show
+from .control_recording import ControlRecorder
 from .metrics import RenderCost
 
 
@@ -43,6 +44,7 @@ class InstallationPlayback:
         self.blackout = False
         self.revision = 0
         self.render_costs: dict[str, dict[str, RenderCost]] = {}
+        self.recorder: ControlRecorder | None = None
 
     def command(self, command: str, params: dict[str, object]) -> rpc.Result:
         if command == 'select_animation':
@@ -103,6 +105,8 @@ class InstallationPlayback:
         else:
             return ipc.Error(type='error', message=f'unknown command {command}')
         self.revision += 1
+        if self.recorder is not None:
+            self.recorder.command(command, params)
         return result
 
     def select(self, name: str, duration: float = 0, now: float = 0) -> None:
@@ -142,6 +146,8 @@ class InstallationPlayback:
         self.revision += 1
 
     def receive_midi(self, message: mido.Message) -> None:
+        if self.recorder is not None:
+            self.recorder.midi(message)
         if self.config.midi is None or (
             self.config.midi.channel is not None
             and getattr(message, 'channel', None) != self.config.midi.channel - 1
@@ -166,6 +172,8 @@ class InstallationPlayback:
         self.revision += 1
 
     def reset_midi(self) -> None:
+        if self.recorder is not None:
+            self.recorder.command('reset_midi', {})
         self.performance = runtime_control.MidiPerformance()
         for active in [self.active, self.outgoing]:
             if active is not None:
@@ -173,6 +181,8 @@ class InstallationPlayback:
         self.revision += 1
 
     def render(self, now: float) -> list[tuple[str, NDArray[np.uint8]]]:
+        if self.recorder is not None:
+            self.recorder.delivery(now, self.led_counts)
         if self.queued_name is not None:
             self.select(self.queued_name, self.queued_duration, now)
             self.queued_name = None
