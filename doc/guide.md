@@ -563,3 +563,10 @@ composition and state ownership, parameter updates, wiring, previews, reactive
 processing, Twinkly recovery, installation selection and output expressions,
 MIDI mapping, WLED snapshots and DDP packet bytes, plus DMX and Art-Net
 encoding. It cannot establish the physical checks listed above.
+
+Run the suite with `uv run pytest -q`. It uses one pytest-xdist worker per
+available CPU. Use `uv run pytest -q -n 0` to reproduce a failure serially.
+The ordinary CLI-help assertion reads its checked-in fixture and runs in
+parallel. Regenerating that fixture writes source-controlled data, so always run
+it serially with `uv run pytest tests/test_cli_help.py -q -n 0 --force-regen`,
+then review the resulting diff before committing it.
