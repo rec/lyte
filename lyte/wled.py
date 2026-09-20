@@ -308,7 +308,7 @@ def _score_document(
     operation = _operation(translation.lyte_effect, first, preset.raw)
     lines = [
         'format = "recs"',
-        'version = 3',
+        'version = 4',
         f'name = {_toml_string(_safe_name(preset.name or preset.identifier))}',
         f'title = {_toml_string(preset.name or "WLED preset")}',
         'inputs = []',

@@ -1,5 +1,5 @@
 format = "recs"
-version = 3
+version = 4
 name = "pitch_turbo_walk"
 title = "Pitch Turbo Walk"
 tags = ["#wearable"]

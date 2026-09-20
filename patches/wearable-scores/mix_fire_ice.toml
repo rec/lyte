@@ -1,5 +1,5 @@
 format = "recs"
-version = 3
+version = 4
 name = "mix_fire_ice"
 title = "Mix Fire Ice"
 tags = ["#wearable"]

@@ -1,5 +1,5 @@
 format = "recs"
-version = 3
+version = 4
 name = "pitch_bend_travel"
 title = "Pitch Bend Travel"
 tags = ["#wearable"]

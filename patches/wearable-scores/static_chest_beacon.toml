@@ -1,5 +1,5 @@
 format = "recs"
-version = 3
+version = 4
 name = "static_chest_beacon"
 title = "Static Chest Beacon"
 tags = ["#wearable"]
