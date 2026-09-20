@@ -1,5 +1,5 @@
 format = "recs"
-version = 3
+version = 4
 name = "opposite_steps"
 title = "Opposite Steps"
 tags = ["#wearable"]

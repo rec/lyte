@@ -1,5 +1,5 @@
 format = "recs"
-version = 3
+version = 4
 name = "static_body_flag"
 title = "Static Body Flag"
 tags = ["#wearable"]
