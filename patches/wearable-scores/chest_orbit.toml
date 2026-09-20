@@ -1,5 +1,5 @@
 format = "recs"
-version = 3
+version = 4
 name = "chest_orbit"
 title = "Chest Orbit"
 tags = ["#wearable"]
