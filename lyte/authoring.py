@@ -453,6 +453,12 @@ class AuthoringSession:
         self.undo_history.append(
             DocumentEdit(entry=entry_key, output=output, before=before, after=text)
         )
+        while len(self.undo_history) > 1 and (
+            len(self.undo_history) > 100
+            or sum(len(edit.before) + len(edit.after) for edit in self.undo_history)
+            > 32 * 1024 * 1024
+        ):
+            self.undo_history.pop(0)
         self.redo_history.clear()
         return text
 

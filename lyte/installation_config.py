@@ -141,6 +141,7 @@ class InstallationFile(InstallationDefinition, frozen=True):
     retry_backoff: float = Field(default=2.0, ge=1)
     discovery_timeout: float = Field(default=5.0, gt=0)
     startup_timeout: float = Field(default=30.0, gt=0, allow_inf_nan=False)
+    setup_timeout: float = Field(default=30.0, gt=0, allow_inf_nan=False)
     midi: MidiIn | None = None
 
     @model_validator(mode='after')
@@ -247,6 +248,7 @@ def parse_installation(data: dict[str, object]) -> InstallationFile:
         'retry_backoff',
         'discovery_timeout',
         'startup_timeout',
+        'setup_timeout',
         'midi',
     }
     if unknown := sorted(set(data) - allowed):

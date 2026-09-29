@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 import json
+import socket
 import webbrowser
 from difflib import unified_diff
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import Lock
+from threading import BoundedSemaphore, Lock
 from typing import cast
 from urllib.parse import urlparse
 
 from ufor import library_files
 
-from . import authoring, show
+from . import authoring, http_body, show
 from .spatial import SpatialView
 
 
@@ -23,7 +24,7 @@ def run_author(config: authoring.AuthorConfig) -> int:
     session = authoring.AuthoringSession(library, config)
     if not session.animations:
         raise ValueError('selected library contains no animation scores')
-    server = ThreadingHTTPServer(('127.0.0.1', config.port), _handler(session))
+    server = BoundedEditorServer(('127.0.0.1', config.port), _handler(session))
     if config.open:
         webbrowser.open(f'http://127.0.0.1:{config.port}')
     try:
@@ -35,17 +36,64 @@ def run_author(config: authoring.AuthorConfig) -> int:
     return 0
 
 
+class BoundedEditorServer(ThreadingHTTPServer):
+    def __init__(
+        self, address: tuple[str, int], handler: type[BaseHTTPRequestHandler]
+    ) -> None:
+        super().__init__(address, handler)
+        self.slots = BoundedSemaphore(8)
+
+    def process_request(
+        self,
+        request: socket.socket | tuple[bytes, socket.socket],
+        client_address: tuple[str, int],
+    ) -> None:
+        if not self.slots.acquire(blocking=False):
+            connection = request if isinstance(request, socket.socket) else request[1]
+            try:
+                connection.settimeout(1)
+                connection.sendall(
+                    b'HTTP/1.1 503 Service Unavailable\r\n'
+                    b'Content-Length: 0\r\nConnection: close\r\n\r\n'
+                )
+            except OSError:
+                pass
+            finally:
+                connection.close()
+            return
+        try:
+            super().process_request(request, client_address)
+        except (OSError, RuntimeError):
+            self.slots.release()
+            raise
+
+    def process_request_thread(
+        self,
+        request: socket.socket | tuple[bytes, socket.socket],
+        client_address: tuple[str, int],
+    ) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.slots.release()
+
+
 def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler]:
     session_lock = Lock()
 
     class AuthorHandler(BaseHTTPRequestHandler):
+        def setup(self) -> None:
+            self.request.settimeout(5)
+            super().setup()
+
         def do_GET(self) -> None:
             if urlparse(self.path).path != '/':
                 self.send_error(404)
                 return
-            document = authoring.author_document(
-                session.animations, session.history_state()
-            ).encode()
+            with session_lock:
+                document = authoring.author_document(
+                    session.animations, session.history_state()
+                ).encode()
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(document)))
@@ -219,7 +267,10 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
                 }:
                     response['catalog'] = [a.document() for a in session.animations]
                     response['history'] = session.history_state()
-            except (ValueError, json.JSONDecodeError) as error:
+            except TimeoutError as error:
+                self._json(408, {'error': str(error)})
+                return
+            except ValueError as error:
                 self._json(400, {'error': str(error)})
                 return
             finally:
@@ -230,21 +281,25 @@ def _handler(session: authoring.AuthoringSession) -> type[BaseHTTPRequestHandler
             return
 
         def _json(self, status: int, value: dict[str, object]) -> None:
-            document = json.dumps(value, separators=(',', ':')).encode()
             self.send_response(status)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Content-Length', str(len(document)))
+            self.send_header('Connection', 'close')
             self.end_headers()
-            self.wfile.write(document)
+            buffer = bytearray()
+            for chunk in json.JSONEncoder(separators=(',', ':')).iterencode(value):
+                buffer.extend(chunk.encode())
+                if len(buffer) >= 65536:
+                    self.wfile.write(buffer)
+                    buffer.clear()
+            if buffer:
+                self.wfile.write(buffer)
+            self.close_connection = True
 
     return AuthorHandler
 
 
 def _request_json(handler: BaseHTTPRequestHandler) -> dict[str, object]:
-    length = int(handler.headers.get('Content-Length', '0'))
-    if not 0 < length <= 64 * 1024:
-        raise ValueError('preview request body must be between 1 and 65536 bytes')
-    data = json.loads(handler.rfile.read(length))
+    data = json.loads(http_body.read_body(handler))
     if not isinstance(data, dict):
         raise ValueError('preview request must be a JSON object')
     return data

@@ -85,7 +85,9 @@ and padding retain their existing meanings.
 Movie export rejects colliding filenames and existing destinations before
 starting the batch. Use a fresh output directory to retain previous exports.
 Failed exports discard their temporary movies; final filenames appear only
-after encoding succeeds.
+after encoding succeeds. A movie is limited to 250000 frames, a 64 MiB image
+frame, and a 1024-pixel light diameter. Encoder writes and finalization each
+have a 30-second stall timeout; long successful exports can take longer.
 
 ## Frames and Rendering
 
@@ -247,9 +249,12 @@ deadline. Missing devices are retried until that deadline; ambiguous assignments
 fail immediately. Ctrl-C interrupts foreground discovery. Runtime RPC is not
 available until discovery completes.
 
-Authentication and output setup retain their existing bounded retries and are
-outside the discovery timeout. `--duration` measures playback after outputs are
-ready, so discovery and setup do not consume the requested playing time.
+`setup_timeout = 30` separately bounds authentication and output setup across
+all Twinkly strings (also 30 seconds by default). Stop requests interrupt
+recovery retries after the service starts. `--duration` measures playback after
+outputs are ready, so discovery and setup do not consume the requested playing
+time. Shutdown attempts each output even if another fails and logs its result;
+UDP delivery does not confirm that a fixture changed state.
 
 ```sh
 lyte installation run examples/installation.toml --duration 10
@@ -349,7 +354,8 @@ Slider changes are coalesced, with one preview request at a time per browser.
 The server renders one preview at a time; other tabs receive a busy message.
 Authoring and standalone HTML previews allow at most 10000 frames and 32 MiB
 of raw frame data. Reduce duration or layout size if a preview exceeds either
-limit. Base64 encoding and browser copies require additional memory.
+limit. The editor streams JSON responses to avoid another full server-side
+copy. Base64 encoding and browser copies still require additional memory.
 
 For a uFor score, the **Composition** panel follows the selected output's
 declared operation tree and the parts it references. Selecting an operation
@@ -394,10 +400,12 @@ draft first. This is a visual artifact, not editable source, and does not mark
 source edits as downloaded.
 
 The editor shows each selected score's library path and source type. **Undo**
-and **Redo** restore accepted document edits across the session, including
+and **Redo** restore recent accepted document edits across the session, including
 referenced scores and comments. **Session edits** lists documents that differ
-from their original text. A new accepted edit clears redo; preview playback
-and parameter sliders do not enter document history.
+from their original text. History retains up to 100 edits or 32 MiB of TOML text,
+whichever is reached first, while always retaining the latest edit. A new
+accepted edit clears redo; preview playback and parameter sliders do not enter
+document history.
 
 Direct TOML animation scores can replace a selected operation with one of the
 offered score-aware templates and download the edited source. lyte validates

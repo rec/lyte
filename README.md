@@ -1,11 +1,10 @@
 # lyte
 
-lyte is a Python 3.13 lighting player for Twinkly pixel strings and DMX
-instruments. uFor score libraries own light layouts, animation settings,
-composition, and scalar controls. lyte provides NumPy effect rendering,
-reliable Twinkly realtime playback, MIDI-controlled wearable patches, and Twinkly installation playback.
-WLED DDP and DMX/Art-Net are separate output primitives; installation playback
-does not yet combine those transports.
+lyte is a Python 3.13 lighting player for Twinkly and WLED pixel strings and
+DMX instruments over Art-Net. One installation can play uFor scores on multiple
+pixel outputs while driving DMX fixtures. uFor score libraries own light
+layouts, animation settings, composition, and scalar controls. lyte provides
+NumPy effect rendering, MIDI control, local rehearsal, and installation playback.
 
 Pixel animations render C-contiguous `numpy.float32` RGB frames. Conversion to
 Twinkly's byte format happens at the output boundary. DMX instruments use typed
@@ -112,11 +111,11 @@ wearable hardware is not currently available, so this path has automated
 rendering coverage but still requires a physical mapping and MIDI check before
 performance use.
 
-## Twinkly Installations
+## Installations
 
-`lyte installation` discovers named Twinkly strings and starts selectable
-bound uFor animations. It can run in the foreground or own the normal `lyte`
-per-user service:
+`lyte installation` discovers named Twinkly strings, connects configured WLED
+targets, and sends DMX through an Art-Net gateway. It starts selectable bound
+uFor animations in the foreground or as the normal `lyte` per-user service:
 
 ```sh
 cp examples/installation.toml installation.toml
@@ -154,11 +153,16 @@ configured animation.
 The installation's `library_config` is resolved relative to its TOML file.
 lyte validates every selected score output before opening hardware. It discovers
 the actual LED count for each string and scales at output time, logging any
-authored-layout mismatch. Shutdown requests blackout from each opened string.
+authored-layout mismatch. `startup_timeout` bounds discovery and identification;
+`setup_timeout` separately bounds Twinkly authentication and entry into realtime
+mode across all outputs. Both default to 30 seconds. A stop request interrupts
+retries after the service starts. Shutdown attempts blackout on every opened
+output and logs failures; a successful UDP send does not confirm physical output.
 
 `lyte validate` performs uFor selection and renderer preflight without connecting
-to hardware or running an installation. DMX and Art-Net remain available as
-separate output primitives; dynamic DMX bindings are not part of this runner.
+to hardware or running an installation. For installation-specific software
+checks, use `lyte rehearse` with simulated Twinkly LED counts. See
+`doc/guide.md` for mixed pixel and DMX configuration.
 
 ## Documentation
 

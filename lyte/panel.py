@@ -8,6 +8,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 from reccy.protocol import rpc
 
+from . import http_body
 from .installation import InstallationService, InstallationStatus
 from .panel_template import PANEL_TEMPLATE
 
@@ -39,6 +40,10 @@ def run_panel(config: PanelConfig) -> int:
 
 def handler(client: rpc.Client) -> type[BaseHTTPRequestHandler]:
     class PanelHandler(BaseHTTPRequestHandler):
+        def setup(self) -> None:
+            self.request.settimeout(5)
+            super().setup()
+
         def do_GET(self) -> None:
             if self.path == '/':
                 self.respond(200, PANEL_TEMPLATE.encode(), 'text/html; charset=utf-8')
@@ -72,13 +77,14 @@ def handler(client: rpc.Client) -> type[BaseHTTPRequestHandler]:
                 self.send_error(403, 'commands require the local panel origin')
                 return
             try:
-                length = int(self.headers.get('Content-Length', '0'))
-                if not 0 < length <= 65536:
-                    raise ValueError('request must be between 1 and 65536 bytes')
-                request = PanelCommand.model_validate_json(self.rfile.read(length))
+                request = PanelCommand.model_validate_json(http_body.read_body(self))
                 result = client.call(request.command, **request.params)
                 self.respond(200, json.dumps({'result': result}).encode())
-            except (OSError, ValueError) as error:
+            except TimeoutError as error:
+                self.respond(408, json.dumps({'error': str(error)}).encode())
+            except OSError as error:
+                self.respond(503, json.dumps({'error': str(error)}).encode())
+            except ValueError as error:
                 self.respond(400, json.dumps({'error': str(error)}).encode())
 
         def respond(

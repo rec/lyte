@@ -5,8 +5,10 @@ from __future__ import annotations
 import socket
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from functools import cached_property
+from itertools import islice
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -43,6 +45,7 @@ from .twinkly.client import TwinklyClient
 from .wled_output import WledDdpOutput
 
 LOGGER = logging.get_logger(__name__)
+MAX_MIDI_MESSAGES_PER_FRAME = 128
 
 
 @dataclass(frozen=True)
@@ -101,6 +104,7 @@ class InstallationStatus(ReccyStatus):
     delivery: DeliveryTiming | None = None
     active_animation: str | None = None
     queued_animation: str | None = None
+    selection_error: str | None = None
     blackout: bool = False
     strings: dict[str, StringStatus] = Field(default_factory=dict)
     bindings: dict[str, str] = Field(default_factory=dict)
@@ -181,16 +185,22 @@ class TwinklyOutput:
     def led_count(self) -> int:
         return self.track.device.led_count
 
-    def open(self) -> bool:
-        if not self.track.prepare():
-            self.status.state = 'failed'
-            return False
-        self.socket = socket.socket(
-            socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
-        )
-        self.status.state = 'streaming'
-        self.status.led_count = self.led_count
-        return True
+    def open(self, deadline: float | None = None) -> bool:
+        opened = False
+        try:
+            if not self.track.prepare(deadline):
+                self.status.state = 'failed'
+                return False
+            self.socket = socket.socket(
+                socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
+            )
+            self.status.state = 'streaming'
+            self.status.led_count = self.led_count
+            opened = True
+            return True
+        finally:
+            if not opened:
+                self.close()
 
     def send(self, animation_name: str, frame: NDArray[np.uint8]) -> bool:
         if self.socket is None:
@@ -247,9 +257,19 @@ class WledOutput:
 
     def send(self, animation_name: str, frame: NDArray[np.uint8]) -> bool:
         if self.output is None:
-            self.output = WledDdpOutput(self.target.host, self.led_count)
-            self.output.socket.settimeout(self.timeout)
-        self.output.send(frame)
+            output = WledDdpOutput(self.target.host, self.led_count)
+            try:
+                output.socket.settimeout(self.timeout)
+            except OSError:
+                output.close()
+                raise
+            self.output = output
+        try:
+            self.output.send(frame)
+        except OSError:
+            self.output.close()
+            self.output = None
+            raise
         self.status.state = 'sending (unconfirmed)'
         self.status.frame_count += 1
         self.status.last_error = None
@@ -368,6 +388,7 @@ class InstallationService(Reccy):
                 errors=self._errors.copy(),
                 active_animation=active,
                 queued_animation=self.playback.queued_name,
+                selection_error=self.playback.selection_error,
                 blackout=self.playback.blackout,
                 strings={name: output.status for name, output in self.outputs.items()},
                 bindings=bindings,
@@ -396,15 +417,25 @@ class InstallationService(Reccy):
         opened: list[TwinklyOutput | WledOutput] = []
         try:
             self.start()
+            setup_deadline = time.monotonic() + self.config.setup_timeout
             for name, output in self.outputs.items():
-                if output.open():
+                if self._stop_requested.is_set():
+                    return 0
+                if isinstance(output, TwinklyOutput):
+                    output.track.stop_event = self._stop_requested
+                    ready = output.open(setup_deadline)
+                else:
+                    ready = output.open()
+                if ready:
                     opened.append(output)
                 else:
                     self.publish_error(f'{name}: could not open output')
             if len(opened) != len(self.outputs):
                 return 1
             self.publish_status()
-            next_frame = time.monotonic()
+            first_frame = time.monotonic()
+            next_frame = first_frame
+            frame_index = 0
             deadline = None if duration is None else next_frame + duration
             self._delivery = DeliveryTiming(
                 scheduled_interval_seconds=1 / self.config.fps
@@ -455,25 +486,62 @@ class InstallationService(Reccy):
                         self._delivery.output_failures += 1
                         self.publish_status()
                     self._delivery.output_seconds += time.perf_counter() - started
-                next_frame += 1 / self.config.fps
-                while next_frame <= now:
-                    next_frame += 1 / self.config.fps
+                frame_index = max(
+                    frame_index + 1,
+                    int((now - first_frame) * self.config.fps) + 1,
+                )
+                next_frame = first_frame + frame_index / self.config.fps
         except KeyboardInterrupt:
             LOGGER.info('[installation] Interrupted.')
         finally:
             if self.playback.recorder is not None:
-                self.playback.recorder.close()
+                try:
+                    self.playback.recorder.close()
+                except (OSError, RuntimeError, ValueError) as error:
+                    LOGGER.error(f'[shutdown] Could not close recording: {error}')
             self._close_midi()
             if self.artnet_output is not None:
                 try:
-                    self.artnet_output.send(
+                    if not self.artnet_output.send(
                         self.playback.fixture_frames(force_blackout=True)
-                    )
+                    ):
+                        LOGGER.error('[shutdown] Art-Net blackout was not sent')
+                except (OSError, RuntimeError, ValueError) as error:
+                    LOGGER.error(f'[shutdown] Art-Net blackout failed: {error}')
                 finally:
-                    self.artnet_output.close()
-            for output in opened:
-                output.close()
-            self.close()
+                    try:
+                        self.artnet_output.close()
+                    except (OSError, RuntimeError, ValueError) as error:
+                        LOGGER.error(f'[shutdown] Could not close Art-Net: {error}')
+            try:
+                if opened:
+                    with ThreadPoolExecutor(max_workers=min(len(opened), 4)) as pool:
+                        closing = {
+                            pool.submit(output.close): name
+                            for name, output in self.outputs.items()
+                            if output in opened
+                        }
+                        for future in as_completed(closing):
+                            name = closing[future]
+                            try:
+                                future.result()
+                            except (OSError, RuntimeError, ValueError) as error:
+                                LOGGER.error(
+                                    f'[shutdown] Could not close {name}: {error}'
+                                )
+                            else:
+                                output = self.outputs[name]
+                                state = (
+                                    output.track.connection.state
+                                    if isinstance(output, TwinklyOutput)
+                                    else output.status.state
+                                )
+                                LOGGER.info(f'[shutdown] {name}: {state}')
+            finally:
+                try:
+                    self.close()
+                except (OSError, RuntimeError, ValueError) as error:
+                    LOGGER.error(f'[shutdown] Could not close service: {error}')
         return 0
 
     def render(self, now: float) -> list[tuple[str, NDArray[np.uint8]]]:
@@ -506,17 +574,24 @@ class InstallationService(Reccy):
                 self._set_midi_status(False, str(error))
                 return
             self._set_midi_status(True, None)
+        handled = False
         try:
-            for message in input_messages(self._midi_port, self.config.midi):
+            for message in islice(
+                input_messages(self._midi_port, self.config.midi),
+                MAX_MIDI_MESSAGES_PER_FRAME,
+            ):
                 with self._lock:
                     self.playback.receive_midi(message)
-                    self.publish_status()
+                handled = True
         except (OSError, ValueError) as error:
             self._close_midi()
             self._next_midi_open_at = now + 1
             with self._lock:
                 self.playback.reset_midi()
             self._set_midi_status(False, str(error))
+        else:
+            if handled:
+                self.publish_status()
 
     def _set_midi_status(self, connected: bool, error: str | None) -> None:
         changed = self._midi_connected != connected or self._midi_error != error
@@ -555,9 +630,14 @@ def discover_assignments(
         delay=config.retry_delay,
         backoff=config.retry_backoff,
     )
+    observed: dict[str, DiscoveredTwinkly] = {}
     while True:
-        devices: list[DiscoveredTwinkly] = []
-        for found in discovery.discover(min(config.discovery_timeout, remaining())):
+        try:
+            scan = list(discovery.discover(min(config.discovery_timeout, remaining())))
+        except OSError as error:
+            LOGGER.warning(f'[waiting] Twinkly discovery failed: {error}')
+            scan = []
+        for found in scan:
             client = TwinklyClient(
                 host=found.ip_address, timeout=min(config.timeout, remaining())
             )
@@ -570,10 +650,11 @@ def discover_assignments(
                 )
                 continue
             device = diagnostic.TwinklyDeviceInfo.from_gestalt(gestalt)
-            devices.append(DiscoveredTwinkly(found.ip_address, device))
+            identity = device.mac or found.device_id or found.ip_address
+            observed[identity.casefold()] = DiscoveredTwinkly(found.ip_address, device)
             LOGGER.info(f'[discovered] {found.ip_address}: {_describe_device(device)}')
         try:
-            assignment = assign_twinkly_devices(config.twinkly, devices)
+            assignment = assign_twinkly_devices(config.twinkly, list(observed.values()))
         except AmbiguousAssignmentError:
             raise
         except installation_config.InstallationFileError as error:

@@ -143,6 +143,17 @@ def test_replay_reports_configuration_changes_and_rejects_truncated_recordings(
     replay.close()
 
 
+def test_replay_rejects_data_after_end_marker(tmp_path: Path) -> None:
+    path = tmp_path / 'input.jsonl'
+    path.write_text(
+        control_recording.RecordingHeader(installation={}, scores={}).model_dump_json()
+        + '\n{"kind":"end"}\nextra\n'
+    )
+
+    with pytest.raises(ValueError, match='after its end marker'):
+        rehearsal.ControlReplay(path)
+
+
 def test_recording_never_overwrites_an_existing_file(tmp_path: Path) -> None:
     path = tmp_path / 'input.jsonl'
     path.write_text('existing')

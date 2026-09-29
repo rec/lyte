@@ -34,6 +34,7 @@ class InstallationPlayback:
         self.dmx_frames: dict[int, dmx.DmxFrame] = {}
         self.active: ActiveAnimation | None = None
         self.queued_name: str | None = None
+        self.selection_error: str | None = None
         self.queued_duration = 0.0
         self.master_level = 1.0
         self.transition_duration = 0.0
@@ -148,6 +149,7 @@ class InstallationPlayback:
             self.transition_snapshot = None
             self.transition_duration = 0.0
         self.active = active
+        self.selection_error = None
         self.blackout = False
         self.active_test = None
         self.revision += 1
@@ -193,7 +195,11 @@ class InstallationPlayback:
         if self.queued_name is not None:
             name = self.queued_name
             self.queued_name = None
-            self.select(name, self.queued_duration, now)
+            try:
+                self.select(name, self.queued_duration, now)
+            except (OSError, RuntimeError, ValueError) as error:
+                self.selection_error = f'{name}: {error}'
+                self.revision += 1
         self.dmx_frames = self.fixture_frames()
         if self.blackout:
             return [

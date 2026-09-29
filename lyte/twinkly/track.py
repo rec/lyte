@@ -79,17 +79,26 @@ class TwinklyTrack(BaseModel):
         default_factory=realtime.PlaybackConnection
     )
 
-    def prepare(self) -> bool:
+    def prepare(self, deadline: float | None = None) -> bool:
         self._set_connection_state(realtime.PlaybackConnectionState.CONNECTING)
         led_count = realtime.read_led_count(
-            self.client, self.retry, self.planned_led_count, self.host
+            self.client,
+            self.retry,
+            self.planned_led_count,
+            self.host,
+            deadline,
+            self.stop_event,
         )
         if led_count is None:
             return False
         self.device = animation.Device(led_count=led_count)
         self._warn_if_scaling()
         if not realtime.prepare_device(
-            self.client, self.retry, self.host, stop_event=self.stop_event
+            self.client,
+            self.retry,
+            self.host,
+            deadline=deadline,
+            stop_event=self.stop_event,
         ):
             return False
         self.connection.resume_streaming()
@@ -163,6 +172,7 @@ class TwinklyTrack(BaseModel):
                 self.retry,
                 self.host,
                 started_at + HEALTH_CHECK_TIMEOUT,
+                self.stop_event,
             ):
                 message = f'HTTP health probe to {self.host} failed'
                 LOGGER.error(f'[network] {message}; recovering output.')

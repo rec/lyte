@@ -90,6 +90,7 @@ def test_mixed_outputs_continue_after_wled_failure_and_share_controls(
     datagrams: list[bytes] = []
     socket = Mock()
     failed = False
+    acquisitions = 0
 
     def sendto(packet: bytes, address: tuple[str, int]) -> None:
         nonlocal failed
@@ -102,10 +103,11 @@ def test_mixed_outputs_continue_after_wled_failure_and_share_controls(
     socket.sendto.side_effect = sendto
 
     def acquire(host: str, count: int) -> wled_output.WledDdpOutput:
-        nonlocal failed
+        nonlocal failed, acquisitions
         if failure == 'socket' and not failed:
             failed = True
             raise OSError('simulated socket acquisition failure')
+        acquisitions += 1
         return wled_output.WledDdpOutput(host, count, socket_factory=lambda *_: socket)
 
     monkeypatch.setattr(installation, 'WledDdpOutput', acquire)
@@ -156,6 +158,7 @@ def test_mixed_outputs_continue_after_wled_failure_and_share_controls(
     assert recovered[0].failure_count == 1
     assert recovered[0].last_error is None
     assert service.status_snapshot().delivery.output_failures == 1
-    socket.settimeout.assert_called_once_with(config.timeout)
-    socket.close.assert_called_once()
+    assert acquisitions == (2 if failure == 'send' else 1)
+    assert socket.settimeout.call_count == acquisitions
+    assert socket.close.call_count == acquisitions
     left.close.assert_called_once()
