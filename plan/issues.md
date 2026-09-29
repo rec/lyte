@@ -4,13 +4,6 @@ The original 28-item review remains in Git history. Software fixes completed
 since then have been removed here. The physical checks are grouped at the end
 for the show rehearsal.
 
-## Final API and operator-language review
-
-1. **Installation command shape.** `lyte installation` exposes `duration`,
-   `record_input`, and a config path on actions that ignore them. Decide together
-   whether to reject irrelevant combinations or split actions into distinct
-   command types. Review the generated help before changing the public CLI.
-
 ## Accepted runtime tradeoff
 
 **Preserve score timing after a stall.** The delivery scheduler skips missed
@@ -41,13 +34,13 @@ None.
 
 ## Physical show rehearsal
 
-2. **Identify the actual Strings controller.** In
+1. **Identify the actual Strings controller.** In
    `patches/showco-installation.toml`, Dots is selected by a product-name
    substring and Strings is the remaining device. Observe each controller's
    gestalt and add a distinguishing selector for Strings. Rehearse discovery
    with both controllers and any other Twinkly device that may be present.
 
-3. **Verify fixture stop and network failure behavior.** Check the laser's
+2. **Verify fixture stop and network failure behavior.** Check the laser's
    authored blackout mode with physical output while preserving its centred
    geometry. Check Twinkly, WLED, and Art-Net blackout, stop latency, link loss,
    reconnection, and mixed-output continuity on the show hardware. Software
