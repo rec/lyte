@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import tomllib
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -54,6 +55,52 @@ def test_translation_generates_supported_score_and_preserves_unsupported_preset(
     library_config.write_text('[[libraries]]\nname = "wled"\nroot = "scores"\n')
     library = library_files.read_library(library_config)
     assert [entry.name for entry in library.find()] == ['Red']
+
+
+def test_translation_refuses_existing_destination_without_changing_it(
+    tmp_path: Path,
+) -> None:
+    snapshot = wled.import_snapshot(write_snapshot_input(tmp_path / 'source'))
+    output = tmp_path / 'scores'
+    output.mkdir()
+    existing = output / 'keep.txt'
+    existing.write_text('keep')
+
+    with pytest.raises(wled.WledError, match='existing destination'):
+        wled.translate_snapshot(snapshot, output)
+
+    assert existing.read_text() == 'keep'
+
+
+def test_snapshot_refuses_to_overwrite_existing_file(tmp_path: Path) -> None:
+    snapshot = wled.import_snapshot(write_snapshot_input(tmp_path / 'source'))
+    output = tmp_path / 'snapshot.json'
+    output.write_text('keep')
+
+    with pytest.raises(wled.WledError, match='refusing to overwrite'):
+        wled.write_snapshot(output, snapshot)
+
+    assert output.read_text() == 'keep'
+
+
+def test_translation_rejects_duplicate_generated_names_before_writing(
+    tmp_path: Path,
+) -> None:
+    snapshot = wled.import_snapshot(write_snapshot_input(tmp_path / 'source'))
+    first = snapshot.presets[0]
+    snapshot = replace(
+        snapshot,
+        presets=[
+            replace(first, identifier='1!'),
+            replace(first, identifier='1?'),
+        ],
+    )
+    output = tmp_path / 'scores'
+
+    with pytest.raises(wled.WledError, match='duplicate generated score'):
+        wled.translate_snapshot(snapshot, output)
+
+    assert not output.exists()
 
 
 def test_ddp_encoder_uses_rgb_offsets_and_pushes_only_final_packet() -> None:

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import math
+import os
+import select
 import shutil
 import subprocess
+import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Annotated, Literal
+from typing import IO, Annotated, Literal
 
 import numpy as np
 import tyro
@@ -116,6 +119,10 @@ class FrameRenderer:
                 (round(p[0] - self.diameter / 2), round(p[1] - self.diameter / 2))
                 for p in projected_points(positions, self.width, self.height, view)
             ]
+        if self.width * self.height * 3 > 64 * 1024 * 1024:
+            raise RenderError('movie frame exceeds 64 MiB; reduce the image size')
+        if self.diameter > 1024:
+            raise RenderError('light diameter exceeds 1024 pixels')
         indexes = np.indices((self.diameter, self.diameter))
         radius = self.diameter / 2
         self.circle_mask = (indexes[0] + 0.5 - radius) ** 2 + (
@@ -218,11 +225,15 @@ def render_animation(
         height=config.height,
     )
     output = config.output / f'{safe_name(selector)}.mp4'
-    frame_count = (
-        len(prepared.audio.frames)
-        if prepared.audio is not None
-        else max(1, round(prepared.fps * config.duration))
-    )
+    if prepared.audio is not None:
+        frame_count = len(prepared.audio.frames)
+    else:
+        requested_frames = prepared.fps * config.duration
+        if not math.isfinite(requested_frames):
+            raise RenderError('movie duration produces a non-finite frame count')
+        frame_count = max(1, round(requested_frames))
+    if frame_count > 250000:
+        raise RenderError('movie exceeds 250000 frames; render a shorter segment')
     with TemporaryDirectory(prefix='.lyte-render-', dir=config.output) as directory:
         temporary = Path(directory) / 'movie.mp4'
         command = [
@@ -255,7 +266,7 @@ def render_animation(
                 raise RenderError('ffmpeg did not provide a frame input')
             for _ in range(frame_count):
                 lights = animation.byte_light_frame_from_float(prepared.render())
-                process.stdin.write(renderer.render(lights).tobytes())
+                write_encoder_frame(process.stdin, renderer.render(lights).tobytes())
             process.stdin.close()
             input_complete = True
         except BrokenPipeError as error:
@@ -270,7 +281,12 @@ def render_animation(
                     except BrokenPipeError:
                         pass
             finally:
-                return_code = process.wait()
+                try:
+                    return_code = process.wait(timeout=30)
+                except subprocess.TimeoutExpired as error:
+                    process.kill()
+                    process.wait()
+                    raise RenderError(f'{selector}: ffmpeg did not finish') from error
         if return_code != 0:
             raise RenderError(f'{selector}: ffmpeg failed')
         try:
@@ -278,6 +294,26 @@ def render_animation(
         except FileExistsError as error:
             raise RenderError(f'output already exists: {output}') from error
     return output
+
+
+def write_encoder_frame(stream: IO[bytes], frame: bytes, timeout: float = 30) -> None:
+    descriptor = stream.fileno()
+    os.set_blocking(descriptor, False)
+    deadline = time.monotonic() + timeout
+    remaining_frame = memoryview(frame)
+    while remaining_frame:
+        remaining_time = deadline - time.monotonic()
+        if remaining_time <= 0:
+            raise RenderError('ffmpeg stopped reading frames')
+        if not select.select([], [descriptor], [], remaining_time)[1]:
+            raise RenderError('ffmpeg stopped reading frames')
+        try:
+            count = os.write(descriptor, remaining_frame)
+        except BlockingIOError:
+            continue
+        if count == 0:
+            raise BrokenPipeError('ffmpeg closed its frame input')
+        remaining_frame = remaining_frame[count:]
 
 
 def parse_color(value: str) -> tuple[int, int, int]:

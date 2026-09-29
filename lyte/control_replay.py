@@ -29,6 +29,8 @@ class ControlReplay:
         if not line:
             raise ValueError('control recording is incomplete: missing end marker')
         if json.loads(line) == {'kind': 'end'}:
+            if self.stream.read(1):
+                raise ValueError('control recording has data after its end marker')
             self.next_delivery = None
             return
         delivery = Delivery.model_validate_json(line)

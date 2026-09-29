@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -23,6 +24,24 @@ def test_grid_renderer_uses_rounded_square_layout() -> None:
     assert frame[1, 1].tolist() == [255, 0, 0]
     assert frame[1, 6].tolist() == [0, 255, 0]
     assert frame[6, 1].tolist() == [0, 0, 0]
+
+
+def test_renderer_rejects_excessive_frame_allocation() -> None:
+    with pytest.raises(render.RenderError, match='64 MiB'):
+        render.FrameRenderer(
+            1,
+            20,
+            0,
+            'circle',
+            None,
+            'black',
+            positions=[[0, 0, 0]],
+            width=10000,
+            height=10000,
+        )
+
+    with pytest.raises(render.RenderError, match='diameter'):
+        render.FrameRenderer(1, 2048, 0, 'circle', None, 'black')
 
 
 def test_grid_renderer_draws_circular_lights() -> None:
@@ -182,8 +201,6 @@ def test_export_reaps_encoder_and_publishes_only_successful_movies(
     process.stdin.closed = False
     process.poll.return_value = None
     process.wait.return_value = 1 if failure == 'exit' else 0
-    if failure == 'write':
-        process.stdin.write.side_effect = BrokenPipeError('write failed')
     if failure in {'close', 'render'}:
         process.stdin.close.side_effect = BrokenPipeError('close failed')
 
@@ -195,12 +212,15 @@ def test_export_reaps_encoder_and_publishes_only_successful_movies(
 
     with (
         patch.object(render.subprocess, 'Popen', side_effect=start),
+        patch.object(render, 'write_encoder_frame') as write,
         patch.object(
             render.FrameRenderer,
             'render',
             return_value=np.zeros((2, 2, 3), dtype=np.uint8),
         ) as frame,
     ):
+        if failure == 'write':
+            write.side_effect = BrokenPipeError('write failed')
         if failure == 'render':
             frame.side_effect = ValueError('render failed')
         if failure is None:
@@ -220,3 +240,43 @@ def test_export_reaps_encoder_and_publishes_only_successful_movies(
     assert sorted(p.name for p in tmp_path.iterdir()) == (
         ['aurora.mp4'] if failure in {None, 'publish'} else []
     )
+
+
+def test_export_kills_encoder_that_never_finishes(tmp_path: Path) -> None:
+    config = render.RenderConfig(
+        output=tmp_path, duration=0.01, library_config=Path('examples/library.toml')
+    )
+    library = render.library_files.read_library(config.library_config)
+    process = Mock()
+    process.stdin.closed = False
+    process.wait.side_effect = [subprocess.TimeoutExpired('ffmpeg', 30), 0]
+
+    with (
+        patch.object(render.subprocess, 'Popen', return_value=process),
+        patch.object(render, 'write_encoder_frame'),
+        patch.object(
+            render.FrameRenderer,
+            'render',
+            return_value=np.zeros((2, 2, 3), dtype=np.uint8),
+        ),
+        pytest.raises(render.RenderError, match='did not finish'),
+    ):
+        render.render_animation('aurora', config, 'ffmpeg', library)
+
+    process.kill.assert_called_once()
+    assert process.wait.call_count == 2
+    assert not (tmp_path / 'aurora.mp4').exists()
+
+
+def test_encoder_write_times_out_when_pipe_stops_accepting_frames() -> None:
+    stream = Mock()
+    stream.fileno.return_value = 7
+
+    with (
+        patch.object(render.os, 'set_blocking') as set_blocking,
+        patch.object(render.select, 'select', return_value=([], [], [])),
+        pytest.raises(render.RenderError, match='stopped reading'),
+    ):
+        render.write_encoder_frame(stream, b'frame', timeout=0.1)
+
+    set_blocking.assert_called_once_with(7, False)

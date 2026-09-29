@@ -33,7 +33,7 @@ function displayStatus(data){
   const selected=element('animation').value;
   element('animation').replaceChildren(...data.animations.map(name=>new Option(name,name)));
   element('animation').value=data.animations.includes(selected)?selected:data.active_animation||data.animations[0]||'';
-  element('status').textContent=`Active: ${data.active_animation||'none'}\nQueued: ${data.queued_animation||'none'}\nBlackout: ${data.blackout}\nMIDI: ${data.midi_connected?'connected':'disconnected'}${data.midi_error?' ('+data.midi_error+')':''}\nTest: ${data.active_test?'active':data.queued_test?'queued':'none'}\n${(data.errors||[]).map(error=>error.message).join('\n')}`;
+  element('status').textContent=`Active: ${data.active_animation||'none'}\nQueued: ${data.queued_animation||'none'}\n${data.selection_error?'Selection failed: '+data.selection_error+'\n':''}Blackout: ${data.blackout}\nMIDI: ${data.midi_connected?'connected':'disconnected'}${data.midi_error?' ('+data.midi_error+')':''}\nTest: ${data.active_test?'active':data.queued_test?'queued':'none'}\n${(data.errors||[]).map(error=>error.message).join('\n')}`;
   element('strings').replaceChildren(...Object.entries(data.strings).map(([name,status])=>{
     const row=document.createElement('tr');
     for(const value of [name,status.transport,status.state,status.led_count??'unknown',status.frame_count,status.failure_count,status.last_error||'']){

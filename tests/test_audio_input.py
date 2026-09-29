@@ -66,6 +66,7 @@ def test_audio_editor_html_and_movie_frames_match_through_eof(
     with (
         patch.object(render.subprocess, 'Popen', side_effect=start),
         patch.object(render.FrameRenderer, 'render', side_effect=lambda x: x),
+        patch.object(render, 'write_encoder_frame') as write,
     ):
         render.render_animation(
             'spectrum',
@@ -73,7 +74,7 @@ def test_audio_editor_html_and_movie_frames_match_through_eof(
             'ffmpeg',
             library,
         )
-    assert [c.args[0] for c in process.stdin.write.call_args_list] == html_frames
+    assert [c.args[1] for c in write.call_args_list] == html_frames
     data_regression.check({'frames': [list(f) for f in html_frames]})
 
 

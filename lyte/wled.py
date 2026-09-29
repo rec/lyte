@@ -7,6 +7,7 @@ import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Annotated, Literal
 
 import tyro
@@ -170,8 +171,11 @@ def list_presets(presets: Iterable[WledPreset]) -> None:
 
 
 def translate_snapshot(snapshot: WledSnapshot, output: Path) -> Path:
-    output.mkdir(parents=True, exist_ok=True)
+    if output.exists():
+        raise WledError(f'{output}: refusing to replace an existing destination')
     manifest: list[dict[str, object]] = []
+    scores: list[tuple[str, WledPreset, Translation]] = []
+    names: set[str] = set()
     for preset in snapshot.presets:
         translated = translate_preset(preset, snapshot.led_count)
         entry: dict[str, object] = {
@@ -186,21 +190,27 @@ def translate_snapshot(snapshot: WledSnapshot, output: Path) -> Path:
                 f'{_safe_name(preset.identifier)}-'
                 f'{_safe_name(preset.name or "preset")}.toml'
             )
-            destination = output / filename
-            if destination.exists():
-                raise WledError(f'{destination}: refusing to overwrite generated score')
-            destination.write_text(
-                _score_document(preset, translated, snapshot.led_count)
-            )
+            if filename.casefold() in names:
+                raise WledError(f'{filename}: duplicate generated score name')
+            names.add(filename.casefold())
+            scores.append((filename, preset, translated))
             entry['score'] = filename
             entry['lyte_effect'] = translated.lyte_effect
             entry['difference'] = translated.difference
         manifest.append(entry)
-    destination = output / 'manifest.json'
-    _write_json(
-        destination, {'format': 'lyte-wled-translation-manifest', 'presets': manifest}
-    )
-    return destination
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix='.lyte-wled-', dir=output.parent) as directory:
+        staged = Path(directory)
+        for filename, preset, translated in scores:
+            (staged / filename).write_text(
+                _score_document(preset, translated, snapshot.led_count)
+            )
+        _write_json(
+            staged / 'manifest.json',
+            {'format': 'lyte-wled-translation-manifest', 'presets': manifest},
+        )
+        staged.rename(output)
+    return output / 'manifest.json'
 
 
 def translate_preset(preset: WledPreset, led_count: int | None) -> Translation | None:
@@ -513,7 +523,13 @@ def _without_network_identity(value: object) -> object:
 
 
 def _write_json(path: Path, value: object) -> None:
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + '\n')
+    with TemporaryDirectory(prefix='.lyte-wled-file-', dir=path.parent) as directory:
+        staged = Path(directory) / path.name
+        staged.write_text(json.dumps(value, indent=2, sort_keys=True) + '\n')
+        try:
+            path.hardlink_to(staged)
+        except FileExistsError as error:
+            raise WledError(f'{path}: refusing to overwrite existing file') from error
 
 
 def _sha256(path: Path) -> str:

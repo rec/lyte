@@ -4,6 +4,7 @@ import json
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+from . import http_body
 from .rehearsal import RehearsalConfig, RehearsalRequest, RehearsalSession
 from .rehearsal_template import REHEARSAL_TEMPLATE
 
@@ -24,6 +25,10 @@ def run_rehearsal(config: RehearsalConfig) -> int:
 
 def handler(session: RehearsalSession) -> type[BaseHTTPRequestHandler]:
     class RehearsalHandler(BaseHTTPRequestHandler):
+        def setup(self) -> None:
+            self.request.settimeout(5)
+            super().setup()
+
         def do_GET(self) -> None:
             if self.path != '/':
                 self.send_error(404)
@@ -41,12 +46,17 @@ def handler(session: RehearsalSession) -> type[BaseHTTPRequestHandler]:
                 return
             status = 200
             try:
-                length = int(self.headers.get('Content-Length', '0'))
-                if not 0 < length <= 65536:
-                    raise ValueError('request must be between 1 and 65536 bytes')
-                request = RehearsalRequest.model_validate_json(self.rfile.read(length))
+                request = RehearsalRequest.model_validate_json(
+                    http_body.read_body(self)
+                )
                 result = session.request(request)
-            except (ValueError, TypeError, KeyError, OSError) as error:
+            except TimeoutError as error:
+                status = 408
+                result = {'error': str(error)}
+            except OSError as error:
+                status = 503
+                result = {'error': str(error)}
+            except (ValueError, TypeError, KeyError) as error:
                 status = 400
                 result = {'error': str(error)}
             data = json.dumps(result).encode()

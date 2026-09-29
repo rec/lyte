@@ -295,9 +295,15 @@ def discover_host(
 
 
 def probe_streaming_device(
-    client: TwinklyClient, retry: RetryConfig, host: str, deadline: float
+    client: TwinklyClient,
+    retry: RetryConfig,
+    host: str,
+    deadline: float,
+    stop_event: threading.Event | None = None,
 ) -> bool:
     return (
-        session.read_gestalt(client, retry, f'HTTP health probe for {host}', deadline)
+        session.read_gestalt(
+            client, retry, f'HTTP health probe for {host}', deadline, stop_event
+        )
         is not None
     )
