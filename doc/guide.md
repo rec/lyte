@@ -162,7 +162,7 @@ disables controls and labels the retained display as stale. Reconnection refresh
 status without retrying commands, and rejected-command messages remain until
 cleared. Use `--no-open` to serve the page without opening a browser.
 
-The panel and rehearsal have **Fade (s)** and **Master (%)** controls. Selection
+The panel and rehearsal have pixel fade and master controls. Selection
 crossfades linearly after both scores have rendered and mapped to the physical
 strings. Zero seconds cuts immediately. During a normal fade, both animations
 receive MIDI and obey their own note gates. Selecting again freezes the last
@@ -177,6 +177,11 @@ defaulting to zero. `master_level(level=...)` accepts 0–1. MIDI program change
 retain immediate selection. Tests temporarily override the visible output while
 the fade's clock continues; selecting during a test fades from its displayed
 frame. Device connections stay open throughout selection and fading.
+
+The status field `strings` includes both Twinkly and WLED pixel outputs;
+`transport` identifies each one. Pixel master, fades, and test patterns do not
+change DMX fixture channels. A selection changes DMX values immediately, while
+blackout applies to both pixels and DMX.
 
 For software-only rehearsal, run:
 
@@ -259,7 +264,7 @@ UDP delivery does not confirm that a fixture changed state.
 ```sh
 lyte installation run examples/installation.toml --duration 10
 lyte installation install examples/installation.toml
-lyte installation status examples/installation.toml
+lyte installation status
 ```
 
 The installation TOML describes Twinkly strings under `[twinkly]`, WLED targets
@@ -282,7 +287,8 @@ selector = "examples:/composition.toml"
 outputs = { light = "left + right" }
 ```
 
-Each animation output maps to one physical expression:
+`animations.NAME.outputs` binds each logical score output to physical pixel
+outputs. Each binding is one physical expression:
 
 - `left` sends to one string.
 - `left + right` rescales once to the combined LED count, then partitions the
@@ -312,8 +318,9 @@ An optional `[midi]` table reconnects a MIDI input. Animation controls map
 note gate, note number, velocity, CC 2 breath, and pitch bend to public uFor
 parameters. An animation may use `activation = "note"` to output black until a
 note is held. Program changes queue the next configured animation.
-Each program-change message advances the queued selection; its program number
-is ignored. The latest note-on owns the active note, even across channels.
+Each program-change message advances the queued selection, wrapping after the
+last configured look. Its program number is ignored; it is not a direct look
+number. The latest note-on owns the active note, even across channels.
 Releases, breath, and pitch bend only affect it when their channel matches.
 Preparation rejects non-finite or out-of-range mapped values and unsupported
 live parameter changes before discovering devices. Built-in effect parameters
@@ -427,8 +434,9 @@ scores require those edited score files as well. Reactive built-ins remain previ
 
 ## WLED Interchange
 
-WLED support has three separate boundaries. It does not claim that WLED's
-native effects and lyte effects are interchangeable.
+The `lyte wled` commands exchange WLED preset snapshots offline. They do not
+configure or stream to a device. Live WLED output uses `[wled.NAME]` installation
+targets and DDP. WLED's native effects and lyte effects are not interchangeable.
 
 ```sh
 lyte wled import snapshot-input --output wled-snapshot.json
