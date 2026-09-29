@@ -192,8 +192,34 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         config = run.call_args.args[0]
+        self.assertIsInstance(config, installation.Run)
         self.assertEqual(config.config, Path('installation.toml'))
         self.assertEqual(config.duration, 2)
+
+    def test_installation_actions_reject_unused_arguments(self) -> None:
+        with patch.object(
+            installation, 'run_installation_command', return_value=0
+        ) as run:
+            result = cli.main(['installation', 'status'])
+
+        self.assertEqual(result, 0)
+        run.assert_called_once_with(installation.Status())
+
+        for action, arguments in (
+            ('status', ['installation.toml']),
+            ('status', ['--duration', '2']),
+            ('status', ['--record-input', 'controls.jsonl']),
+            ('install', ['--duration', '2']),
+            ('install', ['--record-input', 'controls.jsonl']),
+        ):
+            with (
+                self.subTest(action=action, arguments=arguments),
+                patch.object(installation, 'run_installation_command') as run,
+                patch('sys.stderr', new_callable=io.StringIO),
+                self.assertRaises(SystemExit),
+            ):
+                cli.main(['installation', action, *arguments])
+            run.assert_not_called()
 
     def test_cli_black_floor_command_dispatches_black_floor_test(self) -> None:
         with patch.object(

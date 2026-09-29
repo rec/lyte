@@ -42,3 +42,19 @@ def test_cli_help(cli_help) -> None:
             'wled',
         ],
     )
+
+
+def test_installation_help(cli_help) -> None:
+    cli_help(
+        'lyte installation',
+        lambda: main(['installation', *sys.argv[1:]]),
+        subcommands=[
+            'run',
+            'install',
+            'uninstall',
+            'start',
+            'stop',
+            'restart',
+            'status',
+        ],
+    )

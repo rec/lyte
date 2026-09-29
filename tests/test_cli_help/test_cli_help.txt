@@ -265,20 +265,22 @@ usage: lyte fps-test [-h] [FPS-TEST OPTIONS]
 
 
 $ lyte installation --help
-usage: lyte installation [-h] [INSTALLATION OPTIONS] [{run,install,uninstall,start,stop,restart,status}] [PATH]
-
- positional arguments
- --------------------------------------------------------------
-  [{run,install,uninstall,start,stop,restart,status}]
-                           action (default: run)
-  [PATH]                   config (default: installation.toml)
+usage: lyte installation [-h] {run,install,uninstall,start,stop,restart,status}
 
  options
- --------------------------------------------------------------
-  -h, --help               show this help message and exit
-  --duration {None}|FLOAT  (default: None)
-  --record-input {None}|PATH
-                           (default: None)
+ ------------------------------------------------
+  -h, --help     show this help message and exit
+
+ subcommands
+ ------------------------------------------------
+  (required)
+    - run
+    - install
+    - uninstall
+    - start
+    - stop
+    - restart
+    - status
 
 
 $ lyte layout --help

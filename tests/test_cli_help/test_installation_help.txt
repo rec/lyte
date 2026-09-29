@@ -1,0 +1,85 @@
+$ lyte installation --help
+usage: lyte installation [-h] {run,install,uninstall,start,stop,restart,status}
+
+ options
+ ------------------------------------------------
+  -h, --help     show this help message and exit
+
+ subcommands
+ ------------------------------------------------
+  (required)
+    - run
+    - install
+    - uninstall
+    - start
+    - stop
+    - restart
+    - status
+
+
+$ lyte installation install --help
+usage: lyte installation install [-h] [PATH]
+
+ positional arguments
+ -------------------------------------------------
+  [PATH]      config (default: installation.toml)
+
+ options
+ -------------------------------------------------
+  -h, --help  show this help message and exit
+
+
+$ lyte installation restart --help
+usage: lyte installation restart [-h]
+
+ options
+ ---------------------------------------------
+  -h, --help  show this help message and exit
+
+
+$ lyte installation run --help
+usage: lyte installation run [-h] [PATH] [--duration {None}|FLOAT] [--record-input {None}|PATH]
+
+ positional arguments
+ -------------------------------------------------
+  [PATH]      config (default: installation.toml)
+
+ options
+ -------------------------------------------------
+  -h, --help  show this help message and exit
+  --duration {None}|FLOAT
+              (default: None)
+  --record-input {None}|PATH
+              (default: None)
+
+
+$ lyte installation start --help
+usage: lyte installation start [-h]
+
+ options
+ ---------------------------------------------
+  -h, --help  show this help message and exit
+
+
+$ lyte installation status --help
+usage: lyte installation status [-h]
+
+ options
+ ---------------------------------------------
+  -h, --help  show this help message and exit
+
+
+$ lyte installation stop --help
+usage: lyte installation stop [-h]
+
+ options
+ ---------------------------------------------
+  -h, --help  show this help message and exit
+
+
+$ lyte installation uninstall --help
+usage: lyte installation uninstall [-h]
+
+ options
+ ---------------------------------------------
+  -h, --help  show this help message and exit

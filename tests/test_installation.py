@@ -755,9 +755,7 @@ def test_installation_command_installs_reccy_service(
     )
 
     result = installation.run_installation_command(
-        installation.InstallationCommandConfig(
-            action='install', config=tmp_path / 'installation.toml'
-        )
+        installation.Install(config=tmp_path / 'installation.toml')
     )
 
     assert result == 0

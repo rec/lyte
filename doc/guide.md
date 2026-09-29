@@ -267,6 +267,12 @@ lyte installation install examples/installation.toml
 lyte installation status
 ```
 
+An action is required after `lyte installation`. `run` accepts a config path,
+`--duration`, and `--record-input`. `install` accepts a config path and saves it
+in the service definition. `start`, `stop`,
+`restart`, `status`, and `uninstall` operate on that installed service without
+a config path or playback options.
+
 The installation TOML describes Twinkly strings under `[twinkly]`, WLED targets
 under `[wled]`, and selectable animations under `[animations.NAME]`. A Twinkly
 selector contains

@@ -121,7 +121,7 @@ uFor animations in the foreground or as the normal `lyte` per-user service:
 cp examples/installation.toml installation.toml
 lyte installation run installation.toml --duration 10
 lyte installation install installation.toml
-lyte installation status installation.toml
+lyte installation status
 ```
 
 Each `[twinkly]` entry is a case-insensitive `gestalt` selector, such as

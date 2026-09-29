@@ -210,7 +210,7 @@ def run_command(config: object) -> int:
             config.diagnostic_config(), config.action, config.path
         )
     if isinstance(config, installation.InstallationCommandConfig):
-        return installation.run_installation_command(config)
+        return installation.run_installation_command(config.command)
     if isinstance(config, LedConfigConfig):
         return layout.run_led_config_control(
             config.diagnostic_config(), config.action, config.path

@@ -48,15 +48,42 @@ LOGGER = logging.get_logger(__name__)
 MAX_MIDI_MESSAGES_PER_FRAME = 128
 
 
-@dataclass(frozen=True)
-class InstallationCommandConfig:
-    action: Annotated[
-        Literal['run', 'install', 'uninstall', 'start', 'stop', 'restart', 'status'],
-        tyro.conf.Positional,
-    ] = 'run'
+class Run(BaseModel, frozen=True):
     config: Annotated[Path, tyro.conf.Positional] = Path('installation.toml')
     duration: float | None = None
     record_input: Path | None = None
+
+
+class Install(BaseModel, frozen=True):
+    config: Annotated[Path, tyro.conf.Positional] = Path('installation.toml')
+
+
+class Uninstall(BaseModel, frozen=True):
+    pass
+
+
+class Start(BaseModel, frozen=True):
+    pass
+
+
+class Stop(BaseModel, frozen=True):
+    pass
+
+
+class Restart(BaseModel, frozen=True):
+    pass
+
+
+class Status(BaseModel, frozen=True):
+    pass
+
+
+class InstallationCommandConfig(BaseModel, frozen=True):
+    command: tyro.conf.OmitArgPrefixes[
+        tyro.conf.OmitSubcommandPrefixes[
+            Run | Install | Uninstall | Start | Stop | Restart | Status
+        ]
+    ]
 
 
 class AmbiguousAssignmentError(installation_config.InstallationFileError):
@@ -688,22 +715,28 @@ def build_service(
     )
 
 
-def run_installation_command(config: InstallationCommandConfig) -> int:
-    if config.record_input is not None and config.action != 'run':
-        raise ValueError('--record-input is only available with installation run')
-    if config.action == 'run':
+def run_installation_command(
+    config: Run | Install | Uninstall | Start | Stop | Restart | Status,
+) -> int:
+    if isinstance(config, Run):
         return build_service(installation_config.load_installation(config.config)).run(
             config.duration, config.record_input
         )
     runtime = InstallationService.model_construct()
-    if config.action == 'install':
+    if isinstance(config, Install):
         result = runtime.install_service(
             ['installation', 'run', str(config.config.resolve())]
         )
-    elif config.action == 'status':
+    elif isinstance(config, Status):
         result = runtime.service_status()
+    elif isinstance(config, Uninstall):
+        result = runtime.uninstall_service()
+    elif isinstance(config, Start):
+        result = runtime.start_service()
+    elif isinstance(config, Stop):
+        result = runtime.stop_service()
     else:
-        result = getattr(runtime, f'{config.action}_service')()
+        result = runtime.restart_service()
     controller.print_service_status(service.LYTE_SERVICE.name, result)
     return 0 if result.running is not False else 1
 
