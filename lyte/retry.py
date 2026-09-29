@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import sys
 import threading
 import time
 from collections.abc import Callable
 
 from pydantic import BaseModel
 from reccy.runtime import logging
+from reccy.runtime.retry import RetryPolicy, RetrySchedule, RetryStopReason
 
 LOGGER = logging.get_logger(__name__)
 
@@ -27,13 +29,35 @@ def retry_call[Result](
     deadline: float | None = None,
     stop_event: threading.Event | None = None,
 ) -> Result | None:
-    delay = retry.delay
-    for attempt in range(1, retry.attempts + 1):
+    schedule = RetrySchedule(
+        RetryPolicy(
+            attempts=retry.attempts,
+            delay=retry.delay,
+            backoff=retry.backoff,
+            backoff_after=retry.backoff_after,
+            # lyte previously had no finite delay cap.
+            max_delay=sys.float_info.max,
+        ),
+        clock=time.monotonic,
+        deadline=deadline,
+    )
+    while True:
         if stop_event is not None and stop_event.is_set():
             return None
-        if deadline is not None and time.monotonic() >= deadline:
-            LOGGER.error(f'[failed] {label} exceeded its deadline.')
+        if (wait := schedule.seconds_until_attempt()) is None:
+            if schedule.stop_reason is RetryStopReason.deadline:
+                LOGGER.error(f'[failed] {label} exceeded its deadline.')
             return None
+        if wait > 0:
+            if stop_event is not None:
+                if stop_event.wait(wait):
+                    return None
+            else:
+                time.sleep(wait)
+            continue
+        if not schedule.begin_attempt():
+            continue
+        attempt = schedule.attempt_count
         LOGGER.debug(f'[try] {label}: attempt {attempt}/{retry.attempts}')
         started_at = time.monotonic()
         try:
@@ -47,22 +71,11 @@ def retry_call[Result](
             if attempt == retry.attempts:
                 LOGGER.error(failure)
                 return None
-            wait = delay
-            if deadline is not None:
-                wait = min(wait, max(0.0, deadline - time.monotonic()))
-            if wait <= 0 and deadline is not None:
-                LOGGER.error(f'[failed] {label} exceeded its deadline.')
-                return None
-            LOGGER.debug(
-                f'[retry] Waiting {wait * 1000:.1f} ms before retrying {label}.'
-            )
-            if stop_event is not None:
-                if stop_event.wait(wait):
-                    return None
-            else:
-                time.sleep(wait)
-            if attempt >= retry.backoff_after:
-                delay *= retry.backoff
+            schedule.failed()
+            if (wait := schedule.seconds_until_attempt()) is not None:
+                LOGGER.debug(
+                    f'[retry] Waiting {wait * 1000:.1f} ms before retrying {label}.'
+                )
             continue
 
         elapsed = (time.monotonic() - started_at) * 1000
@@ -73,4 +86,3 @@ def retry_call[Result](
         else:
             LOGGER.debug(f'[ok] {label} completed in {elapsed:.1f} ms.')
         return result
-    return None

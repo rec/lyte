@@ -24,9 +24,7 @@ The largest source and test files are long, but size alone did not justify
 moving public effect names or splitting cohesive interactive tools before the
 show. New reliability tests went into a separate module instead of enlarging
 `tests/test_installation.py`. The animation and CLI-help tests cover distinct
-behavior; no redundant group was found to delete. lyte's retry helper executes
-and logs operations, while reccy's retry schedule only decides timing; merging
-them now would change retry semantics without fixing an observed failure.
+behavior; no redundant group was found to delete.
 
 ## Additional work beyond the prompt
 
