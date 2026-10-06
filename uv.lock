@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-09-23T14:15:38.445145Z"
+exclude-newer = "2026-09-29T18:08:40.219328Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -565,7 +565,7 @@ wheels = [
 [[package]]
 name = "ufor"
 version = "0.1.0"
-source = { git = "https://github.com/rec/ufor.git?branch=main#629e6fcb62103f5e0f0fec82f988661cc9f40cba" }
+source = { git = "https://github.com/rec/ufor.git?branch=main#4791129dd031ecdd1d7bd3eae92dfd0fe17b7cf9" }
 dependencies = [
     { name = "pydantic" },
     { name = "tomlkit" },
