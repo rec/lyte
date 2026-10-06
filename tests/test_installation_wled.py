@@ -1,5 +1,6 @@
 from base64 import b64decode
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -128,17 +129,18 @@ def test_mixed_outputs_continue_after_wled_failure_and_share_controls(
         clock.now += seconds
         if clock.now == 0.5:
             service.rpc_response(
-                rpc.Request(command='master_level', params={'level': 0.5})
+                rpc.Request(command='master_level', params={'level': 0.5}), Event()
             )
             service.rpc_response(
                 rpc.Request(
                     command='select_animation',
                     params={'name': 'across', 'duration': 0.5},
-                )
+                ),
+                Event(),
             )
         if clock.now == 1:
             recovered.append(right.status.model_copy())
-            service.rpc_response(rpc.Request(command='blackout'))
+            service.rpc_response(rpc.Request(command='blackout'), Event())
 
     monkeypatch.setattr(installation.time, 'monotonic', lambda: clock.now)
     monkeypatch.setattr(installation.time, 'sleep', advance)

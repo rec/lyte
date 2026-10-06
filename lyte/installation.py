@@ -369,8 +369,12 @@ class InstallationService(Reccy):
             self.config.timeout,
         )
 
-    def rpc_response(self, request: rpc.Request) -> rpc.Result:
+    def rpc_response(
+        self, request: rpc.Request, cancelled: threading.Event
+    ) -> rpc.Result:
         with self._lock:
+            if cancelled.is_set():
+                return ipc.Error(type='error', message='request was cancelled')
             if request.command == 'status':
                 return self.status_snapshot().model_dump(mode='json')
             if request.command == 'stop':
@@ -724,21 +728,18 @@ def run_installation_command(
         )
     runtime = InstallationService.model_construct()
     if isinstance(config, Install):
-        result = runtime.install_service(
-            ['installation', 'run', str(config.config.resolve())]
-        )
-    elif isinstance(config, Status):
-        result = runtime.service_status()
+        runtime.install_service(['installation', 'run', str(config.config.resolve())])
     elif isinstance(config, Uninstall):
-        result = runtime.uninstall_service()
+        runtime.uninstall_service()
     elif isinstance(config, Start):
-        result = runtime.start_service()
+        runtime.start_service()
     elif isinstance(config, Stop):
-        result = runtime.stop_service()
-    else:
-        result = runtime.restart_service()
+        runtime.stop_service()
+    elif isinstance(config, Restart):
+        runtime.restart_service()
+    result = runtime.service_status()
     controller.print_service_status(service.LYTE_SERVICE.name, result)
-    return 0 if result.running is not False else 1
+    return 1 if isinstance(config, Status) and result.running is False else 0
 
 
 def _describe_device(device: diagnostic.TwinklyDeviceInfo) -> str:

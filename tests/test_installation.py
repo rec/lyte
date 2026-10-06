@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -638,7 +639,7 @@ def test_status_write_failure_does_not_break_operator_commands(
         raise ReccyError('disk full')
 
     monkeypatch.setattr(Reccy, 'publish_status', failed_status)
-    assert service.rpc_response(rpc.Request(command='blackout')) == 'ok'
+    assert service.rpc_response(rpc.Request(command='blackout'), Event()) == 'ok'
     assert service.status_snapshot().status_error == 'disk full'
     assert service.status_snapshot().blackout
 
@@ -652,24 +653,35 @@ def test_service_queues_animation_selection(tmp_path: Path) -> None:
     )
 
     response = service.rpc_response(
-        rpc.Request(command='select_animation', params={'name': 'separate'})
+        rpc.Request(command='select_animation', params={'name': 'separate'}), Event()
     )
 
     assert response == {'state': 'queued', 'name': 'separate'}
-    status = service.rpc_response(rpc.Request(command='status'))
+    status = service.rpc_response(rpc.Request(command='status'), Event())
     assert isinstance(status, dict)
     assert status['queued_animation'] == 'separate'
     assert status['animations'] == ['across', 'separate']
     assert not isinstance(response, ipc.Error)
 
     test = service.rpc_response(
-        rpc.Request(command='test', params={'level': 30, 'duration': 1})
+        rpc.Request(command='test', params={'level': 30, 'duration': 1}), Event()
     )
-    stop = service.rpc_response(rpc.Request(command='stop'))
+    stop = service.rpc_response(rpc.Request(command='stop'), Event())
 
     assert test == {'state': 'queued', 'level': 30.0, 'duration': 1.0}
     assert stop == 'ok'
     assert service._stop_requested.is_set()
+
+
+def test_cancelled_control_request_does_not_change_playback(tmp_path: Path) -> None:
+    service = installation.InstallationService.model_construct(home=tmp_path)
+    cancelled = Event()
+    cancelled.set()
+
+    response = service.rpc_response(rpc.Request(command='stop'), cancelled)
+
+    assert isinstance(response, ipc.Error)
+    assert not service._stop_requested.is_set()
 
 
 def test_installation_service_uses_shared_lyte_identity(tmp_path: Path) -> None:
@@ -731,7 +743,7 @@ def test_service_maps_midi_into_the_active_animation(tmp_path: Path) -> None:
 
 
 def test_installation_command_installs_reccy_service(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     class Service:
         argv: list[str] | None = None
@@ -740,8 +752,10 @@ def test_installation_command_installs_reccy_service(
         def model_construct(cls) -> Service:
             return cls()
 
-        def install_service(self, argv: list[str]) -> StatusResult:
+        def install_service(self, argv: list[str]) -> None:
             self.argv = argv
+
+        def service_status(self) -> StatusResult:
             return StatusResult(installed=True, running=True)
 
     service = Service()
@@ -750,20 +764,55 @@ def test_installation_command_installs_reccy_service(
         'model_construct',
         lambda: service,
     )
-    monkeypatch.setattr(
-        installation.controller, 'print_service_status', lambda name, result: None
-    )
-
     result = installation.run_installation_command(
         installation.Install(config=tmp_path / 'installation.toml')
     )
 
     assert result == 0
+    assert capsys.readouterr().out == 'lyte: active\n'
     assert service.argv == [
         'installation',
         'run',
         str((tmp_path / 'installation.toml').resolve()),
     ]
+
+
+@pytest.mark.parametrize(
+    ('command', 'running', 'exit_code'),
+    [
+        (installation.Start(), True, 0),
+        (installation.Restart(), True, 0),
+        (installation.Stop(), False, 0),
+        (installation.Uninstall(), False, 0),
+        (installation.Status(), True, 0),
+        (installation.Status(), False, 1),
+    ],
+)
+def test_installation_service_commands_report_explicit_status(
+    command: installation.Start
+    | installation.Restart
+    | installation.Stop
+    | installation.Uninstall
+    | installation.Status,
+    running: bool,
+    exit_code: int,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    runtime = Mock(spec=installation.InstallationService)
+    runtime.start_service.return_value = None
+    runtime.restart_service.return_value = None
+    runtime.stop_service.return_value = None
+    runtime.uninstall_service.return_value = None
+    runtime.service_status.return_value = StatusResult(
+        installed=not isinstance(command, installation.Uninstall), running=running
+    )
+    monkeypatch.setattr(
+        installation.InstallationService, 'model_construct', lambda: runtime
+    )
+
+    assert installation.run_installation_command(command) == exit_code
+    assert capsys.readouterr().out == f'lyte: {"active" if running else "inactive"}\n'
 
 
 def discovered(host: str, **values: object) -> installation.DiscoveredTwinkly:
@@ -831,7 +880,7 @@ def playback_service(
         installation.InstallationService, 'publish_status', lambda self: None
     )
     service.rpc_response(
-        rpc.Request(command='select_animation', params={'name': 'across'})
+        rpc.Request(command='select_animation', params={'name': 'across'}), Event()
     )
     service.render(0)
     return service
@@ -848,7 +897,7 @@ def test_light_test_resumes_the_selected_animation(
         service.playback.led_counts,
     )
     expected.render(0)
-    service.rpc_response(rpc.Request(command='test', params={'duration': 2}))
+    service.rpc_response(rpc.Request(command='test', params={'duration': 2}), Event())
     service.render(1)
     assert service.render(2)[0][1][0, 0] == 128
     assert service.status_snapshot().active_test is not None
@@ -863,27 +912,29 @@ def test_blackout_cancels_tests_and_waits_for_selection(
     playback_service: installation.InstallationService,
 ) -> None:
     service = playback_service
-    service.rpc_response(rpc.Request(command='test'))
+    service.rpc_response(rpc.Request(command='test'), Event())
     service.render(1)
     service.rpc_response(
-        rpc.Request(command='select_animation', params={'name': 'separate'})
+        rpc.Request(command='select_animation', params={'name': 'separate'}), Event()
     )
-    service.rpc_response(rpc.Request(command='blackout'))
+    service.rpc_response(rpc.Request(command='blackout'), Event())
     status = service.status_snapshot()
     assert status.blackout
     assert status.active_test is None
     assert status.queued_animation is None
     assert not any(f.any() for _, f in service.render(2))
-    assert isinstance(service.rpc_response(rpc.Request(command='test')), ipc.Error)
+    assert isinstance(
+        service.rpc_response(rpc.Request(command='test'), Event()), ipc.Error
+    )
     assert not any(f.any() for _, f in service.render(10))
     assert not service._stop_requested.is_set()
     service.rpc_response(
-        rpc.Request(command='select_animation', params={'name': 'separate'})
+        rpc.Request(command='select_animation', params={'name': 'separate'}), Event()
     )
     service.render(11)
     assert not service.status_snapshot().blackout
     assert service.status_snapshot().active_animation == 'separate'
-    service.rpc_response(rpc.Request(command='stop'))
+    service.rpc_response(rpc.Request(command='stop'), Event())
     assert service._stop_requested.is_set()
 
 
