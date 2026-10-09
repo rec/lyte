@@ -7,6 +7,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from functools import cached_property
 from itertools import islice
 from pathlib import Path
@@ -41,6 +42,7 @@ from .installation_dmx import ArtNetOutput, ArtNetStatus
 from .metrics import DeliveryTiming, RenderCost
 from .midi import MidiInput, input_messages, open_input
 from .retry import RetryConfig
+from .schedule import ScheduleStatus, SunsetScheduler
 from .twinkly import diagnostic, discovery, realtime, session, track
 from .twinkly.client import TwinklyClient
 from .wled_output import WledDdpOutput
@@ -116,6 +118,7 @@ class StringStatus(BaseModel):
 
 
 class InstallationStatus(ReccyStatus):
+    schedule: ScheduleStatus | None = None
     artnet: ArtNetStatus | None = None
     fixtures: dict[str, dict[str, float | str]] = Field(default_factory=dict)
     recording: bool = False
@@ -343,6 +346,7 @@ class InstallationService(Reccy):
     _delivery: DeliveryTiming | None = PrivateAttr(default=None)
     _render_error: str | None = PrivateAttr(default=None)
     _status_error: str | None = PrivateAttr(default=None)
+    _schedule_status: ScheduleStatus | None = PrivateAttr(default=None)
 
     def publish_status(self) -> None:
         try:
@@ -359,6 +363,10 @@ class InstallationService(Reccy):
         return installation_playback.InstallationPlayback(
             self.config, self.library, {n: o.led_count for n, o in self.outputs.items()}
         )
+
+    @cached_property
+    def scheduler(self) -> SunsetScheduler | None:
+        return SunsetScheduler(self.config.schedule) if self.config.schedule else None
 
     @cached_property
     def artnet_output(self) -> ArtNetOutput | None:
@@ -395,6 +403,7 @@ class InstallationService(Reccy):
                 else self.config.animations[self.playback.active.name].outputs.copy()
             )
             return InstallationStatus(
+                schedule=self._schedule_status,
                 artnet=self.artnet_output.status if self.artnet_output else None,
                 fixtures=self.playback.fixtures.values,
                 recording=self.playback.recorder is not None
@@ -578,6 +587,19 @@ class InstallationService(Reccy):
 
     def render(self, now: float) -> list[tuple[str, NDArray[np.uint8]]]:
         with self._lock:
+            schedule_changed = False
+            if self.scheduler is not None:
+                scheduled = self.scheduler.evaluate(datetime.now(UTC))
+                previous = self._schedule_status
+                schedule_changed = previous is None or (
+                    scheduled.phase != previous.phase
+                    or scheduled.starts_at != previous.starts_at
+                    or scheduled.error != previous.error
+                )
+                self._schedule_status = scheduled
+                self.playback.schedule_level = scheduled.level
+                if schedule_changed and scheduled.error:
+                    LOGGER.error(f'Daily schedule: {scheduled.error}')
             self.playback.led_counts.update(
                 {n: o.led_count for n, o in self.outputs.items()}
             )
@@ -586,9 +608,13 @@ class InstallationService(Reccy):
                 self.playback.recorder.error if self.playback.recorder else None
             )
             frames = self.playback.render(now)
-            if self.playback.revision != revision or (
-                self.playback.recorder is not None
-                and self.playback.recorder.error != recording_error
+            if (
+                schedule_changed
+                or self.playback.revision != revision
+                or (
+                    self.playback.recorder is not None
+                    and self.playback.recorder.error != recording_error
+                )
             ):
                 self.publish_status()
             return frames

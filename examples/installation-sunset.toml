@@ -1,0 +1,29 @@
+# Rouen, France. A single Twinkly on the local network.
+library_config = "library.toml"
+fps = "30fps"
+initial_animation = "random_walk"
+
+[schedule]
+latitude = 49.4432
+longitude = 1.0993
+timezone = "Europe/Paris"
+sunset_offset = "30min"
+fade_in = "1h"
+minimum_hold = "2h"
+fade_out_not_before = "23:00"
+fade_out = "30min"
+maximum_level = 1.0
+
+[twinkly]
+# If more than one Twinkly is present, use its observed device_name here.
+garden = {}
+
+[animations.random_walk]
+selector = "examples:/random-walk.toml"
+outputs = { light = "garden" }
+
+[animations.random_walk.parameters]
+# Pixels per second and RGB channel variation per new pixel.
+speed = 60
+variance = 80
+seed = 17

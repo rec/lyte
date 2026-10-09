@@ -37,6 +37,7 @@ class InstallationPlayback:
         self.selection_error: str | None = None
         self.queued_duration = 0.0
         self.master_level = 1.0
+        self.schedule_level = 1.0
         self.transition_duration = 0.0
         self.transition_started = 0.0
         self.outgoing: ActiveAnimation | None = None
@@ -191,7 +192,7 @@ class InstallationPlayback:
 
     def render(self, now: float) -> list[tuple[str, NDArray[np.uint8]]]:
         if self.recorder is not None:
-            self.recorder.delivery(now, self.led_counts)
+            self.recorder.delivery(now, self.led_counts, self.schedule_level)
         if self.queued_name is not None:
             name = self.queued_name
             self.queued_name = None
@@ -270,10 +271,11 @@ class InstallationPlayback:
         self, frames: list[tuple[str, NDArray[np.uint8]]]
     ) -> list[tuple[str, NDArray[np.uint8]]]:
         self.last_frames = dict(frames)
-        if self.master_level == 1:
+        level = self.master_level * self.schedule_level
+        if level == 1:
             return frames
         return [
-            (n, np.rint(f.astype(np.float64) * self.master_level).astype(np.uint8))
+            (n, np.rint(f.astype(np.float64) * level).astype(np.uint8))
             for n, f in frames
         ]
 
@@ -311,7 +313,12 @@ class ActiveAnimation:
                 installation_config.parse_output_expression(
                     expression, self.led_counts
                 ),
-                prepare_output(self.library, self.definition.selector, output_name),
+                prepare_output(
+                    self.library,
+                    self.definition.selector,
+                    output_name,
+                    self.definition.parameters,
+                ),
             )
             for output_name, expression in self.definition.outputs.items()
         ]
@@ -390,13 +397,19 @@ def distribute_frame(
 
 
 def prepare_output(
-    library: Library, selector: str | None, output_name: str
+    library: Library,
+    selector: str | None,
+    output_name: str,
+    parameters: dict[str, float],
 ) -> rendering.PreparedAnimation:
     if selector is None:
         raise ValueError('pixel output requires a score selector')
     try:
         prepared = show.prepare_library_animation(
-            library, show.LightProgramSpec(selector=selector, output=output_name)
+            library,
+            show.LightProgramSpec(
+                selector=selector, output=output_name, parameters=parameters
+            ),
         )
     except ValueError as error:
         raise installation_config.InstallationFileError(
@@ -430,7 +443,9 @@ def load_library(config: installation_config.InstallationFile) -> Library:
     show.log_diagnostics(library)
     for definition in config.animations.values():
         for output_name in definition.outputs:
-            prepared = prepare_output(library, definition.selector, output_name)
+            prepared = prepare_output(
+                library, definition.selector, output_name, definition.parameters
+            )
             for control in definition.controls:
                 if control.fixture is not None:
                     continue

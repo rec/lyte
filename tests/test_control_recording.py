@@ -47,6 +47,7 @@ def test_recording_replays_midi_operator_commands_and_delivery_times_exactly(
     )
     expected = []
     for index in range(12):
+        live.playback.schedule_level = index / 11
         if index in [0, 5]:
             live.request(
                 rehearsal.RehearsalRequest(

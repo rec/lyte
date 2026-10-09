@@ -1,0 +1,317 @@
+# Reusable RandomWalk score. Installation parameters override the exports below.
+format = "recs"
+version = 4
+name = "random_walk"
+title = "RandomWalk"
+kind = "animation"
+parameters = [
+  { name = "speed", binding = { name = "animation", parameter = "speed" } },
+  { name = "variance", binding = { name = "animation", parameter = "variance" } },
+  { name = "seed", binding = { name = "animation", parameter = "seed" } }
+]
+
+[[timebases]]
+name = "frames"
+kind = "physical"
+rate = { numerator = 30, denominator = 1 }
+
+[[outputs]]
+name = "light"
+binding = { light = true }
+
+[outputs.stream]
+family = "sampled"
+quantity = "light"
+timebase = "frames"
+components = ["red", "green", "blue"]
+interpretation = "drive"
+
+[outputs.stream.layout]
+name = "string"
+axes = ["x"]
+unit = "unitless"
+lights = [
+  { name = "light_0", position = [0.0] },
+  { name = "light_1", position = [1.0] },
+  { name = "light_2", position = [2.0] },
+  { name = "light_3", position = [3.0] },
+  { name = "light_4", position = [4.0] },
+  { name = "light_5", position = [5.0] },
+  { name = "light_6", position = [6.0] },
+  { name = "light_7", position = [7.0] },
+  { name = "light_8", position = [8.0] },
+  { name = "light_9", position = [9.0] },
+  { name = "light_10", position = [10.0] },
+  { name = "light_11", position = [11.0] },
+  { name = "light_12", position = [12.0] },
+  { name = "light_13", position = [13.0] },
+  { name = "light_14", position = [14.0] },
+  { name = "light_15", position = [15.0] },
+  { name = "light_16", position = [16.0] },
+  { name = "light_17", position = [17.0] },
+  { name = "light_18", position = [18.0] },
+  { name = "light_19", position = [19.0] },
+  { name = "light_20", position = [20.0] },
+  { name = "light_21", position = [21.0] },
+  { name = "light_22", position = [22.0] },
+  { name = "light_23", position = [23.0] },
+  { name = "light_24", position = [24.0] },
+  { name = "light_25", position = [25.0] },
+  { name = "light_26", position = [26.0] },
+  { name = "light_27", position = [27.0] },
+  { name = "light_28", position = [28.0] },
+  { name = "light_29", position = [29.0] },
+  { name = "light_30", position = [30.0] },
+  { name = "light_31", position = [31.0] },
+  { name = "light_32", position = [32.0] },
+  { name = "light_33", position = [33.0] },
+  { name = "light_34", position = [34.0] },
+  { name = "light_35", position = [35.0] },
+  { name = "light_36", position = [36.0] },
+  { name = "light_37", position = [37.0] },
+  { name = "light_38", position = [38.0] },
+  { name = "light_39", position = [39.0] },
+  { name = "light_40", position = [40.0] },
+  { name = "light_41", position = [41.0] },
+  { name = "light_42", position = [42.0] },
+  { name = "light_43", position = [43.0] },
+  { name = "light_44", position = [44.0] },
+  { name = "light_45", position = [45.0] },
+  { name = "light_46", position = [46.0] },
+  { name = "light_47", position = [47.0] },
+  { name = "light_48", position = [48.0] },
+  { name = "light_49", position = [49.0] },
+  { name = "light_50", position = [50.0] },
+  { name = "light_51", position = [51.0] },
+  { name = "light_52", position = [52.0] },
+  { name = "light_53", position = [53.0] },
+  { name = "light_54", position = [54.0] },
+  { name = "light_55", position = [55.0] },
+  { name = "light_56", position = [56.0] },
+  { name = "light_57", position = [57.0] },
+  { name = "light_58", position = [58.0] },
+  { name = "light_59", position = [59.0] },
+  { name = "light_60", position = [60.0] },
+  { name = "light_61", position = [61.0] },
+  { name = "light_62", position = [62.0] },
+  { name = "light_63", position = [63.0] },
+  { name = "light_64", position = [64.0] },
+  { name = "light_65", position = [65.0] },
+  { name = "light_66", position = [66.0] },
+  { name = "light_67", position = [67.0] },
+  { name = "light_68", position = [68.0] },
+  { name = "light_69", position = [69.0] },
+  { name = "light_70", position = [70.0] },
+  { name = "light_71", position = [71.0] },
+  { name = "light_72", position = [72.0] },
+  { name = "light_73", position = [73.0] },
+  { name = "light_74", position = [74.0] },
+  { name = "light_75", position = [75.0] },
+  { name = "light_76", position = [76.0] },
+  { name = "light_77", position = [77.0] },
+  { name = "light_78", position = [78.0] },
+  { name = "light_79", position = [79.0] },
+  { name = "light_80", position = [80.0] },
+  { name = "light_81", position = [81.0] },
+  { name = "light_82", position = [82.0] },
+  { name = "light_83", position = [83.0] },
+  { name = "light_84", position = [84.0] },
+  { name = "light_85", position = [85.0] },
+  { name = "light_86", position = [86.0] },
+  { name = "light_87", position = [87.0] },
+  { name = "light_88", position = [88.0] },
+  { name = "light_89", position = [89.0] },
+  { name = "light_90", position = [90.0] },
+  { name = "light_91", position = [91.0] },
+  { name = "light_92", position = [92.0] },
+  { name = "light_93", position = [93.0] },
+  { name = "light_94", position = [94.0] },
+  { name = "light_95", position = [95.0] },
+  { name = "light_96", position = [96.0] },
+  { name = "light_97", position = [97.0] },
+  { name = "light_98", position = [98.0] },
+  { name = "light_99", position = [99.0] },
+  { name = "light_100", position = [100.0] },
+  { name = "light_101", position = [101.0] },
+  { name = "light_102", position = [102.0] },
+  { name = "light_103", position = [103.0] },
+  { name = "light_104", position = [104.0] },
+  { name = "light_105", position = [105.0] },
+  { name = "light_106", position = [106.0] },
+  { name = "light_107", position = [107.0] },
+  { name = "light_108", position = [108.0] },
+  { name = "light_109", position = [109.0] },
+  { name = "light_110", position = [110.0] },
+  { name = "light_111", position = [111.0] },
+  { name = "light_112", position = [112.0] },
+  { name = "light_113", position = [113.0] },
+  { name = "light_114", position = [114.0] },
+  { name = "light_115", position = [115.0] },
+  { name = "light_116", position = [116.0] },
+  { name = "light_117", position = [117.0] },
+  { name = "light_118", position = [118.0] },
+  { name = "light_119", position = [119.0] },
+  { name = "light_120", position = [120.0] },
+  { name = "light_121", position = [121.0] },
+  { name = "light_122", position = [122.0] },
+  { name = "light_123", position = [123.0] },
+  { name = "light_124", position = [124.0] },
+  { name = "light_125", position = [125.0] },
+  { name = "light_126", position = [126.0] },
+  { name = "light_127", position = [127.0] },
+  { name = "light_128", position = [128.0] },
+  { name = "light_129", position = [129.0] },
+  { name = "light_130", position = [130.0] },
+  { name = "light_131", position = [131.0] },
+  { name = "light_132", position = [132.0] },
+  { name = "light_133", position = [133.0] },
+  { name = "light_134", position = [134.0] },
+  { name = "light_135", position = [135.0] },
+  { name = "light_136", position = [136.0] },
+  { name = "light_137", position = [137.0] },
+  { name = "light_138", position = [138.0] },
+  { name = "light_139", position = [139.0] },
+  { name = "light_140", position = [140.0] },
+  { name = "light_141", position = [141.0] },
+  { name = "light_142", position = [142.0] },
+  { name = "light_143", position = [143.0] },
+  { name = "light_144", position = [144.0] },
+  { name = "light_145", position = [145.0] },
+  { name = "light_146", position = [146.0] },
+  { name = "light_147", position = [147.0] },
+  { name = "light_148", position = [148.0] },
+  { name = "light_149", position = [149.0] },
+  { name = "light_150", position = [150.0] },
+  { name = "light_151", position = [151.0] },
+  { name = "light_152", position = [152.0] },
+  { name = "light_153", position = [153.0] },
+  { name = "light_154", position = [154.0] },
+  { name = "light_155", position = [155.0] },
+  { name = "light_156", position = [156.0] },
+  { name = "light_157", position = [157.0] },
+  { name = "light_158", position = [158.0] },
+  { name = "light_159", position = [159.0] },
+  { name = "light_160", position = [160.0] },
+  { name = "light_161", position = [161.0] },
+  { name = "light_162", position = [162.0] },
+  { name = "light_163", position = [163.0] },
+  { name = "light_164", position = [164.0] },
+  { name = "light_165", position = [165.0] },
+  { name = "light_166", position = [166.0] },
+  { name = "light_167", position = [167.0] },
+  { name = "light_168", position = [168.0] },
+  { name = "light_169", position = [169.0] },
+  { name = "light_170", position = [170.0] },
+  { name = "light_171", position = [171.0] },
+  { name = "light_172", position = [172.0] },
+  { name = "light_173", position = [173.0] },
+  { name = "light_174", position = [174.0] },
+  { name = "light_175", position = [175.0] },
+  { name = "light_176", position = [176.0] },
+  { name = "light_177", position = [177.0] },
+  { name = "light_178", position = [178.0] },
+  { name = "light_179", position = [179.0] },
+  { name = "light_180", position = [180.0] },
+  { name = "light_181", position = [181.0] },
+  { name = "light_182", position = [182.0] },
+  { name = "light_183", position = [183.0] },
+  { name = "light_184", position = [184.0] },
+  { name = "light_185", position = [185.0] },
+  { name = "light_186", position = [186.0] },
+  { name = "light_187", position = [187.0] },
+  { name = "light_188", position = [188.0] },
+  { name = "light_189", position = [189.0] },
+  { name = "light_190", position = [190.0] },
+  { name = "light_191", position = [191.0] },
+  { name = "light_192", position = [192.0] },
+  { name = "light_193", position = [193.0] },
+  { name = "light_194", position = [194.0] },
+  { name = "light_195", position = [195.0] },
+  { name = "light_196", position = [196.0] },
+  { name = "light_197", position = [197.0] },
+  { name = "light_198", position = [198.0] },
+  { name = "light_199", position = [199.0] },
+  { name = "light_200", position = [200.0] },
+  { name = "light_201", position = [201.0] },
+  { name = "light_202", position = [202.0] },
+  { name = "light_203", position = [203.0] },
+  { name = "light_204", position = [204.0] },
+  { name = "light_205", position = [205.0] },
+  { name = "light_206", position = [206.0] },
+  { name = "light_207", position = [207.0] },
+  { name = "light_208", position = [208.0] },
+  { name = "light_209", position = [209.0] },
+  { name = "light_210", position = [210.0] },
+  { name = "light_211", position = [211.0] },
+  { name = "light_212", position = [212.0] },
+  { name = "light_213", position = [213.0] },
+  { name = "light_214", position = [214.0] },
+  { name = "light_215", position = [215.0] },
+  { name = "light_216", position = [216.0] },
+  { name = "light_217", position = [217.0] },
+  { name = "light_218", position = [218.0] },
+  { name = "light_219", position = [219.0] },
+  { name = "light_220", position = [220.0] },
+  { name = "light_221", position = [221.0] },
+  { name = "light_222", position = [222.0] },
+  { name = "light_223", position = [223.0] },
+  { name = "light_224", position = [224.0] },
+  { name = "light_225", position = [225.0] },
+  { name = "light_226", position = [226.0] },
+  { name = "light_227", position = [227.0] },
+  { name = "light_228", position = [228.0] },
+  { name = "light_229", position = [229.0] },
+  { name = "light_230", position = [230.0] },
+  { name = "light_231", position = [231.0] },
+  { name = "light_232", position = [232.0] },
+  { name = "light_233", position = [233.0] },
+  { name = "light_234", position = [234.0] },
+  { name = "light_235", position = [235.0] },
+  { name = "light_236", position = [236.0] },
+  { name = "light_237", position = [237.0] },
+  { name = "light_238", position = [238.0] },
+  { name = "light_239", position = [239.0] },
+  { name = "light_240", position = [240.0] },
+  { name = "light_241", position = [241.0] },
+  { name = "light_242", position = [242.0] },
+  { name = "light_243", position = [243.0] },
+  { name = "light_244", position = [244.0] },
+  { name = "light_245", position = [245.0] },
+  { name = "light_246", position = [246.0] },
+  { name = "light_247", position = [247.0] },
+  { name = "light_248", position = [248.0] },
+  { name = "light_249", position = [249.0] },
+]
+
+[body.operation]
+effect = "random_walk"
+speed = 60
+variance = 80
+bounds = [0, 255]
+period = 0
+pre_fill = true
+seed = 17
+
+[[body.modulation.parameters]]
+target = { name = "animation", parameter = "speed" }
+unit = "ratio"
+scope = "part"
+minimum = 0
+maximum = 250
+default = 60
+
+[[body.modulation.parameters]]
+target = { name = "animation", parameter = "variance" }
+unit = "ratio"
+scope = "part"
+minimum = 0
+maximum = 255
+default = 80
+
+[[body.modulation.parameters]]
+target = { name = "animation", parameter = "seed" }
+unit = "ratio"
+scope = "part"
+minimum = 0
+maximum = 4294967295
+default = 17

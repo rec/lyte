@@ -47,6 +47,7 @@ class ControlReplay:
             raise ValueError('recorded strings differ from this installation')
         preview_frame_count(1, 1, sum(delivery.string_counts.values()) * 3)
         playback.led_counts.update(delivery.string_counts)
+        playback.schedule_level = delivery.schedule_level
         for event in delivery.inputs:
             if isinstance(event, MidiEvent):
                 playback.receive_midi(mido.Message.from_bytes(event.data))

@@ -62,6 +62,11 @@ class RehearsalSession:
             n: t.led_count for n, t in installation.wled.items()
         }
         self.warnings: list[str] = []
+        if installation.schedule is not None and self.replay is None:
+            self.warnings.append(
+                'Daily scheduling runs in the daemon. Rehearsal previews the animation '
+                'without the sunset brightness envelope.'
+            )
         if self.replay is not None:
             if self.replay.next_delivery is None:
                 self.replay.stream.close()

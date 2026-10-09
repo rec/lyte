@@ -26,6 +26,7 @@ class Delivery(BaseModel, frozen=True):
     at: float = Field(allow_inf_nan=False)
     string_counts: dict[str, Annotated[int, Field(gt=0)]]
     inputs: list[MidiEvent | rpc.Request]
+    schedule_level: float = Field(default=1, ge=0, le=1)
 
 
 class ControlRecorder:
@@ -62,13 +63,18 @@ class ControlRecorder:
             return
         self.pending.append(rpc.Request(command=command, params=params))
 
-    def delivery(self, now: float, counts: dict[str, int]) -> None:
+    def delivery(
+        self, now: float, counts: dict[str, int], schedule_level: float
+    ) -> None:
         if self.error is not None:
             return
         try:
             self.write(
                 Delivery(
-                    at=now, string_counts=counts, inputs=self.pending
+                    at=now,
+                    string_counts=counts,
+                    inputs=self.pending,
+                    schedule_level=schedule_level,
                 ).model_dump_json()
             )
         except ValueError as error:

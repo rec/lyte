@@ -43,6 +43,62 @@ audio-driven scores before opening devices.
 
 ## Start Here
 
+For an unattended evening Twinkly installation, start with
+[`examples/installation-sunset.toml`](../examples/installation-sunset.toml).
+It uses Rouen, France, and the `Europe/Paris` time zone:
+
+- Begin at sunset plus 30 minutes, fading linearly from black for one hour.
+- Hold full brightness for at least two hours.
+- Start the 30-minute fade-out at **the later of 23:00 and the end of that hold**.
+  Summer evenings can therefore run past midnight.
+
+The `[schedule]` table sets coordinates, time zone, timing, and `maximum_level`
+(0–1). Durations accept reccy units such as `"30min"` and `"2h"`.
+`minimum_hold` sets the minimum time at full brightness.
+`fade_out_not_before` is a local clock time such as `"23:00"`.
+The time zone determines the date and clock cutoff, including daylight saving;
+fade durations measure actual elapsed seconds. Sunset is calculated locally
+using Astral, without a network service. A restart resumes at the brightness
+appropriate for the current time. Clock corrections are reflected immediately.
+The preceding evening remains active after midnight until its fade-out ends.
+If the location has no sunset that day, the schedule remains dark and reports
+the error in status; the daemon keeps running.
+
+The example uses RandomWalk at 60 pixels per second with a colour variation of
+80 per channel, a substantially stronger setting than the defaults of 10 and 1.
+Edit `speed`, `variance`, and `seed` under
+`[animations.random_walk.parameters]` in the installation file. Public score
+parameters are validated before device discovery and reapplied on selection.
+The reusable [`random-walk.toml`](../examples/scores/random-walk.toml) score
+contains its other settings: full RGB bounds `[0, 255]`, `pre_fill = true`, and
+`period = 0` (no periodic variance envelope). Its 250-point logical layout is
+rescaled to the discovered Twinkly LED count. `garden = {}` selects the sole
+Twinkly; with multiple devices, configure an unambiguous observed `device_name`.
+
+```sh
+lyte installation install examples/installation-sunset.toml
+lyte installation start
+lyte installation status
+```
+
+Scheduled brightness multiplies the operator master level, including during
+pixel tests and selection fades. Blackout still takes priority; selecting an
+animation resumes within the current schedule. The daemon sends black outside
+the scheduled window and keeps its realtime connection. Daily scheduling is
+for pixel-only installations; configurations with DMX fixtures are rejected.
+The operator panel shows the schedule's phase and brightness. RPC status includes
+`schedule`: the current phase, envelope level, evening
+boundaries as UTC timestamps, and any solar calculation error. Existing
+installations without `[schedule]` keep their current behaviour.
+
+Rehearsal previews the animation without the live calendar envelope and shows
+a warning for scheduled installations. Live recordings retain each frame's
+scheduled brightness, so replay uses the captured envelope rather than today's
+sunset. The sunset offset and all fade/hold durations must total at most 24h.
+For a cutoff in a repeated daylight-saving hour, the first occurrence is used;
+a cutoff in a skipped hour moves forward by the clock change.
+If unusually long configured evenings overlap, the new evening takes priority.
+
 CLI durations, pauses, timeouts, and retry delays accept bare numbers in seconds
 or explicit units, such as `--duration 500ms`, `--timeout 2min`, or
 `--duration 1:30` (one minute and thirty seconds). Frame-rate arguments accept

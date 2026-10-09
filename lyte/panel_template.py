@@ -13,6 +13,7 @@ PANEL_TEMPLATE = r"""<!doctype html>
 <label>Fade (s) <input id="fade" type="number" min="0" step="0.1" value="0"></label>
 <label>Pixel master (%) <input id="master" type="number" min="0" max="100" value="100"></label><button id="set-master">Set pixel master</button>
 <output id="fade-status"></output>
+<output id="schedule-status"></output>
 <output id="recording-status"></output>
 <button id="blackout">Blackout</button><button id="stop">Stop installation</button>
 <label>Pixel test level (%) <input id="level" type="number" min="0" max="100" value="50"></label>
@@ -30,6 +31,7 @@ function displayStatus(data){
   element('controls').disabled=!connected||busy;
   element('recording-status').textContent=[data.recording?'Recording to '+data.recording_path:'Recording off',data.recording_error?'Recording failed; lighting continues: '+data.recording_error:'',data.render_error?'Render error; retrying: '+data.render_error:'',data.status_error?'Status publication error: '+data.status_error:''].filter(Boolean).join('\n');
   element('fade-status').textContent=`Pixel master ${Math.round(data.master_level*100)}% · pixel fade ${data.transition_duration||0}s${data.transition_from_snapshot?' from displayed snapshot':data.outgoing_animation?' from '+data.outgoing_animation:''}`;
+  element('schedule-status').textContent=data.schedule ? `Daily schedule: ${data.schedule.phase.replaceAll('_',' ')}, brightness ${(data.schedule.level*100).toFixed(1)}%${data.schedule.error?' ('+data.schedule.error+')':''}. The schedule also applies to pixel tests.` : '';
   const selected=element('animation').value;
   element('animation').replaceChildren(...data.animations.map(name=>new Option(name,name)));
   element('animation').value=data.animations.includes(selected)?selected:data.active_animation||data.animations[0]||'';

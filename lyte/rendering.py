@@ -167,10 +167,13 @@ class PreparedAnimation:
             if not isinstance(score, light_animation.AnimationScore):
                 raise RendererCapabilityError(f'{path}: score is not an animation')
             custom = self._python_score(part.score, score)
+            operation = light_animation.operation_at(
+                score.body, Fraction(0), self._local_parameters(score, part.parameters)
+            )
             if custom is not None:
                 renderer: animation.Animation | PythonAnimationScore = custom
-            elif isinstance(score.body.operation, effects.Effect):
-                renderer = build_effect(cast(effects.EffectValue, score.body.operation))
+            elif isinstance(operation, effects.Effect):
+                renderer = build_effect(cast(effects.EffectValue, operation))
             else:
                 continue
             output = score.outputs[0].stream

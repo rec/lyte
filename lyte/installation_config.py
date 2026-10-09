@@ -21,6 +21,7 @@ from reccy.configuration import units
 from . import runtime_control
 from .artnet import ArtNetEndpoint
 from .midi import MidiIn
+from .schedule import DailySchedule
 from .twinkly import diagnostic
 
 _STRING_NAME = re.compile(r'[A-Za-z][A-Za-z0-9_-]*\Z')
@@ -107,6 +108,7 @@ class AnimationDefaults(InstallationDefinition, frozen=True):
 
 class BoundAnimation(InstallationDefinition, frozen=True):
     selector: str | None = Field(default=None, min_length=1)
+    parameters: dict[str, float] = Field(default_factory=dict)
     outputs: dict[str, str] = Field(default_factory=dict)
     fixtures: dict[str, dict[str, float | str]] = Field(default_factory=dict)
     activation: Literal['always', 'note'] = 'always'
@@ -114,6 +116,8 @@ class BoundAnimation(InstallationDefinition, frozen=True):
 
     @model_validator(mode='after')
     def distinct_controls(self) -> BoundAnimation:
+        if self.parameters and self.selector is None:
+            raise ValueError('animation parameters require a score selector')
         if bool(self.outputs) != (self.selector is not None):
             raise ValueError(
                 'pixel outputs and a score selector must be supplied together'
@@ -127,6 +131,7 @@ class BoundAnimation(InstallationDefinition, frozen=True):
 
 
 class InstallationFile(InstallationDefinition, frozen=True):
+    schedule: DailySchedule | None = None
     library_config: Path | None = None
     twinkly: dict[str, TwinklySelector] = Field(default_factory=dict)
     wled: dict[str, WledTarget] = Field(default_factory=dict)
@@ -234,6 +239,7 @@ def load_installation(path: Path) -> InstallationFile:
 
 def parse_installation(data: dict[str, object]) -> InstallationFile:
     allowed = {
+        'schedule',
         'library_config',
         'twinkly',
         'wled',
@@ -260,6 +266,8 @@ def parse_installation(data: dict[str, object]) -> InstallationFile:
 
 
 def _validate_installation(config: InstallationFile) -> None:
+    if config.schedule is not None and config.dmx:
+        raise ValueError('daily scheduling supports pixel-only installations')
     strings = [*config.twinkly, *config.wled]
     if not strings and not config.dmx:
         raise ValueError('installation requires at least one pixel or DMX output')
