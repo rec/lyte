@@ -35,6 +35,7 @@ from . import (
     show,
 )
 from .authoring_template import AUTHOR_TEMPLATE
+from .cli_units import Seconds
 from .preview.document import (
     attach_preview_audio,
     encoded_frames,
@@ -49,7 +50,7 @@ class AuthorConfig(BaseModel, frozen=True):
     library_config: Path | None = None
     audio: Path | None = None
     light_output: str = 'light'
-    duration: float = Field(default=10, gt=0)
+    duration: Seconds = Field(default=10, gt=0)
     port: int = Field(default=8765, ge=1024, le=65535)
     open: bool = True
 

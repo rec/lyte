@@ -18,6 +18,7 @@ from . import rehearsal, rehearsal_http
 from . import show
 from .animate.config import AnimateConfig
 from .animate.playback import run_animate
+from .cli_units import Seconds
 from .preview.command import PreviewConfig, run_preview
 from .twinkly import diagnostic
 from .twinkly import inputs
@@ -32,10 +33,10 @@ from .twinkly import timer
 @dataclass(frozen=True)
 class DeviceCommandConfig:
     host: str | None = None
-    timeout: float = 5.0
-    discovery_timeout: float | None = None
+    timeout: Seconds = 5.0
+    discovery_timeout: Seconds | None = None
     attempts: int = 10
-    retry_delay: float = 0.5
+    retry_delay: Seconds = 0.5
     retry_backoff: float = 2.0
 
     def diagnostic_config(self) -> diagnostic.DiagnosticConfig:

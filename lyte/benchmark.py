@@ -7,6 +7,7 @@ import tyro
 from pydantic import BaseModel, Field
 
 from . import show
+from .cli_units import Seconds
 from .metrics import RenderCost
 
 
@@ -14,7 +15,7 @@ class BenchmarkConfig(BaseModel, frozen=True):
     selector: Annotated[str, tyro.conf.Positional]
     library_config: Path | None = None
     light_output: str = 'light'
-    duration: float = Field(default=10, gt=0, allow_inf_nan=False)
+    duration: Seconds = Field(default=10, gt=0, allow_inf_nan=False)
     parameters: dict[str, float] = Field(default_factory=dict)
 
 

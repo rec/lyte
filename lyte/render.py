@@ -21,6 +21,7 @@ from ufor.library import Library
 from ufor.light_animation import AnimationScore
 
 from . import animation, show
+from .cli_units import Seconds
 from .spatial import SpatialView, projected_points
 
 _COLORS = {
@@ -42,7 +43,7 @@ class RenderConfig(BaseModel, frozen=True):
     library_config: Path | None = None
     audio: Path | None = None
     light_output: str = 'light'
-    duration: float = Field(default=10.0, gt=0)
+    duration: Seconds = Field(default=10.0, gt=0)
     diameter: float = Field(default=20.0, gt=0)
     padding: float = Field(default=5.0, ge=0)
     shape: Literal['circle', 'rect'] = 'circle'

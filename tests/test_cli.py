@@ -5,7 +5,45 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from lyte import authoring, cli, installation, patches, wled
+
+
+@pytest.mark.parametrize(
+    'arguments,field,expected',
+    [
+        (['animate', 'rainbow', '--duration', '500ms'], 'duration', 0.5),
+        (
+            ['animate', 'rainbow', '--discovery-timeout', '2min'],
+            'discovery_timeout',
+            120,
+        ),
+        (['brightness', '--timeout', '250ms'], 'timeout', 0.25),
+        (['fps-test', '--pause', '1min'], 'pause', 60),
+        (['patch', 'list', '--fps', '25fps'], 'fps', 25),
+        (['installation', 'run', '--duration', '1:30'], 'duration', 90),
+    ],
+)
+def test_cli_normalizes_units_before_dispatch(
+    arguments: list[str], field: str, expected: float
+) -> None:
+    with patch.object(cli, 'run_command', return_value=0) as run:
+        assert cli.main(arguments) == 0
+
+    config = run.call_args.args[0]
+    if isinstance(config, installation.InstallationCommandConfig):
+        config = config.command
+    value = getattr(config, field)
+    assert isinstance(value, float)
+    assert value == expected
+
+
+def test_cli_rejects_incompatible_duration_units() -> None:
+    with patch.object(cli, 'run_command') as run:
+        with pytest.raises(SystemExit):
+            cli.main(['animate', 'rainbow', '--duration', '5m'])
+    run.assert_not_called()
 
 
 class CliTests(unittest.TestCase):

@@ -19,6 +19,7 @@ from .animations.events import color_chase, twinkle
 from .animations.fields import rainbow
 from .animations.patterns import color_fill
 from .animations.simulations.random_walk import RandomWalk
+from .cli_units import FramesPerSecond, Seconds
 from .retry import RetryConfig
 from .twinkly import realtime, track
 from .twinkly.client import TwinklyClient
@@ -283,15 +284,15 @@ class PatchCommandConfig:
     action: Annotated[Literal['list', 'locator', 'play'], tyro.conf.Positional] = 'list'
     patch_name: Annotated[str | None, tyro.conf.Positional] = None
     library: Path = Path('patches/wearable-breath.toml')
-    region_duration: float = 3.0
-    fps: float = 20.0
-    duration: float | None = None
+    region_duration: Seconds = 3.0
+    fps: FramesPerSecond = 20.0
+    duration: Seconds | None = None
     midi_input: midi.MidiIn = midi.MidiIn()
     host: str | None = None
-    timeout: float = 5.0
-    discovery_timeout: float | None = None
+    timeout: Seconds = 5.0
+    discovery_timeout: Seconds | None = None
     attempts: int = 10
-    retry_delay: float = 0.5
+    retry_delay: Seconds = 0.5
     retry_backoff: float = 2.0
 
 

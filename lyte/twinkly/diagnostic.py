@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 from reccy.runtime import logging
 
+from ..cli_units import Seconds
 from ..errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
 from ..retry import RetryConfig, retry_call
 from . import session
@@ -64,10 +65,10 @@ class TwinklyEndpointReport(BaseModel, frozen=True):
 @dataclass(frozen=True)
 class DiagnosticConfig:
     host: str | None = None
-    timeout: float = 5.0
-    discovery_timeout: float | None = None
+    timeout: Seconds = 5.0
+    discovery_timeout: Seconds | None = None
     attempts: int = 10
-    retry_delay: float = 0.5
+    retry_delay: Seconds = 0.5
     retry_backoff: float = 2.0
 
 
@@ -75,16 +76,16 @@ class DiagnosticConfig:
 class DiagnosticCommandConfig:
     realtime: bool = False
     host: str | None = None
-    timeout: float = 5.0
-    discovery_timeout: float | None = None
+    timeout: Seconds = 5.0
+    discovery_timeout: Seconds | None = None
     attempts: int = 10
-    retry_delay: float = 0.5
+    retry_delay: Seconds = 0.5
     retry_backoff: float = 2.0
     discovery_attempts: int = 20
-    discovery_retry_delay: float = 0.05
+    discovery_retry_delay: Seconds = 0.05
     discovery_backoff_after: int = 10
     led_count: int | None = None
-    pause: float = 0.7
+    pause: Seconds = 0.7
 
 
 def run_diagnostic_command(config: DiagnosticCommandConfig) -> int:

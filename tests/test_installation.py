@@ -39,6 +39,34 @@ def test_parse_installation_accepts_selectable_animations() -> None:
     assert config.initial_animation == 'across'
 
 
+def test_installation_normalizes_units_and_keeps_numeric_serialization() -> None:
+    config = installation_config.parse_installation(
+        example_installation()
+        | {
+            'fps': '25fps',
+            'timeout': '500ms',
+            'retry_delay': '100ms',
+            'discovery_timeout': '2s',
+            'startup_timeout': '1min',
+            'setup_timeout': '1:30',
+        }
+    )
+
+    assert config.fps == 25
+    assert config.timeout == 0.5
+    assert config.retry_delay == 0.1
+    assert config.discovery_timeout == 2
+    assert config.startup_timeout == 60
+    assert config.setup_timeout == 90
+    assert config.model_dump(mode='json')['timeout'] == 0.5
+
+
+@pytest.mark.parametrize('field,value', [('timeout', '5m'), ('fps', '30s')])
+def test_installation_rejects_incompatible_units(field: str, value: str) -> None:
+    with pytest.raises(ValidationError):
+        installation_config.parse_installation(example_installation() | {field: value})
+
+
 def test_controlled_animation_requires_midi_configuration() -> None:
     data = example_installation()
     animations = data['animations']

@@ -6,6 +6,8 @@ from typing import Annotated, Literal
 import tyro
 from pydantic import BaseModel, Field
 
+from ..cli_units import Seconds
+
 
 class PreviewConfig(BaseModel, frozen=True):
     selector: Annotated[str | None, tyro.conf.Positional] = None
@@ -21,4 +23,4 @@ class PreviewConfig(BaseModel, frozen=True):
     plane: Literal['xy', 'xz', 'yz'] = 'xy'
     zoom: float = Field(default=1, gt=0, allow_inf_nan=False)
     background: str = Field(default='#050506', pattern=r'^#[0-9a-fA-F]{6}$')
-    duration: float = 10.0
+    duration: Seconds = 10.0

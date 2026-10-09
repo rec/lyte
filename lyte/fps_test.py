@@ -18,6 +18,7 @@ from reccy.runtime import logging
 from . import diagnostic_frames
 from .animation import Device, validate_byte_rgb_frame
 from .animations.colors import RGB
+from .cli_units import Seconds
 from .retry import RetryConfig
 from .twinkly import realtime
 from .twinkly.client import TwinklyClient
@@ -65,35 +66,35 @@ class VerifyResult:
 @dataclass(frozen=True)
 class FpsTestConfig:
     host: str | None = None
-    timeout: float = 5.0
-    discovery_timeout: float | None = None
+    timeout: Seconds = 5.0
+    discovery_timeout: Seconds | None = None
     attempts: int = 10
-    retry_delay: float = 0.5
+    retry_delay: Seconds = 0.5
     retry_backoff: float = 2.0
     led_count: int | None = None
-    duration: float = 2.0
-    pause: float = 1
+    duration: Seconds = 2.0
+    pause: Seconds = 1
 
 
 @dataclass(frozen=True)
 class TemporalDitherTestConfig:
     host: str | None = None
-    timeout: float = 5.0
-    discovery_timeout: float | None = None
+    timeout: Seconds = 5.0
+    discovery_timeout: Seconds | None = None
     attempts: int = 10
-    retry_delay: float = 0.5
+    retry_delay: Seconds = 0.5
     retry_backoff: float = 2.0
     led_count: int | None = None
-    time: float = 5.0
+    time: Seconds = 5.0
 
 
 @dataclass(frozen=True)
 class BlackFloorTestConfig:
     host: str | None = None
-    timeout: float = 5.0
-    discovery_timeout: float | None = None
+    timeout: Seconds = 5.0
+    discovery_timeout: Seconds | None = None
     attempts: int = 10
-    retry_delay: float = 0.5
+    retry_delay: Seconds = 0.5
     retry_backoff: float = 2.0
     led_count: int | None = None
 
@@ -101,10 +102,10 @@ class BlackFloorTestConfig:
 @dataclass(frozen=True)
 class VerifyConfig:
     host: str | None = None
-    timeout: float = 5.0
-    discovery_timeout: float | None = None
+    timeout: Seconds = 5.0
+    discovery_timeout: Seconds | None = None
     attempts: int = 10
-    retry_delay: float = 0.5
+    retry_delay: Seconds = 0.5
     retry_backoff: float = 2.0
     led_count: int | None = None
     mode: Literal['fast', 'slow'] = 'fast'

@@ -43,6 +43,16 @@ audio-driven scores before opening devices.
 
 ## Start Here
 
+CLI durations, pauses, timeouts, and retry delays accept bare numbers in seconds
+or explicit units, such as `--duration 500ms`, `--timeout 2min`, or
+`--duration 1:30` (one minute and thirty seconds). Frame-rate arguments accept
+bare numbers in frames per second or values such as `--fps 25fps`.
+Installation TOML uses the same rules: `timeout = "500ms"`,
+`startup_timeout = "1min"`, and `fps = "30fps"`. Quote unit-bearing TOML values.
+reccy handles unit conversion; lyte uses normalized numeric seconds and frame
+rates internally. RPC durations and recorded timestamps remain numeric seconds.
+Portable uFor score timing retains uFor's own format.
+
 Use a uFor library configuration to name score roots. With no
 `--library-config`, uFor reads `~/.config/ufor/library.toml`; providing one
 replaces that default. Reading a library creates no files.

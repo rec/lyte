@@ -35,6 +35,7 @@ from . import (
     runtime_control,
     service,
 )
+from .cli_units import Seconds
 from .control_recording import ControlRecorder
 from .installation_dmx import ArtNetOutput, ArtNetStatus
 from .metrics import DeliveryTiming, RenderCost
@@ -50,7 +51,7 @@ MAX_MIDI_MESSAGES_PER_FRAME = 128
 
 class Run(BaseModel, frozen=True):
     config: Annotated[Path, tyro.conf.Positional] = Path('installation.toml')
-    duration: float | None = None
+    duration: Seconds | None = None
     record_input: Path | None = None
 
 

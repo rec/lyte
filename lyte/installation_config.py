@@ -16,6 +16,7 @@ from pydantic import (
     ValidationError,
     model_validator,
 )
+from reccy.configuration import units
 
 from . import runtime_control
 from .artnet import ArtNetEndpoint
@@ -134,14 +135,14 @@ class InstallationFile(InstallationDefinition, frozen=True):
     animation_defaults: AnimationDefaults = Field(default_factory=AnimationDefaults)
     animations: dict[str, BoundAnimation] = Field(min_length=1)
     initial_animation: str
-    fps: float = Field(default=30.0, gt=0)
-    timeout: float = Field(default=5.0, gt=0)
+    fps: units.FramesPerSecond = Field(default=30.0, gt=0)
+    timeout: units.Seconds = Field(default=5.0, gt=0)
     attempts: int = Field(default=10, gt=0)
-    retry_delay: float = Field(default=0.5, ge=0)
+    retry_delay: units.Seconds = Field(default=0.5, ge=0)
     retry_backoff: float = Field(default=2.0, ge=1)
-    discovery_timeout: float = Field(default=5.0, gt=0)
-    startup_timeout: float = Field(default=30.0, gt=0, allow_inf_nan=False)
-    setup_timeout: float = Field(default=30.0, gt=0, allow_inf_nan=False)
+    discovery_timeout: units.Seconds = Field(default=5.0, gt=0)
+    startup_timeout: units.Seconds = Field(default=30.0, gt=0, allow_inf_nan=False)
+    setup_timeout: units.Seconds = Field(default=30.0, gt=0, allow_inf_nan=False)
     midi: MidiIn | None = None
 
     @model_validator(mode='after')

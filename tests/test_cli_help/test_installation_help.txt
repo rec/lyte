@@ -38,7 +38,7 @@ usage: lyte installation restart [-h]
 
 
 $ lyte installation run --help
-usage: lyte installation run [-h] [PATH] [--duration {None}|FLOAT] [--record-input {None}|PATH]
+usage: lyte installation run [-h] [PATH] [--duration {None}|SECONDS] [--record-input {None}|PATH]
 
  positional arguments
  -------------------------------------------------
@@ -47,7 +47,7 @@ usage: lyte installation run [-h] [PATH] [--duration {None}|FLOAT] [--record-inp
  options
  -------------------------------------------------
   -h, --help  show this help message and exit
-  --duration {None}|FLOAT
+  --duration {None}|SECONDS
               (default: None)
   --record-input {None}|PATH
               (default: None)

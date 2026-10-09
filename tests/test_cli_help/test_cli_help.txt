@@ -58,15 +58,15 @@ usage: lyte animate [-h] [ANIMATE OPTIONS] STR
   --wiring {None}|{[STR [STR ...]]}
                          (default: None)
   --host {None}|STR      (default: None)
-  --timeout FLOAT        (default: 5.0)
-  --discovery-timeout {None}|FLOAT
+  --timeout SECONDS      (default: 5.0)
+  --discovery-timeout {None}|SECONDS
                          (default: None)
   --attempts INT         (default: 10)
-  --retry-delay FLOAT    (default: 0.5)
+  --retry-delay SECONDS  (default: 0.5)
   --retry-backoff FLOAT  (default: 2.0)
   --led-count {None}|INT
                          (default: None)
-  --duration {None}|FLOAT
+  --duration {None}|SECONDS
                          (default: None)
 
 
@@ -74,18 +74,18 @@ $ lyte author --help
 usage: lyte author [-h] [AUTHOR OPTIONS]
 
  options
- ---------------------------------------------------
-  -h, --help        show this help message and exit
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
   --library-config {None}|PATH
-                    (default: None)
+                     (default: None)
   --audio {None}|PATH
-                    (default: None)
+                     (default: None)
   --light-output STR
-                    (default: light)
-  --duration FLOAT  (default: 10)
-  --port INT        (default: 8765)
-  --open, --no-open
-                    (default: True)
+                     (default: light)
+  --duration SECONDS
+                     (default: 10)
+  --port INT         (default: 8765)
+  --open, --no-open  (default: True)
 
 
 $ lyte benchmark --help
@@ -101,7 +101,7 @@ usage: lyte benchmark [-h] [BENCHMARK OPTIONS] STR
   --library-config {None}|PATH
                       (default: None)
   --light-output STR  (default: light)
-  --duration FLOAT    (default: 10)
+  --duration SECONDS  (default: 10)
   --parameters [STR FLOAT [STR FLOAT ...]]
                       (default: )
 
@@ -110,23 +110,22 @@ $ lyte brightness --help
 usage: lyte brightness [-h] [BRIGHTNESS OPTIONS] [{get,set}] [{None}|INT]
 
  positional arguments
- --------------------------------------------------
-  [{get,set}]      action (default: get)
-  [{None}|INT]     value (default: None)
+ ----------------------------------------------------
+  [{get,set}]        action (default: get)
+  [{None}|INT]       value (default: None)
 
  options
- --------------------------------------------------
-  -h, --help       show this help message and exit
-  --host {None}|STR
-                   (default: None)
-  --timeout FLOAT  (default: 5.0)
-  --discovery-timeout {None}|FLOAT
-                   (default: None)
-  --attempts INT   (default: 10)
-  --retry-delay FLOAT
-                   (default: 0.5)
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay SECONDS
+                     (default: 0.5)
   --retry-backoff FLOAT
-                   (default: 2.0)
+                     (default: 2.0)
 
 
 $ lyte calibrate-black --help
@@ -136,11 +135,11 @@ usage: lyte calibrate-black [-h] [CALIBRATE-BLACK OPTIONS]
  ----------------------------------------------------
   -h, --help         show this help message and exit
   --host {None}|STR  (default: None)
-  --timeout FLOAT    (default: 5.0)
-  --discovery-timeout {None}|FLOAT
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
                      (default: None)
   --attempts INT     (default: 10)
-  --retry-delay FLOAT
+  --retry-delay SECONDS
                      (default: 0.5)
   --retry-backoff FLOAT
                      (default: 2.0)
@@ -152,52 +151,52 @@ $ lyte color --help
 usage: lyte color [-h] [COLOR OPTIONS] [{get,set}] [{None}|INT] [{None}|INT] [{None}|INT]
 
  positional arguments
- --------------------------------------------------
-  [{get,set}]      action (default: get)
-  [{None}|INT]     red (default: None)
-  [{None}|INT]     green (default: None)
-  [{None}|INT]     blue (default: None)
+ -------------------------------------------------
+  [{get,set}]     action (default: get)
+  [{None}|INT]    red (default: None)
+  [{None}|INT]    green (default: None)
+  [{None}|INT]    blue (default: None)
 
  options
- --------------------------------------------------
-  -h, --help       show this help message and exit
+ -------------------------------------------------
+  -h, --help      show this help message and exit
   --host {None}|STR
-                   (default: None)
-  --timeout FLOAT  (default: 5.0)
-  --discovery-timeout {None}|FLOAT
-                   (default: None)
-  --attempts INT   (default: 10)
-  --retry-delay FLOAT
-                   (default: 0.5)
+                  (default: None)
+  --timeout SECONDS
+                  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
+                  (default: None)
+  --attempts INT  (default: 10)
+  --retry-delay SECONDS
+                  (default: 0.5)
   --retry-backoff FLOAT
-                   (default: 2.0)
+                  (default: 2.0)
 
 
 $ lyte diagnostic --help
 usage: lyte diagnostic [-h] [DIAGNOSTIC OPTIONS]
 
  options
- ------------------------------------------------------
-  -h, --help           show this help message and exit
+ --------------------------------------------------------
+  -h, --help             show this help message and exit
   --realtime, --no-realtime
-                       (default: False)
-  --host {None}|STR    (default: None)
-  --timeout FLOAT      (default: 5.0)
-  --discovery-timeout {None}|FLOAT
-                       (default: None)
-  --attempts INT       (default: 10)
-  --retry-delay FLOAT  (default: 0.5)
-  --retry-backoff FLOAT
-                       (default: 2.0)
+                         (default: False)
+  --host {None}|STR      (default: None)
+  --timeout SECONDS      (default: 5.0)
+  --discovery-timeout {None}|SECONDS
+                         (default: None)
+  --attempts INT         (default: 10)
+  --retry-delay SECONDS  (default: 0.5)
+  --retry-backoff FLOAT  (default: 2.0)
   --discovery-attempts INT
-                       (default: 20)
-  --discovery-retry-delay FLOAT
-                       (default: 0.05)
+                         (default: 20)
+  --discovery-retry-delay SECONDS
+                         (default: 0.05)
   --discovery-backoff-after INT
-                       (default: 10)
+                         (default: 10)
   --led-count {None}|INT
-                       (default: None)
-  --pause FLOAT        (default: 0.7)
+                         (default: None)
+  --pause SECONDS        (default: 0.7)
 
 
 $ lyte dither-test --help
@@ -207,17 +206,17 @@ usage: lyte dither-test [-h] [DITHER-TEST OPTIONS]
  ----------------------------------------------------
   -h, --help         show this help message and exit
   --host {None}|STR  (default: None)
-  --timeout FLOAT    (default: 5.0)
-  --discovery-timeout {None}|FLOAT
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
                      (default: None)
   --attempts INT     (default: 10)
-  --retry-delay FLOAT
+  --retry-delay SECONDS
                      (default: 0.5)
   --retry-backoff FLOAT
                      (default: 2.0)
   --led-count {None}|INT
                      (default: None)
-  --time FLOAT       (default: 5.0)
+  --time SECONDS     (default: 5.0)
 
 
 $ lyte effects --help
@@ -233,11 +232,11 @@ usage: lyte effects [-h] [EFFECTS OPTIONS] [{list,current,set-current}] [{None}|
  ----------------------------------------------------
   -h, --help         show this help message and exit
   --host {None}|STR  (default: None)
-  --timeout FLOAT    (default: 5.0)
-  --discovery-timeout {None}|FLOAT
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
                      (default: None)
   --attempts INT     (default: 10)
-  --retry-delay FLOAT
+  --retry-delay SECONDS
                      (default: 0.5)
   --retry-backoff FLOAT
                      (default: 2.0)
@@ -247,21 +246,21 @@ $ lyte fps-test --help
 usage: lyte fps-test [-h] [FPS-TEST OPTIONS]
 
  options
- ----------------------------------------------------
-  -h, --help         show this help message and exit
-  --host {None}|STR  (default: None)
-  --timeout FLOAT    (default: 5.0)
-  --discovery-timeout {None}|FLOAT
-                     (default: None)
-  --attempts INT     (default: 10)
-  --retry-delay FLOAT
-                     (default: 0.5)
+ -----------------------------------------------------
+  -h, --help          show this help message and exit
+  --host {None}|STR   (default: None)
+  --timeout SECONDS   (default: 5.0)
+  --discovery-timeout {None}|SECONDS
+                      (default: None)
+  --attempts INT      (default: 10)
+  --retry-delay SECONDS
+                      (default: 0.5)
   --retry-backoff FLOAT
-                     (default: 2.0)
+                      (default: 2.0)
   --led-count {None}|INT
-                     (default: None)
-  --duration FLOAT   (default: 2.0)
-  --pause FLOAT      (default: 1)
+                      (default: None)
+  --duration SECONDS  (default: 2.0)
+  --pause SECONDS     (default: 1)
 
 
 $ lyte installation --help
@@ -296,11 +295,11 @@ usage: lyte layout [-h] [LAYOUT OPTIONS] [{get,export,upload,delete}] [{None}|PA
  ----------------------------------------------------
   -h, --help         show this help message and exit
   --host {None}|STR  (default: None)
-  --timeout FLOAT    (default: 5.0)
-  --discovery-timeout {None}|FLOAT
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
                      (default: None)
   --attempts INT     (default: 10)
-  --retry-delay FLOAT
+  --retry-delay SECONDS
                      (default: 0.5)
   --retry-backoff FLOAT
                      (default: 2.0)
@@ -310,23 +309,22 @@ $ lyte led-config --help
 usage: lyte led-config [-h] [LED-CONFIG OPTIONS] [{get,set}] [{None}|PATH]
 
  positional arguments
- --------------------------------------------------
-  [{get,set}]      action (default: get)
-  [{None}|PATH]    path (default: None)
+ ----------------------------------------------------
+  [{get,set}]        action (default: get)
+  [{None}|PATH]      path (default: None)
 
  options
- --------------------------------------------------
-  -h, --help       show this help message and exit
-  --host {None}|STR
-                   (default: None)
-  --timeout FLOAT  (default: 5.0)
-  --discovery-timeout {None}|FLOAT
-                   (default: None)
-  --attempts INT   (default: 10)
-  --retry-delay FLOAT
-                   (default: 0.5)
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay SECONDS
+                     (default: 0.5)
   --retry-backoff FLOAT
-                   (default: 2.0)
+                     (default: 2.0)
 
 
 $ lyte mic --help
@@ -340,11 +338,11 @@ usage: lyte mic [-h] [MIC OPTIONS] [{config,sample}]
  ----------------------------------------------------
   -h, --help         show this help message and exit
   --host {None}|STR  (default: None)
-  --timeout FLOAT    (default: 5.0)
-  --discovery-timeout {None}|FLOAT
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
                      (default: None)
   --attempts INT     (default: 10)
-  --retry-delay FLOAT
+  --retry-delay SECONDS
                      (default: 0.5)
   --retry-backoff FLOAT
                      (default: 2.0)
@@ -354,22 +352,21 @@ $ lyte mode --help
 usage: lyte mode [-h] [MODE OPTIONS] [{get,set}] [{None,off,color,demo,effect,movie,playlist,rt}]
 
  positional arguments
- ------------------------------------------------------
-  [{get,set}]          action (default: get)
+ --------------------------------------------------------
+  [{get,set}]            action (default: get)
   [{None,off,color,demo,effect,movie,playlist,rt}]
-                       value (default: None)
+                         value (default: None)
 
  options
- ------------------------------------------------------
-  -h, --help           show this help message and exit
-  --host {None}|STR    (default: None)
-  --timeout FLOAT      (default: 5.0)
-  --discovery-timeout {None}|FLOAT
-                       (default: None)
-  --attempts INT       (default: 10)
-  --retry-delay FLOAT  (default: 0.5)
-  --retry-backoff FLOAT
-                       (default: 2.0)
+ --------------------------------------------------------
+  -h, --help             show this help message and exit
+  --host {None}|STR      (default: None)
+  --timeout SECONDS      (default: 5.0)
+  --discovery-timeout {None}|SECONDS
+                         (default: None)
+  --attempts INT         (default: 10)
+  --retry-delay SECONDS  (default: 0.5)
+  --retry-backoff FLOAT  (default: 2.0)
 
 
 $ lyte movie --help
@@ -384,11 +381,11 @@ usage: lyte movie [-h] [MOVIE OPTIONS] [{config,list,current}]
  ----------------------------------------------------
   -h, --help         show this help message and exit
   --host {None}|STR  (default: None)
-  --timeout FLOAT    (default: 5.0)
-  --discovery-timeout {None}|FLOAT
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
                      (default: None)
   --attempts INT     (default: 10)
-  --retry-delay FLOAT
+  --retry-delay SECONDS
                      (default: 0.5)
   --retry-backoff FLOAT
                      (default: 2.0)
@@ -405,11 +402,11 @@ usage: lyte mqtt [-h] [MQTT OPTIONS] [{config}]
  ----------------------------------------------------
   -h, --help         show this help message and exit
   --host {None}|STR  (default: None)
-  --timeout FLOAT    (default: 5.0)
-  --discovery-timeout {None}|FLOAT
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
                      (default: None)
   --attempts INT     (default: 10)
-  --retry-delay FLOAT
+  --retry-delay SECONDS
                      (default: 0.5)
   --retry-backoff FLOAT
                      (default: 2.0)
@@ -427,11 +424,11 @@ usage: lyte music [-h] [MUSIC OPTIONS] [{drivers,driver-sets,current-driver-set}
  --------------------------------------------------------
   -h, --help             show this help message and exit
   --host {None}|STR      (default: None)
-  --timeout FLOAT        (default: 5.0)
-  --discovery-timeout {None}|FLOAT
+  --timeout SECONDS      (default: 5.0)
+  --discovery-timeout {None}|SECONDS
                          (default: None)
   --attempts INT         (default: 10)
-  --retry-delay FLOAT    (default: 0.5)
+  --retry-delay SECONDS  (default: 0.5)
   --retry-backoff FLOAT  (default: 2.0)
 
 
@@ -439,21 +436,22 @@ $ lyte network --help
 usage: lyte network [-h] [NETWORK OPTIONS] [{status,scan,scan-results}]
 
  positional arguments
- ------------------------------------------------------
+ ----------------------------------------------------
   [{status,scan,scan-results}]
-                       action (default: status)
+                     action (default: status)
 
  options
- ------------------------------------------------------
-  -h, --help           show this help message and exit
-  --host {None}|STR    (default: None)
-  --timeout FLOAT      (default: 5.0)
-  --discovery-timeout {None}|FLOAT
-                       (default: None)
-  --attempts INT       (default: 10)
-  --retry-delay FLOAT  (default: 0.5)
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay SECONDS
+                     (default: 0.5)
   --retry-backoff FLOAT
-                       (default: 2.0)
+                     (default: 2.0)
 
 
 $ lyte panel --help
@@ -478,17 +476,17 @@ usage: lyte patch [-h] [PATCH OPTIONS] [{list,locator,play}] [{None}|STR]
  ----------------------------------------------------------------
   -h, --help             show this help message and exit
   --library PATH         (default: patches/wearable-breath.toml)
-  --region-duration FLOAT
+  --region-duration SECONDS
                          (default: 3.0)
-  --fps FLOAT            (default: 20.0)
-  --duration {None}|FLOAT
+  --fps FPS              (default: 20.0)
+  --duration {None}|SECONDS
                          (default: None)
   --host {None}|STR      (default: None)
-  --timeout FLOAT        (default: 5.0)
-  --discovery-timeout {None}|FLOAT
+  --timeout SECONDS      (default: 5.0)
+  --discovery-timeout {None}|SECONDS
                          (default: None)
   --attempts INT         (default: 10)
-  --retry-delay FLOAT    (default: 0.5)
+  --retry-delay SECONDS  (default: 0.5)
   --retry-backoff FLOAT  (default: 2.0)
 
  midi-input options
@@ -510,11 +508,11 @@ usage: lyte playlist [-h] [PLAYLIST OPTIONS] [{list,current}]
  ----------------------------------------------------
   -h, --help         show this help message and exit
   --host {None}|STR  (default: None)
-  --timeout FLOAT    (default: 5.0)
-  --discovery-timeout {None}|FLOAT
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
                      (default: None)
   --attempts INT     (default: 10)
-  --retry-delay FLOAT
+  --retry-delay SECONDS
                      (default: 0.5)
   --retry-backoff FLOAT
                      (default: 2.0)
@@ -547,7 +545,7 @@ usage: lyte preview [-h] [PREVIEW OPTIONS] [{None}|STR]
   --plane {xy,xz,yz}  (default: xy)
   --zoom FLOAT        (default: 1)
   --background STR    (default: '#050506')
-  --duration FLOAT    (default: 10.0)
+  --duration SECONDS  (default: 10.0)
 
 
 $ lyte rehearse --help
@@ -586,7 +584,7 @@ usage: lyte render [-h] [RENDER OPTIONS] [[STR [STR ...]]]
   --audio {None}|PATH
                       (default: None)
   --light-output STR  (default: light)
-  --duration FLOAT    (default: 10.0)
+  --duration SECONDS  (default: 10.0)
   --diameter FLOAT    (default: 20.0)
   --padding FLOAT     (default: 5.0)
   --shape {circle,rect}
@@ -607,49 +605,47 @@ $ lyte saturation --help
 usage: lyte saturation [-h] [SATURATION OPTIONS] [{get,set}] [{None}|INT]
 
  positional arguments
- --------------------------------------------------
-  [{get,set}]      action (default: get)
-  [{None}|INT]     value (default: None)
+ ----------------------------------------------------
+  [{get,set}]        action (default: get)
+  [{None}|INT]       value (default: None)
 
  options
- --------------------------------------------------
-  -h, --help       show this help message and exit
-  --host {None}|STR
-                   (default: None)
-  --timeout FLOAT  (default: 5.0)
-  --discovery-timeout {None}|FLOAT
-                   (default: None)
-  --attempts INT   (default: 10)
-  --retry-delay FLOAT
-                   (default: 0.5)
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay SECONDS
+                     (default: 0.5)
   --retry-backoff FLOAT
-                   (default: 2.0)
+                     (default: 2.0)
 
 
 $ lyte timer --help
 usage: lyte timer [-h] [TIMER OPTIONS] [{get,set}] [{None}|INT] [{None}|INT]
 
  positional arguments
- --------------------------------------------------
-  [{get,set}]      action (default: get)
-  [{None}|INT]     time-on (default: None)
-  [{None}|INT]     time-off (default: None)
+ ----------------------------------------------------
+  [{get,set}]        action (default: get)
+  [{None}|INT]       time-on (default: None)
+  [{None}|INT]       time-off (default: None)
 
  options
- --------------------------------------------------
-  -h, --help       show this help message and exit
-  --host {None}|STR
-                   (default: None)
-  --timeout FLOAT  (default: 5.0)
-  --discovery-timeout {None}|FLOAT
-                   (default: None)
-  --attempts INT   (default: 10)
-  --retry-delay FLOAT
-                   (default: 0.5)
+ ----------------------------------------------------
+  -h, --help         show this help message and exit
+  --host {None}|STR  (default: None)
+  --timeout SECONDS  (default: 5.0)
+  --discovery-timeout {None}|SECONDS
+                     (default: None)
+  --attempts INT     (default: 10)
+  --retry-delay SECONDS
+                     (default: 0.5)
   --retry-backoff FLOAT
-                   (default: 2.0)
+                     (default: 2.0)
   --time-now {None}|INT
-                   (default: None)
+                     (default: None)
 
 
 $ lyte validate --help
@@ -678,11 +674,11 @@ usage: lyte verify-output [-h] [VERIFY-OUTPUT OPTIONS]
  -----------------------------------------------------
   -h, --help          show this help message and exit
   --host {None}|STR   (default: None)
-  --timeout FLOAT     (default: 5.0)
-  --discovery-timeout {None}|FLOAT
+  --timeout SECONDS   (default: 5.0)
+  --discovery-timeout {None}|SECONDS
                       (default: None)
   --attempts INT      (default: 10)
-  --retry-delay FLOAT
+  --retry-delay SECONDS
                       (default: 0.5)
   --retry-backoff FLOAT
                       (default: 2.0)

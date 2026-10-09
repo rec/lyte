@@ -7,6 +7,8 @@ from typing import Annotated, NoReturn
 import tyro
 from pydantic import BaseModel, Field
 
+from ..cli_units import Seconds
+
 
 class AnimateConfig(BaseModel, frozen=True):
     selector: Annotated[str, tyro.conf.Positional]
@@ -15,13 +17,13 @@ class AnimateConfig(BaseModel, frozen=True):
     parameters: dict[str, float] = Field(default_factory=dict)
     wiring: list[str] | None = None
     host: str | None = None
-    timeout: float = 5.0
-    discovery_timeout: float | None = None
+    timeout: Seconds = 5.0
+    discovery_timeout: Seconds | None = None
     attempts: int = 10
-    retry_delay: float = 0.5
+    retry_delay: Seconds = 0.5
     retry_backoff: float = 2.0
     led_count: int | None = None
-    duration: float | None = None
+    duration: Seconds | None = None
 
 
 def validate_args(args: AnimateConfig) -> None:
