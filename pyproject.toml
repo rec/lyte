@@ -9,6 +9,7 @@ description = "🧚 Python lighting player for all lights 🧚"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "astral",
     "mido",
     "numpy",
     "pydantic",
