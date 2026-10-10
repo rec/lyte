@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-09-29T18:08:40.219328Z"
+exclude-newer = "2026-10-03T15:45:52.574808Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -89,7 +89,7 @@ wheels = [
 
 [[package]]
 name = "lyte"
-version = "0.1.2"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "astral" },
