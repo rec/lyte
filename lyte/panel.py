@@ -54,7 +54,7 @@ def handler(client: rpc.Client) -> type[BaseHTTPRequestHandler]:
             try:
                 status = InstallationStatus.model_validate(client.call('status'))
                 self.respond(200, status.model_dump_json().encode())
-            except (OSError, ValueError) as error:
+            except (rpc.RemoteError, OSError, ValueError) as error:
                 self.respond(503, json.dumps({'error': str(error)}).encode())
 
         def do_POST(self) -> None:
@@ -82,7 +82,7 @@ def handler(client: rpc.Client) -> type[BaseHTTPRequestHandler]:
                 self.respond(200, json.dumps({'result': result}).encode())
             except TimeoutError as error:
                 self.respond(408, json.dumps({'error': str(error)}).encode())
-            except OSError as error:
+            except (rpc.RemoteError, OSError) as error:
                 self.respond(503, json.dumps({'error': str(error)}).encode())
             except ValueError as error:
                 self.respond(400, json.dumps({'error': str(error)}).encode())
