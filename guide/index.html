@@ -1,0 +1,5381 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="🧚 Python lighting player for all lights 🧚">
+      
+      
+      
+        <link rel="canonical" href="https://rec.github.io/lyte/guide/">
+      
+      
+      
+        <link rel="prev" href="./..">
+      
+      
+        <link rel="next" href="../handover/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.73">
+    
+    
+      
+        <title>lyte Guide - lyte</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.4ab2de0c.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
+    <div data-md-component="skip">
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="lyte" class="md-header__button md-logo" aria-label="lyte" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+      <span class="md-visually-hidden">Navigation</span>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            lyte
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              lyte Guide
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+          <span class="md-visually-hidden">Search</span>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="lyte" class="md-nav__button md-logo" aria-label="lyte" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    lyte
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  lyte
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  lyte Guide
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  lyte Guide
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#audio-driven-scores" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Audio-driven scores
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#start-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Start Here
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frames-and-rendering" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Frames and Rendering
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#twinkly-playback" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Twinkly Playback
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installations" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Installations
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audio-reactive-effects-and-authoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Audio-Reactive Effects and Authoring
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wled-interchange" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        WLED Interchange
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dmx-and-art-net" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        DMX and Art-Net
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-tests-establish" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        What the Tests Establish
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../handover/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  lyte Handover
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  API Reference
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  API Reference
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/lyte/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  lyte
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_1" id="__nav_4_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_1">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  lyte
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/__main__/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  __main__
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/lyte/animate/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  animate
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_1_3" id="__nav_4_1_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_3_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_1_3">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  animate
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animate/__main__/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  __main__
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animate/build/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  build
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animate/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  config
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animate/playback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  playback
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  animation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/lyte/animations/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  animations
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_1_5" id="__nav_4_1_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_1_5">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  animations
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/colors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  colors
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/compositions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  compositions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_5_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/lyte/animations/events/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  events
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_1_5_4" id="__nav_4_1_5_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_1_5_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_1_5_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  events
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/color_chase/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  color_chase
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/confetti_with_decay/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  confetti_with_decay
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/expanding_ripples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  expanding_ripples
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/fire_flies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  fire_flies
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/larson_scanner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  larson_scanner
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/lightning_storm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  lightning_storm
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/packet_traffic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  packet_traffic
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/pixel_ping_pong/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  pixel_ping_pong
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/pulse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  pulse
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/rain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  rain
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/searchlights/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  searchlights
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/twinkle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  twinkle
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/events/white_twinkle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  white_twinkle
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_5_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/lyte/animations/fields/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  fields
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_1_5_5" id="__nav_4_1_5_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_1_5_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_1_5_5">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  fields
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/aurora/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  aurora
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/candle_bank/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  candle_bank
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/color_fade/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  color_fade
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/exponential_fade/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  exponential_fade
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/halves_rainbow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  halves_rainbow
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/interference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  interference
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/linear_gradient/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  linear_gradient
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/linear_rainbow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  linear_rainbow
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/log_gradient/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  log_gradient
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/ocean_current/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  ocean_current
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/palette_conveyor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  palette_conveyor
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/rainbow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  rainbow
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/rainbow_cycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  rainbow_cycle
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/fields/wave/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  wave
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/numerical/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  numerical
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_5_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/lyte/animations/patterns/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  patterns
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_1_5_7" id="__nav_4_1_5_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_1_5_7_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_1_5_7">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  patterns
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/patterns/alternates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  alternates
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/patterns/color_fill/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  color_fill
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/patterns/color_pattern/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  color_pattern
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/patterns/color_wipe/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  color_wipe
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/patterns/grey_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  grey_code
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/patterns/hamiltonian/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  hamiltonian
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/patterns/saber_blade/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  saber_blade
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/reactive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  reactive
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_5_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/lyte/animations/simulations/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  simulations
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_1_5_9" id="__nav_4_1_5_9_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_1_5_9_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_1_5_9">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  simulations
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/simulations/cellular_automaton/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  cellular_automaton
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/simulations/colliding_particles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  colliding_particles
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/simulations/fire_and_embers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  fire_and_embers
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/simulations/party_mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  party_mode
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/simulations/random_walk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  random_walk
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/simulations/randomize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  randomize
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/simulations/reaction_diffusion_strip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  reaction_diffusion_strip
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/animations/validators/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  validators
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/artnet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  artnet
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/audio_input/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  audio_input
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/authoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  authoring
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/authoring_browser_template/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  authoring_browser_template
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/authoring_colors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  authoring_colors
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/authoring_colors_template/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  authoring_colors_template
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/authoring_composition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  authoring_composition
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/authoring_http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  authoring_http
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/authoring_layout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  authoring_layout
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/authoring_layout_template/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  authoring_layout_template
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/authoring_structure_template/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  authoring_structure_template
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/authoring_template/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  authoring_template
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  benchmark
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  cli
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/cli_units/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  cli_units
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/control_recording/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  control_recording
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/control_replay/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  control_replay
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/diagnostic_frames/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  diagnostic_frames
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/dmx/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  dmx
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  errors
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/fps_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  fps_test
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/http_body/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  http_body
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  installation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/installation_config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  installation_config
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/installation_dmx/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  installation_dmx
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/installation_playback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  installation_playback
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  metrics
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/midi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  midi
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/panel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  panel
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/panel_template/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  panel_template
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/patch_config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  patch_config
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/patches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  patches
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_38" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/lyte/preview/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  preview
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_1_38" id="__nav_4_1_38_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_38_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_1_38">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  preview
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/preview/command/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  command
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/preview/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  config
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/preview/document/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  document
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/preview/template/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  template
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/reactive_effects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  reactive_effects
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/reactivity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  reactivity
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/rehearsal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  rehearsal
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/rehearsal_http/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  rehearsal_http
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/rehearsal_template/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  rehearsal_template
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/render/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  render
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/rendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  rendering
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/retry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  retry
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/runtime_control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  runtime_control
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/schedule/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  schedule
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  service
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/show/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  show
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/spatial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  spatial
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/spatial_template/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  spatial_template
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_53" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/lyte/twinkly/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  twinkly
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_1_53" id="__nav_4_1_53_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_53_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_1_53">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  twinkly
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  authentication
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  client
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/command/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  command
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/diagnostic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  diagnostic
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/discovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  discovery
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/frame/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  frame
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/inputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  inputs
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/layout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  layout
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  media
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  mode
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/networking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  networking
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  output
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  realtime
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/realtime_diagnostic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  realtime_diagnostic
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/session/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  session
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/timer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  timer
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/twinkly/track/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  track
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/wled/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  wled
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lyte/wled_output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  wled_output
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#audio-driven-scores" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Audio-driven scores
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#start-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Start Here
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frames-and-rendering" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Frames and Rendering
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#twinkly-playback" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Twinkly Playback
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installations" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Installations
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audio-reactive-effects-and-authoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Audio-Reactive Effects and Authoring
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wled-interchange" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        WLED Interchange
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dmx-and-art-net" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        DMX and Art-Net
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-tests-establish" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        What the Tests Establish
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
+                
+                  
+
+
+<h1 id="lyte-guide">lyte Guide<a class="headerlink" href="#lyte-guide" title="Permanent link">&para;</a></h1>
+<p>lyte plays uFor light scores on Twinkly and WLED strings, drives DMX fixtures
+through Art-Net, and provides offline previews and installation rehearsal. uFor owns portable score
+data: layouts, composition, timing, presets, and public scalar parameters.
+lyte owns NumPy rendering, output transport, local services, MIDI mapping, and
+the supplied wearable catalogue.</p>
+<h2 id="audio-driven-scores">Audio-driven scores<a class="headerlink" href="#audio-driven-scores" title="Permanent link">&para;</a></h2>
+<p>The portable <code>audio_spectrum</code> effect uses the existing spectrum analyzer. Try
+<code>examples/audio/spectrum.toml</code> with an 8, 16, 24 or 32-bit integer PCM WAV file:</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lyte<span class="w"> </span>author<span class="w"> </span>--library-config<span class="w"> </span>examples/audio/library.toml<span class="w"> </span>--audio<span class="w"> </span>song.wav
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>lyte<span class="w"> </span>preview<span class="w"> </span>audio:/spectrum.toml<span class="w"> </span>--library-config<span class="w"> </span>examples/audio/library.toml<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--audio<span class="w"> </span>song.wav<span class="w"> </span>--output<span class="w"> </span>spectrum.html
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>lyte<span class="w"> </span>render<span class="w"> </span>audio:/spectrum.toml<span class="w"> </span>--library-config<span class="w"> </span>examples/audio/library.toml<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span>--audio<span class="w"> </span>song.wav<span class="w"> </span>--projection<span class="w"> </span>xy
+</span></code></pre></div>
+<p>These commands generate lighting visuals, without playing or embedding a
+soundtrack. Audio-backed scores run to audio EOF, overriding <code>--duration</code>.
+The editor disables looping for these previews; you can turn it on explicitly.
+Standalone HTML holds its final frame. Movies end at the audio duration.</p>
+<p>Analysis starts at sample zero. At root score tick <code>k</code>, the analyzer receives
+samples from <code>floor(k * sample_rate / fps)</code> to
+<code>floor((k + 1) * sample_rate / fps)</code>, with the end excluded. Channels are averaged
+to mono. The last window is zero-padded; there is no extra tail or silent loop.
+All audio-reactive parts receive the root timeline's observation, including
+parts activated by later cues. Frame boundaries use the exact rational score
+rate. Analysis is repeated from its initial state for each preview or export.
+WAV data is read a window at a time; analyzed features are retained in memory.
+HTML and editor previews retain their 10000-frame/32 MiB frame-data limits.</p>
+<p>uFor declares normalized audio features and spectrum effect settings. Scores
+contain no audio path or device I/O; select the WAV again when reopening a
+score. The existing built-in reactive demonstrations still use synthetic inputs.
+This milestone makes spectrum scores editable and exportable; other reactive
+effects and live audio input remain future work. Physical playback rejects
+audio-driven scores before opening devices.</p>
+<h2 id="start-here">Start Here<a class="headerlink" href="#start-here" title="Permanent link">&para;</a></h2>
+<p>For an unattended evening Twinkly installation, start with
+<a href="../../examples/installation-sunset.toml"><code>examples/installation-sunset.toml</code></a>.
+It uses Rouen, France, and the <code>Europe/Paris</code> time zone:</p>
+<ul>
+<li>Begin at sunset plus 30 minutes, fading linearly from black for one hour.</li>
+<li>Hold full brightness for at least two hours.</li>
+<li>Start the 30-minute fade-out at <strong>the later of 23:00 and the end of that hold</strong>.
+  Summer evenings can therefore run past midnight.</li>
+</ul>
+<p>The <code>[schedule]</code> table sets coordinates, time zone, timing, and <code>maximum_level</code>
+(0–1). Durations accept reccy units such as <code>"30min"</code> and <code>"2h"</code>.
+<code>minimum_hold</code> sets the minimum time at full brightness.
+<code>fade_out_not_before</code> is a local clock time such as <code>"23:00"</code>.
+The time zone determines the date and clock cutoff, including daylight saving;
+fade durations measure actual elapsed seconds. Sunset is calculated locally
+using Astral, without a network service. A restart resumes at the brightness
+appropriate for the current time. Clock corrections are reflected immediately.
+The preceding evening remains active after midnight until its fade-out ends.
+If the location has no sunset that day, the schedule remains dark and reports
+the error in status; the daemon keeps running.</p>
+<p>The example uses RandomWalk at 60 pixels per second with a colour variation of
+80 per channel, a substantially stronger setting than the defaults of 10 and 1.
+Edit <code>speed</code>, <code>variance</code>, and <code>seed</code> under
+<code>[animations.random_walk.parameters]</code> in the installation file. Public score
+parameters are validated before device discovery and reapplied on selection.
+The reusable <a href="../../examples/scores/random-walk.toml"><code>random-walk.toml</code></a> score
+contains its other settings: full RGB bounds <code>[0, 255]</code>, <code>pre_fill = true</code>, and
+<code>period = 0</code> (no periodic variance envelope). Its 250-point logical layout is
+rescaled to the discovered Twinkly LED count. <code>garden = {}</code> selects the sole
+Twinkly; with multiple devices, configure an unambiguous observed <code>device_name</code>.</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>lyte<span class="w"> </span>installation<span class="w"> </span>install<span class="w"> </span>examples/installation-sunset.toml
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>lyte<span class="w"> </span>installation<span class="w"> </span>start
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>lyte<span class="w"> </span>installation<span class="w"> </span>status
+</span></code></pre></div>
+<p>Scheduled brightness multiplies the operator master level, including during
+pixel tests and selection fades. Blackout still takes priority; selecting an
+animation resumes within the current schedule. The daemon sends black outside
+the scheduled window and keeps its realtime connection. Daily scheduling is
+for pixel-only installations; configurations with DMX fixtures are rejected.
+The operator panel shows the schedule's phase and brightness. RPC status includes
+<code>schedule</code>: the current phase, envelope level, evening
+boundaries as UTC timestamps, and any solar calculation error. Existing
+installations without <code>[schedule]</code> keep their current behaviour.</p>
+<p>Rehearsal previews the animation without the live calendar envelope and shows
+a warning for scheduled installations. Live recordings retain each frame's
+scheduled brightness, so replay uses the captured envelope rather than today's
+sunset. The sunset offset and all fade/hold durations must total at most 24h.
+For a cutoff in a repeated daylight-saving hour, the first occurrence is used;
+a cutoff in a skipped hour moves forward by the clock change.
+If unusually long configured evenings overlap, the new evening takes priority.</p>
+<p>CLI durations, pauses, timeouts, and retry delays accept bare numbers in seconds
+or explicit units, such as <code>--duration 500ms</code>, <code>--timeout 2min</code>, or
+<code>--duration 1:30</code> (one minute and thirty seconds). Frame-rate arguments accept
+bare numbers in frames per second or values such as <code>--fps 25fps</code>.
+Installation TOML uses the same rules: <code>timeout = "500ms"</code>,
+<code>startup_timeout = "1min"</code>, and <code>fps = "30fps"</code>. Quote unit-bearing TOML values.
+reccy handles unit conversion; lyte uses normalized numeric seconds and frame
+rates internally. RPC durations and recorded timestamps remain numeric seconds.
+Portable uFor score timing retains uFor's own format.</p>
+<p>Use a uFor library configuration to name score roots. With no
+<code>--library-config</code>, uFor reads <code>~/.config/ufor/library.toml</code>; providing one
+replaces that default. Reading a library creates no files.</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Validate selection and renderer preparation without opening hardware.</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>lyte<span class="w"> </span>validate<span class="w"> </span>examples:/composition.toml<span class="w"> </span>--library-config<span class="w"> </span>examples/library.toml
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Create an HTML preview from the same prepared score.</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>lyte<span class="w"> </span>preview<span class="w"> </span>examples:/composition.toml<span class="w"> </span>--output<span class="w"> </span>preview.html<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span>--library-config<span class="w"> </span>examples/library.toml
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="c1"># Play one score on a discovered Twinkly device.</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>lyte<span class="w"> </span>animate<span class="w"> </span>examples:/composition.toml<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span>--library-config<span class="w"> </span>examples/library.toml<span class="w"> </span>--duration<span class="w"> </span><span class="m">10</span>
+</span></code></pre></div>
+<p>Composition source selections use <code>part</code> and <code>output</code>, for example
+<code>source = { part = "intro", output = "light" }</code>. Older scores using <code>name</code>
+in those selections must change it to <code>part</code>. Python score references use
+<code>ufor.interface.ScoreReference</code>.</p>
+<p>Selectors are uFor selectors. <code>--parameters NAME VALUE</code> supplies public scalar
+overrides, and <code>--light-output</code> chooses the score's named light output. lyte logs all
+library diagnostics. A missing or incompatible score, output, parameter, or
+wiring order fails during preparation, before hardware opens.</p>
+<p><code>lyte preview</code> uses the layout's authored coordinates. <code>lyte render</code> produces
+an MP4 for one or more selected scores; it requires <code>ffmpeg</code> on <code>PATH</code>.
+Movies default to grid mode. Use <code>--projection xy</code> (or <code>xz</code>, <code>yz</code>) for authored
+positions, with <code>--width</code>, <code>--height</code>, <code>--zoom</code>, and <code>--led-size</code>. HTML previews
+use <code>--plane xy</code> (or <code>xz</code>, <code>yz</code>) with the same zoom and light-size semantics.
+At equal canvas dimensions, framing and orientation match; positive vertical
+coordinates point down. Light size multiplies a radius of the greater of three
+pixels and 1/140 of the shorter canvas dimension. Movie coordinates round to
+pixels, and movie dimensions round up to even numbers for the encoder.
+Use <code>--background-color '#050506'</code> for movies to match the default preview
+background; HTML uses <code>--background '#rrggbb'</code>. Movie grid layout, diameter,
+and padding retain their existing meanings.
+Movie export rejects colliding filenames and existing destinations before
+starting the batch. Use a fresh output directory to retain previous exports.
+Failed exports discard their temporary movies; final filenames appear only
+after encoding succeeds. A movie is limited to 250000 frames, a 64 MiB image
+frame, and a 1024-pixel light diameter. Encoder writes and finalization each
+have a 30-second stall timeout; long successful exports can take longer.</p>
+<h2 id="frames-and-rendering">Frames and Rendering<a class="headerlink" href="#frames-and-rendering" title="Permanent link">&para;</a></h2>
+<p><code>lyte benchmark aurora --library-config examples/library.toml --duration 10</code>
+reports score rendering time as JSON: frame count, declared rate, light count,
+mean/maximum seconds, and frames exceeding one score-frame budget. It renders
+offline without encoding, sleeping, or opening devices. Initialization is excluded.
+An isolated score benchmark does not include mapping, transport, or the combined
+cost of other installation outputs.</p>
+<p>Installation status includes cumulative render costs by animation/output,
+including catch-up ticks beyond the first tick needed for a delivery. These
+counters survive note restarts and reselection during the process lifetime.
+Delivery diagnostics separately report scheduled and actual intervals, maximum
+lateness, total output time, and failed sends. Costs are aggregates, so normal
+playback emits no per-frame diagnostic log. The scheduler and logical score ticks
+are unchanged; diagnostics never skip work to improve reported performance.</p>
+<p>A logical light frame is a finite, C-contiguous <code>numpy.float32</code> array shaped
+<code>(light_count, component_count)</code>. Generic uFor operations work with any
+positive component count. lyte's built-in pixel effects require <code>red</code>,
+<code>green</code>, and <code>blue</code> drive components in that order. Scores must use an explicit
+uFor component map when another component contract needs conversion.</p>
+<p>lyte implements every registered uFor effect with a fixed renderer registry.
+Score data cannot import arbitrary Python. Python-defined scores must instead
+subclass <code>lyte.rendering.PythonAnimationScore</code>, which defines the explicit
+state and frame contract.</p>
+<p>Each prepared score part has its own mutable state. Rendering the same part
+more than once in a logical tick uses its cached result, so a stateful effect
+advances once per tick. Separate parts that use the same score have independent
+state. Frames are clipped and rounded only when converted to output bytes.</p>
+<p>Wiring is a final light-order permutation. Previews and intermediate
+composition frames remain in authored logical order. At a physical output,
+lyte rescales frames to the detected LED count and warns if it differs from the
+layout count.</p>
+<h2 id="twinkly-playback">Twinkly Playback<a class="headerlink" href="#twinkly-playback" title="Permanent link">&para;</a></h2>
+<p><code>lyte animate</code> discovers one Twinkly device when no host is supplied. Playback
+authenticates, enters realtime mode, sends UDP frames, probes HTTP health, and
+uses bounded recovery after delivery or health failures. Recovery verifies the
+device MAC address and refreshes its LED count. Shutdown requests a blackout.</p>
+<p><code>lyte diagnostic</code> is read-only device inspection. The other device commands
+inspect or change Twinkly brightness, colour, mode, effects, layout, timer,
+media, network, and input settings.
+These device commands do not turn the lights off after completing their action.</p>
+<p>The following physical checks still need the target hardware: visible output,
+Wi-Fi recovery, correct string order, fixture addressing, MIDI routing, and
+blackout behavior.</p>
+<h2 id="installations">Installations<a class="headerlink" href="#installations" title="Permanent link">&para;</a></h2>
+<p>For an ordered lighting cue list, use showCo's <strong>Lighting cues</strong> page. showCo
+owns Go/Back and persistent cue position; lyte executes the selected installation
+look through its existing RPC. Cue selections cut immediately. showCo displays
+live active/queued looks and blackout/test overrides separately from cue position,
+and reconnects never resend selections. Its hardware-free rehearsal includes the
+laser example's <code>idle</code>, <code>circle</code>, and <code>square</code> names. Song markers remain separate
+manual actions. See showCo's <code>doc/README.md</code> for editing and uncertain-reply handling.</p>
+<p><code>lyte panel</code> opens a local operator page on port 8767 for the running installation.
+It uses the existing lyte reccy identity and RPC socket; it does not start another
+installation daemon. Active/queued animation, MIDI connection, blackout, tests,
+per-string health, and timing diagnostics come from service status, refreshed
+every second. Selection, test, blackout, and stop affect real outputs. Disconnection
+disables controls and labels the retained display as stale. Reconnection refreshes
+status without retrying commands, and rejected-command messages remain until
+cleared. Use <code>--no-open</code> to serve the page without opening a browser.</p>
+<p>The panel and rehearsal have pixel fade and master controls. Selection
+crossfades linearly after both scores have rendered and mapped to the physical
+strings. Zero seconds cuts immediately. During a normal fade, both animations
+receive MIDI and obey their own note gates. Selecting again freezes the last
+displayed blend and fades from it, avoiding a jump or an accumulating chain of
+renderers. That frozen snapshot no longer responds to MIDI; the incoming score
+does. Master level scales the final output, including test output, without
+changing score parameters. Blackout cancels the fade immediately at the next
+delivery boundary. A timed selection out of blackout fades from black.</p>
+<p>RPC selection accepts <code>select_animation(name=..., duration=...)</code>, with duration
+defaulting to zero. <code>master_level(level=...)</code> accepts 0–1. MIDI program changes
+retain immediate selection. Tests temporarily override the visible output while
+the fade's clock continues; selecting during a test fades from its displayed
+frame. Device connections stay open throughout selection and fading.</p>
+<p>The status field <code>strings</code> includes both Twinkly and WLED pixel outputs;
+<code>transport</code> identifies each one. Pixel master, fades, and test patterns do not
+change DMX fixture channels. A selection changes DMX values immediately, while
+blackout applies to both pixels and DMX.</p>
+<p>For software-only rehearsal, run:</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>lyte<span class="w"> </span>rehearse<span class="w"> </span>examples/installation.toml<span class="w"> </span>--string-counts<span class="w"> </span>left<span class="w"> </span><span class="m">125</span><span class="w"> </span>right<span class="w"> </span><span class="m">125</span>
+</span></code></pre></div>
+<p>Supply every Twinkly string's simulated light count. WLED strings use their
+configured <code>led_count</code>; do not repeat them in <code>--string-counts</code>. Twinkly counts are rehearsal
+inputs, not production device selectors. The loopback browser opens on port 8766
+(<code>--no-open</code> leaves it closed). It displays each string separately and offers
+animation selection, step/play/pause, test override, blackout, and synthetic MIDI
+when MIDI is configured. Controls take effect at the next simulated delivery tick.
+Playback uses the live installation's shared state, mappings, channel ownership,
+scaling, concatenation, and mirroring. Browser delays slow the simulated clock;
+they do not skip score ticks. No installation daemon, hardware discovery, MIDI
+port, or device output starts. This checks software behavior, not physical readiness.</p>
+<p>Record a rehearsal from its start with <code>--record-input performance.jsonl</code>.
+Capture includes synthetic MIDI and accepted operator commands, including fades,
+master level, tests, and blackout. Stop the rehearsal server normally to seal the
+recording. Existing files are never overwritten. A recording failure stops capture
+and is shown in the browser while playback continues; recordings with missing or
+damaged data are rejected.</p>
+<p>Replay offline with:</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>lyte<span class="w"> </span>rehearse<span class="w"> </span>examples/installation.toml<span class="w"> </span>--replay<span class="w"> </span>performance.jsonl
+</span></code></pre></div>
+<p>Replay uses the recorded string counts and delivery clock; omit <code>--string-counts</code>.
+Inputs come from the recording, so operator and MIDI controls are disabled.
+Configuration or score-source differences appear as warnings, including changed
+declared seeds. Identical deterministic scores reproduce the captured frames.
+The journal stores a configuration/score header, then each delivery's timestamp
+and ordered inputs using uFor MIDI events and reccy command requests. MIDI event
+ticks count delivery frames; ordinals retain input order. It records consumption
+at delivery boundaries, not raw device arrival times. It does not capture output
+packets or make physical playback available.</p>
+<p>For live capture, use <code>lyte installation run examples/installation.toml
+--record-input performance.jsonl</code>. The option applies to <code>run</code>, not service
+installation. Capture starts with the installation, including MIDI and operator
+commands received during output startup. The normal MIDI/selection/render paths
+are shared with rehearsal. Existing destinations or failures opening, serializing,
+writing, flushing, or closing the journal disable recording, not lighting. The
+error remains visible in installation status and the operator panel; failed
+capture stops buffering and does not retry disk writes. Use a fresh path for the
+next run. Status-file write failures likewise leave playback and in-memory RPC
+status available. Recoverable frame-render errors keep the loop running and leave
+the previous physical frame displayed until rendering recovers or another
+animation is selected. Explicit stop and interruption still stop playback.</p>
+<p>An installation drives Twinkly and WLED strings and switches named uFor
+animations at frame boundaries. Both transports share selection, fades, master
+level, test patterns, blackout, recording and status.</p>
+<p><code>lyte installation</code> is the sole service command. The legacy wearable daemon
+has been retired; <code>lyte patch</code> and the wearable uFor catalogue remain available.
+On machines with an older wearable service installed, stop and uninstall that
+service with <code>lyte installation stop</code> and <code>lyte installation uninstall</code>, then
+install the chosen installation configuration. Old service definitions that
+invoke <code>lyte daemon</code> must be replaced; they are not migrated automatically.</p>
+<p>Set <code>startup_timeout = 30</code> in the installation TOML to bound device discovery
+and identification (30 seconds by default). <code>discovery_timeout</code> bounds each
+individual scan; identification retries and waits share the overall discovery
+deadline. Missing devices are retried until that deadline; ambiguous assignments
+fail immediately. Ctrl-C interrupts foreground discovery. Runtime RPC is not
+available until discovery completes.</p>
+<p><code>setup_timeout = 30</code> separately bounds authentication and output setup across
+all Twinkly strings (also 30 seconds by default). Stop requests interrupt
+recovery retries after the service starts. <code>--duration</code> measures playback after
+outputs are ready, so discovery and setup do not consume the requested playing
+time. Shutdown attempts each output even if another fails and logs its result;
+UDP delivery does not confirm that a fixture changed state.</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>lyte<span class="w"> </span>installation<span class="w"> </span>run<span class="w"> </span>examples/installation.toml<span class="w"> </span>--duration<span class="w"> </span><span class="m">10</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>lyte<span class="w"> </span>installation<span class="w"> </span>install<span class="w"> </span>examples/installation.toml
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>lyte<span class="w"> </span>installation<span class="w"> </span>status
+</span></code></pre></div>
+<p>An action is required after <code>lyte installation</code>. <code>run</code> accepts a config path,
+<code>--duration</code>, and <code>--record-input</code>. <code>install</code> accepts a config path and saves it
+in the service definition. <code>start</code>, <code>stop</code>,
+<code>restart</code>, <code>status</code>, and <code>uninstall</code> operate on that installed service without
+a config path or playback options.</p>
+<p>The installation TOML describes Twinkly strings under <code>[twinkly]</code>, WLED targets
+under <code>[wled]</code>, and selectable animations under <code>[animations.NAME]</code>. A Twinkly
+selector contains
+observed <code>gestalt</code> fields such as <code>product_name</code>; it never contains an address,
+MAC address, or LED count. lyte discovers devices and requires one unambiguous,
+one-to-one assignment. An empty selector can select the one remaining device.</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">library_config</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"library.toml"</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">initial_animation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"tree_show"</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="k">[twinkly]</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">left</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">product_name</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"Dots"</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="n">right</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{}</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="k">[animations.tree_show]</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="n">selector</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"examples:/composition.toml"</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="n">outputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">light</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"left + right"</span><span class="w"> </span><span class="p">}</span>
+</span></code></pre></div>
+<p><code>animations.NAME.outputs</code> binds each logical score output to physical pixel
+outputs. Each binding is one physical expression:</p>
+<ul>
+<li><code>left</code> sends to one string.</li>
+<li><code>left + right</code> rescales once to the combined LED count, then partitions the
+  result into contiguous string frames.</li>
+<li><code>left * right</code> renders once, then independently rescales that frame for each
+  string.</li>
+</ul>
+<p>An expression cannot mix <code>+</code> and <code>*</code>, repeat a string, or leave a selected
+string unused. Switching animations prepares fresh renderer state but retains
+healthy physical connections. The reccy RPC endpoint supports <code>status</code>,
+<code>select_animation</code>, <code>test</code>, <code>blackout</code>, and <code>stop</code>.</p>
+<p>A light test temporarily overrides the display, then resumes the selected
+animation at its elapsed score time. <code>blackout</code> cancels queued selection and
+tests, keeps the service running, and sends black frames until an animation is
+selected. Status reports <code>blackout</code>; tests are rejected while it is active.
+Selecting an animation also cancels an active test. Only <code>stop</code> terminates
+playback and closes the outputs.</p>
+<p>Installation <code>fps</code> controls delivery cadence. Each score retains its declared
+timing: slower scores hold their latest frame between ticks, while faster scores
+advance through intervening ticks before sending the latest frame. A delayed
+delivery catches up to elapsed time. Selection and MIDI note restarts reset the
+score timeline.</p>
+<p>An optional <code>[midi]</code> table reconnects a MIDI input. Animation controls map
+note gate, note number, velocity, CC 2 breath, and pitch bend to public uFor
+parameters. An animation may use <code>activation = "note"</code> to output black until a
+note is held. Program changes queue the next configured animation.
+Each program-change message advances the queued selection, wrapping after the
+last configured look. Its program number is ignored; it is not a direct look
+number. The latest note-on owns the active note, even across channels.
+Releases, breath, and pitch bend only affect it when their channel matches.
+Preparation rejects non-finite or out-of-range mapped values and unsupported
+live parameter changes before discovering devices. Built-in effect parameters
+that are construction-only cannot be mapped to live MIDI controls.</p>
+<p>The supplied wearable installation and library are in <code>patches/</code>. They provide
+36 uFor presets for a 250-light garment. Its physical map is guessed, so it
+must be measured and checked on the assembled garment before performance use.</p>
+<h2 id="audio-reactive-effects-and-authoring">Audio-Reactive Effects and Authoring<a class="headerlink" href="#audio-reactive-effects-and-authoring" title="Permanent link">&para;</a></h2>
+<p><code>lyte.reactivity</code> is a standalone one-dimensional audio-analysis and frame
+processing layer. Callers pass sample blocks to <code>AudioAnalyzer</code>; it has no
+audio-device, MIDI, output, or geometry dependency. It produces normalized
+level, bass, mid, treble, onset, beat, and spectrum features.</p>
+<p>The independent reactive effects are scan, spectrum, bass pulse, spotlights,
+waterfall, flame, and beat strobe. A live caller creates an effect, analyzes a
+sample block, updates the effect state with <code>update_features()</code>, then renders.</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>lyte<span class="w"> </span>author<span class="w"> </span>--library-config<span class="w"> </span>examples/library.toml<span class="w"> </span>--open
+</span></code></pre></div>
+<p><code>lyte author</code> serves a loopback-only browser editor. It lists uFor animation
+scores and the reactive built-ins under <code>builtin:</code>. Search names, selectors,
+and tags, or filter by library and effect family. Entries use their canonical
+library paths, so duplicate names remain distinct. Blocked entries display
+field/dependency diagnostics and links to dependencies and referring scores.
+The selected score shows its source type, rate, light count, outputs, and
+parameter targets, bounds, defaults, and units. <strong>Render thumbnail</strong> renders
+only the selected score's initial frame on request, with its existing seed.
+The editor derives sliders from public parameters and regenerates the shared
+HTML preview after each edit. It does
+not edit spatial layouts.</p>
+<p>Slider changes are coalesced, with one preview request at a time per browser.
+The server renders one preview at a time; other tabs receive a busy message.
+Authoring and standalone HTML previews allow at most 10000 frames and 32 MiB
+of raw frame data. Reduce duration or layout size if a preview exceeds either
+limit. The editor streams JSON responses to avoid another full server-side
+copy. Base64 encoding and browser copies still require additional memory.</p>
+<p>For a uFor score, the <strong>Composition</strong> panel follows the selected output's
+declared operation tree and the parts it references. Selecting an operation
+shows its declared fields in the read-only inspector. The <strong>Timeline</strong> shows
+each selected <code>Cues</code> or <code>Crossfade</code> operation as exact rational-second ranges;
+overlapping bars show simultaneous cue playback. Direct TOML scores can edit
+cue starts and durations or a crossfade duration, then apply and download the validated
+result. It is a view and editor for declared uFor operations, not a generic
+keyframe editor.</p>
+<p><strong>Composition structure</strong> edits named parts and the selected score's cues,
+mix, placement, gain, reversal, or crossfade. Choose <strong>Review composition
+changes</strong> to validate a draft and inspect its diff before applying it. Moving
+cue contents exchanges references between the existing time slots, preserving
+starts, durations, gaps, and overlaps. Timing fields remain explicitly editable;
+adding or removing a slot never shifts the other slots. Shared source edits
+affect every use, and the panel lists referring scores. Rejected drafts leave
+the working score and history unchanged.</p>
+<p>The <strong>Operation fields</strong> panel edits a direct TOML operation's top-level scalar
+fields and applies and downloads a validated result. Nested arrays and tables stay
+read-only, preserving their source structure and comments. <strong>Colours and
+palettes</strong> separately supports Aurora and ExpandingRipples palettes, ColorFill
+and ColorChase colours, and RGB drive Fill values. Swatches and numeric channels
+show their units: bytes are 0–255; normalized drive uses 1 as full scale.
+Out-of-range normalized values are preserved numerically while swatches clip
+their display. Palettes support adding, removing, and reordering colours.
+Unsupported nested fields remain read-only.</p>
+<p>The example library was manually checked in the loopback browser on 2026-09-14:
+animation selection, reactive parameter sliders, transport pause and seeking,
+the composition tree, and cue timeline all worked. On 2026-09-16, the nine pixels in <code>examples/scores/grid.toml</code> were
+visually verified as three distinct rows and columns in the authoring browser.
+The editor supports XY, XZ, and YZ projections, zoom, fit, light names and
+logical indexes. Click a light to select it. For direct TOML scores, edit the
+coordinate table or enable dragging to move lights in the visible plane; hidden
+coordinates remain unchanged. Apply validates and downloads the layout through
+the same undo history. Wiring remains separate. <strong>Download standalone HTML
+preview</strong> exports the current working animation and parameter values, with the
+selected projection, zoom, light size, and background. Apply a pending layout
+draft first. This is a visual artifact, not editable source, and does not mark
+source edits as downloaded.</p>
+<p>The editor shows each selected score's library path and source type. <strong>Undo</strong>
+and <strong>Redo</strong> restore recent accepted document edits across the session, including
+referenced scores and comments. <strong>Session edits</strong> lists documents that differ
+from their original text. History retains up to 100 edits or 32 MiB of TOML text,
+whichever is reached first, while always retaining the latest edit. A new
+accepted edit clears redo; preview playback and parameter sliders do not enter
+document history.</p>
+<p>Direct TOML animation scores can replace a selected operation with one of the
+offered score-aware templates and download the edited source. lyte validates
+and prepares the replacement before download. Edits accumulate in the running editor, and the composition tree and preview
+refresh after each accepted edit. Source comments survive direct edits. uFor rejects unknown score fields before authoring, so there are no
+unknown fields to round-trip. Presets and Python scores remain read-only.</p>
+<p>Use <strong>Download TOML preset</strong> to save the selected uFor score's current public
+parameter values as a new <code>kind = "preset"</code> file. The browser downloads the
+file only after lyte validates and prepares it; source scores are never
+overwritten. Download every changed score to retain the working document;
+<strong>Download all edits (ZIP)</strong> offers all changed TOML files together, under
+library-name directories with their relative source paths preserved. The list
+shows which current revisions this browser has offered for download; it cannot
+verify that a download was saved. Closing with unoffered changes prompts a warning.
+The ZIP is a set of edits to your libraries, not a standalone library bundle.
+Restarting the editor discards its in-memory changes. Presets referring to edited
+scores require those edited score files as well. Reactive built-ins remain preview-only.</p>
+<h2 id="wled-interchange">WLED Interchange<a class="headerlink" href="#wled-interchange" title="Permanent link">&para;</a></h2>
+<p>The <code>lyte wled</code> commands exchange WLED preset snapshots offline. They do not
+configure or stream to a device. Live WLED output uses <code>[wled.NAME]</code> installation
+targets and DDP. WLED's native effects and lyte effects are not interchangeable.</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>lyte<span class="w"> </span>wled<span class="w"> </span>import<span class="w"> </span>snapshot-input<span class="w"> </span>--output<span class="w"> </span>wled-snapshot.json
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>lyte<span class="w"> </span>wled<span class="w"> </span>list<span class="w"> </span>wled-snapshot.json
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>lyte<span class="w"> </span>wled<span class="w"> </span><span class="nb">export</span><span class="w"> </span>wled-snapshot.json<span class="w"> </span>--output<span class="w"> </span>presets.json
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>lyte<span class="w"> </span>wled<span class="w"> </span>translate<span class="w"> </span>wled-snapshot.json<span class="w"> </span>--output<span class="w"> </span>generated-scores
+</span></code></pre></div>
+<p>Import requires <code>presets.json</code>, <code>eff.json</code>, <code>fxdata.json</code>, <code>pal.json</code>, and
+<code>info.json</code>, or a <code>metadata.json</code> that contains missing metadata responses. It
+creates a portable snapshot with raw source data and source hashes, while
+removing network identity fields such as host, IP, MAC, Wi-Fi name, and token.
+Export writes the original native <code>presets.json</code> losslessly.</p>
+<p>Translation is deliberately limited to one-segment presets for declared effect
+mappings: Solid, Breathe, Chase, Chase Rainbow, Candle, Color Wipe, Comet,
+Rainbow, Scan, and Twinkle. It creates independent uFor score files and a
+manifest. Unsupported presets remain native data and receive a reason in that
+manifest.</p>
+<p>Installation targets use an explicit hostname or IPv4 address and light count:</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">[wled.right]</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">host</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"wled.local"</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">led_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">60</span>
+</span></code></pre></div>
+<p>Use a bare hostname or address, without a URL scheme or port. The destination
+is UDP port 4048. Counts are never queried from WLED; update the configuration
+when the physical layout changes. Output names must be unique across transports,
+and each animation must bind every output. Concatenation (<code>left + right</code>) and
+mirroring (<code>left * right</code>) work across transports. WLED-only installations omit
+<code>[twinkly]</code> and perform no discovery. Mixed installations retain Twinkly's
+existing discovery and startup requirements.</p>
+<p><code>examples/installation-wled.toml</code> demonstrates a mixed installation. Rehearse
+it without devices with <code>lyte rehearse examples/installation-wled.toml
+--string-counts left 125</code>. Set the actual WLED host/count and Twinkly selector
+before physical playback with <code>lyte installation run</code>.</p>
+<p>The runner uses <code>WledDdpOutput</code> to send chunked RGB frames. Status displays
+<code>ready</code> before the first attempt and <code>sending (unconfirmed)</code> after a successful
+UDP send. This is not a device-health check: DDP has no acknowledgements, so an
+unplugged device may still appear to be sending successfully. Local send errors
+increment failure counters; other outputs continue, and the next scheduled frame
+tries again without queuing old frames. Socket acquisition is also attempted on
+a later frame if it fails. Socket operations use the installation <code>timeout</code>;
+operating-system hostname resolution has its own timing.</p>
+<p>Blackout sends zero RGB frames while the runner remains active. Shutdown attempts
+one final zero frame before closing the socket. Delivery is not guaranteed; WLED
+may resume its local preset when its realtime timeout expires. Physical checks
+of selection, unplug/replug and blackout remain necessary on the actual devices.</p>
+<h2 id="dmx-and-art-net">DMX and Art-Net<a class="headerlink" href="#dmx-and-art-net" title="Permanent link">&para;</a></h2>
+<p>The installation runner supports named fixture values alongside pixel scores,
+or a DMX-only installation. Start with <code>examples/installation-laser.toml</code> and
+its portable uFor profile, <code>examples/fixtures/laser.toml</code>. This reproduces the
+nine-channel litoid laser definition: mode, pattern, zoom, three rotations,
+horizontal/vertical position and colour. All six geometry defaults are 64.
+There is no dimmer. Blackout overrides mode with 0 and preserves other values.</p>
+<p><strong>Fixture changes cut at selection. Master level, pixel fades and pixel tests
+do not alter DMX fixtures, including at master zero. Use Blackout to stop both
+pixels and fixtures.</strong> Rehearsal and the panel show this distinction. This first
+fixture milestone does not implement fixture fading or intensity scaling.</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># No network, MIDI port, or service is opened by rehearsal.</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>lyte<span class="w"> </span>rehearse<span class="w"> </span>examples/installation-laser.toml
+</span></code></pre></div>
+<p>The example starts with its <code>idle</code> look in blackout. <code>circle</code> and <code>square</code> select
+manual mode with named patterns and colours. Rehearsal displays semantic values
+and 512-byte universe frames, not a simulated laser beam. Replace the example
+Art-Net destination and patch address before running the installation physically.</p>
+<p>An <code>[artnet]</code> endpoint supplies <code>host</code>, optional <code>port</code> (6454), and
+<code>universe_offset</code> (-1). Logical universes start at 1; with the default offset,
+logical universe 1 is Art-Net wire universe 0. Each <code>[dmx.NAME]</code> supplies:</p>
+<ul>
+<li><code>profile</code>: a uFor FixtureProfile TOML file, relative to the installation file.</li>
+<li><code>universe</code> and <code>start_channel</code>: one-based patch coordinates.</li>
+<li><code>defaults</code>: every named parameter's initial value.</li>
+<li><code>blackout</code>: explicit overrides applied during blackout, a closed note gate,
+  and the final best-effort shutdown frame.</li>
+</ul>
+<p>Profiles declare numeric domains or named choices and their one/two-slot byte
+encodings. This runner requires a channel encoding for every parameter and a
+<code>stop.kind = "blackout"</code> profile. Values, patch footprint overlap, universe
+boundaries and wire addresses are checked before device discovery. It composes
+one frame per universe; unpatched channels are zero. The endpoint should receive
+universes owned by this installation, not a partial contribution to another
+controller's frame.</p>
+<p>Every <code>[animations.NAME.fixtures]</code> table must name all configured fixtures.
+Each fixture's values override its defaults; an empty table uses those defaults.
+For mixed pixel/DMX looks, retain the usual <code>selector</code> and <code>outputs</code> as well.
+DMX-only looks omit both and do not need a pixel score library.</p>
+<p>Existing MIDI controls can target numeric fixture parameters by adding
+<code>fixture = "laser"</code>. For example, add a MIDI input and this control to a look:</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">[midi]</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">channel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="k">[[animations.circle.controls]]</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="n">fixture</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"laser"</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"breath"</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="n">parameter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"hpos"</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">64</span><span class="p">,</span><span class="w"> </span><span class="mi">255</span><span class="p">]</span>
+</span></code></pre></div>
+<p>Values use the profile's domain. The laser geometry domain is raw 0–255 with
+centre 64, not degrees or a symmetric normalized range. MIDI controls cannot
+target named mode/pattern/colour selections; select a look for those. A look's
+<code>activation = "note"</code> applies its declared blackout while no note is held.
+Fixture rendering and pixel rendering share the recorded delivery boundary;
+recordings include profile fingerprints and replay reports changed profiles.</p>
+<p>Art-Net sends have no delivery acknowledgement. Status distinguishes successful
+local sends from confirmed device health. Send failures leave pixels and other
+universes running and the next delivery tries again without replaying old frames.
+Shutdown sends the fixture-specific blackout frame rather than calling the
+low-level all-zero universe helper. The receiving node's timeout behaviour and
+physical blackout still need device testing; no fixture was activated during
+implementation.</p>
+<p>The existing <code>lyte.dmx</code> encoder and <code>lyte.artnet.ArtNetDriver</code> remain the shared
+encoding and transport primitives. Portable profile declarations stay in uFor;
+installation patching, control evaluation and transport stay in lyte.</p>
+<h2 id="what-the-tests-establish">What the Tests Establish<a class="headerlink" href="#what-the-tests-establish" title="Permanent link">&para;</a></h2>
+<p>The test suite covers score preparation and diagnostics, renderer behavior,
+composition and state ownership, parameter updates, wiring, previews, reactive
+processing, Twinkly recovery, installation selection and output expressions,
+MIDI mapping, WLED snapshots and DDP packet bytes, plus DMX and Art-Net
+encoding. It cannot establish the physical checks listed above.</p>
+<p>Run the suite with <code>uv run pytest -q</code>. It uses one pytest-xdist worker per
+available CPU. Use <code>uv run pytest -q -n 0</code> to reproduce a failure serially.
+The ordinary CLI-help assertion reads its checked-in fixture and runs in
+parallel. Regenerating that fixture writes source-controlled data, so always run
+it serially with <code>uv run pytest tests/test_cli_help.py -q -n 0 --force-regen</code>,
+then review the resulting diff before committing it.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["navigation.indexes","content.code.copy"],"redirect":null,"search":"../assets/javascripts/workers/search.c47bb847.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.77dd0ce9.min.js"></script>
+      
+    
+  </body>
+</html>
