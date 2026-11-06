@@ -1,0 +1,64 @@
+library_config = "."
+initial_animation = "wash"
+fps = 30.0
+timeout = 5.0
+attempts = 10
+retry_delay = 0.5
+retry_backoff = 2.0
+discovery_timeout = 5.0
+startup_timeout = 30.0
+setup_timeout = 30.0
+
+[schedule]
+
+latitude = 49.44
+longitude = 1.1
+timezone = "Europe/Paris"
+sunset_offset = 1800.0
+fade_in = 3600.0
+minimum_hold = 7200.0
+fade_out_not_before = "23:00:00"
+fade_out = 1800.0
+maximum_level = 1.0
+
+[twinkly.front]
+
+device_name = "Example lights"
+product_name = "sample"
+product_code = "sample"
+hardware_id = "sample"
+firmware_family = "sample"
+led_profile = "sample"
+
+[wled]
+
+[dmx]
+
+[artnet]
+
+host = "sample"
+port = 6454
+universe_offset = -1
+
+[animation_defaults]
+
+activation = "always"
+controls = []
+
+[animations.wash]
+
+selector = "demo:wash"
+activation = "always"
+controls = []
+
+[animations.wash.parameters]
+
+[animations.wash.outputs]
+light = "front"
+
+[animations.wash.fixtures]
+
+[midi]
+
+channel = 1
+device_name = "Example keyboard"
