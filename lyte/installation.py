@@ -27,10 +27,9 @@ from reccy.protocol import ipc, rpc
 from reccy.reccy import Reccy, ReccyStatus
 from reccy.runtime import logging
 from reccy.services import controller
+from tinkly import discovery
 from tinkly.client import TwinklyClient
 from ufor.library import Library
-
-from tinkly import discovery
 
 from . import (
     animation,
