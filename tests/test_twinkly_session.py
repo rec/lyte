@@ -211,7 +211,7 @@ class RealtimeTransportTests(unittest.TestCase):
             value='AAAAAAAAAAA=', challenge_response='', expires_at=None
         )
         with patch(
-            'lyte.twinkly.realtime.send_frame_v3',
+            'lyte.twinkly.realtime.send_frame',
             side_effect=OSError('Network is unreachable'),
         ):
             result = realtime.send_realtime_frame(
