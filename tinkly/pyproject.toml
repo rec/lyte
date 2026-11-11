@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tinkly"
+version = "0.1.0"
+description = "Low-level Twinkly discovery, authentication, HTTP, and realtime UDP transport"
+requires-python = ">=3.13"
+dependencies = ["pydantic"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff.format]
+quote-style = "single"
