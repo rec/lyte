@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 import tyro
 from pydantic import BaseModel, Field
@@ -63,7 +63,9 @@ def prepare_animation(
 def prepare_library_animation(
     library: Library, program: LightProgramSpec
 ) -> PreparedAnimation:
-    composition = library.composition(program.selector, dict(program.parameters))
+    composition = library.composition(
+        program.selector, cast(dict[str, float | str], program.parameters)
+    )
     wiring = None if program.wiring is None else Wiring(order=program.wiring)
     return PreparedAnimation(library, composition, program.output, wiring)
 

@@ -118,7 +118,7 @@ class PreparedAnimation:
         updated = Composition(
             self.composition.root,
             self.composition.scores,
-            {**current, **values},
+            cast(dict[str, float | str], current | values),
         )
         if updated.parts.keys() != self.composition.parts.keys() or any(
             updated.parts[p].score != self.composition.parts[p].score
