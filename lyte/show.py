@@ -63,7 +63,7 @@ def prepare_animation(
 def prepare_library_animation(
     library: Library, program: LightProgramSpec
 ) -> PreparedAnimation:
-    composition = library.composition(program.selector, program.parameters)
+    composition = library.composition(program.selector, dict(program.parameters))
     wiring = None if program.wiring is None else Wiring(order=program.wiring)
     return PreparedAnimation(library, composition, program.output, wiring)
 
