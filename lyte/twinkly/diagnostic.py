@@ -291,7 +291,7 @@ def authenticated_reports(
             'network-scan',
             'GET',
             'network/scan',
-            lambda: client.get_network_scan().data,
+            lambda: client.start_network_scan().data,
         ),
         read_endpoint(
             client,

@@ -117,7 +117,7 @@ class PackageDiagnosticTests(unittest.TestCase):
             calls.append(('GET', 'network-status'))
             return TwinklyResponse(http_status=200, data={'code': 1000, 'mode': 1})
 
-        def get_network_scan(self: TwinklyClient) -> TwinklyResponse:
+        def start_network_scan(self: TwinklyClient) -> TwinklyResponse:
             calls.append(('GET', 'network-scan'))
             return TwinklyResponse(http_status=200, data={'code': 1000})
 
@@ -192,7 +192,7 @@ class PackageDiagnosticTests(unittest.TestCase):
             'playlist': property(get_playlist),
             'current_playlist_entry': property(get_current_playlist_entry),
             'network_status': property(get_network_status),
-            'get_network_scan': get_network_scan,
+            'start_network_scan': start_network_scan,
             'network_scan_results': property(get_network_scan_results),
             'mqtt_config': property(get_mqtt_config),
             'mic_config': property(get_mic_config),
