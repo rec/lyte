@@ -19,7 +19,7 @@ def run_network_control(config: DiagnosticConfig, action: NetworkAction) -> int:
         if action == 'status':
             LOGGER.info(f'[network] status {client.network_status.data}')
         elif action == 'scan':
-            LOGGER.info(f'[network] scan {client.get_network_scan().data}')
+            LOGGER.info(f'[network] scan {client.start_network_scan().data}')
         else:
             LOGGER.info(f'[network] scan-results {client.network_scan_results.data}')
 
