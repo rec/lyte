@@ -5,9 +5,10 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from tinkly.client import TwinklyClient
+
 from ..retry import RetryConfig
 from . import session
-from .client import TwinklyClient
 from .diagnostic import DiagnosticConfig
 from .realtime import discover_host
 

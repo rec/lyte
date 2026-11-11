@@ -7,6 +7,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from tinkly.client import TwinklyClient, TwinklyResponse
+
 from lyte.twinkly import (
     diagnostic,
     inputs,
@@ -17,7 +19,6 @@ from lyte.twinkly import (
     output,
     timer,
 )
-from lyte.twinkly.client import TwinklyClient, TwinklyResponse
 
 COMMAND = 'lyte.twinkly.command'
 OUTPUT = 'lyte.twinkly.output'

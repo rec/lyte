@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from lyte.errors import DiscoveryError
-from lyte.twinkly.discovery import parse_discovery_response
+from tinkly.discovery import parse_discovery_response
+from tinkly.errors import DiscoveryError
 
 
 class DiscoveryTests(unittest.TestCase):

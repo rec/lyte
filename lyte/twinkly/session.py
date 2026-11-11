@@ -8,11 +8,12 @@ from collections.abc import Callable
 
 import numpy as np
 from numpy.typing import NDArray
+from tinkly.client import TWINKLY_API_PREFIX, AuthToken, TwinklyClient, TwinklyResponse
+from tinkly.errors import AuthenticationError, ProtocolError
+from tinkly.frame import send_frame_v3
 
-from ..errors import AuthenticationError, ProtocolError
 from ..retry import RetryConfig, retry_call
-from .client import TWINKLY_API_PREFIX, AuthToken, TwinklyClient, TwinklyResponse
-from .frame import send_frame_v3
+from .frame import frame_payload
 
 
 def twinkly_request_label(method: str, path: str, host: str) -> str:
@@ -126,7 +127,7 @@ def send_frame_with_retry(
     return retry_call(
         label,
         retry,
-        lambda: send_frame_v3(host, token, frame),
+        lambda: send_frame_v3(host, token, frame_payload(frame)),
         (OSError, ProtocolError, ValueError),
     )
 

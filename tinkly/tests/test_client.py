@@ -3,8 +3,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from lyte.errors import UnsupportedEndpointError
-from lyte.twinkly.client import TWINKLY_API_PREFIX, TwinklyClient, TwinklyResponse
+from tinkly.client import TWINKLY_API_PREFIX, TwinklyClient, TwinklyResponse
+from tinkly.errors import UnsupportedEndpointError
 
 
 class FakeHttpResponse:
@@ -56,7 +56,7 @@ class ClientTests(unittest.TestCase):
         FakeHttpConnection.response = FakeHttpResponse(200, b'{"code":1000}')
         FakeHttpConnection.requests = []
 
-        with patch('lyte.twinkly.client.client.HTTPConnection', FakeHttpConnection):
+        with patch('tinkly.client.client.HTTPConnection', FakeHttpConnection):
             response = TwinklyClient(host='192.168.1.23').delete(
                 'movies', authenticated=False
             )
@@ -81,7 +81,7 @@ class ClientTests(unittest.TestCase):
         FakeHttpConnection.response = FakeHttpResponse(200, b'{"code":1000}')
         FakeHttpConnection.requests = []
 
-        with patch('lyte.twinkly.client.client.HTTPConnection', FakeHttpConnection):
+        with patch('tinkly.client.client.HTTPConnection', FakeHttpConnection):
             response = TwinklyClient(host='192.168.1.23').post_bytes(
                 'movies/full',
                 b'\x01\x02\x03',
@@ -125,7 +125,7 @@ class ClientTests(unittest.TestCase):
         FakeHttpConnection.requests = []
 
         with (
-            patch('lyte.twinkly.client.client.HTTPConnection', FakeHttpConnection),
+            patch('tinkly.client.client.HTTPConnection', FakeHttpConnection),
             self.assertRaises(UnsupportedEndpointError) as raised,
         ):
             TwinklyClient(host='192.168.1.23').get('missing', authenticated=False)

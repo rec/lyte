@@ -6,12 +6,12 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 from reccy.runtime import logging
+from tinkly.client import TwinklyClient
+from tinkly.errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
 
 from ..cli_units import Seconds
-from ..errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
 from ..retry import RetryConfig, retry_call
 from . import session
-from .client import TwinklyClient
 from .realtime import discover_host
 from .realtime_diagnostic import RealtimeDiagnosticConfig, run_realtime_diagnostic
 

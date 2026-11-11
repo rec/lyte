@@ -12,6 +12,7 @@ import tyro
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, SkipValidation
 from reccy.runtime import logging
+from tinkly.client import TwinklyClient
 
 from . import animation, midi, patch_config
 from .animations import compositions, reactive
@@ -22,7 +23,6 @@ from .animations.simulations.random_walk import RandomWalk
 from .cli_units import FramesPerSecond, Seconds
 from .retry import RetryConfig
 from .twinkly import realtime, track
-from .twinkly.client import TwinklyClient
 
 LOGGER = logging.get_logger(__name__)
 

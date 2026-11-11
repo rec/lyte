@@ -4,8 +4,8 @@ import sys
 from typing import Literal
 
 from reccy.runtime import logging
+from tinkly.client import TwinklyClient
 
-from .client import TwinklyClient
 from .command import run_twinkly_command
 from .diagnostic import DiagnosticConfig
 

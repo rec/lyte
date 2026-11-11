@@ -1,4 +1,4 @@
-"""UDP discovery for lyte devices."""
+"""UDP discovery for Twinkly devices."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from collections.abc import Iterator
 
 from pydantic import BaseModel
 
-from ..errors import DiscoveryError
+from .errors import DiscoveryError
 
 DISCOVERY_MESSAGE = b'\x01discover'
 DISCOVERY_PORT = 5555

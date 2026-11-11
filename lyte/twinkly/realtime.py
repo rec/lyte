@@ -9,13 +9,14 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 from reccy.runtime import logging
+from tinkly.client import TwinklyClient
+from tinkly.discovery import discover
+from tinkly.errors import ProtocolError
+from tinkly.frame import send_frame_v3
 
-from ..errors import ProtocolError
 from ..retry import RetryConfig
 from . import session
-from .client import TwinklyClient
-from .discovery import discover
-from .frame import send_frame_v3
+from .frame import frame_payload
 
 LOGGER = logging.get_logger(__name__)
 
@@ -82,7 +83,7 @@ def send_realtime_frame(
             error='Twinkly authentication token is missing',
         )
     try:
-        sent = send_frame_v3(host, client.token.value, frame, output)
+        sent = send_frame_v3(host, client.token.value, frame_payload(frame), output)
     except (OSError, ProtocolError, ValueError) as error:
         message = f'{type(error).__name__}: {error}'
         LOGGER.error(f'[network] Realtime UDP send to {host} failed: {message}')

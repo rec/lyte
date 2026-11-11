@@ -12,11 +12,11 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, SkipValidation
 from reccy.runtime import logging
+from tinkly.client import TwinklyClient
 
 from .. import animation
 from ..retry import RetryConfig
 from . import realtime
-from .client import TwinklyClient
 
 LOGGER = logging.get_logger(__name__)
 

@@ -9,6 +9,7 @@ import mido
 import numpy as np
 from numpy import testing as npt
 from pydantic import BaseModel
+from tinkly.client import TwinklyClient
 from ufor import library_files
 
 from lyte import (
@@ -21,7 +22,6 @@ from lyte import (
 )
 from lyte.retry import RetryConfig
 from lyte.twinkly import realtime, track
-from lyte.twinkly.client import TwinklyClient
 
 
 def make_track(led_count: int = 250) -> track.TwinklyTrack:

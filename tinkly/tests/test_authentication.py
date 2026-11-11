@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from lyte.twinkly.authentication import CHALLENGE_KEY, derive_key, mac_bytes, rc4
+from tinkly.authentication import CHALLENGE_KEY, derive_key, mac_bytes, rc4
 
 
 class CryptoTests(unittest.TestCase):

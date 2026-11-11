@@ -5,11 +5,12 @@ import unittest
 from unittest.mock import patch
 
 import numpy as np
+from tinkly.client import TWINKLY_API_PREFIX, TwinklyClient, TwinklyResponse
 
 from lyte.animations.colors import solid_rgb_frame
 from lyte.retry import RetryConfig
-from lyte.twinkly import client, realtime, session
-from lyte.twinkly.client import TWINKLY_API_PREFIX, TwinklyClient, TwinklyResponse
+from lyte.twinkly import realtime, session
+from tinkly import client
 
 
 class SessionTests(unittest.TestCase):

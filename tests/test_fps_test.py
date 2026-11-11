@@ -7,12 +7,12 @@ from unittest.mock import patch
 import numpy as np
 from numpy import testing as npt
 from numpy.typing import NDArray
+from tinkly.client import TwinklyClient
+from tinkly.discovery import DiscoveredDevice
 
 from lyte import animation, diagnostic_frames, fps_test
 from lyte.retry import RetryConfig
 from lyte.twinkly import realtime
-from lyte.twinkly.client import TwinklyClient
-from lyte.twinkly.discovery import DiscoveredDevice
 
 
 class FpsTestTests(unittest.TestCase):

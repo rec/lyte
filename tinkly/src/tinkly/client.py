@@ -1,4 +1,4 @@
-"""Small HTTP client for lyte devices."""
+"""Small HTTP client for Twinkly devices."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from http import client
 
 from pydantic import BaseModel
 
-from ..errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
 from .authentication import make_challenge_response
+from .errors import AuthenticationError, ProtocolError, UnsupportedEndpointError
 
 AUTH_HEADER = 'X-Auth-Token'
 TWINKLY_API_PREFIX = '/' + 'x' + 'led/v1'

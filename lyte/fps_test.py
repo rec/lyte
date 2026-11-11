@@ -14,6 +14,7 @@ from typing import Literal, TextIO
 import numpy as np
 from numpy.typing import NDArray
 from reccy.runtime import logging
+from tinkly.client import TwinklyClient
 
 from . import diagnostic_frames
 from .animation import Device, validate_byte_rgb_frame
@@ -21,7 +22,6 @@ from .animations.colors import RGB
 from .cli_units import Seconds
 from .retry import RetryConfig
 from .twinkly import realtime
-from .twinkly.client import TwinklyClient
 
 FPS_VALUES: tuple[float, ...] = (30.0, 60.0, 120.0, 240, 480, 960, 1920)
 TEST2_ANIMATION_FPS = 60.0

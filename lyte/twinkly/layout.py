@@ -6,8 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 from reccy.runtime import logging
+from tinkly.client import TwinklyClient
 
-from .client import TwinklyClient
 from .command import read_json_object, run_twinkly_command, write_json_file
 from .diagnostic import DiagnosticConfig
 

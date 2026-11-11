@@ -27,7 +27,10 @@ from reccy.protocol import ipc, rpc
 from reccy.reccy import Reccy, ReccyStatus
 from reccy.runtime import logging
 from reccy.services import controller
+from tinkly.client import TwinklyClient
 from ufor.library import Library
+
+from tinkly import discovery
 
 from . import (
     animation,
@@ -43,8 +46,7 @@ from .metrics import DeliveryTiming, RenderCost
 from .midi import MidiInput, input_messages, open_input
 from .retry import RetryConfig
 from .schedule import ScheduleStatus, SunsetScheduler
-from .twinkly import diagnostic, discovery, realtime, session, track
-from .twinkly.client import TwinklyClient
+from .twinkly import diagnostic, realtime, session, track
 from .wled_output import WledDdpOutput
 
 LOGGER = logging.get_logger(__name__)

@@ -6,11 +6,12 @@ import unittest
 from contextlib import ExitStack
 from unittest.mock import patch
 
-from lyte.errors import UnsupportedEndpointError
+from tinkly.client import TwinklyClient, TwinklyResponse
+from tinkly.discovery import DiscoveredDevice
+from tinkly.errors import UnsupportedEndpointError
+
 from lyte.retry import RetryConfig
 from lyte.twinkly import diagnostic
-from lyte.twinkly.client import TwinklyClient, TwinklyResponse
-from lyte.twinkly.discovery import DiscoveredDevice
 
 DIAGNOSTIC = 'lyte.twinkly.diagnostic'
 

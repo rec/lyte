@@ -1,15 +1,15 @@
-"""Exceptions for the small lyte client."""
+"""Exceptions for Twinkly protocol operations."""
 
 
-class LyteError(Exception):
-    """Base error for lyte operations."""
+class TinklyError(Exception):
+    """Base error for Twinkly operations."""
 
 
-class DiscoveryError(LyteError):
+class DiscoveryError(TinklyError):
     """Discovery datagram could not be sent or parsed."""
 
 
-class ProtocolError(LyteError):
+class ProtocolError(TinklyError):
     """The device returned a response that does not match the protocol."""
 
 
@@ -22,5 +22,5 @@ class UnsupportedEndpointError(ProtocolError):
         super().__init__(f'Twinkly endpoint {path!r} is not supported: {text}')
 
 
-class AuthenticationError(LyteError):
+class AuthenticationError(TinklyError):
     """The authentication handshake failed."""

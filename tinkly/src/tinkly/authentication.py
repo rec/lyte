@@ -1,4 +1,4 @@
-"""Cryptographic helpers used by lyte authentication."""
+"""Cryptographic helpers used by Twinkly authentication."""
 
 from __future__ import annotations
 

@@ -7,12 +7,14 @@ from dataclasses import dataclass
 from typing import NoReturn
 
 from reccy.runtime import logging
+from tinkly.client import TwinklyClient
+from tinkly.errors import DiscoveryError, ProtocolError
+
+from tinkly import discovery
 
 from ..animations.colors import solid_rgb_frame
-from ..errors import DiscoveryError, ProtocolError
 from ..retry import RetryConfig, retry_call
-from . import discovery, session
-from .client import TwinklyClient
+from . import session
 
 
 @dataclass(frozen=True)

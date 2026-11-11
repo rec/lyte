@@ -4,12 +4,12 @@ from collections.abc import Sequence
 
 import tyro
 from reccy.runtime import logging
+from tinkly.client import TwinklyClient
 from ufor.lights import Interpretation
 
 from .. import animation, show
 from ..retry import RetryConfig
 from ..twinkly import realtime, track
-from ..twinkly.client import TwinklyClient
 from .config import AnimateConfig, validate_args
 
 LOGGER = logging.get_logger(__name__)
