@@ -46,7 +46,7 @@ def _send_frame_v3(output: socket.socket, host: str, token: str, frame: Buffer) 
     sent = 0
     address = (host, REALTIME_PORT)
     for header, payload in frame_packets_v3(token, frame):
-        sent += output.sendmsg([header, payload], [], 0, address)
+        sent += output.sendto(b''.join((header, payload)), address)
     return sent
 
 
