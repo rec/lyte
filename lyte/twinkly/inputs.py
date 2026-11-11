@@ -19,7 +19,7 @@ LOGGER = logging.get_logger(__name__)
 def run_mqtt_control(config: DiagnosticConfig, action: MqttAction) -> int:
     def run(client: TwinklyClient) -> None:
         if action == 'config':
-            LOGGER.info(f'[mqtt] config {client.get_mqtt_config().data}')
+            LOGGER.info(f'[mqtt] config {client.mqtt_config.data}')
 
     return run_twinkly_command(config, run)
 
@@ -27,9 +27,9 @@ def run_mqtt_control(config: DiagnosticConfig, action: MqttAction) -> int:
 def run_mic_control(config: DiagnosticConfig, action: MicAction) -> int:
     def run(client: TwinklyClient) -> None:
         if action == 'config':
-            LOGGER.info(f'[mic] config {client.get_mic_config().data}')
+            LOGGER.info(f'[mic] config {client.mic_config.data}')
         else:
-            LOGGER.info(f'[mic] sample {client.get_mic_sample().data}')
+            LOGGER.info(f'[mic] sample {client.mic_sample.data}')
 
     return run_twinkly_command(config, run)
 
@@ -37,13 +37,12 @@ def run_mic_control(config: DiagnosticConfig, action: MicAction) -> int:
 def run_music_control(config: DiagnosticConfig, action: MusicAction) -> int:
     def run(client: TwinklyClient) -> None:
         if action == 'drivers':
-            LOGGER.info(f'[music] drivers {client.get_music_drivers().data}')
+            LOGGER.info(f'[music] drivers {client.music_drivers.data}')
         elif action == 'driver-sets':
-            LOGGER.info(f'[music] driver-sets {client.get_music_driver_sets().data}')
+            LOGGER.info(f'[music] driver-sets {client.music_driver_sets.data}')
         else:
             LOGGER.info(
-                f'[music] current-driver-set '
-                f'{client.get_current_music_driver_set().data}'
+                f'[music] current-driver-set {client.current_music_driver_set.data}'
             )
 
     return run_twinkly_command(config, run)

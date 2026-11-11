@@ -52,15 +52,15 @@ def run_layout_control(
 
     def run(client: TwinklyClient) -> None:
         if action == 'get':
-            LOGGER.info(f'[layout] {client.get_layout_full().data}')
+            LOGGER.info(f'[layout] {client.layout_full.data}')
         elif action == 'export':
             assert path is not None
-            write_json_file(path, client.get_layout_full().data)
+            write_json_file(path, client.layout_full.data)
             LOGGER.info(f'[layout] exported {path}')
         elif action == 'upload':
             assert path is not None
             layout = TwinklyLayout.from_response(read_json_object(path))
-            client.set_layout_full(layout.request_body())
+            client.layout_full = layout.request_body()
             LOGGER.info(f'[layout] uploaded {path}')
         else:
             client.delete_layout_full()
@@ -78,10 +78,10 @@ def run_led_config_control(
 
     def run(client: TwinklyClient) -> None:
         if action == 'get':
-            LOGGER.info(f'[led-config] {client.get_led_config().data}')
+            LOGGER.info(f'[led-config] {client.led_config.data}')
         else:
             assert path is not None
-            client.set_led_config(read_json_object(path))
+            client.led_config = read_json_object(path)
             LOGGER.info(f'[led-config] set {path}')
 
     return run_twinkly_command(config, run)
