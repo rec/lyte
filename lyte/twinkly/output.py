@@ -97,8 +97,8 @@ def read_output_control(
     kind: OutputControlKind,
 ) -> OutputControl:
     if kind == 'brightness':
-        return OutputControl.from_response(client.get_brightness().data)
-    return OutputControl.from_response(client.get_saturation().data)
+        return OutputControl.from_response(client.brightness.data)
+    return OutputControl.from_response(client.saturation.data)
 
 
 def write_output_control(
@@ -107,6 +107,6 @@ def write_output_control(
     control: OutputControl,
 ) -> None:
     if kind == 'brightness':
-        client.set_brightness(control.request_body())
+        client.brightness = control.request_body()
     else:
-        client.set_saturation(control.request_body())
+        client.saturation = control.request_body()

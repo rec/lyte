@@ -5,7 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 from tinkly.client import TwinklyClient, TwinklyResponse
 
@@ -87,7 +87,8 @@ class TwinklyControlTests(unittest.TestCase):
         with (
             patch.object(
                 TwinklyClient,
-                'get_brightness',
+                'brightness',
+                new_callable=PropertyMock,
                 return_value=TwinklyResponse(
                     http_status=200,
                     data={'mode': 'enabled', 'value': 75},
@@ -95,7 +96,8 @@ class TwinklyControlTests(unittest.TestCase):
             ) as get_brightness,
             patch.object(
                 TwinklyClient,
-                'get_saturation',
+                'saturation',
+                new_callable=PropertyMock,
                 return_value=TwinklyResponse(
                     http_status=200,
                     data={'mode': 'enabled', 'value': 80},
@@ -115,8 +117,12 @@ class TwinklyControlTests(unittest.TestCase):
         control = output.OutputControl(value=90)
 
         with (
-            patch.object(TwinklyClient, 'set_brightness') as set_brightness,
-            patch.object(TwinklyClient, 'set_saturation') as set_saturation,
+            patch.object(
+                TwinklyClient, 'brightness', new_callable=PropertyMock
+            ) as set_brightness,
+            patch.object(
+                TwinklyClient, 'saturation', new_callable=PropertyMock
+            ) as set_saturation,
         ):
             output.write_output_control(client, 'brightness', control)
             output.write_output_control(client, 'saturation', control)
@@ -196,7 +202,9 @@ class TwinklyControlTests(unittest.TestCase):
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
             patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
-            patch.object(TwinklyClient, 'set_led_mode') as set_led_mode,
+            patch.object(
+                TwinklyClient, 'led_mode', new_callable=PropertyMock
+            ) as set_led_mode,
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
@@ -215,7 +223,9 @@ class TwinklyControlTests(unittest.TestCase):
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
             patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
-            patch.object(TwinklyClient, 'set_led_color') as set_led_color,
+            patch.object(
+                TwinklyClient, 'led_color', new_callable=PropertyMock
+            ) as set_led_color,
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
@@ -238,7 +248,9 @@ class TwinklyControlTests(unittest.TestCase):
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
             patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
-            patch.object(TwinklyClient, 'set_current_effect') as set_current_effect,
+            patch.object(
+                TwinklyClient, 'current_effect', new_callable=PropertyMock
+            ) as set_current_effect,
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
@@ -263,7 +275,8 @@ class TwinklyControlTests(unittest.TestCase):
                 patch(f'{COMMAND}.prepare_authenticated_client'),
                 patch.object(
                     TwinklyClient,
-                    'get_layout_full',
+                    'layout_full',
+                    new_callable=PropertyMock,
                     return_value=TwinklyResponse(
                         http_status=200,
                         data={'source': '3d', 'coordinates': []},
@@ -306,7 +319,9 @@ class TwinklyControlTests(unittest.TestCase):
                 patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
                 patch(f'{COMMAND}.TwinklyClient', return_value=client),
                 patch(f'{COMMAND}.prepare_authenticated_client'),
-                patch.object(TwinklyClient, 'set_layout_full') as set_layout_full,
+                patch.object(
+                    TwinklyClient, 'layout_full', new_callable=PropertyMock
+                ) as set_layout_full,
                 patch(
                     f'{COMMAND}.session.turn_off_with_retry', return_value=True
                 ) as turn_off,
@@ -338,7 +353,9 @@ class TwinklyControlTests(unittest.TestCase):
                 patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
                 patch(f'{COMMAND}.TwinklyClient', return_value=client),
                 patch(f'{COMMAND}.prepare_authenticated_client'),
-                patch.object(TwinklyClient, 'set_led_config') as set_led_config,
+                patch.object(
+                    TwinklyClient, 'led_config', new_callable=PropertyMock
+                ) as set_led_config,
                 patch(
                     f'{COMMAND}.session.turn_off_with_retry', return_value=True
                 ) as turn_off,
@@ -361,7 +378,8 @@ class TwinklyControlTests(unittest.TestCase):
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 TwinklyClient,
-                'get_timer',
+                'timer',
+                new_callable=PropertyMock,
                 return_value=TwinklyResponse(
                     http_status=200,
                     data={'time_now': 1800, 'time_on': -1, 'time_off': 7200},
@@ -390,7 +408,9 @@ class TwinklyControlTests(unittest.TestCase):
             patch(f'{COMMAND}.discover_host', return_value='192.168.1.23'),
             patch(f'{COMMAND}.TwinklyClient', return_value=client),
             patch(f'{COMMAND}.prepare_authenticated_client'),
-            patch.object(TwinklyClient, 'set_timer') as set_timer,
+            patch.object(
+                TwinklyClient, 'timer', new_callable=PropertyMock
+            ) as set_timer,
             patch(
                 f'{COMMAND}.session.turn_off_with_retry', return_value=True
             ) as turn_off,
@@ -415,7 +435,8 @@ class TwinklyControlTests(unittest.TestCase):
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 TwinklyClient,
-                'get_current_movie',
+                'current_movie',
+                new_callable=PropertyMock,
                 return_value=TwinklyResponse(http_status=200, data={'id': 0}),
             ) as get_current_movie,
             patch(
@@ -439,7 +460,8 @@ class TwinklyControlTests(unittest.TestCase):
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 TwinklyClient,
-                'get_playlist',
+                'playlist',
+                new_callable=PropertyMock,
                 return_value=TwinklyResponse(http_status=200, data={'entries': []}),
             ) as get_playlist,
             patch(
@@ -463,7 +485,8 @@ class TwinklyControlTests(unittest.TestCase):
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 TwinklyClient,
-                'get_network_status',
+                'network_status',
+                new_callable=PropertyMock,
                 return_value=TwinklyResponse(http_status=200, data={'mode': 1}),
             ) as get_network_status,
             patch(
@@ -489,7 +512,8 @@ class TwinklyControlTests(unittest.TestCase):
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 TwinklyClient,
-                'get_mqtt_config',
+                'mqtt_config',
+                new_callable=PropertyMock,
                 return_value=TwinklyResponse(http_status=200, data={'enabled': False}),
             ) as get_mqtt_config,
             patch(
@@ -513,7 +537,8 @@ class TwinklyControlTests(unittest.TestCase):
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 TwinklyClient,
-                'get_mic_sample',
+                'mic_sample',
+                new_callable=PropertyMock,
                 return_value=TwinklyResponse(http_status=200, data={'sample': 3}),
             ) as get_mic_sample,
             patch(
@@ -537,7 +562,8 @@ class TwinklyControlTests(unittest.TestCase):
             patch(f'{COMMAND}.prepare_authenticated_client'),
             patch.object(
                 TwinklyClient,
-                'get_current_music_driver_set',
+                'current_music_driver_set',
+                new_callable=PropertyMock,
                 return_value=TwinklyResponse(http_status=200, data={'id': 1}),
             ) as get_current_music_driver_set,
             patch(

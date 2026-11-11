@@ -158,7 +158,7 @@ def run_diagnostic(config: DiagnosticConfig) -> int:
             'firmware',
             'GET',
             'fw/version',
-            lambda: client.get_firmware_version().data,
+            lambda: client.firmware_version.data,
         ),
         read_endpoint(
             client,
@@ -166,7 +166,7 @@ def run_diagnostic(config: DiagnosticConfig) -> int:
             'status',
             'GET',
             'status',
-            lambda: client.get_status().data,
+            lambda: client.status.data,
         ),
     )
     for report in unauthenticated_reports:
@@ -211,7 +211,7 @@ def authenticated_reports(
             'layout',
             'GET',
             'led/layout/full',
-            lambda: client.get_layout_full().data,
+            lambda: client.layout_full.data,
         ),
         read_endpoint(
             client,
@@ -219,7 +219,7 @@ def authenticated_reports(
             'led-config',
             'GET',
             'led/config',
-            lambda: client.get_led_config().data,
+            lambda: client.led_config.data,
         ),
         read_endpoint(
             client,
@@ -227,7 +227,7 @@ def authenticated_reports(
             'mode',
             'GET',
             'led/mode',
-            lambda: client.get_led_mode().data,
+            lambda: client.led_mode.data,
         ),
         read_endpoint(
             client,
@@ -235,7 +235,7 @@ def authenticated_reports(
             'timer',
             'GET',
             'timer',
-            lambda: client.get_timer().data,
+            lambda: client.timer.data,
         ),
         read_endpoint(
             client,
@@ -243,7 +243,7 @@ def authenticated_reports(
             'movie-config',
             'GET',
             'led/movie/config',
-            lambda: client.get_movie_config().data,
+            lambda: client.movie_config.data,
         ),
         read_endpoint(
             client,
@@ -251,7 +251,7 @@ def authenticated_reports(
             'movies',
             'GET',
             'movies',
-            lambda: client.get_movies().data,
+            lambda: client.movies.data,
         ),
         read_endpoint(
             client,
@@ -259,7 +259,7 @@ def authenticated_reports(
             'current-movie',
             'GET',
             'led/movies/current',
-            lambda: client.get_current_movie().data,
+            lambda: client.current_movie.data,
         ),
         read_endpoint(
             client,
@@ -267,7 +267,7 @@ def authenticated_reports(
             'playlist',
             'GET',
             'playlist',
-            lambda: client.get_playlist().data,
+            lambda: client.playlist.data,
         ),
         read_endpoint(
             client,
@@ -275,7 +275,7 @@ def authenticated_reports(
             'current-playlist-entry',
             'GET',
             'playlist/current',
-            lambda: client.get_current_playlist_entry().data,
+            lambda: client.current_playlist_entry.data,
         ),
         read_endpoint(
             client,
@@ -283,7 +283,7 @@ def authenticated_reports(
             'network-status',
             'GET',
             'network/status',
-            lambda: client.get_network_status().data,
+            lambda: client.network_status.data,
         ),
         read_endpoint(
             client,
@@ -299,7 +299,7 @@ def authenticated_reports(
             'network-scan-results',
             'GET',
             'network/scan_results',
-            lambda: client.get_network_scan_results().data,
+            lambda: client.network_scan_results.data,
         ),
         read_endpoint(
             client,
@@ -307,7 +307,7 @@ def authenticated_reports(
             'mqtt-config',
             'GET',
             'mqtt/config',
-            lambda: client.get_mqtt_config().data,
+            lambda: client.mqtt_config.data,
         ),
         read_endpoint(
             client,
@@ -315,7 +315,7 @@ def authenticated_reports(
             'mic-config',
             'GET',
             'mic/config',
-            lambda: client.get_mic_config().data,
+            lambda: client.mic_config.data,
         ),
         read_endpoint(
             client,
@@ -323,7 +323,7 @@ def authenticated_reports(
             'mic-sample',
             'GET',
             'mic/sample',
-            lambda: client.get_mic_sample().data,
+            lambda: client.mic_sample.data,
         ),
         read_endpoint(
             client,
@@ -331,7 +331,7 @@ def authenticated_reports(
             'music-drivers',
             'GET',
             'music/drivers',
-            lambda: client.get_music_drivers().data,
+            lambda: client.music_drivers.data,
         ),
         read_endpoint(
             client,
@@ -339,7 +339,7 @@ def authenticated_reports(
             'music-driver-sets',
             'GET',
             'music/drivers/sets',
-            lambda: client.get_music_driver_sets().data,
+            lambda: client.music_driver_sets.data,
         ),
         read_endpoint(
             client,
@@ -347,7 +347,7 @@ def authenticated_reports(
             'current-music-driver-set',
             'GET',
             'music/drivers/sets/current',
-            lambda: client.get_current_music_driver_set().data,
+            lambda: client.current_music_driver_set.data,
         ),
         read_endpoint(
             client,
@@ -355,7 +355,7 @@ def authenticated_reports(
             'color',
             'GET',
             'led/color',
-            lambda: client.get_led_color().data,
+            lambda: client.led_color.data,
         ),
         read_endpoint(
             client,
@@ -363,7 +363,7 @@ def authenticated_reports(
             'effects',
             'GET',
             'led/effects',
-            lambda: client.get_effects().data,
+            lambda: client.effects.data,
         ),
         read_endpoint(
             client,
@@ -371,7 +371,7 @@ def authenticated_reports(
             'current-effect',
             'GET',
             'led/effects/current',
-            lambda: client.get_current_effect().data,
+            lambda: client.current_effect.data,
         ),
         read_endpoint(
             client,
@@ -379,7 +379,7 @@ def authenticated_reports(
             'brightness',
             'GET',
             'led/out/brightness',
-            lambda: client.get_brightness().data,
+            lambda: client.brightness.data,
         ),
         read_endpoint(
             client,
@@ -387,7 +387,7 @@ def authenticated_reports(
             'saturation',
             'GET',
             'led/out/saturation',
-            lambda: client.get_saturation().data,
+            lambda: client.saturation.data,
         ),
         read_endpoint(
             client,
@@ -395,7 +395,7 @@ def authenticated_reports(
             'device-name',
             'GET',
             'device_name',
-            lambda: client.get_device_name().data,
+            lambda: client.device_name.data,
         ),
         read_endpoint(
             client,
@@ -403,7 +403,7 @@ def authenticated_reports(
             'summary',
             'GET',
             'summary',
-            lambda: client.get_summary().data,
+            lambda: client.summary.data,
         ),
         read_endpoint(
             client,

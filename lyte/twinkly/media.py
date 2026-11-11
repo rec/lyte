@@ -18,11 +18,11 @@ LOGGER = logging.get_logger(__name__)
 def run_movie_control(config: DiagnosticConfig, action: MovieAction) -> int:
     def run(client: TwinklyClient) -> None:
         if action == 'config':
-            LOGGER.info(f'[movie] config {client.get_movie_config().data}')
+            LOGGER.info(f'[movie] config {client.movie_config.data}')
         elif action == 'list':
-            LOGGER.info(f'[movie] list {client.get_movies().data}')
+            LOGGER.info(f'[movie] list {client.movies.data}')
         else:
-            LOGGER.info(f'[movie] current {client.get_current_movie().data}')
+            LOGGER.info(f'[movie] current {client.current_movie.data}')
 
     return run_twinkly_command(config, run)
 
@@ -30,10 +30,8 @@ def run_movie_control(config: DiagnosticConfig, action: MovieAction) -> int:
 def run_playlist_control(config: DiagnosticConfig, action: PlaylistAction) -> int:
     def run(client: TwinklyClient) -> None:
         if action == 'list':
-            LOGGER.info(f'[playlist] list {client.get_playlist().data}')
+            LOGGER.info(f'[playlist] list {client.playlist.data}')
         else:
-            LOGGER.info(
-                f'[playlist] current {client.get_current_playlist_entry().data}'
-            )
+            LOGGER.info(f'[playlist] current {client.current_playlist_entry.data}')
 
     return run_twinkly_command(config, run)

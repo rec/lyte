@@ -54,7 +54,7 @@ def run_timer_control(
 
     def run(client: TwinklyClient) -> None:
         if action == 'get':
-            timer = TwinklyTimer.from_response(client.get_timer().data)
+            timer = TwinklyTimer.from_response(client.timer.data)
             LOGGER.info(
                 '[timer] '
                 f'time_now={timer.time_now} '
@@ -65,7 +65,7 @@ def run_timer_control(
             assert time_on is not None
             assert time_off is not None
             timer = TwinklyTimer(time_on=time_on, time_off=time_off, time_now=time_now)
-            client.set_timer(timer.request_body())
+            client.timer = timer.request_body()
             LOGGER.info(
                 '[timer] set '
                 f'time_now={timer.time_now} '

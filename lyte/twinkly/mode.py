@@ -27,10 +27,10 @@ def run_mode_control(
 
     def run(client: TwinklyClient) -> None:
         if action == 'get':
-            LOGGER.info(f'[mode] {client.get_led_mode().data}')
+            LOGGER.info(f'[mode] {client.led_mode.data}')
         else:
             assert mode is not None
-            client.set_led_mode({'mode': mode})
+            client.led_mode = {'mode': mode}
             LOGGER.info(f'[mode] set {mode}')
 
     return run_twinkly_command(config, run)
@@ -47,7 +47,7 @@ def run_color_control(
 
     def run(client: TwinklyClient) -> None:
         if action == 'get':
-            LOGGER.info(f'[color] {client.get_led_color().data}')
+            LOGGER.info(f'[color] {client.led_color.data}')
         else:
             assert red is not None
             assert green is not None
@@ -58,7 +58,7 @@ def run_color_control(
                 'green': green,
                 'blue': blue,
             }
-            client.set_led_color(body)
+            client.led_color = body
             LOGGER.info(f'[color] set rgb {red} {green} {blue}')
 
     return run_twinkly_command(config, run)
@@ -73,12 +73,12 @@ def run_effect_control(
 
     def run(client: TwinklyClient) -> None:
         if action == 'list':
-            LOGGER.info(f'[effects] {client.get_effects().data}')
+            LOGGER.info(f'[effects] {client.effects.data}')
         elif action == 'current':
-            LOGGER.info(f'[effects] current {client.get_current_effect().data}')
+            LOGGER.info(f'[effects] current {client.current_effect.data}')
         else:
             assert effect_id is not None
-            client.set_current_effect({'effect_id': effect_id})
+            client.current_effect = {'effect_id': effect_id}
             LOGGER.info(f'[effects] set current {effect_id}')
 
     return run_twinkly_command(config, run)
