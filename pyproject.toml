@@ -52,6 +52,6 @@ extra-paths = ["type_stubs"]
 exclude-newer = "1 week"
 
 [tool.uv.sources]
-tinkly = { path = "tinkly", editable = true }
+tinkly = { path = "../tinkly", editable = true }
 reccy = { git = "https://github.com/rec/reccy.git", branch = "main" }
 ufor = { git = "https://github.com/rec/ufor.git", branch = "main" }

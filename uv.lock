@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-11-04T11:15:03.670505Z"
+exclude-newer = "2026-11-04T13:19:15.400334Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -122,7 +122,7 @@ requires-dist = [
     { name = "pydantic" },
     { name = "python-rtmidi" },
     { name = "reccy", git = "https://github.com/rec/reccy.git?branch=main" },
-    { name = "tinkly", editable = "tinkly" },
+    { name = "tinkly", editable = "../tinkly" },
     { name = "tomlkit" },
     { name = "tyro" },
     { name = "ufor", git = "https://github.com/rec/ufor.git?branch=main" },
@@ -492,7 +492,7 @@ wheels = [
 [[package]]
 name = "tinkly"
 version = "0.1.0"
-source = { editable = "tinkly" }
+source = { editable = "../tinkly" }
 dependencies = [
     { name = "pydantic" },
 ]
