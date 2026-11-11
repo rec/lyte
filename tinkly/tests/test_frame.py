@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import unittest
 from array import array
-from collections.abc import Sized
 from unittest.mock import patch
 
 from tinkly.errors import ProtocolError
@@ -58,9 +57,9 @@ class RealtimeFrameTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             frame_payload(memoryview(b'123456')[::2])
 
-    def test_send_frame_uses_array_payload_buffer(self) -> None:
+    def test_send_frame_sends_header_and_array_payload_in_one_datagram(self) -> None:
         frame = array('B', (1, 2, 3))
-        sent_buffers = []
+        datagrams: list[tuple[bytes, tuple[str, int]]] = []
 
         class Socket:
             def __enter__(self) -> Socket:
@@ -69,49 +68,40 @@ class RealtimeFrameTests(unittest.TestCase):
             def __exit__(self, *args: object) -> None:
                 return None
 
-            def sendmsg(
-                self,
-                buffers: list[Sized],
-                flags: list[object],
-                mode: int,
-                address: tuple[str, int],
-            ) -> int:
-                sent_buffers.append((buffers, flags, mode, address))
-                return sum(len(buffer) for buffer in buffers)
+            def sendto(self, data: bytes, address: tuple[str, int]) -> int:
+                datagrams.append((data, address))
+                return len(data)
 
         with patch('tinkly.frame.socket.socket', return_value=Socket()):
             sent = send_frame_v3('192.168.1.23', 'MCIGBF1qJlg=', frame)
 
         self.assertEqual(sent, 15)
-        buffers, flags, mode, address = sent_buffers[0]
-        self.assertEqual(flags, [])
-        self.assertEqual(mode, 0)
+        self.assertEqual(len(datagrams), 1)
+        data, address = datagrams[0]
         self.assertEqual(address, ('192.168.1.23', 7777))
-        self.assertEqual(buffers[0], b'\x030"\x06\x04]j&X\x00\x00\x00')
-        self.assertIs(buffers[1].obj, frame)
+        self.assertEqual(data, b'\x030"\x06\x04]j&X\x00\x00\x00\x01\x02\x03')
 
-    def test_send_frame_uses_given_output(self) -> None:
-        frame = b'\x01\x02\x03'
-        sent_buffers = []
+    def test_send_frame_sends_fragments_through_given_output(self) -> None:
+        frame = b'a' * 903
+        datagrams: list[tuple[bytes, tuple[str, int]]] = []
 
         class Socket:
-            def sendmsg(
-                self,
-                buffers: list[Sized],
-                flags: list[object],
-                mode: int,
-                address: tuple[str, int],
-            ) -> int:
-                sent_buffers.append((buffers, flags, mode, address))
-                return sum(len(buffer) for buffer in buffers)
+            def sendto(self, data: bytes, address: tuple[str, int]) -> int:
+                datagrams.append((data, address))
+                return len(data)
 
         output = Socket()
         with patch('tinkly.frame.socket.socket') as create_socket:
             sent = send_frame_v3('192.168.1.23', 'MCIGBF1qJlg=', frame, output)
 
-        self.assertEqual(sent, 15)
+        self.assertEqual(sent, 927)
         create_socket.assert_not_called()
-        self.assertEqual(len(sent_buffers), 1)
+        self.assertEqual(len(datagrams), 2)
+        self.assertEqual(
+            datagrams[0][0], b'\x030"\x06\x04]j&X\x00\x00\x00' + b'a' * 900
+        )
+        self.assertEqual(datagrams[1][0], b'\x030"\x06\x04]j&X\x00\x00\x01aaa')
+        self.assertTrue(all(a == ('192.168.1.23', 7777) for _, a in datagrams))
 
     def test_rejects_bad_realtime_token(self) -> None:
         with self.assertRaises(ProtocolError):

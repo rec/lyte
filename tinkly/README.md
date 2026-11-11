@@ -39,8 +39,7 @@ client.set_off_mode()
 This illustrates one frame transmission. The caller controls repeated frame
 delivery, pacing, token renewal, retries, reconnection, and shutdown. For repeated
 transmissions, `send_frame_v3` accepts a caller-owned UDP socket as `output`.
-UDP sending currently uses `socket.sendmsg`, which requires a platform providing
-that method, such as macOS or Linux.
+UDP sending uses `socket.sendto` on macOS, Linux, and Windows.
 
 `TwinklyClient` exposes typed response records containing the HTTP status and
 decoded JSON object. It provides named endpoint methods as well as `get`, `post`,
@@ -53,7 +52,8 @@ Frames accept Python's buffer protocol through `collections.abc.Buffer`. Supply
 C-contiguous unsigned bytes in RGB order, with three bytes per LED. Supported
 inputs include `bytes`, `bytearray`, `array.array('B')`, `memoryview`, and
 C-contiguous NumPy `uint8` arrays. Packet construction uses memoryviews without
-copying pixel data. Keep mutable buffers unchanged until sending completes.
+copying pixel data. Sending combines each packet's header and payload into one
+byte buffer for `sendto`. Keep mutable buffers unchanged until sending completes.
 
 The transport treats the input as packed bytes; array shape validation belongs
 to the caller. Array API compliance alone does not guarantee buffer support.
