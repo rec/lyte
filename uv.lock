@@ -122,7 +122,7 @@ requires-dist = [
     { name = "pydantic" },
     { name = "python-rtmidi" },
     { name = "reccy", git = "https://github.com/rec/reccy.git?branch=main" },
-    { name = "tinkly", editable = "../tinkly" },
+    { name = "tinkly", git = "ssh://git@github.com/rec/tinkly.git?branch=main" },
     { name = "tomlkit" },
     { name = "tyro" },
     { name = "ufor", git = "https://github.com/rec/ufor.git?branch=main" },
@@ -491,8 +491,8 @@ wheels = [
 
 [[package]]
 name = "tinkly"
-version = "0.1.0"
-source = { editable = "../tinkly" }
+version = "0.2.2"
+source = { git = "ssh://git@github.com/rec/tinkly.git?branch=main#2aac3cbeb2a28d20a9983f6d1882e286f78945f0" }
 
 [[package]]
 name = "tokenize-rt"
