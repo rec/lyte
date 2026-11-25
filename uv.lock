@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-11-18T18:26:28.309696Z"
+exclude-newer = "2026-11-18T18:33:23.287345Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -492,7 +492,7 @@ wheels = [
 [[package]]
 name = "tinkly"
 version = "0.2.2"
-source = { git = "ssh://git@github.com/rec/tinkly.git?branch=main#2aac3cbeb2a28d20a9983f6d1882e286f78945f0" }
+source = { git = "ssh://git@github.com/rec/tinkly.git?branch=main#bd6404d68977162dc543c19d7e04a885564d42bd" }
 
 [[package]]
 name = "tokenize-rt"
