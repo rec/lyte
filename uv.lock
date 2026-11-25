@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-11-04T13:32:41.405357Z"
+exclude-newer = "2026-11-18T18:26:28.309696Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -446,7 +446,7 @@ wheels = [
 [[package]]
 name = "reccy"
 version = "0.2.0"
-source = { git = "https://github.com/rec/reccy.git?branch=main#e23e4261f352b635ab33fdba6f3d9d548e7e826b" }
+source = { git = "https://github.com/rec/reccy.git?branch=main#0b62e26c5deb7236dbbf8b4b5ff88f4a8ab4479a" }
 dependencies = [
     { name = "pint" },
     { name = "pydantic" },
@@ -596,7 +596,7 @@ wheels = [
 [[package]]
 name = "ufor"
 version = "0.2.0"
-source = { git = "https://github.com/rec/ufor.git?branch=main#c0a4ab410f5d0165643fe4f326e68b5c0a0ab672" }
+source = { git = "https://github.com/rec/ufor.git?branch=main#b75d80da58de9caf8de4d231984d03a55de5e78f" }
 dependencies = [
     { name = "pydantic" },
     { name = "reccy" },
