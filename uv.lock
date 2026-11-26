@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-11-18T18:33:23.287345Z"
+exclude-newer = "2026-11-19T16:50:04.224321Z"
 exclude-newer-span = "P1W"
 
 [[package]]
@@ -446,7 +446,7 @@ wheels = [
 [[package]]
 name = "reccy"
 version = "0.2.0"
-source = { git = "https://github.com/rec/reccy.git?branch=main#0b62e26c5deb7236dbbf8b4b5ff88f4a8ab4479a" }
+source = { git = "https://github.com/rec/reccy.git?branch=main#a140875bafe35354530853ff473e2e22ac203719" }
 dependencies = [
     { name = "pint" },
     { name = "pydantic" },
@@ -492,7 +492,7 @@ wheels = [
 [[package]]
 name = "tinkly"
 version = "0.2.2"
-source = { git = "ssh://git@github.com/rec/tinkly.git?branch=main#bd6404d68977162dc543c19d7e04a885564d42bd" }
+source = { git = "ssh://git@github.com/rec/tinkly.git?branch=main#73757b37f35632820b1610f2bfdd259620b4d34b" }
 
 [[package]]
 name = "tokenize-rt"
@@ -596,7 +596,7 @@ wheels = [
 [[package]]
 name = "ufor"
 version = "0.2.0"
-source = { git = "https://github.com/rec/ufor.git?branch=main#b75d80da58de9caf8de4d231984d03a55de5e78f" }
+source = { git = "https://github.com/rec/ufor.git?branch=main#3ce4bfd76986024ff99f8913c81c5a9e3d0f9af2" }
 dependencies = [
     { name = "pydantic" },
     { name = "reccy" },
